@@ -14,6 +14,7 @@ export interface PluginLifecycleRuntime {
 	setPluginStatus(pluginId: string, status: "active" | "inactive"): Promise<void>;
 	syncMarketplacePlugins(): Promise<void>;
 	syncRegistryPlugins(): Promise<void>;
+	disablePlugin?(pluginId: string): ReturnType<typeof handlePluginDisable>;
 }
 
 export async function enableRuntimePlugin(runtime: PluginLifecycleRuntime, pluginId: string) {
@@ -56,7 +57,11 @@ export async function enableRuntimePlugin(runtime: PluginLifecycleRuntime, plugi
 	return result;
 }
 
-export async function disableRuntimePlugin(runtime: PluginLifecycleRuntime, pluginId: string) {
+export async function disableRuntimePlugin(
+	runtime: PluginLifecycleRuntime,
+	pluginId: string,
+): ReturnType<typeof handlePluginDisable> {
+	if (runtime.disablePlugin) return runtime.disablePlugin(pluginId);
 	const result = await handlePluginDisable(
 		runtime.db,
 		runtime.configuredPlugins,

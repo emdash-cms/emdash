@@ -924,6 +924,10 @@ export class EmDashRuntime {
 	private _rooms: RuntimeRoomHost | null = null;
 	private enabledPlugins: Set<string>;
 	private pluginStates: Map<string, string>;
+	private pluginStateCheckedAt = Date.now();
+	private readonly pluginStateLock = createInitLock();
+	private pluginStateReadError: unknown;
+	private pluginPipelineDirty = false;
 	private readonly activePluginContentActions = new Map<string, number>();
 	private readonly pendingPluginAfterHooks = new Map<string, Array<() => Promise<void>>>();
 	private readonly activePluginInvocations = new Set<string>();
@@ -1070,6 +1074,7 @@ export class EmDashRuntime {
 		upcomingUntil?: Date,
 		currentTime: Date = this.runtimeDeps.now?.() ?? new Date(),
 	): Promise<ScheduledSweepResult> {
+		await this.ensurePluginStateFresh();
 		const recordWrite = await assertSiteWriteAllowed(this.db);
 		const result = await sweepScheduledContent(this.db, {
 			publish: (collection, id, options) =>
@@ -1130,8 +1135,9 @@ export class EmDashRuntime {
 	 * proportional to what is due; the heartbeat and scheduled publish sweep
 	 * still run every tick.
 	 *
-	 * Each step is independent and non-fatal. Returns the content promoted
-	 * by the publishing sweep so the caller can purge edge-cache tags.
+	 * Plugin state must be readable before dispatch. After that check, each
+	 * maintenance step is independent and non-fatal. Returns the content
+	 * promoted by the publishing sweep so the caller can purge edge-cache tags.
 	 *
 	 * `onPublished` (optional) is awaited after each collection's batch so a
 	 * request-less driver can invalidate edge-cache tags incrementally rather
@@ -1151,6 +1157,8 @@ export class EmDashRuntime {
 		if (options.invalidateContentCache) {
 			this.pluginContentCacheInvalidator = options.invalidateContentCache;
 		}
+
+		await this.ensurePluginStateFresh();
 
 		// Try to materialize plugin-declared indexes before any scheduled plugin
 		// work runs. A partial result leaves failed plugins unmarked so the next
@@ -1442,6 +1450,91 @@ export class EmDashRuntime {
 	}
 
 	/**
+	 * Await cross-worker plugin state reconciliation before dispatching a request.
+	 * One snapshot read per five seconds is shared by concurrent requests; sites
+	 * without configured plugins or runtime plugin sources need no polling.
+	 */
+	async ensurePluginStateFresh(): Promise<void> {
+		if (
+			this.runtimeDeps.plugins.length === 0 &&
+			this.sandboxedPluginEntries.length === 0 &&
+			!this.config.marketplace &&
+			!getRegistryConfigInput(this.config.registry)
+		)
+			return;
+		const isFresh = () => Date.now() - this.pluginStateCheckedAt < 5_000;
+		const refresh = async (assertCurrent: () => void) => {
+			const checkedAt = Date.now();
+			let states: PluginState[];
+			try {
+				states = await new PluginStateRepository(this.db).getAll();
+			} catch (error) {
+				assertCurrent();
+				this.pluginStateReadError = error;
+				this.pluginStateCheckedAt = checkedAt;
+				return;
+			}
+			assertCurrent();
+			this.pluginStateReadError = undefined;
+			const byId = new Map(states.map((state) => [state.pluginId, state]));
+			let pipelineChanged = false;
+			// Persisted lifecycle hooks belong to the admin mutation, not to each
+			// worker that observes it. Only update dispatch state here.
+			for (const plugin of [...this.runtimeDeps.plugins, ...this.sandboxedPluginEntries]) {
+				const status = byId.get(plugin.id)?.status ?? "active";
+				this.pluginStates.set(plugin.id, status);
+				const active = status === "active";
+				if (this.enabledPlugins.has(plugin.id) !== active) {
+					pipelineChanged = true;
+					if (active) this.enabledPlugins.add(plugin.id);
+					else this.enabledPlugins.delete(plugin.id);
+					this.setSandboxedPluginActive(plugin.id, active);
+				}
+			}
+			if (pipelineChanged || this.pluginPipelineDirty)
+				await this.rebuildHookPipeline(assertCurrent);
+			for (const sync of [
+				() => this.syncMarketplacePluginState(states, assertCurrent),
+				() => this.syncRegistryPluginState(states, assertCurrent),
+			]) {
+				try {
+					await sync();
+				} catch {
+					// A broken bundle must not prevent uninstalling it or reconciling
+					// the other source. Retry loading at the next polling interval.
+					assertCurrent();
+				}
+			}
+			if (this.pluginPipelineDirty) await this.rebuildHookPipeline(assertCurrent);
+			assertCurrent();
+			this.pluginStateCheckedAt = checkedAt;
+		};
+		await this.serializePluginStateUpdate(refresh, isFresh);
+		if (this.pluginStateReadError !== undefined) throw this.pluginStateReadError;
+	}
+
+	private async serializePluginStateUpdate(
+		update: (assertCurrent: () => void) => Promise<void>,
+		isComplete: () => boolean = () => false,
+	): Promise<void> {
+		await initWithLock(
+			this.pluginStateLock,
+			() => (isComplete() ? true : null),
+			async (isCurrentClaim) => {
+				const assertCurrent = () => {
+					if (!isCurrentClaim()) throw new Error("Plugin state update was superseded");
+				};
+				await update(assertCurrent);
+				return true;
+			},
+			{
+				deadlineMs: 30_000,
+				anchor: (promise) => after(() => promise),
+			},
+		);
+	}
+
+	/**
 	 * Update in-memory plugin status and rebuild the hook pipeline.
 	 *
 	 * Rebuilding the pipeline ensures disabled plugins' hooks stop firing
@@ -1449,20 +1542,33 @@ export class EmDashRuntime {
 	 * Exclusive hook selections are re-resolved after each rebuild.
 	 */
 	async setPluginStatus(pluginId: string, status: "active" | "inactive"): Promise<void> {
+		return this.serializePluginStateUpdate((assertCurrent) =>
+			this.applyPluginStatus(pluginId, status, assertCurrent),
+		);
+	}
+
+	private async applyPluginStatus(
+		pluginId: string,
+		status: "active" | "inactive",
+		assertCurrent: () => void,
+	): Promise<void> {
 		this.pluginStates.set(pluginId, status);
 		if (status === "active") {
 			try {
 				this.setSandboxedPluginActive(pluginId, true);
 				this.enabledPlugins.add(pluginId);
-				await this.rebuildHookPipeline();
+				await this.rebuildHookPipeline(assertCurrent);
+				assertCurrent();
 				const results = await this._hooks.runPluginActivate(pluginId);
+				assertCurrent();
 				const failure = results.find((result) => !result.success);
 				if (failure) throw failure.error ?? new Error("Plugin activation failed");
 			} catch (error) {
+				assertCurrent();
 				this.pluginStates.set(pluginId, "inactive");
 				this.setSandboxedPluginActive(pluginId, false);
 				this.enabledPlugins.delete(pluginId);
-				await this.rebuildHookPipeline();
+				await this.rebuildHookPipeline(assertCurrent);
 				throw error;
 			}
 		} else {
@@ -1470,9 +1576,10 @@ export class EmDashRuntime {
 				// Deactivate hooks retain access until their cleanup has finished.
 				await this._hooks.runPluginDeactivate(pluginId);
 			} finally {
+				assertCurrent();
 				this.setSandboxedPluginActive(pluginId, false);
 				this.enabledPlugins.delete(pluginId);
-				await this.rebuildHookPipeline();
+				await this.rebuildHookPipeline(assertCurrent);
 			}
 		}
 	}
@@ -1490,7 +1597,37 @@ export class EmDashRuntime {
 	}
 
 	async handlePluginDisable(pluginId: string) {
-		return disableRuntimePlugin(this, pluginId);
+		return this.disablePlugin(pluginId);
+	}
+
+	async disablePlugin(pluginId: string): ReturnType<typeof disableRuntimePlugin> {
+		return initWithLock(
+			this.pluginStateLock,
+			() => null,
+			async (isCurrentClaim) => {
+				const assertCurrent = () => {
+					if (!isCurrentClaim()) throw new Error("Plugin state update was superseded");
+				};
+				return disableRuntimePlugin(
+					{
+						db: this.db,
+						configuredPlugins: this.configuredPlugins,
+						sandboxedPluginEntries: this.sandboxedPluginEntries,
+						setPluginStatus: (id, status) => {
+							assertCurrent();
+							return this.applyPluginStatus(id, status, assertCurrent);
+						},
+						syncMarketplacePlugins: () => this.syncMarketplacePluginState(undefined, assertCurrent),
+						syncRegistryPlugins: () => this.syncRegistryPluginState(undefined, assertCurrent),
+					},
+					pluginId,
+				);
+			},
+			{
+				deadlineMs: 30_000,
+				anchor: (promise) => after(() => promise),
+			},
+		);
 	}
 
 	/** Dispatch teardown lifecycle while the runtime-installed isolate is still loaded. */
@@ -1658,12 +1795,14 @@ export class EmDashRuntime {
 	 * and re-wires the context factory so existing references (cron
 	 * callbacks, email pipeline) use the new pipeline.
 	 */
-	private async rebuildHookPipeline(): Promise<void> {
+	private async rebuildHookPipeline(assertCurrent: () => void = () => {}): Promise<void> {
+		this.pluginPipelineDirty = true;
 		const enabledList = this.allPipelinePlugins.filter((p) => this.enabledPlugins.has(p.id));
 		const newPipeline = createHookPipeline(enabledList, this.pipelineFactoryOptions);
 
 		// Re-resolve exclusive hooks against the new pipeline
 		await EmDashRuntime.resolveExclusiveHooks(newPipeline, this.db, this.runtimeDeps);
+		assertCurrent();
 
 		// Carry over context factory options from the old pipeline so that
 		// email, cron reschedule, and other wired-in options are preserved.
@@ -1690,6 +1829,7 @@ export class EmDashRuntime {
 		this.pipelineRef.current = newPipeline;
 
 		this._hooks = newPipeline;
+		this.pluginPipelineDirty = false;
 	}
 
 	/**
@@ -1699,6 +1839,15 @@ export class EmDashRuntime {
 	 * current worker: loads newly active plugins and removes uninstalled ones.
 	 */
 	async syncMarketplacePlugins(): Promise<void> {
+		return this.serializePluginStateUpdate((assertCurrent) =>
+			this.syncMarketplacePluginState(undefined, assertCurrent),
+		);
+	}
+
+	private async syncMarketplacePluginState(
+		states?: PluginState[],
+		assertCurrent: () => void = () => {},
+	): Promise<void> {
 		if (!this.config.marketplace) return;
 
 		// In sandbox bypass mode (sandbox: false), the noop runner reports
@@ -1707,11 +1856,11 @@ export class EmDashRuntime {
 		// execute (matches the cold-start bypass behavior), but Configure
 		// links and admin pages appear immediately.
 		if (this.runtimeDeps.sandboxBypassed) {
-			await this.syncMarketplacePluginsBypassed();
+			await this.syncMarketplacePluginsBypassed(states, assertCurrent);
 			return;
 		}
 
-		await this.syncSandboxedSourcePlugins("marketplace");
+		await this.syncSandboxedSourcePlugins("marketplace", states, assertCurrent);
 	}
 
 	/**
@@ -1722,8 +1871,17 @@ export class EmDashRuntime {
 	 * update, and uninstall handlers complete.
 	 */
 	async syncRegistryPlugins(): Promise<void> {
+		return this.serializePluginStateUpdate((assertCurrent) =>
+			this.syncRegistryPluginState(undefined, assertCurrent),
+		);
+	}
+
+	private async syncRegistryPluginState(
+		states?: PluginState[],
+		assertCurrent: () => void = () => {},
+	): Promise<void> {
 		if (!getRegistryConfigInput(this.config.registry)) return;
-		await this.syncSandboxedSourcePlugins("registry");
+		await this.syncSandboxedSourcePlugins("registry", states, assertCurrent);
 	}
 
 	/**
@@ -1735,7 +1893,11 @@ export class EmDashRuntime {
 	 * Each source tier has its own key set in `${source}PluginKeys` so a
 	 * sync for one tier doesn't invalidate the other.
 	 */
-	private async syncSandboxedSourcePlugins(source: "marketplace" | "registry"): Promise<void> {
+	private async syncSandboxedSourcePlugins(
+		source: "marketplace" | "registry",
+		snapshot?: PluginState[],
+		assertCurrent: () => void = () => {},
+	): Promise<void> {
 		if (!this.storage) return;
 		if (!sandboxRunner || !sandboxRunner.isAvailable()) return;
 
@@ -1744,19 +1906,24 @@ export class EmDashRuntime {
 
 		try {
 			const stateRepo = new PluginStateRepository(this.db);
-			const states =
-				source === "marketplace"
+			const states = snapshot
+				? snapshot.filter((state) => state.source === source)
+				: source === "marketplace"
 					? await stateRepo.getMarketplacePlugins()
 					: await stateRepo.getRegistryPlugins();
 
+			assertCurrent();
 			const desired = new Map<string, string>();
 			for (const state of states) {
+				const wasEnabled = this.enabledPlugins.has(state.pluginId);
+				this.pluginPipelineDirty ||= wasEnabled !== (state.status === "active");
 				this.pluginStates.set(state.pluginId, state.status);
 				if (state.status === "active") {
 					this.enabledPlugins.add(state.pluginId);
 				} else {
 					this.enabledPlugins.delete(state.pluginId);
 				}
+				pipelineChanged ||= wasEnabled !== (state.status === "active");
 				if (state.status !== "active") continue;
 				// Marketplace plugins use `marketplaceVersion` when present;
 				// registry plugins always use `version`.
@@ -1780,6 +1947,7 @@ export class EmDashRuntime {
 				if (!pluginId) continue;
 				const desiredVersion = desired.get(pluginId);
 				if (!desiredVersion) {
+					this.pluginPipelineDirty ||= this.enabledPlugins.has(pluginId);
 					this.pluginStates.delete(pluginId);
 					this.enabledPlugins.delete(pluginId);
 				}
@@ -1793,6 +1961,7 @@ export class EmDashRuntime {
 					}
 				}
 
+				assertCurrent();
 				sandboxedPluginCache.delete(key);
 				sandboxedManifestCache.delete(key);
 				this.sandboxedPlugins.delete(key);
@@ -1807,56 +1976,74 @@ export class EmDashRuntime {
 
 			// Load newly active plugins.
 			for (const [pluginId, version] of desired) {
-				const key = `${pluginId}:${version}`;
-				if (sandboxedPluginCache.has(key)) {
-					keySet.add(key);
-					continue;
-				}
+				try {
+					const key = `${pluginId}:${version}`;
+					if (sandboxedPluginCache.has(key)) {
+						keySet.add(key);
+						continue;
+					}
 
-				const bundle = await loadBundleFromR2(this.storage, pluginId, version, source);
-				if (!bundle) {
-					console.warn(`EmDash: ${source} plugin ${pluginId}@${version} not found in R2`);
-					continue;
-				}
+					const bundle = await loadBundleFromR2(this.storage, pluginId, version, source);
+					assertCurrent();
+					if (!bundle) {
+						console.warn(`EmDash: ${source} plugin ${pluginId}@${version} not found in R2`);
+						continue;
+					}
 
-				const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
-				this.invalidateStorageIndexReadiness(pluginId);
-				sandboxedPluginCache.set(key, loaded);
-				sandboxedManifestCache.set(key, bundle.manifest);
-				this.sandboxedPlugins.set(key, loaded);
-				this.allPipelinePlugins.push(createSandboxedPluginProxy(bundle.manifest, loaded));
-				keySet.add(key);
-				pipelineChanged = true;
-
-				// Cache manifest admin config for getManifest()
-				marketplaceManifestCache.set(pluginId, {
-					id: bundle.manifest.id,
-					version: bundle.manifest.version,
-					admin: bundle.manifest.admin,
-					mcp: bundle.manifest.mcp,
-					storage: bundle.manifest.storage,
-					allowedHosts: bundle.manifest.allowedHosts,
-					capabilities: bundle.manifest.capabilities,
-				});
-
-				// Cache route metadata from manifest for auth decisions
-				if (bundle.manifest.routes.length > 0) {
 					const routeMetaMap = new Map<string, RouteMeta>();
 					for (const entry of bundle.manifest.routes) {
 						const normalized = normalizeManifestRoute(entry);
 						routeMetaMap.set(normalized.name, buildRouteMeta(normalized));
 					}
-					sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
-				} else {
-					sandboxedRouteMetaCache.delete(pluginId);
-				}
-			}
+					const loaded = await sandboxRunner.load(bundle.manifest, bundle.backendCode);
+					let proxy: ResolvedPlugin;
+					try {
+						assertCurrent();
+						proxy = createSandboxedPluginProxy(bundle.manifest, loaded);
+					} catch (error) {
+						// Runners can share an instance by key with the newer owner.
+						if (!sandboxedPluginCache.has(key)) await loaded.terminate();
+						throw error;
+					}
+					this.invalidateStorageIndexReadiness(pluginId);
+					sandboxedPluginCache.set(key, loaded);
+					sandboxedManifestCache.set(key, bundle.manifest);
+					this.sandboxedPlugins.set(key, loaded);
+					this.pluginPipelineDirty = true;
+					this.allPipelinePlugins.push(proxy);
+					keySet.add(key);
+					pipelineChanged = true;
 
-			if (pipelineChanged) {
-				await this.rebuildHookPipeline();
+					// Cache manifest admin config for getManifest()
+					marketplaceManifestCache.set(pluginId, {
+						id: bundle.manifest.id,
+						version: bundle.manifest.version,
+						admin: bundle.manifest.admin,
+						mcp: bundle.manifest.mcp,
+						storage: bundle.manifest.storage,
+						allowedHosts: bundle.manifest.allowedHosts,
+						capabilities: bundle.manifest.capabilities,
+					});
+
+					// Cache route metadata from manifest for auth decisions
+					if (routeMetaMap.size > 0) {
+						sandboxedRouteMetaCache.set(pluginId, routeMetaMap);
+					} else {
+						sandboxedRouteMetaCache.delete(pluginId);
+					}
+				} catch (error) {
+					assertCurrent();
+					console.error(`EmDash: Failed to load ${source} plugin ${pluginId}@${version}:`, error);
+				}
 			}
 		} catch (error) {
 			console.error(`EmDash: Failed to sync ${source} plugins:`, error);
+			if (snapshot) throw error;
+		} finally {
+			if (pipelineChanged) {
+				assertCurrent();
+				await this.rebuildHookPipeline(assertCurrent);
+			}
 		}
 	}
 
@@ -1865,6 +2052,7 @@ export class EmDashRuntime {
 	 * Mutates allPipelinePlugins and configuredPlugins in place.
 	 */
 	private removePluginFromLists(pluginId: string): void {
+		this.pluginPipelineDirty = true;
 		this.invalidateStorageIndexReadiness(pluginId);
 		const allIdx = this.allPipelinePlugins.findIndex((p) => p.id === pluginId);
 		if (allIdx !== -1) this.allPipelinePlugins.splice(allIdx, 1);
@@ -1890,20 +2078,30 @@ export class EmDashRuntime {
 	 * very frequent marketplace updates running long-lived processes. The
 	 * fix would be vm.SourceTextModule for explicit lifecycle management.
 	 */
-	private async syncMarketplacePluginsBypassed(): Promise<void> {
+	private async syncMarketplacePluginsBypassed(
+		snapshot?: PluginState[],
+		assertCurrent: () => void = () => {},
+	): Promise<void> {
 		if (!this.storage) return;
+		let pipelineChanged = false;
 		try {
 			const stateRepo = new PluginStateRepository(this.db);
-			const marketplaceStates = await stateRepo.getMarketplacePlugins();
+			const marketplaceStates = snapshot
+				? snapshot.filter((state) => state.source === "marketplace")
+				: await stateRepo.getMarketplacePlugins();
 
+			assertCurrent();
 			const desired = new Map<string, string>();
 			for (const state of marketplaceStates) {
+				const wasEnabled = this.enabledPlugins.has(state.pluginId);
+				this.pluginPipelineDirty ||= wasEnabled !== (state.status === "active");
 				this.pluginStates.set(state.pluginId, state.status);
 				if (state.status === "active") {
 					this.enabledPlugins.add(state.pluginId);
 				} else {
 					this.enabledPlugins.delete(state.pluginId);
 				}
+				pipelineChanged ||= wasEnabled !== (state.status === "active");
 				if (state.status !== "active") continue;
 				desired.set(state.pluginId, state.marketplaceVersion ?? state.version);
 			}
@@ -1914,8 +2112,11 @@ export class EmDashRuntime {
 				if (!desired.has(pluginId)) toRemove.push(pluginId);
 			}
 			for (const pluginId of toRemove) {
+				pipelineChanged = true;
 				// Fire plugin:deactivate hook before removal
-				const resolved = this.allPipelinePlugins.find((p) => p.id === pluginId);
+				const resolved = snapshot
+					? undefined
+					: this.allPipelinePlugins.find((p) => p.id === pluginId);
 				if (resolved) {
 					try {
 						const deactivateHook = resolved.hooks?.["plugin:deactivate"];
@@ -1935,6 +2136,7 @@ export class EmDashRuntime {
 						console.warn(`[emdash] plugin:deactivate hook failed for ${pluginId}:`, err);
 					}
 				}
+				assertCurrent();
 				marketplaceManifestCache.delete(pluginId);
 				sandboxedRouteMetaCache.delete(pluginId);
 				// Remove from pipeline lists too (mutate in place since the
@@ -1945,9 +2147,12 @@ export class EmDashRuntime {
 
 			// Load plugin code, adapt as trusted plugins, and add to pipeline lists
 			const { adaptSandboxEntry } = await import("./plugins/adapt-sandbox-entry.js");
-			const newPlugins: ResolvedPlugin[] = [];
+			assertCurrent();
 			for (const [pluginId, version] of desired) {
+				const existing = this.allPipelinePlugins.find((p) => p.id === pluginId);
+				if (existing?.version === version) continue;
 				const bundle = await loadBundleFromR2(this.storage, pluginId, version);
+				assertCurrent();
 				if (!bundle) {
 					console.warn(`EmDash: Marketplace plugin ${pluginId}@${version} not found in R2`);
 					continue;
@@ -1972,13 +2177,10 @@ export class EmDashRuntime {
 					sandboxedRouteMetaCache.delete(pluginId);
 				}
 
-				// Skip if already in the pipeline at this version
-				const existing = this.allPipelinePlugins.find((p) => p.id === pluginId);
-				if (existing && existing.version === bundle.manifest.version) continue;
-
 				this.invalidateStorageIndexReadiness(pluginId);
 				// Remove any older version
 				if (existing) {
+					pipelineChanged = true;
 					this.removePluginFromLists(pluginId);
 				}
 
@@ -1992,6 +2194,7 @@ export class EmDashRuntime {
 						string,
 						unknown
 					>;
+					assertCurrent();
 					const pluginDef = (pluginModule.default ?? pluginModule) as Parameters<
 						typeof adaptSandboxEntry
 					>[0];
@@ -2015,7 +2218,8 @@ export class EmDashRuntime {
 						editorActions: bundle.manifest.admin?.editorActions,
 						mcp: bundle.manifest.mcp,
 					});
-					newPlugins.push(adapted);
+					pipelineChanged = true;
+					this.pluginPipelineDirty = true;
 					this.allPipelinePlugins.push(adapted);
 					this.configuredPlugins.push(adapted);
 					this.enabledPlugins.add(adapted.id);
@@ -2024,16 +2228,17 @@ export class EmDashRuntime {
 						`EmDash: Failed to load marketplace plugin ${pluginId}@${version} in-process:`,
 						error,
 					);
+					assertCurrent();
 				}
-			}
-
-			// If anything changed, rebuild the hook pipeline so new/removed
-			// plugins take effect immediately without a server restart.
-			if (toRemove.length > 0 || newPlugins.length > 0) {
-				await this.rebuildHookPipeline();
 			}
 		} catch (error) {
 			console.error("EmDash: Failed to sync marketplace plugins (bypass):", error);
+			if (snapshot) throw error;
+		} finally {
+			if (pipelineChanged) {
+				assertCurrent();
+				await this.rebuildHookPipeline(assertCurrent);
+			}
 		}
 	}
 
@@ -2734,6 +2939,7 @@ export class EmDashRuntime {
 		// can swap the pipeline without reconstructing the CronExecutor.
 		const pipelineRef = { current: pipeline };
 		const invokeCronHook: InvokeCronHookFn = async (pluginId, event) => {
+			await runtimeRef.current?.ensurePluginStateFresh();
 			const result = await pipelineRef.current.invokeCronHook(pluginId, event);
 			if (!result.success && result.error) {
 				throw result.error;

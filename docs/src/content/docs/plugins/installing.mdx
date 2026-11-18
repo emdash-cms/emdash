@@ -72,6 +72,18 @@ See [Plugin sandbox](/deployment/plugin-sandbox/) for development setup, runtime
 
 EmDash verifies the publisher's current signed records and checks the downloaded bundle before loading it through the sandbox runner. The plugin appears under **Plugins**, where you can disable or configure it. See [The plugin registry](/plugins/registry/#install-a-registry-plugin) for the complete verification and trust model.
 
+## When plugin changes take effect
+
+Admin enable, disable, install, update, and uninstall actions are persisted in the database. Each warm runtime checks the persisted plugin state before dispatching a request or scheduled work when its previous check is at least five seconds old. After a successful check, the runtime reconciles its loaded plugins and hook pipeline.
+
+After you select **Disable** or **Uninstall**, another warm worker can continue dispatching that plugin until its next check. Loading a plugin bundle can add to propagation delays. An in-flight request or plugin invocation is not canceled when the state changes.
+
+If D1 read replicas are enabled, a check can read outdated plugin state. This can temporarily reverse a change, including on the worker that handled the admin action, until a later check reads the updated state. Use [primary-only D1 reads](/deployment/database/#read-replicas) when plugin-state changes must not revert because of replica lag.
+
+Changing a configured npm dependency or plugin code requires a new deployment. Admin state changes do not replace that deployment.
+
+If a runtime cannot read the plugin-state snapshot, requests on that runtime fail until a later check succeeds. Scheduled work also requires a successful check, so a read failure can delay publication until a later tick. The runtime retries the read after the five-second check interval. If a plugin bundle cannot load, EmDash skips that bundle for the check and retries it at the next interval; other plugins continue to reconcile.
+
 ## Review permissions
 
 The consent dialog shows every permission declared by the plugin. Common permissions include:

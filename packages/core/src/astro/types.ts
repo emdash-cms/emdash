@@ -15,6 +15,7 @@ import type {
 	PluginEditorExtensionDispatch,
 	ResolvedPluginEditorExtension,
 } from "../emdash-runtime.js";
+import type { PluginLifecycleRuntime } from "../plugins/lifecycle.js";
 import type {
 	PluginContentCacheInvalidator,
 	RouteCallerInput,
@@ -720,6 +721,7 @@ export interface EmDashHandlers {
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
 	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;
+	disablePlugin?: PluginLifecycleRuntime["disablePlugin"];
 
 	// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
 	collectPageMetadata: (

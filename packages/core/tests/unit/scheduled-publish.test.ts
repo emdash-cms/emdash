@@ -21,6 +21,7 @@ import {
 } from "../../src/plugins/content-policy.js";
 import { definePlugin } from "../../src/plugins/define-plugin.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
+import { PluginStateRepository } from "../../src/plugins/state.js";
 import {
 	publishDueContent,
 	type PublishedRef,
@@ -518,6 +519,32 @@ describe("EmDashRuntime.runScheduledTasks() with publishUpcomingWithinMs", () =>
 		const updated = await repo.findById("post", post.id);
 		expect(updated?.status).toBe("published");
 		expect(updated?.publishedAt).toBe(post.scheduledAt);
+	});
+
+	it("refreshes disabled plugins after waiting for an upcoming publication", async () => {
+		const post = await schedulePost(30_000);
+		const afterPublish = vi.fn(async () => {});
+		const plugin = definePlugin({
+			id: "scheduled-refresh",
+			version: "1.0.0",
+			capabilities: ["content:read"],
+			hooks: { "content:afterPublish": afterPublish },
+		});
+		vi.spyOn(Date, "now").mockImplementation(() => start + elapsed);
+		const sleep = async (ms: number) => {
+			await new PluginStateRepository(db).disable(plugin.id, plugin.version);
+			elapsed += ms;
+		};
+
+		const runtime = buildRuntime(db, now, sleep, [plugin]);
+		expect(runtime.hooks.getHookCount("content:afterPublish")).toBe(1);
+		const { published } = await runtime.runScheduledTasks({
+			publishUpcomingWithinMs: 120_000,
+		});
+
+		expect(published).toEqual([{ collection: "post", id: post.id }]);
+		expect((await repo.findById("post", post.id))?.status).toBe("published");
+		expect(afterPublish).not.toHaveBeenCalled();
 	});
 
 	it("waits only when asked, and only for content inside the window", async () => {

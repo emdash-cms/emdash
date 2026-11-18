@@ -39,6 +39,7 @@ const { MOCK_RUNTIME, createRequestScopedDb, getDb, prefetchLayoutData } = vi.ho
 			collectPageMetadata: async () => [],
 			collectPageFragments: async () => [],
 			ensureSearchHealthy: async () => undefined,
+			ensurePluginStateFresh: async () => undefined,
 			getManifest: async () => ({}),
 			getSandboxRunner: () => null,
 			isSandboxBypassed: () => false,
