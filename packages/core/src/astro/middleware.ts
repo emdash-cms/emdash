@@ -774,6 +774,7 @@ function getPublicPageSignals(context: APIContext) {
 	const publicPath =
 		base && url.pathname.startsWith(`${base}/`) ? url.pathname.slice(base.length) : url.pathname;
 	return {
+		publicPath,
 		isEmDashRoute: url.pathname.startsWith("/_emdash"),
 		isPublicRuntimeRoute:
 			PUBLIC_RUNTIME_ROUTES.has(publicPath) || isCollectionSitemapPath(publicPath),
@@ -851,8 +852,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const config = getConfig();
 		const migrationMode = config ? resolveConfiguredMigrationMode(config) : "auto";
 		const pageSignals = getPublicPageSignals(context);
-		const { isEmDashRoute, hasEditCookie, hasPreviewToken, hasSessionCookie, playgroundDb } =
-			pageSignals;
+		const {
+			publicPath,
+			isEmDashRoute,
+			hasEditCookie,
+			hasPreviewToken,
+			hasSessionCookie,
+			playgroundDb,
+		} = pageSignals;
 
 		// Read the Astro session user once up-front. Both the anonymous fast path
 		// and the full doInit path need this, and the session store is network-backed
