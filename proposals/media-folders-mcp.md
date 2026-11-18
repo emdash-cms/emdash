@@ -6,7 +6,8 @@ authors:
   - Ondřej Varga (@onvarga)
 champion: Ondřej Varga (@onvarga)
 sponsor: null
-discussions: []
+discussions:
+  - https://github.com/emdash-cms/emdash/discussions/4936
 created: 2026-11-16
 ---
 
@@ -18,7 +19,7 @@ Expose existing flat Media Library folders through five core Model Context Proto
 
 The tools use the existing folder handlers, validation, and permissions. Deleting a folder returns its media to the Main library and preserves the files and their references.
 
-This is a proposed design. An Ideas Discussion and a Maintainer sponsor remain to be recorded before acceptance.
+This is a proposed design, introduced in [Ideas Discussion #4936](https://github.com/emdash-cms/emdash/discussions/4936). A Maintainer sponsor remains to be identified before acceptance.
 
 ## Problem and user case
 
@@ -151,6 +152,5 @@ Five additional tools increase catalog size and maintenance work. MCP and REST m
 
 ## Open questions
 
-- Record the Ideas Discussion after the author publishes it.
 - Identify a Maintainer sponsor.
 - Confirm the proposed public tool names and argument semantics before acceptance.
