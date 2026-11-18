@@ -44,6 +44,7 @@ import {
 	EDITORIAL_COMMENT_MAX_LENGTH,
 	EDITORIAL_CONTEXT_MAX_LENGTH,
 	EDITORIAL_QUOTE_MAX_LENGTH,
+	editorialAnchorSchema,
 } from "../api/schemas/editorial-comments.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
@@ -4006,7 +4007,8 @@ export function createMcpServer(
 				"each with all of its comments. Threads are private review notes, separate from " +
 				"public comments. Open threads by default. Each thread's `anchor` says what it " +
 				"points at: the whole entry, a field, a Portable Text block, or a quoted range " +
-				"of text. Comment bodies mention users as <@USER_ID>; `mentions` lists their names.",
+				"of text. Comment bodies mention users as <@USER_ID>; `mentions` lists their names. " +
+				"When there are more threads, pass the response's `nextCursor` as `cursor` to get them.",
 			inputSchema: z.object({
 				...editorialEntryShape,
 				status: z
@@ -4084,6 +4086,19 @@ export function createMcpServer(
 				}
 				const current = await ec.handleContentGet(args.collection, args.id, args.locale);
 				if (!current.success || !current.data) return unwrap(current);
+				const field = (await getCollectionFields(ec, args.collection))?.find(
+					(candidate) => candidate.slug === args.field,
+				);
+				if (!field) {
+					return respondError("VALIDATION_ERROR", `Unknown field '${args.field}'`);
+				}
+				if (field.type !== "portableText") {
+					return respondError(
+						"VALIDATION_ERROR",
+						`'${args.field}' isn't a rich text field, so it has no text to quote. ` +
+							"Omit `quote` to comment on the whole field.",
+					);
+				}
 				const data = current.data.item.data;
 				const fieldValue =
 					data && typeof data === "object" ? Reflect.get(data, args.field) : undefined;
@@ -4101,6 +4116,13 @@ export function createMcpServer(
 					return respondError(
 						"VALIDATION_ERROR",
 						"The quote appears more than once. Add a `prefix` or `suffix` to say which.",
+					);
+				}
+				const checked = editorialAnchorSchema.safeParse(located.anchor);
+				if (!checked.success) {
+					return respondError(
+						"VALIDATION_ERROR",
+						"The quoted text's block has a `_key` too long to anchor a comment to",
 					);
 				}
 				anchor = located.anchor;
