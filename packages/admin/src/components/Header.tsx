@@ -71,9 +71,7 @@ export function Header({ staging = false }: { staging?: boolean }) {
 							{stagingBadge}
 						</Link>
 					) : (
-						<span title={t`Hidden from search engines until you go live`}>
-							{stagingBadge}
-						</span>
+						<span title={t`Hidden from search engines until you go live`}>{stagingBadge}</span>
 					))}
 
 				{/* View site link */}

@@ -424,6 +424,5 @@ describe("admin breadcrumbs", () => {
 		await expect.element(page.getByText("View Site")).not.toBeVisible();
 		const userMenu = page.getByRole("button", { name: "Ada" }).element();
 		expect(userMenu.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);
-
 	});
 });
