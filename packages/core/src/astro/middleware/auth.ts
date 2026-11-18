@@ -10,7 +10,7 @@
  * we know setup is complete and users exist.
  */
 
-import type { User, RoleLevel } from "@emdash-cms/auth";
+import { toRoleLevel, type User, type RoleLevel } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { defineMiddleware } from "astro:middleware";
 import { ulid } from "ulidx";
@@ -583,7 +583,7 @@ async function handleExternalAuth(
 				.executeTakeFirst();
 
 			const isFirstUser = Number(userCount?.count ?? 0) === 0;
-			const role = isFirstUser ? ROLE_ADMIN : authResult.role;
+			const role = isFirstUser ? ROLE_ADMIN : toRoleLevel(authResult.role);
 
 			// Create user
 			const now = new Date().toISOString();
@@ -617,7 +617,7 @@ async function handleExternalAuth(
 
 			// Sync role if enabled
 			if (externalConfig.syncRoles && user.role !== authResult.role) {
-				newRole = authResult.role;
+				newRole = toRoleLevel(authResult.role);
 				updates.role = newRole;
 			}
 
