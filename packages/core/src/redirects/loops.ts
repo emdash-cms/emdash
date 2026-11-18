@@ -14,7 +14,7 @@ import {
 	compilePattern,
 	matchPattern,
 	interpolateDestination,
-	normalizeSourcePath,
+	normalizeRedirectPath,
 	validatePattern,
 	type CompiledPattern,
 } from "./patterns.js";
@@ -178,8 +178,8 @@ function buildGraph(edges: RedirectEdge[]): Map<string, { destination: string; i
 function normalizeEdges(edges: RedirectEdge[]): RedirectEdge[] {
 	return edges.map((edge) => ({
 		...edge,
-		source: normalizeSourcePath(edge.source),
-		destination: normalizeSourcePath(edge.destination),
+		source: normalizeRedirectPath(edge.source),
+		destination: normalizeRedirectPath(edge.destination),
 	}));
 }
 
@@ -261,8 +261,8 @@ export function wouldCreateLoop(
 	existingEdges: RedirectEdge[],
 	excludeId?: string,
 ): string[] | null {
-	const source = normalizeSourcePath(rawSource);
-	const destination = normalizeSourcePath(rawDestination);
+	const source = normalizeRedirectPath(rawSource);
+	const destination = normalizeRedirectPath(rawDestination);
 	if (source === destination) return [rawSource, rawDestination];
 	const filtered = normalizeEdges(
 		excludeId ? existingEdges.filter((e) => e.id !== excludeId) : existingEdges,

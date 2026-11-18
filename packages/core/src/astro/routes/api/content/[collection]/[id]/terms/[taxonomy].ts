@@ -10,7 +10,7 @@ import type { APIRoute } from "astro";
 import { sql } from "kysely";
 
 import { requireAnyPerm, requireEntryEditPerm, requirePerm } from "#api/authorize.js";
-import { apiError, apiSuccess, handleError, requireDb } from "#api/error.js";
+import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
 import { taxonomyTag } from "#cache/chrome-tags.js";
@@ -71,8 +71,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
 	const { collection, id, taxonomy } = params;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requirePerm(user, "content:read");
 	if (denied) return denied;
 
@@ -117,8 +118,9 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		return apiError("VALIDATION_ERROR", "Collection, id, and taxonomy required", 400);
 	}
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requireAnyPerm(user, ["content:edit_own", "content:edit_own_drafts"]);
 	if (denied) return denied;
 
@@ -137,24 +139,14 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	}
 
 	// Check ownership for edit permission
-	const existingData =
-		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
-				(existing.data as Record<string, unknown>)
-			: undefined;
-	// Handler returns { item, _rev } — extract the item for ownership check
-	const existingItem =
-		existingData?.item && typeof existingData.item === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
-				(existingData.item as Record<string, unknown>)
-			: existingData;
-	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
-	const editDenied = requireEntryEditPerm(user, { authorId, status: existingItem?.status });
+	const existingItem = existing.data.item;
+	const authorId = existingItem.authorId ?? "";
+	const editDenied = requireEntryEditPerm(user, { authorId, status: existingItem.status });
 	if (editDenied) return editDenied;
 
 	// Resolve the canonical content ID from the handler result.
 	// The URL `id` param may be a slug; we must use the real ID for term storage.
-	const canonicalId = typeof existingItem?.id === "string" ? existingItem.id : id;
+	const canonicalId = existingItem.id;
 	// The assignment spans the content translation group, while the response
 	// includes only the term variant matching this entry's locale.
 	const entryLocale =

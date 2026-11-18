@@ -89,6 +89,7 @@ export interface DOQueryOptions {
 export interface EmDashDBStub {
 	query(sql: string, params?: unknown[], opts?: DOQueryOptions): Promise<DOQueryResult>;
 	batchQuery(statements: DOQueryStatement[], opts?: DOQueryOptions): Promise<DOQueryResult[]>;
+	executeAtomicBatch?(statements: DOQueryStatement[]): Promise<DOQueryResult[]>;
 	executeCollectionDeletionGuard(
 		input: import("emdash").CollectionDeletionGuardInput,
 	): Promise<import("emdash").CollectionDeletionGuardResult>;

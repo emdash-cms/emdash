@@ -534,6 +534,26 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 		},
 	);
 
+	it("cleans a legacy bare-percent importer source when its encoded URL is published", async () => {
+		const repository = new RedirectRepository(harness.db);
+		const rule = await repository.create({
+			source: "/posts/50%-off",
+			destination: "/old",
+			auto: true,
+			groupName: "WordPress import",
+		});
+		const created = await harness.runtime.handleContentCreate("posts", {
+			slug: "50%-off",
+			data: { title: "Percent" },
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+		expect(
+			(await harness.runtime.handleContentPublish("posts", created.data.item.id)).success,
+		).toBe(true);
+		expect(await repository.findById(rule.id)).toBeNull();
+	});
+
 	it("removes only the localized import redirect when a translated page is published", async () => {
 		setI18nConfig({
 			defaultLocale: "en",

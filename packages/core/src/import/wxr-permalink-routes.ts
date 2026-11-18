@@ -6,7 +6,7 @@ import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../i18n/config.js";
 import { localizePath, resolveLocalizedContentRoutePath } from "../i18n/resolve.js";
-import { normalizeSourcePath } from "../redirects/patterns.js";
+import { normalizeRedirectPath, normalizeSourcePath } from "../redirects/patterns.js";
 import { SchemaRegistry } from "../schema/registry.js";
 import { compileUrlPattern } from "../schema/url-pattern.js";
 
@@ -88,7 +88,7 @@ function compilePermalinkPattern(pattern: string): CompiledPermalinkPattern {
 }
 
 function pathKey(path: string): string {
-	return trimTrailingSlashes(normalizeSourcePath(path)) || "/";
+	return trimTrailingSlashes(normalizeRedirectPath(path)) || "/";
 }
 
 function basePath(): string {

@@ -1,4 +1,4 @@
-import { normalizeSourcePath } from "./patterns.js";
+import { normalizeRedirectPath, normalizeSourcePath } from "./patterns.js";
 
 function withoutOneTrailingSlash(path: string): string {
 	return path.length > 1 && path.endsWith("/") ? path.slice(0, -1) : path;
@@ -45,9 +45,9 @@ export function normalizationChangesPath(path: string): boolean {
  */
 export function canonicalImportSource(path: string): string {
 	const raw = withoutOneTrailingSlash(path);
-	const key = normalizeSourcePath(raw);
+	const key = normalizeRedirectPath(raw);
 	if (normalizationChangesPath(raw)) return raw;
-	if (normalizeSourcePath(key) === key) return key;
+	if (normalizeRedirectPath(key) === key) return key;
 	try {
 		return encodeURI(key);
 	} catch {
@@ -64,7 +64,10 @@ export function importSourceLookupVariants(rawPaths: Iterable<string>): string[]
 			...withTrailingSlashVariants(canonicalImportSource(raw)),
 		];
 		if (!normalizationChangesPath(raw)) {
-			candidates.push(...withTrailingSlashVariants(normalizeSourcePath(raw)));
+			candidates.push(
+				...withTrailingSlashVariants(normalizeRedirectPath(raw)),
+				...withTrailingSlashVariants(normalizeSourcePath(raw)),
+			);
 		}
 		for (const candidate of candidates) {
 			for (const spelling of percentEscapeCaseVariants(candidate)) {
@@ -77,5 +80,5 @@ export function importSourceLookupVariants(rawPaths: Iterable<string>): string[]
 
 /** Return the normalized, slash-insensitive key used for comparing sources. */
 export function importSourceKey(path: string): string {
-	return withoutOneTrailingSlash(normalizeSourcePath(path));
+	return withoutOneTrailingSlash(normalizeRedirectPath(path));
 }

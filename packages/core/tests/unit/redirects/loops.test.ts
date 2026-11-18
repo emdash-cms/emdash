@@ -223,4 +223,17 @@ describe("loop detection across source encodings", () => {
 		const edges = [edge("1", "/café", "/b")];
 		expect(wouldCreateLoop("/b", "/caf%c3%a9", edges)).not.toBeNull();
 	});
+
+	it("keeps double-encoded and reserved percent layers distinct", () => {
+		const edges = [edge("1", "/café", "/double"), edge("2", "/a%2F", "/reserved-double")];
+		expect(detectLoops(edges)).toEqual([]);
+		expect(wouldCreateLoop("/double", "/caf%25C3%25A9", edges)).toBeNull();
+		expect(wouldCreateLoop("/reserved-double", "/a%252F", edges)).toBeNull();
+	});
+
+	it("still detects a cycle using raw double-encoded sources", () => {
+		const edges = [edge("1", "/start", "/caf%25C3%25A9"), edge("2", "/caf%25C3%25A9", "/start")];
+		expect(detectLoops(edges).toSorted()).toEqual(["1", "2"]);
+		expect(wouldCreateLoop("/start", "/caf%25C3%25A9", [edges[1]!])).not.toBeNull();
+	});
 });

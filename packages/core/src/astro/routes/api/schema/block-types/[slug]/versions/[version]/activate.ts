@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, unwrapResult } from "#api/error.js";
 import { handleBlockTypeVersionActivate } from "#api/index.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { activateBlockTypeVersionBody } from "#api/schemas.js";
@@ -10,8 +10,9 @@ export const prerender = false;
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
-	const dbError = requireDb(emdash?.db);
-	if (dbError) return dbError;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requirePerm(user, "schema:manage");
 	if (denied) return denied;
 	const version = Number(params.version);

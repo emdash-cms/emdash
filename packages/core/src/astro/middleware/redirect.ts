@@ -25,7 +25,7 @@ import type { CachedRedirects, RedirectRule } from "../../redirects/cache.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
 import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import { shouldSkipRedirectPath } from "../../redirects/paths.js";
-import { normalizeSourcePath } from "../../redirects/patterns.js";
+import { normalizeRedirectPath } from "../../redirects/patterns.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 import { peekRequestCache } from "../../request-cache.js";
 import {
@@ -64,7 +64,7 @@ interface RedirectMatch {
 
 /** Exact rules first, with or without a trailing slash, then patterns in precedence order. */
 function matchRedirect(cached: CachedRedirects, pathname: string): RedirectMatch | null {
-	const normalized = normalizeSourcePath(pathname);
+	const normalized = normalizeRedirectPath(pathname);
 	let exact = cached.exact.get(normalized);
 	if (!exact && normalized.length > 1) {
 		const alt = normalized.endsWith("/") ? normalized.slice(0, -1) : `${normalized}/`;
@@ -302,8 +302,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	if (!routeCache?.enabled) return run();
 	const parent = getRequestContext();
 	if (parent) {
+		const previousSettings = parent.siteSettings;
+		requestSettings.live = parent.routeCacheFill === true;
 		parent.siteSettings = requestSettings;
-		return run();
+		try {
+			return await run();
+		} finally {
+			if (previousSettings) parent.siteSettings = previousSettings;
+		}
 	}
 	return runWithContext({ editMode: false, siteSettings: requestSettings }, run);
 });

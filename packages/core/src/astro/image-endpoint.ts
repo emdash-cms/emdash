@@ -104,7 +104,7 @@ export const GET: APIRoute = async (ctx) => {
 			return response;
 		}
 
-		const transform = await service.parseURL(url, imageConfig);
+		const transform = await service.parseURL(url, imageConfig, ctx.logger);
 		if (!transform) {
 			if (isNotModified(ctx.request, source.size, source.lastModified)) {
 				return notModifiedResponse(source.contentType, source.size, source.lastModified);
@@ -126,9 +126,14 @@ export const GET: APIRoute = async (ctx) => {
 		}
 
 		const inputBuffer = new Uint8Array(await new Response(source.body).arrayBuffer());
-		const { data, format } = await service.transform(inputBuffer, transform, imageConfig);
+		const { data, format } = await service.transform(
+			inputBuffer,
+			transform,
+			imageConfig,
+			ctx.logger,
+		);
 
-		return new Response(data, {
+		return new Response(new Uint8Array(data), {
 			status: 200,
 			headers: {
 				"Content-Type": FORMAT_MIME[format] ?? source.contentType,

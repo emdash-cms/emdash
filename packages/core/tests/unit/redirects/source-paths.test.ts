@@ -51,3 +51,9 @@ it.each([
 	expect(variants).not.toContain(other);
 	expect(variants).not.toContain(`${other}/`);
 });
+
+it("keeps legacy bare-percent spellings searchable without collapsing a percent layer", () => {
+	expect(importSourceLookupVariants(["/posts/50%25-off"])).toContain("/posts/50%-off");
+	expect(importSourceLookupVariants(["/a%252F"])).not.toContain("/a%2F");
+	expect(importSourceLookupVariants(["/caf%25C3%25A9"])).not.toContain("/caf%C3%A9");
+});

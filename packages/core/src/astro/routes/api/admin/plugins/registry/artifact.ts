@@ -114,7 +114,10 @@ function timedFetch(totalDeadline: number): typeof fetch {
  * boundary, but `artifacts` is an aggregator pass-through typed `unknown`, so
  * the entry's shape is not guaranteed.
  */
-type DeclaredArtifact = ReleaseArtifactReference & { requiresAuth: boolean };
+type DeclaredArtifact = Omit<ReleaseArtifactReference, "blob"> & {
+	blob?: Extract<NonNullable<ReleaseArtifactReference["blob"]>, { ref: unknown }>;
+	requiresAuth: boolean;
+};
 
 interface ResolvedArtifact {
 	artifact: DeclaredArtifact;
@@ -273,7 +276,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 	try {
 		const fetchOptions = proxyFetchOptions(controller.signal);
-		let bytes: Uint8Array | undefined;
+		let bytes: Uint8Array<ArrayBuffer> | undefined;
 		let headers: Headers | undefined;
 		let checksumValid: boolean | undefined;
 		if (resolvedArtifact.imageCacheUrl) {
@@ -478,13 +481,13 @@ async function fetchRawArtifact(
 	resolved: ResolvedArtifact,
 	options: ReturnType<typeof proxyFetchOptions>,
 ): Promise<
-	| { success: true; bytes: Uint8Array; headers: Headers; checksumValid: boolean }
+	| { success: true; bytes: Uint8Array<ArrayBuffer>; headers: Headers; checksumValid: boolean }
 	| { success: false; code: string }
 > {
 	const urls: URL[] = [];
 	const blobCid = resolved.artifact.blob?.ref.$link;
 	let lastCode = "FETCH_FAILED";
-	let checksumMismatch: { bytes: Uint8Array; headers: Headers } | undefined;
+	let checksumMismatch: { bytes: Uint8Array<ArrayBuffer>; headers: Headers } | undefined;
 	if (blobCid) {
 		const pds = await resolvePublisherPdsEndpoint(resolved.record.did, options);
 		if (pds.success) {

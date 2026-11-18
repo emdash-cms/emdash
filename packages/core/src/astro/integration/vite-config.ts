@@ -11,7 +11,7 @@ import { dirname, isAbsolute, relative, resolve, win32 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
-import type { Plugin, ViteDevServer } from "vite";
+import type { Plugin, Rollup, ViteDevServer } from "vite";
 
 import { COMMIT, VERSION } from "../../version.js";
 import { shutdownRuntime } from "../runtime-holder.js";
@@ -90,6 +90,14 @@ export function pathToImportUrl(path: string): string {
 	return pathToFileURL(path, { windows: win32.isAbsolute(path) }).href;
 }
 
+/** The part of `@babel/core` the Lingui macro plugin calls. */
+interface BabelCore {
+	transformAsync(
+		code: string,
+		options: { filename: string; plugins: string[]; parserOpts: { plugins: string[] } },
+	): Promise<{ code?: string | null; map?: Rollup.ExistingRawSourceMap | null } | null>;
+}
+
 /**
  * Vite plugin that compiles Lingui macros in admin source files.
  * Only active in dev mode when the admin package is aliased to source for HMR.
@@ -117,10 +125,8 @@ export function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string
 		},
 		async transform(code, id) {
 			if (!id.startsWith(adminSourceVitePath) || !code.includes("@lingui")) return;
-			const { transformAsync } = (await import(
-				pathToImportUrl(babelCorePath)
-			)) as typeof import("@babel/core");
-			const result = await transformAsync(code, {
+			const babel: BabelCore = await import(pathToImportUrl(babelCorePath));
+			const result = await babel.transformAsync(code, {
 				filename: id,
 				plugins: [linguiMacroPluginPath],
 				parserOpts: { plugins: ["jsx", "typescript"] },
@@ -251,7 +257,11 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 				const graphs = Object.values(server.environments ?? {}).map(
 					(environment) => environment.moduleGraph,
 				);
-				if (graphs.length === 0) graphs.push(server.moduleGraph);
+				if (graphs.length === 0) {
+					const module = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_PAGE_ROUTES_ID);
+					if (module) server.moduleGraph.invalidateModule(module);
+					return;
+				}
 				for (const graph of graphs) {
 					const module = graph.getModuleById(RESOLVED_VIRTUAL_PAGE_ROUTES_ID);
 					if (module) graph.invalidateModule(module);

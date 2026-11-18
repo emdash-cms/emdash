@@ -15,6 +15,7 @@ vi.mock("../../../src/loader.js", () => ({
 }));
 
 import { onRequest } from "../../../src/astro/middleware/redirect.js";
+import { RedirectRepository } from "../../../src/database/repositories/redirect.js";
 import { importWxrPermalinks } from "../../../src/import/wxr-permalinks.js";
 import { invalidateRedirectCache } from "../../../src/redirects/cache.js";
 import {
@@ -140,6 +141,104 @@ describeEachDialect("WordPress extension-bearing permalink middleware boundary",
 			expect(next).not.toHaveBeenCalled();
 		}
 		expect(selects).toBe(1);
+	});
+
+	it("keeps percent layers distinct in middleware redirects and its cache", async () => {
+		const repository = new RedirectRepository(ctx.db);
+		await repository.create({ source: "/café", destination: "/normal", type: 301 });
+		await repository.create({ source: "/a%2F", destination: "/slash", type: 301 });
+		invalidateRedirectCache();
+
+		for (const [path, destination] of [
+			["/café", "/normal"],
+			["/caf%C3%A9", "/normal"],
+			["/a%2F", "/slash"],
+		] as const) {
+			const response = await onRequest(buildContext(path), vi.fn());
+			expect(response.status).toBe(301);
+			expect(response.headers.get("Location")).toBe(destination);
+		}
+
+		for (const path of ["/caf%25C3%25A9", "/a%252F"]) {
+			const next = vi.fn(async () => new Response("not found", { status: 404 }));
+			const response = await onRequest(buildContext(path), next);
+			expect(response.status).toBe(404);
+			expect(next).toHaveBeenCalledOnce();
+		}
+
+		await repository.create({ source: "/caf%25C3%25A9", destination: "/double-cafe", type: 301 });
+		await repository.create({ source: "/a%252F", destination: "/double-slash", type: 301 });
+		invalidateRedirectCache();
+		for (const [path, destination] of [
+			["/caf%C3%A9", "/normal"],
+			["/caf%25C3%25A9", "/double-cafe"],
+			["/a%2F", "/slash"],
+			["/a%252F", "/double-slash"],
+		] as const) {
+			const response = await onRequest(buildContext(path), vi.fn());
+			expect(response.status).toBe(301);
+			expect(response.headers.get("Location")).toBe(destination);
+		}
+	});
+
+	it("preserves percent layers in pattern literals and leaves captures raw", async () => {
+		const repository = new RedirectRepository(ctx.db);
+		await repository.create({
+			source: "/pct%25/[...rest]",
+			destination: "/new/[...rest]",
+			isPattern: true,
+		});
+		await repository.create({
+			source: "/bare%/[...rest]",
+			destination: "/raw/[...rest]",
+			isPattern: true,
+		});
+		invalidateRedirectCache();
+		for (const [path, location] of [
+			["/pct%25/a%252F", "/new/a%252F"],
+			["/bare%/a%252F", "/raw/a%252F"],
+		]) {
+			const response = await onRequest(buildContext(path), vi.fn());
+			expect(response.status).toBe(301);
+			expect(response.headers.get("Location")).toBe(location);
+		}
+		const response = await onRequest(
+			buildContext("/pct%2525/a"),
+			async () => new Response("missing", { status: 404 }),
+		);
+		expect(response.status).toBe(404);
+	});
+
+	it("preserves a double-encoded imported source without matching its Unicode alias", async () => {
+		const result = await importWxrPermalinks(ctx.db, [
+			{
+				title: "Double encoded",
+				link: "https://wp.test/x%25D0%25BF/",
+				collection: "posts",
+				pattern: "/posts/{slug}",
+				item: {
+					id: "double-encoded",
+					slug: "target",
+					status: "published",
+					publishedAt: "2004-05-02T00:00:00.000Z",
+					locale: "en",
+				},
+			},
+		]);
+		expect(result).toEqual([]);
+		expect(
+			await ctx.db.selectFrom("_emdash_redirects").select(["source", "destination"]).execute(),
+		).toEqual([{ source: "/x%25D0%25BF", destination: "/posts/target" }]);
+
+		for (const path of ["/x%25D0%25BF", "/x%25D0%25BF/"]) {
+			const response = await onRequest(buildContext(path), vi.fn());
+			expect(response.status).toBe(301);
+			expect(response.headers.get("Location")).toBe("/posts/target");
+		}
+		const next = vi.fn(async () => new Response("not found", { status: 404 }));
+		const response = await onRequest(buildContext("/x%D0%BF"), next);
+		expect(response.status).toBe(404);
+		expect(next).toHaveBeenCalledOnce();
 	});
 
 	it("does not report a redirect failure when the extension-bearing URL is already canonical", async () => {

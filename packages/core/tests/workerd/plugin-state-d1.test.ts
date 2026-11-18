@@ -48,3 +48,22 @@ describe("PluginStateRepository.createActiveIfAbsent on D1", () => {
 		expect(results.filter(Boolean)).toHaveLength(1);
 	});
 });
+
+describe("plugin state generation on D1", () => {
+	it("bumps atomically for writes and not for conditional no-ops", async () => {
+		const repo = new PluginStateRepository(db);
+
+		await repo.upsert("plugin", "1.0.0", "active");
+		expect(await repo.getGeneration()).toBe(1n);
+
+		await repo.upsert("plugin", "2.0.0", "active");
+		expect(await repo.getGeneration()).toBe(2n);
+
+		expect(await repo.createActiveIfAbsent("plugin", "3.0.0", "registry")).toBe(false);
+		expect(await repo.delete("plugin", { version: "wrong" })).toBe(false);
+		expect(await repo.getGeneration()).toBe(2n);
+
+		expect(await repo.delete("plugin", { version: "2.0.0" })).toBe(true);
+		expect(await repo.getSnapshot()).toEqual({ generation: 3n, states: [] });
+	});
+});

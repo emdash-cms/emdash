@@ -51,7 +51,7 @@ import {
 } from "../../plugins/content-policy.js";
 import { publishRedirectChanges } from "../../redirects/artifacts.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
-import { normalizeSourcePath } from "../../redirects/patterns.js";
+import { normalizeRedirectPath, redirectNormalizationInput } from "../../redirects/patterns.js";
 import {
 	importSourceKey,
 	importSourceLookupVariants,
@@ -896,10 +896,10 @@ async function removeShadowingAutoRedirect(
 		if (localized) {
 			const base = (import.meta.env.BASE_URL || "/").replace(TRAILING_SLASH, "");
 			const canonical = `${base}${localized}`;
-			if (normalizationChangesPath(canonical)) {
+			if (normalizationChangesPath(redirectNormalizationInput(canonical))) {
 				console.warn(
 					"[emdash:content] URL normalization rewrites this entry's pathname; preserved redirects at the normalized path may still shadow it. Review those redirects or choose a slug without rewritten characters.",
-					{ source: canonical, normalized: normalizeSourcePath(canonical) },
+					{ source: canonical, normalized: normalizeRedirectPath(canonical) },
 				);
 			}
 			addRedirectCleanupSource(canonical, sources);

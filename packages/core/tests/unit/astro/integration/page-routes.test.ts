@@ -69,91 +69,96 @@ function emittedRoutes(source: string) {
 }
 
 describe("page route metadata virtual module", () => {
-	it("publishes resolved public route regexes after Astro's route hook", async () => {
-		const { plugin, routesHook } = await setupIntegration();
-		expect(plugin.resolveId("virtual:emdash/page-routes")).toBe(RESOLVED_VIRTUAL_PAGE_ROUTES_ID);
+	it.each([true, false])(
+		"publishes resolved public route regexes after Astro's route hook (environments=%s)",
+		async (useEnvironments) => {
+			const { plugin, routesHook } = await setupIntegration();
+			expect(plugin.resolveId("virtual:emdash/page-routes")).toBe(RESOLVED_VIRTUAL_PAGE_ROUTES_ID);
 
-		const graphs = Object.fromEntries(
-			["client", "ssr", "worker"].map((name) => {
-				const routeModule = {};
-				return [
-					name,
+			const graphs = Object.fromEntries(
+				["client", "ssr", "worker"].map((name) => {
+					const routeModule = {};
+					return [
+						name,
+						{
+							getModuleById: vi.fn(() => routeModule),
+							invalidateModule: vi.fn(),
+						},
+					];
+				}),
+			) as Record<string, ModuleGraph>;
+			plugin.configureServer({
+				moduleGraph: graphs.client,
+				environments: useEnvironments
+					? Object.fromEntries(
+							Object.entries(graphs).map(([name, moduleGraph]) => [name, { moduleGraph }]),
+						)
+					: undefined,
+			});
+
+			await routesHook({
+				routes: [
 					{
-						getModuleById: vi.fn(() => routeModule),
-						invalidateModule: vi.fn(),
+						type: "page",
+						origin: "project",
+						patternRegex: /^\/contact$/,
+						params: [],
 					},
-				];
-			}),
-		) as Record<string, ModuleGraph>;
-		plugin.configureServer({
-			moduleGraph: graphs.client,
-			environments: Object.fromEntries(
-				Object.entries(graphs).map(([name, moduleGraph]) => [name, { moduleGraph }]),
-			),
-		});
+					{
+						type: "page",
+						origin: "external",
+						patternRegex: /^\/docs\/(.*)$/i,
+						params: ["...slug"],
+					},
+					{
+						type: "page",
+						origin: "project",
+						patternRegex: /^\/(?<year>\d{4})\/(?<month>\d{2})\/(?<day>\d{2})\/(?<slug>[^/]+)$/,
+						params: ["year", "month", "day", "slug"],
+					},
+					{
+						type: "page",
+						origin: "internal",
+						patternRegex: /.*/,
+						params: [],
+					},
+				] as never,
+			} as never);
 
-		await routesHook({
-			routes: [
-				{
-					type: "page",
-					origin: "project",
-					patternRegex: /^\/contact$/,
-					params: [],
-				},
-				{
-					type: "page",
-					origin: "external",
-					patternRegex: /^\/docs\/(.*)$/i,
-					params: ["...slug"],
-				},
-				{
-					type: "page",
-					origin: "project",
-					patternRegex: /^\/(?<year>\d{4})\/(?<month>\d{2})\/(?<day>\d{2})\/(?<slug>[^/]+)$/,
-					params: ["year", "month", "day", "slug"],
-				},
-				{
-					type: "page",
-					origin: "internal",
-					patternRegex: /.*/,
-					params: [],
-				},
-			] as never,
-		} as never);
+			for (const graph of useEnvironments ? Object.values(graphs) : [graphs.client]) {
+				expect(graph.invalidateModule).toHaveBeenCalledWith(
+					graph.getModuleById(RESOLVED_VIRTUAL_PAGE_ROUTES_ID),
+				);
+			}
+			const source = plugin.load(RESOLVED_VIRTUAL_PAGE_ROUTES_ID)!;
+			const pageRoutes = emittedRoutes(source);
+			expect(pageRoutes).toEqual([{ source: "^\\/contact$", flags: "" }]);
+			expect(
+				findPageRouteSources(
+					["/archive/contact/", "/archive/docs/intro", "/archive/unknown", "/contact"],
+					pageRoutes,
+					"/archive",
+				),
+			).toEqual(new Set(["/archive/contact"]));
 
-		for (const graph of Object.values(graphs)) {
-			expect(graph.invalidateModule).toHaveBeenCalledWith(
-				graph.getModuleById(RESOLVED_VIRTUAL_PAGE_ROUTES_ID),
-			);
-		}
-		const source = plugin.load(RESOLVED_VIRTUAL_PAGE_ROUTES_ID)!;
-		const pageRoutes = emittedRoutes(source);
-		expect(pageRoutes).toEqual([{ source: "^\\/contact$", flags: "" }]);
-		expect(
-			findPageRouteSources(
-				["/archive/contact/", "/archive/docs/intro", "/archive/unknown", "/contact"],
-				pageRoutes,
-				"/archive",
-			),
-		).toEqual(new Set(["/archive/contact"]));
-
-		await routesHook({
-			routes: [
-				{
-					type: "page",
-					origin: "project",
-					patternRegex: /^\/new-route$/,
-					params: [],
-				},
-			] as never,
-		} as never);
-		for (const graph of Object.values(graphs)) {
-			expect(graph.invalidateModule).toHaveBeenCalledTimes(2);
-		}
-		expect(emittedRoutes(plugin.load(RESOLVED_VIRTUAL_PAGE_ROUTES_ID)!)).toEqual([
-			{ source: "^\\/new-route$", flags: "" },
-		]);
-	});
+			await routesHook({
+				routes: [
+					{
+						type: "page",
+						origin: "project",
+						patternRegex: /^\/new-route$/,
+						params: [],
+					},
+				] as never,
+			} as never);
+			for (const graph of useEnvironments ? Object.values(graphs) : [graphs.client]) {
+				expect(graph.invalidateModule).toHaveBeenCalledTimes(2);
+			}
+			expect(emittedRoutes(plugin.load(RESOLVED_VIRTUAL_PAGE_ROUTES_ID)!)).toEqual([
+				{ source: "^\\/new-route$", flags: "" },
+			]);
+		},
+	);
 
 	it("does not report a dynamic route as served to permalink import", async () => {
 		runtimeRoutes.length = 0;

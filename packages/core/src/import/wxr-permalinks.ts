@@ -9,7 +9,7 @@ import { publishRedirectChanges } from "../redirects/artifacts.js";
 import { isSiteRelativeDestination } from "../redirects/destination.js";
 import { wouldCreateLoop, type RedirectEdge } from "../redirects/loops.js";
 import { shouldSkipRedirectPath } from "../redirects/paths.js";
-import { normalizeSourcePath } from "../redirects/patterns.js";
+import { normalizeRedirectPath } from "../redirects/patterns.js";
 import {
 	canonicalImportSource,
 	importSourceLookupVariants,
@@ -45,7 +45,7 @@ function storedPath(path: string): string {
 }
 
 function pathKey(path: string): string {
-	return storedPath(normalizeSourcePath(path));
+	return storedPath(normalizeRedirectPath(path));
 }
 
 function countPermalinkSources(links: readonly (string | undefined)[]): Map<string, number> {
