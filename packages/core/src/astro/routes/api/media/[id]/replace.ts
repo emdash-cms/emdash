@@ -4,7 +4,11 @@ import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaReplaceMetadataForm } from "#api/schemas.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
-import { mediaCacheTag, MUTABLE_MEDIA_CACHE_CONTROL } from "#media/image-endpoint.js";
+import {
+	isCacheableMediaKey,
+	mediaCacheTag,
+	MUTABLE_MEDIA_CACHE_CONTROL,
+} from "#media/image-endpoint.js";
 import { normalizeMime } from "#media/mime.js";
 import { computeContentHash } from "#utils/hash.js";
 
@@ -95,7 +99,9 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 			return handleError(error, "Failed to replace media", "MEDIA_REPLACE_ERROR");
 		}
 		// The stored bytes changed even if the metadata update below fails.
-		await invalidateRouteCache(cache, [mediaCacheTag(media.storageKey)]);
+		if (isCacheableMediaKey(media.storageKey)) {
+			await invalidateRouteCache(cache, [mediaCacheTag(media.storageKey)]);
+		}
 
 		const result = await emdash.handleMediaReplaceMetadata(id, media.storageKey, {
 			size: file.size,

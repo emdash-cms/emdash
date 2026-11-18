@@ -18,7 +18,7 @@ import { MediaRepository } from "./database/repositories/media.js";
 import { RedirectRepository } from "./database/repositories/redirect.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { Database } from "./database/types.js";
-import { isSafeTransformKey, mediaCacheTag } from "./media/image-endpoint.js";
+import { isCacheableMediaKey, mediaCacheTag } from "./media/image-endpoint.js";
 import { removeUploadAttempt } from "./media/upload-attempts.js";
 import { cleanupMediaUsage } from "./media/usage/cleanup.js";
 import type { Storage } from "./storage/types.js";
@@ -188,7 +188,7 @@ export async function runSystemCleanup(
 	}
 
 	if (invalidateRouteCache) {
-		const tags = removedKeys.filter(isSafeTransformKey).map(mediaCacheTag);
+		const tags = removedKeys.filter(isCacheableMediaKey).map(mediaCacheTag);
 		for (const batch of chunks(tags, PURGE_TAG_BATCH)) {
 			try {
 				await invalidateRouteCache(batch);

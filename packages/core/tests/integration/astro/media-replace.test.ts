@@ -328,22 +328,42 @@ describe("PUT /media/:id/replace", () => {
 		expect((await new MediaRepository(db).findMany()).items).toHaveLength(1);
 	});
 
-	it("purges the cached file and its variants after the bytes are replaced", async () => {
-		const original = await createImage();
+	it.each([
+		{ label: "1011-character key", key: `${"a".repeat(1007)}.png`, cacheable: true },
+		{ label: "1012-character key", key: `${"a".repeat(1008)}.png`, cacheable: false },
+		{ label: "nested key", key: "media/hero.png", cacheable: false },
+	])("replaces a $label and purges only eligible tags", async ({ key, cacheable }) => {
+		const original = await createImage({ storageKey: key });
 		const cache = routeCache();
+		const storage = memoryStorage();
+		storage.objects.set(key, new Uint8Array([1, 2, 3]));
+		const bytes = new Uint8Array([9, 8, 7, 6]);
 
 		const response = await putReplace(
-			buildContext({ db, request: replaceRequest(), storage: memoryStorage(), cache }),
+			buildContext({ db, request: replaceRequest({ bytes }), storage, cache }),
 		);
 
 		expect(response.status).toBe(200);
-		expect(cache.invalidate).toHaveBeenCalledWith({
-			tags: [`emdash:media:${original.storageKey}`],
-		});
+		expect(storage.objects.get(key)).toEqual(bytes);
+		const expected = {
+			id: original.id,
+			storageKey: key,
+			size: 4,
+			width: 600,
+			height: 400,
+			contentHash: await computeContentHash(bytes),
+		};
+		expect(await new MediaRepository(db).findById(original.id)).toMatchObject(expected);
+		expect(await response.json()).toMatchObject({ data: { item: expected } });
+		if (cacheable) {
+			expect(cache.invalidate).toHaveBeenCalledWith({ tags: [`emdash:media:${key}`] });
+		} else {
+			expect(cache.invalidate).not.toHaveBeenCalled();
+		}
 	});
 
 	it("still replaces the image when the route cache purge fails", async () => {
-		const original = await createImage();
+		const original = await createImage({ storageKey: "hero.png" });
 		const cache = routeCache();
 		cache.invalidate.mockRejectedValueOnce(new Error("purge unavailable"));
 		vi.spyOn(console, "error").mockImplementation(() => undefined);
@@ -360,31 +380,43 @@ describe("PUT /media/:id/replace", () => {
 	});
 
 	it("purges even when the metadata update fails after the bytes changed", async () => {
-		const original = await createImage();
+		const original = await createImage({ storageKey: "hero.png" });
 		const cache = routeCache();
-		const replaceMetadata = vi.fn<ReplaceMetadata>().mockResolvedValue({
-			success: false,
-			error: { code: "MEDIA_REPLACE_METADATA_ERROR", message: "Failed" },
+		const storage = memoryStorage();
+		const bytes = new Uint8Array([9, 8, 7, 6]);
+		const replaceMetadata = vi.fn<ReplaceMetadata>().mockImplementation(async () => {
+			expect(storage.objects.get(original.storageKey)).toEqual(bytes);
+			expect(cache.invalidate).toHaveBeenCalledWith({
+				tags: [`emdash:media:${original.storageKey}`],
+			});
+			return {
+				success: false,
+				error: { code: "MEDIA_REPLACE_METADATA_ERROR", message: "Failed" },
+			};
 		});
 
 		const response = await putReplace(
 			buildContext({
 				db,
-				request: replaceRequest(),
-				storage: memoryStorage(),
+				request: replaceRequest({ bytes }),
+				storage,
 				cache,
 				replaceMetadata,
 			}),
 		);
 
 		expect(response.status).toBe(500);
+		expect(await response.json()).toMatchObject({
+			error: { code: "MEDIA_REPLACE_METADATA_ERROR" },
+		});
+		expect(await new MediaRepository(db).findById(original.id)).toEqual(original);
 		expect(cache.invalidate).toHaveBeenCalledWith({
 			tags: [`emdash:media:${original.storageKey}`],
 		});
 	});
 
 	it("does not purge when the storage write fails", async () => {
-		await createImage();
+		await createImage({ storageKey: "hero.png" });
 		const storage = memoryStorage();
 		storage.upload.mockRejectedValueOnce(new Error("storage unavailable"));
 		vi.spyOn(console, "error").mockImplementation(() => undefined);

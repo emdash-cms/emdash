@@ -1,12 +1,16 @@
 import type { APIContext } from "astro";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { fakeEnv, adapterGET, imageConfig } = vi.hoisted(() => ({
+const { fakeEnv, adapterGET, imageConfig, virtualConfig } = vi.hoisted(() => ({
+	virtualConfig: {} as { routeCacheProvider?: string },
 	fakeEnv: {} as Record<string, unknown>,
 	adapterGET: vi.fn(async () => new Response("adapter", { status: 418 })),
-	imageConfig: {} as { assetQueryParams?: URLSearchParams },
+	imageConfig: {
+		service: { entrypoint: "@astrojs/cloudflare/image-service-workerd" },
+	} as { service: { entrypoint: string }; assetQueryParams?: URLSearchParams },
 }));
 
+vi.mock("virtual:emdash/config", () => ({ default: virtualConfig }));
 vi.mock("cloudflare:workers", () => ({ env: fakeEnv }));
 vi.mock("astro:assets", () => ({ imageConfig }));
 vi.mock("@astrojs/cloudflare/image-transform-endpoint", () => ({ GET: adapterGET }));
@@ -74,6 +78,8 @@ function installImages() {
 afterEach(() => {
 	for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];
 	delete imageConfig.assetQueryParams;
+	imageConfig.service.entrypoint = "@astrojs/cloudflare/image-service-workerd";
+	delete virtualConfig.routeCacheProvider;
 	vi.clearAllMocks();
 });
 
@@ -99,6 +105,73 @@ describe("Cloudflare image endpoint", () => {
 		expect(transform).toHaveBeenCalledWith({ width: 120 });
 		expect(output).toHaveBeenCalledWith({ format: "image/webp", quality });
 		expect(await response.text()).toBe("transformed");
+	});
+
+	it.each([
+		"/_emdash/api/media/file/photo.jpg?buster=1",
+		"/_emdash/api/media/file/photo.jpg?buster=2",
+		"/_emdash/api/media/file/photo.jpg?_emdash_media=hash",
+		"/_emdash/api/media/file/photo.jpg#preview",
+		"/_emdash/api/media/file/photo.jpg?",
+		"/_emdash/api/media/file/photo.jpg#",
+		"https://other.test/_emdash/api/media/file/photo.jpg",
+		"https://user@example.test/_emdash/api/media/file/photo.jpg",
+		"//example.test/_emdash/api/media/file/photo.jpg",
+	])("serves source URL %s without storing another cache entry", async (href) => {
+		installImages();
+		const { ctx } = context("w=120");
+		const url = new URL(ctx.request.url);
+		url.searchParams.set("href", href);
+		ctx.request = new Request(url);
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("transformed");
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it.each([false, true])(
+		"preserves custom-service parameters with cache enabled=%s",
+		async (enabled) => {
+			installImages();
+			imageConfig.service.entrypoint = "./custom-image-service.ts";
+			const { ctx } = context("w=120&size=thumbnail");
+			ctx.cache.enabled = enabled;
+
+			const response = await GET(ctx as never);
+
+			expect(response.status).toBe(200);
+			expect(response.headers.has("Location")).toBe(false);
+			expect(await response.text()).toBe("transformed");
+			expect(ctx.cache.set).not.toHaveBeenCalled();
+		},
+	);
+
+	it("serves a variant without caching when the provider is memory", async () => {
+		installImages();
+		virtualConfig.routeCacheProvider = "memory";
+		const { ctx } = context("w=120");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("transformed");
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it("caches a plain same-origin absolute source URL", async () => {
+		installImages();
+		const { ctx } = context("w=120");
+		const url = new URL(ctx.request.url);
+		url.searchParams.set("href", "https://example.test/_emdash/api/media/file/photo.jpg");
+		ctx.request = new Request(url);
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("transformed");
+		expect(ctx.cache.set).toHaveBeenCalledOnce();
 	});
 
 	it("stores a transformed variant in the route cache under its storage key", async () => {

@@ -90,7 +90,7 @@ function sqliteD1(db: DatabaseSync) {
 	};
 }
 
-function mediaBridge(db: DatabaseSync, bucket: { delete: (key: string) => Promise<void> }) {
+function mediaBridge(db: DatabaseSync, bucket?: { delete: (key: string) => Promise<void> }) {
 	return new PluginBridge(
 		{
 			props: {
@@ -153,6 +153,16 @@ describe("Cloudflare bridge media delete", () => {
 			}
 		},
 	);
+
+	it("deletes the row without purging when storage is unavailable", async () => {
+		const invalidateMedia = vi.fn();
+		setContentActionsCallback("runtime-a", {
+			invalidateMedia,
+		} as unknown as ContentActionCallbacks);
+		await expect(mediaBridge(db).mediaDelete("m-1", "invoke-a")).resolves.toBe(true);
+		expect(db.prepare("SELECT id FROM media").all()).toEqual([]);
+		expect(invalidateMedia).not.toHaveBeenCalled();
+	});
 
 	it("deletes a document from R2 without purging the route cache", async () => {
 		db.prepare("INSERT INTO media (id, storage_key, mime_type) VALUES (?, ?, ?)").run(

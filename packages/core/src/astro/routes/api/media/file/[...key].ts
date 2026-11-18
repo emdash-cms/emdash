@@ -16,7 +16,6 @@ import {
 	IMMUTABLE_IMAGE_CACHE,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	isNotModified,
-	mediaRouteCacheMaxBytes,
 	validatorHeaders,
 } from "#media/image-endpoint.js";
 
@@ -176,15 +175,13 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 
 		const response = new Response(body, { status: 200, headers });
 		if (body) unusedBody = undefined;
-		// Only images: memoryCache() ignores Range, so a cached video or audio
-		// file would answer a player's seek with the whole file.
-		if (!range && result.contentType.startsWith("image/") && !request.url.includes("?")) {
-			cacheMediaResponse(
-				cache,
-				key,
-				result.size,
-				mediaRouteCacheMaxBytes(virtualConfig?.routeCacheProvider),
-			);
+		if (
+			virtualConfig?.routeCacheProvider !== "memory" &&
+			!range &&
+			result.contentType.startsWith("image/") &&
+			!request.url.includes("?")
+		) {
+			cacheMediaResponse(cache, key);
 		}
 		return response;
 	} catch (error) {

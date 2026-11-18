@@ -77,48 +77,42 @@ export function mediaCacheTag(storageKey: string): string {
 	return `emdash:media:${storageKey}`;
 }
 
+/** Cloudflare drops tags longer than 1024 characters but still caches the response. */
+export function isCacheableMediaKey(storageKey: string): boolean {
+	return isSafeTransformKey(storageKey) && mediaCacheTag(storageKey).length <= 1024;
+}
+
 /**
  * Whether media of this type and key can be in the route cache, so deleting its file needs a purge.
  * Storage backends that infer the served type from the key's extension can serve an image even
  * when the stored MIME type is not one.
  */
 export function isRouteCachedMedia(storageKey: string, mimeType: string): boolean {
-	if (!isSafeTransformKey(storageKey)) return false;
+	if (!isCacheableMediaKey(storageKey)) return false;
 	return mimeType.startsWith("image/") || (mime.getType(storageKey) ?? "").startsWith("image/");
 }
 
-/**
- * Largest media response stored by Astro's `memoryCache()`, which holds every
- * entry in process memory and limits only the entry count.
- */
-export const MEMORY_ROUTE_CACHE_MAX_MEDIA_BYTES = 10 * 1024 * 1024;
-
-/** Byte limit for caching media under the named Astro route cache provider. */
-export function mediaRouteCacheMaxBytes(providerName: string | undefined): number {
-	return providerName === "memory" ? MEMORY_ROUTE_CACHE_MAX_MEDIA_BYTES : Infinity;
+/** Cache only plain local source URLs; preview queries still reach the transformer unchanged. */
+export function isCacheableMediaSource(href: string | null, requestUrl: URL): boolean {
+	const key = matchInternalMediaKey(href);
+	if (!key) return false;
+	const pathname = `${INTERNAL_MEDIA_PREFIX}${key}`;
+	return href === pathname || href === `${requestUrl.origin}${pathname}`;
 }
 
-/**
- * Store the current response in the route cache under its storage key's tag.
- * Skips keys outside the flat storage-key shape, whose tag could contain the
- * comma that separates `Cache-Tag` values, and responses larger than
- * `maxBytes` (or of unknown size when a limit applies).
- */
+/** Store the current response in the route cache only when its tag can be purged. */
 export function cacheMediaResponse(
 	cache: { enabled: boolean; set(options: { maxAge: number; tags: string[] }): void } | undefined,
 	storageKey: string,
-	size?: number,
-	maxBytes = Infinity,
 ): void {
-	if (!cache?.enabled || !isSafeTransformKey(storageKey)) return;
-	if (maxBytes !== Infinity && !(size !== undefined && size > 0 && size <= maxBytes)) return;
+	if (!cache?.enabled || !isCacheableMediaKey(storageKey)) return;
 	cache.set({ maxAge: MEDIA_ROUTE_CACHE_MAX_AGE, tags: [mediaCacheTag(storageKey)] });
 }
 
 /**
  * Query parameters of an image endpoint URL, in the order Astro's `getURL`
- * writes them. A variant URL whose query differs from this canonical form is
- * redirected, so each variant has a single URL and a single cache entry.
+ * writes them. Stock-service endpoints redirect to this order without changing
+ * the source `href` value.
  */
 const CANONICAL_TRANSFORM_PARAMS = ["href", "w", "h", "q", "f", "fit", "position", "background"];
 

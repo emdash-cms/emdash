@@ -2,7 +2,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import type { APIContext } from "astro";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import { memoryMediaRequests } from "../../utils/media-route-cache.js";
 
 const virtualConfig = vi.hoisted(() => ({}) as { routeCacheProvider?: string });
 vi.mock("virtual:emdash/config", () => ({ default: virtualConfig }));
@@ -31,7 +34,7 @@ describe("GET /_emdash/api/media/file/:key — conditional caching", () => {
 	function buildContext(
 		key: string,
 		request: Request,
-		cache?: { enabled: boolean; set: ReturnType<typeof vi.fn> },
+		cache?: Pick<APIContext["cache"], "enabled" | "set">,
 	): Parameters<typeof GET>[0] {
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- route test supplies the Astro fields read by GET
 		return {
@@ -212,24 +215,24 @@ describe("GET /_emdash/api/media/file/:key — conditional caching", () => {
 		expect(cache.set).toHaveBeenCalledTimes(1);
 	});
 
-	it("caches images up to 10 MB in memoryCache()", async () => {
+	it("revalidates an image after the first request with the memory provider", async () => {
 		virtualConfig.routeCacheProvider = "memory";
-		await upload("limit.png", new Uint8Array(10 * 1024 * 1024), "image/png");
-		const cache = routeCache();
+		await upload("image.png", new Uint8Array([1, 2, 3]), "image/png");
+		const serve = memoryMediaRequests();
+		const url = "http://localhost/_emdash/api/media/file/image.png";
+		const request = new Request(url);
+		const first = await serve(request, (cache) => GET(buildContext("image.png", request, cache)));
+		expect(new Uint8Array(await first.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+		const etag = first.headers.get("ETag")!;
+		const conditional = new Request(url, { headers: { "If-None-Match": etag } });
 
-		await GET(buildContext("limit.png", new Request("http://localhost/x"), cache));
+		const response = await serve(conditional, (cache) =>
+			GET(buildContext("image.png", conditional, cache)),
+		);
 
-		expect(cache.set).toHaveBeenCalledTimes(1);
-	});
-
-	it("does not cache an image over 10 MB in memoryCache()", async () => {
-		virtualConfig.routeCacheProvider = "memory";
-		await upload("large.png", new Uint8Array(10 * 1024 * 1024 + 1), "image/png");
-		const cache = routeCache();
-
-		const response = await GET(buildContext("large.png", new Request("http://localhost/x"), cache));
-
-		expect(response.status).toBe(200);
-		expect(cache.set).not.toHaveBeenCalled();
+		expect(response.status).toBe(304);
+		expect(response.headers.get("ETag")).toBe(etag);
+		expect(response.body).toBeNull();
+		expect(response.headers.get("X-Astro-Cache")).not.toBe("HIT");
 	});
 });

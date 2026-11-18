@@ -1583,8 +1583,8 @@ export interface ContentActionCallbacks {
 	flush(pluginId: string, invocationId?: string, final?: boolean): Promise<void>;
 	/**
 	 * Purge cached responses for a storage key after a plugin deleted its file. Never throws.
-	 * Within an active invocation, including one released after timeout, the purge runs at the
-	 * invocation's next flush or when its grace period ends.
+	 * Within an active invocation, including one released after timeout, the purge is queued for
+	 * the invocation's next flush or grace-period expiry. Execution requires the host to remain alive.
 	 */
 	invalidateMedia?(
 		pluginId: string,

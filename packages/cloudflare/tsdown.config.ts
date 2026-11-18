@@ -51,5 +51,6 @@ export default defineConfig({
 		/^@astrojs\/cloudflare/,
 		/^astro($|\/)/,
 		/^astro:/,
+		/^virtual:emdash\//,
 	],
 });

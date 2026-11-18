@@ -21,8 +21,8 @@ import {
 	canonicalTransformRedirect,
 	canonicalTransformSearch,
 	getTransformFingerprint,
+	isCacheableMediaSource,
 	matchInternalMediaKey,
-	mediaRouteCacheMaxBytes,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
 	validatorHeaders,
@@ -88,8 +88,11 @@ export const GET: APIRoute = async (ctx) => {
 	const service = await getConfiguredImageService();
 	if (!("transform" in service)) return genericGET(ctx);
 
-	const canonical = canonicalTransformSearch(url, imageConfig.assetQueryParams);
-	if (canonical !== null) return canonicalTransformRedirect(url, canonical);
+	const isStockService = imageConfig.service?.entrypoint === "astro/assets/services/sharp";
+	if (isStockService) {
+		const canonical = canonicalTransformSearch(url, imageConfig.assetQueryParams);
+		if (canonical !== null) return canonicalTransformRedirect(url, canonical);
+	}
 
 	// An unread download retains its storage connection even for a bodyless response.
 	let unusedBody: ReadableStream<Uint8Array> | undefined;
@@ -137,12 +140,13 @@ export const GET: APIRoute = async (ctx) => {
 		const inputBuffer = new Uint8Array(await new Response(source.body).arrayBuffer());
 		const { data, format } = await service.transform(inputBuffer, transform, imageConfig);
 
-		cacheMediaResponse(
-			ctx.cache,
-			key,
-			data.byteLength,
-			mediaRouteCacheMaxBytes(virtualConfig?.routeCacheProvider),
-		);
+		if (
+			isStockService &&
+			virtualConfig?.routeCacheProvider !== "memory" &&
+			isCacheableMediaSource(url.searchParams.get("href"), url)
+		) {
+			cacheMediaResponse(ctx.cache, key);
+		}
 		return new Response(data, {
 			status: 200,
 			headers: {

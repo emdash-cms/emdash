@@ -22,6 +22,7 @@ import {
 	canonicalTransformRedirect,
 	canonicalTransformSearch,
 	getTransformFingerprint,
+	isCacheableMediaSource,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
@@ -31,6 +32,8 @@ import {
 	isNotModified,
 	type ImageTransformFormat,
 } from "emdash/media/image-endpoint";
+// @ts-ignore - virtual module resolved by the consumer's Astro build
+import virtualConfig from "virtual:emdash/config";
 
 export const prerender = false;
 
@@ -101,8 +104,11 @@ export const GET: APIRoute = async (ctx) => {
 
 	// Astro adds the adapter's assetQueryParams; the public `astro:assets` type omits it.
 	const config: typeof imageConfig & { assetQueryParams?: URLSearchParams } = imageConfig;
-	const canonical = canonicalTransformSearch(url, config.assetQueryParams);
-	if (canonical !== null) return canonicalTransformRedirect(url, canonical);
+	const stockService = config.service.entrypoint === "@astrojs/cloudflare/image-service-workerd";
+	if (stockService) {
+		const canonical = canonicalTransformSearch(url, config.assetQueryParams);
+		if (canonical !== null) return canonicalTransformRedirect(url, canonical);
+	}
 
 	// An unread download keeps its storage read open even for a bodyless response.
 	let unusedBody: ReadableStream<Uint8Array> | undefined;
@@ -162,7 +168,13 @@ export const GET: APIRoute = async (ctx) => {
 		const response = result.response();
 		if (!response.body) return new Response(null, { status: 500 });
 
-		cacheMediaResponse(ctx.cache, key);
+		if (
+			stockService &&
+			virtualConfig?.routeCacheProvider !== "memory" &&
+			isCacheableMediaSource(url.searchParams.get("href"), url)
+		) {
+			cacheMediaResponse(ctx.cache, key);
+		}
 		return new Response(response.body, {
 			status: 200,
 			headers: {

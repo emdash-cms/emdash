@@ -51,6 +51,7 @@ import {
 } from "emdash/plugins/secret-redactor";
 
 import { sandboxHttpFetch } from "./bridge-http.js";
+import { deleteMedia } from "./bridge-media.js";
 import type { RedirectBridgeResult, StorageUpdateIfResponse } from "./types.js";
 
 let bridgeRuntimePromise: Promise<typeof import("./bridge-runtime.js")> | undefined;
@@ -1736,42 +1737,13 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 			throw new Error("Missing capability: media:write");
 		}
 
-		// Look up the storage key before deleting
-		const media = await this.env.DB.prepare("SELECT storage_key, mime_type FROM media WHERE id = ?")
-			.bind(id)
-			.first<{ storage_key: string; mime_type: string }>();
-
-		if (!media) return false;
-
-		// Delete the DB row
-		const result = await this.env.DB.prepare("DELETE FROM media WHERE id = ?").bind(id).run();
-
-		// Delete from R2 if the binding is available
-		if (this.env.MEDIA && media.storage_key) {
-			let storageDeleted = false;
-			try {
-				await this.env.MEDIA.delete(media.storage_key);
-				storageDeleted = true;
-			} catch {
-				// Log but don't fail - the DB row is already deleted
-				console.warn(`[plugin-bridge] Failed to delete R2 object: ${media.storage_key}`);
-			}
-			if (storageDeleted) {
-				// Loaded lazily to keep the image endpoint out of the Worker's startup modules.
-				const { isRouteCachedMedia } = await import("emdash/media/image-endpoint");
-				if (isRouteCachedMedia(media.storage_key, media.mime_type)) {
-					const runtimeId = this.ctx.props.contentActionsRuntimeId;
-					const callbacks = runtimeId ? contentActionCallbacks().get(runtimeId) : undefined;
-					await callbacks?.invalidateMedia?.(
-						this.ctx.props.pluginId,
-						media.storage_key,
-						invocationId,
-					);
-				}
-			}
+		const { deleted, cacheKey } = await deleteMedia(this.env, id);
+		if (cacheKey) {
+			const runtimeId = this.ctx.props.contentActionsRuntimeId;
+			const callbacks = runtimeId ? contentActionCallbacks().get(runtimeId) : undefined;
+			await callbacks?.invalidateMedia?.(this.ctx.props.pluginId, cacheKey, invocationId);
 		}
-
-		return (result.meta?.changes ?? 0) > 0;
+		return deleted;
 	}
 
 	// =========================================================================
