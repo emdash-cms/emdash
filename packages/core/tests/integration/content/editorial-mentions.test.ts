@@ -1,9 +1,10 @@
 import { Role } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
 	handleEditorialCommentCreate,
+	handleEditorialCommentDelete,
 	handleEditorialCommentUpdate,
 	handleEditorialMentionable,
 	handleEditorialThreadCreate,
@@ -14,6 +15,7 @@ import {
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
 import {
+	buildEditorialNotificationEmail,
 	sendEditorialCommentNotifications,
 	type EditorialCommentCreated,
 } from "../../../src/editorial/notifications.js";
@@ -166,6 +168,25 @@ describeEachDialect("editorial mentions and notifications", (dialect) => {
 		expect(wildcard.items.map((user) => user.id)).toEqual([LIN.id]);
 	});
 
+	it("lists users without a name last, and only without a search term", async () => {
+		await db
+			.insertInto("users")
+			.values({
+				id: "a-nameless",
+				email: "nameless@example.com",
+				name: null,
+				role: Role.CONTRIBUTOR,
+				email_verified: 1,
+				disabled: 0,
+			})
+			.execute();
+
+		const all = expectData(await handleEditorialMentionable(db, entry, ""));
+		expect(all.items.map((user) => user.id)).toEqual([ADA.id, GRACE.id, LIN.id, "a-nameless"]);
+		const searched = expectData(await handleEditorialMentionable(db, entry, "a"));
+		expect(searched.items.map((user) => user.id)).not.toContain("a-nameless");
+	});
+
 	async function startThread(actor: EditorialActor, body: string) {
 		let created: EditorialCommentCreated | undefined;
 		const thread = expectData(
@@ -226,16 +247,68 @@ describeEachDialect("editorial mentions and notifications", (dialect) => {
 		expect(sent).toEqual([]);
 	});
 
-	it("still saves the comment and sends nothing without an email provider", async () => {
+	it("emails only the users an edit newly mentions", async () => {
+		const { email, sent } = fakeEmail();
+		const { thread } = await startThread(ADA, "Needs a source.");
+		const graceReply = await reply(GRACE, thread.id, "Agreed.");
+		const hook = vi.fn();
+
+		expectData(
+			await handleEditorialCommentUpdate(
+				db,
+				GRACE,
+				entry,
+				thread.id,
+				graceReply.commentId,
+				{ body: `Agreed. <@${LIN.id}>, can you find one?` },
+				hook,
+			),
+		);
+		expect(hook).toHaveBeenCalledOnce();
+		await sendEditorialCommentNotifications(db, email, {
+			...hook.mock.calls[0]![0],
+			adminBaseUrl: ADMIN_BASE,
+		});
+		expect(sent.map((message) => [message.to, message.subject])).toEqual([
+			[`${LIN.id}@example.com`, 'Grace Hopper mentioned you on "Launch post"'],
+		]);
+
+		hook.mockClear();
+		expectData(
+			await handleEditorialCommentUpdate(
+				db,
+				GRACE,
+				entry,
+				thread.id,
+				graceReply.commentId,
+				{ body: `Agreed. <@${LIN.id}>, could you find one?` },
+				hook,
+			),
+		);
+		expect(hook).not.toHaveBeenCalled();
+	});
+
+	it("stops emailing someone whose comments in the thread were deleted", async () => {
+		const { email, sent } = fakeEmail();
+		const { thread } = await startThread(ADA, "Needs a source.");
+		const linReply = await reply(LIN, thread.id, "On it.");
+		expectData(await handleEditorialCommentDelete(db, LIN, entry, thread.id, linReply.commentId));
+
+		const created = await reply(GRACE, thread.id, "Any luck?");
+		await sendEditorialCommentNotifications(db, email, { ...created, adminBaseUrl: ADMIN_BASE });
+
+		expect(sent.map((message) => message.to)).toEqual([`${ADA.id}@example.com`]);
+	});
+
+	it("sends nothing without an email provider", async () => {
 		const { email, sent } = fakeEmail(false);
-		const { thread, created } = await startThread(ADA, `<@${GRACE.id}> please look`);
+		const { created } = await startThread(ADA, `<@${GRACE.id}> please look`);
 
 		const count = await sendEditorialCommentNotifications(db, email, {
 			...created,
 			adminBaseUrl: ADMIN_BASE,
 		});
 
-		expect(thread.comments).toHaveLength(1);
 		expect(count).toBe(0);
 		expect(email.send).not.toHaveBeenCalled();
 		expect(sent).toEqual([]);
@@ -253,5 +326,37 @@ describeEachDialect("editorial mentions and notifications", (dialect) => {
 		);
 
 		expect(onCreated).not.toHaveBeenCalled();
+	});
+});
+
+describe("buildEditorialNotificationEmail", () => {
+	const base = {
+		to: "grace@example.com",
+		authorName: "Ada Lovelace",
+		mentioned: true,
+		entryTitle: "Launch post",
+		excerpt: "Looks good.",
+		link: "https://example.com/_emdash/admin/content/post/1?thread=t1",
+	};
+
+	it("escapes names and titles in the HTML and keeps the subject on one line", () => {
+		const message = buildEditorialNotificationEmail({
+			...base,
+			authorName: "<img src=x onerror=alert(1)>",
+			entryTitle: "Launch\r\nBcc: everyone@example.com",
+		});
+
+		expect(message.html).not.toContain("<img");
+		expect(message.html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+		expect(message.subject).not.toMatch(/[\r\n]/);
+	});
+
+	it("shortens a long excerpt without splitting a character", () => {
+		const message = buildEditorialNotificationEmail({
+			...base,
+			excerpt: `${"a".repeat(499)}😀😀`,
+		});
+
+		expect(message.text).toContain(`${"a".repeat(499)}😀…`);
 	});
 });

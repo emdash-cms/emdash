@@ -17,7 +17,7 @@ The API lives under each entry, at `/_emdash/api/content/{collection}/{id}/threa
 
 Type `@` in a comment to mention someone who can take part in threads. A comment body stores each mention as `<@USER_ID>`, and every thread in a response lists the users it mentions under `mentions`, with their current names, so a renamed user shows the new name. `GET …/threads/mentionable?q=` returns up to 10 people to mention, matched by display name, without email addresses. A comment that mentions a user who doesn't exist or can't take part fails with `VALIDATION_ERROR`.
 
-When the site has an email provider, a new comment emails the people it mentions and the thread's earlier participants, except its author and anyone who can no longer take part. The email has the entry's title, an excerpt of the comment and a link to the thread. Without an email provider, nothing is sent, and the comment is still saved.
+When the site has an email provider, a new comment emails the people it mentions, the thread's creator and the authors of its earlier comments that weren't deleted, except its own author and anyone who can no longer take part. Editing a comment to mention someone new emails only that person. The email has the entry's title, an excerpt of the comment and a link to the thread. Without an email provider, nothing is sent, and the comment is still saved.
 
 #### Permissions
 

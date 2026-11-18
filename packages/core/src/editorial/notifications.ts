@@ -23,6 +23,8 @@ const CRLF_RE = /[\r\n]+/g;
 export interface EditorialCommentCreated {
 	threadId: string;
 	commentId: string;
+	/** Set when an edit added mentions: only these users are emailed. */
+	addedMentions?: string[];
 }
 
 export interface EditorialNotificationEmail {
@@ -40,9 +42,10 @@ export function buildEditorialNotificationEmail(data: EditorialNotificationEmail
 			? `${data.authorName} mentioned you on "${data.entryTitle}"`
 			: `${data.authorName} commented on "${data.entryTitle}"`
 	).replace(CRLF_RE, " ");
+	const characters = Array.from(data.excerpt);
 	const excerpt =
-		data.excerpt.length > MAX_EXCERPT_LENGTH
-			? `${data.excerpt.slice(0, MAX_EXCERPT_LENGTH)}…`
+		characters.length > MAX_EXCERPT_LENGTH
+			? `${characters.slice(0, MAX_EXCERPT_LENGTH).join("")}…`
 			: data.excerpt;
 	const action = data.mentioned ? "mentioned you in a comment on" : "commented on";
 
@@ -80,7 +83,8 @@ async function entryTitle(db: Kysely<Database>, collection: string, entryId: str
 /**
  * Emails the people a new comment concerns: users it mentions and earlier
  * participants in its thread, except its author and anyone who can no longer
- * comment. Returns the number of emails sent.
+ * comment. For an edit, only the users it newly mentions. Returns the number
+ * of emails sent.
  */
 export async function sendEditorialCommentNotifications(
 	db: Kysely<Database>,
@@ -94,11 +98,16 @@ export async function sendEditorialCommentNotifications(
 	const authorId = comment.author.id;
 
 	const mentioned = new Set(extractMentions(comment.body));
-	const recipientIds = new Set(mentioned);
-	if (thread.createdBy) recipientIds.add(thread.createdBy);
-	for (const earlier of thread.comments) {
-		if (earlier.id === comment.id) break;
-		if (earlier.author) recipientIds.add(earlier.author.id);
+	let recipientIds: Set<string>;
+	if (input.addedMentions) {
+		recipientIds = new Set(input.addedMentions.filter((id) => mentioned.has(id)));
+	} else {
+		recipientIds = new Set(mentioned);
+		if (thread.createdBy) recipientIds.add(thread.createdBy);
+		for (const earlier of thread.comments) {
+			if (earlier.id === comment.id) break;
+			if (earlier.author && earlier.deletedAt === null) recipientIds.add(earlier.author.id);
+		}
 	}
 	recipientIds.delete(authorId);
 	if (recipientIds.size === 0) return 0;

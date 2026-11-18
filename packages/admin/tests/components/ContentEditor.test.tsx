@@ -30,6 +30,7 @@ import {
 	createEditorialThread,
 	deleteEditorialThread,
 	editEditorialComment,
+	fetchEditorialMentionable,
 	fetchEditorialThreads,
 	type EditorialThread,
 } from "../../src/lib/api/editorial-threads.js";
@@ -240,6 +241,7 @@ vi.mock("../../src/lib/api/editorial-threads.js", async () => {
 		createEditorialThread: vi.fn(),
 		deleteEditorialThread: vi.fn(),
 		editEditorialComment: vi.fn(),
+		fetchEditorialMentionable: vi.fn(async () => []),
 	};
 });
 
@@ -5492,6 +5494,27 @@ describe("editorial comments", () => {
 				}),
 			),
 		);
+	});
+
+	it("searches for people to mention once typing pauses", async () => {
+		const screen = await renderWithThreads([]);
+		await screen.getByRole("button", { name: "Comment on Title" }).click();
+		const composer = screen
+			.getByRole("complementary", { name: "Comments" })
+			.getByRole("combobox", { name: "Comment" });
+		await expect.element(composer).toHaveFocus();
+
+		await userEvent.keyboard("@gra");
+
+		await vi.waitFor(() =>
+			expect(vi.mocked(fetchEditorialMentionable)).toHaveBeenLastCalledWith(
+				expect.objectContaining({ id: "item-1" }),
+				"gra",
+			),
+		);
+		const queries = vi.mocked(fetchEditorialMentionable).mock.calls.map(([, query]) => query);
+		expect(queries).not.toContain("g");
+		expect(queries).not.toContain("gr");
 	});
 
 	describe("managing a thread", () => {

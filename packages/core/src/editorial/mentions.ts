@@ -1,6 +1,6 @@
-import { Permissions } from "@emdash-cms/auth";
 import { sql, type Kysely } from "kysely";
 
+import { EDITORIAL_MIN_ROLE } from "../api/authorize.js";
 import type { Database } from "../database/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 
@@ -16,7 +16,7 @@ export interface EditorialUser {
 	avatarUrl: string | null;
 	email: string;
 	emailVerified: boolean;
-	/** Holds `editorial:comment` and isn't disabled. */
+	/** May take part in editorial threads and isn't disabled. */
 	canComment: boolean;
 }
 
@@ -50,7 +50,7 @@ export async function findEditorialUsers(
 				avatarUrl: row.avatar_url,
 				email: row.email,
 				emailVerified: row.email_verified === 1,
-				canComment: !row.disabled && row.role >= Permissions["editorial:comment"],
+				canComment: !row.disabled && row.role >= EDITORIAL_MIN_ROLE,
 			});
 		}
 	}
@@ -66,13 +66,15 @@ export async function searchMentionableUsers(
 		.selectFrom("users")
 		.select(["id", "name", "avatar_url"])
 		.where("disabled", "=", 0)
-		.where("role", ">=", Permissions["editorial:comment"]);
+		.where("role", ">=", EDITORIAL_MIN_ROLE);
 	const term = query.trim();
 	if (term) {
 		const pattern = `%${term.replace(LIKE_ESCAPE_RE, (ch) => `\\${ch}`)}%`;
 		select = select.where(sql<boolean>`lower(name) LIKE lower(${pattern}) ESCAPE '\\'`);
 	}
+	// Unnamed users can't match a typed name, and sort last on every dialect.
 	const rows = await select
+		.orderBy(sql`name IS NULL`)
 		.orderBy("name", "asc")
 		.orderBy("id", "asc")
 		.limit(EDITORIAL_MENTIONABLE_LIMIT)
