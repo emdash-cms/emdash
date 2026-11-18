@@ -25,22 +25,15 @@ const TEXT_THREAD = {
 const EXCERPT_THREAD_BODY =
 	"The excerpt undersells the piece. Could it lead with the point about boring technology?";
 
-/**
- * The seed's Portable Text has no block keys, and text threads need them to
- * stay attached, so the example post gets stable ones.
- */
-function withBlockKeys(value: unknown): unknown[] {
-	if (!Array.isArray(value)) return [];
-	return value.map((block: unknown, index) =>
-		typeof block === "object" && block !== null && !("_key" in block)
-			? { ...block, _key: `pg${index}` }
-			: block,
-	);
+function warn(message: string, error?: { message: string }): void {
+	console.warn(`[playground] ${message}${error ? `: ${error.message}` : ""}`);
 }
 
 /**
  * Example editorial threads on a seeded post, from a demo reviewer, so
  * visitors find comments in the margin and can reply, resolve or add their own.
+ * The post's Portable Text blocks need `_key`s in the seed for the text thread
+ * to find its quote.
  */
 export async function seedPlaygroundComments(db: Kysely<Database>, now: string): Promise<void> {
 	await db
@@ -75,10 +68,7 @@ export async function seedPlaygroundComments(db: Kysely<Database>, now: string):
 		.executeTakeFirst();
 	if (seeded) return;
 
-	const content = withBlockKeys(row.content ? JSON.parse(row.content) : []);
-	await sql`UPDATE ec_posts SET content = ${JSON.stringify(content)} WHERE id = ${row.id}`.execute(
-		db,
-	);
+	const content: unknown = row.content ? JSON.parse(row.content) : [];
 	const found = locateQuote(content, "content", TEXT_THREAD.quote);
 	if (found.status === "found") {
 		const thread = await handleEditorialThreadCreate(db, REVIEWER, entry, {
@@ -86,14 +76,24 @@ export async function seedPlaygroundComments(db: Kysely<Database>, now: string):
 			body: TEXT_THREAD.body,
 		});
 		if (thread.success) {
-			await handleEditorialCommentCreate(db, { id: VISITOR_ID, role: 50 }, entry, thread.data.id, {
-				body: TEXT_THREAD.reply,
-			});
+			const reply = await handleEditorialCommentCreate(
+				db,
+				{ id: VISITOR_ID, role: 50 },
+				entry,
+				thread.data.id,
+				{ body: TEXT_THREAD.reply },
+			);
+			if (!reply.success) warn("example reply not created", reply.error);
+		} else {
+			warn("example text thread not created", thread.error);
 		}
+	} else {
+		warn(`example quote is ${found.status} in "${POST_SLUG}"`);
 	}
 
-	await handleEditorialThreadCreate(db, REVIEWER, entry, {
+	const excerpt = await handleEditorialThreadCreate(db, REVIEWER, entry, {
 		anchor: { type: "field", field: "excerpt" },
 		body: EXCERPT_THREAD_BODY,
 	});
+	if (!excerpt.success) warn("example excerpt thread not created", excerpt.error);
 }
