@@ -1,6 +1,6 @@
 import { sql, type Kysely } from "kysely";
 
-import { EDITORIAL_MIN_ROLE } from "../api/authorize.js";
+import { editorialMinRole } from "../api/authorize.js";
 import type { Database } from "../database/types.js";
 import { chunks, SQL_BATCH_SIZE } from "../utils/chunks.js";
 
@@ -50,7 +50,7 @@ export async function findEditorialUsers(
 				avatarUrl: row.avatar_url,
 				email: row.email,
 				emailVerified: row.email_verified === 1,
-				canComment: !row.disabled && row.role >= EDITORIAL_MIN_ROLE,
+				canComment: !row.disabled && row.role >= editorialMinRole(),
 			});
 		}
 	}
@@ -66,7 +66,7 @@ export async function searchMentionableUsers(
 		.selectFrom("users")
 		.select(["id", "name", "avatar_url"])
 		.where("disabled", "=", 0)
-		.where("role", ">=", EDITORIAL_MIN_ROLE);
+		.where("role", ">=", editorialMinRole());
 	const term = query.trim();
 	if (term) {
 		const pattern = `%${term.replace(LIKE_ESCAPE_RE, (ch) => `\\${ch}`)}%`;
