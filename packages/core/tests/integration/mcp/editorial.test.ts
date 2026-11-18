@@ -1,10 +1,12 @@
 import { Role } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
-import { queueEditorialCommentNotifications } from "../../../src/editorial/notifications.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
+import { definePlugin } from "../../../src/plugins/define-plugin.js";
+import type { EmailMessage } from "../../../src/plugins/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	connectMcpHarness,
@@ -14,11 +16,6 @@ import {
 	type McpHarness,
 } from "../../utils/mcp-runtime.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
-
-vi.mock("../../../src/editorial/notifications.js", async (importOriginal) => ({
-	...(await importOriginal<typeof import("../../../src/editorial/notifications.js")>()),
-	queueEditorialCommentNotifications: vi.fn(),
-}));
 
 const USER = "user_contributor";
 
@@ -68,7 +65,6 @@ describe("MCP editorial tools", () => {
 	});
 
 	afterEach(async () => {
-		vi.mocked(queueEditorialCommentNotifications).mockClear();
 		await harness?.cleanup();
 		harness = undefined;
 		await teardownTestDatabase(db);
@@ -179,7 +175,7 @@ describe("MCP editorial tools", () => {
 		expect(await db.selectFrom("_emdash_editorial_threads").select("id").execute()).toEqual([]);
 	});
 
-	it("queues notifications for comments it creates", async () => {
+	it("emails the people a new thread or reply concerns, with a link to the thread", async () => {
 		await db
 			.insertInto("users")
 			.values({
@@ -190,16 +186,69 @@ describe("MCP editorial tools", () => {
 				email_verified: 1,
 			})
 			.execute();
+		const sent: EmailMessage[] = [];
+		const plugins = [
+			definePlugin({
+				id: "test-email",
+				version: "1.0.0",
+				capabilities: ["hooks.email-transport:register"],
+				hooks: {
+					"email:deliver": {
+						exclusive: true,
+						handler: async (event: { message: EmailMessage }) => {
+							sent.push(event.message);
+						},
+					},
+				},
+			}),
+		];
+		harness = await connectMcpHarness({
+			db,
+			userId: USER,
+			userRole: Role.CONTRIBUTOR,
+			runtimeOptions: { plugins },
+		});
+		const editor = await connectMcpHarness({
+			db,
+			userId: "user_editor",
+			userRole: Role.EDITOR,
+			runtimeOptions: { plugins },
+		});
+
+		try {
+			const thread = extractJson<Thread>(
+				await call("editorial_thread_create", { body: "<@user_editor> can you check this?" }),
+			);
+			await waitForDeferredTasks();
+			await editor.client.callTool({
+				name: "editorial_comment_create",
+				arguments: { collection: "post", id: entryId, threadId: thread.id, body: "Looks fine" },
+			});
+			await waitForDeferredTasks();
+
+			const link = `http://localhost/_emdash/admin/content/post/${entryId}?thread=${thread.id}`;
+			expect(sent.map((message) => message.to)).toEqual([
+				"editor@example.com",
+				"contributor@example.com",
+			]);
+			for (const message of sent) expect(message.text).toContain(link);
+		} finally {
+			await editor.cleanup();
+		}
+	});
+
+	it("refuses `prefix` or `suffix` without a `quote`", async () => {
 		await connect();
 
-		const thread = extractJson<Thread>(
-			await call("editorial_thread_create", { body: "<@user_editor> can you check this?" }),
-		);
-		await call("editorial_comment_create", { threadId: thread.id, body: "<@user_editor> ping" });
-
-		const queued = vi.mocked(queueEditorialCommentNotifications).mock.calls;
-		expect(queued.map(([, created]) => created.threadId)).toEqual([thread.id, thread.id]);
-		expect(queued[0]![0].request).toBeInstanceOf(Request);
+		for (const context of [{ prefix: "Red " }, { suffix: " fish" }]) {
+			const result = await call("editorial_thread_create", {
+				body: "Which one?",
+				field: "content",
+				...context,
+			});
+			expect(extractText(result)).toBe("[VALIDATION_ERROR] `prefix` and `suffix` need a `quote`");
+		}
+		expect(await db.selectFrom("_emdash_editorial_threads").select("id").execute()).toEqual([]);
 	});
 
 	it("finds a quote in the draft revision, not only the saved columns", async () => {
