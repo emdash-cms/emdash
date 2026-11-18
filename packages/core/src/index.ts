@@ -95,16 +95,11 @@ export {
 	handleMediaUsageActivationAdvance,
 	handleMediaUsageProgress,
 	handleMediaUsageRepair,
-	handleEditorialThreadCreate,
-	handleEditorialCommentCreate,
 	handleRevisionList,
 	handleRevisionGet,
 	handleRevisionRestore,
 	generateManifest,
 } from "./api/index.js";
-export { locateQuote } from "@emdash-cms/admin/editorial-anchors";
-export type { EditorialAnchor } from "@emdash-cms/admin/editorial-anchors";
-export type { EditorialActor, EditorialEntryRef } from "./api/index.js";
 export type {
 	ListResponse,
 	ContentListResponse,
