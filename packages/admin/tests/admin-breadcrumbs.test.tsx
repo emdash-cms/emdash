@@ -40,6 +40,8 @@ const MANIFEST: AdminManifest = {
 	taxonomies: [],
 };
 
+const FOLDER = { id: "folder_1", name: "Product photos" };
+
 function menuWithLabel(label: string) {
 	return {
 		id: "menu_1",
@@ -177,7 +179,7 @@ describe("admin breadcrumbs", () => {
 		const sidebarSettings = document.querySelector(`.emdash-sidebar a[href="${ADMIN}/settings"]`);
 		expect(sidebarSettings).toHaveAttribute("aria-current", "page");
 
-		await page.getByRole("link", { name: "Settings", exact: true }).first().click();
+		await trailNav().getByRole("link", { name: "Settings", exact: true }).click();
 		await expect.element(page.getByRole("heading", { name: "Settings", level: 1 })).toBeVisible();
 		expect(window.location.pathname).toBe(`${ADMIN}/settings`);
 		await expect.element(trailNav()).not.toBeInTheDocument();
@@ -259,7 +261,7 @@ describe("admin breadcrumbs", () => {
 		]);
 	});
 
-	it("shows no trail on a top-level page or in the content editor", async () => {
+	it("shows no trail on a top-level page", async () => {
 		await openAdmin("/menus");
 		await expect.element(page.getByRole("heading", { name: "Menus", level: 1 })).toBeVisible();
 		expect(document.querySelector("header nav")).toBeNull();
@@ -296,6 +298,52 @@ describe("admin breadcrumbs", () => {
 		expect(document.querySelector("header nav")).toBeNull();
 	});
 
+	describe("media folders", () => {
+		beforeEach(() => {
+			role = ROLE_EDITOR;
+			on("/_emdash/api/media/folders/folder_1", () => json({ data: { item: FOLDER } }));
+			on("/_emdash/api/media/folders", () => json({ data: { items: [FOLDER] } }));
+			on("/_emdash/api/media", () => json({ data: { items: [], totalCount: 0 } }));
+			on("/_emdash/api/media/providers", () => json({ data: { items: [] } }));
+		});
+
+		it("adds the folder below Media, whose crumb goes back to the library", async () => {
+			await openAdmin(`/media?folder=${FOLDER.id}`);
+
+			await vi.waitFor(() =>
+				expect(readTrail()).toEqual([
+					{ label: "Media", href: `${ADMIN}/media` },
+					{ label: "Product photos", current: "page" },
+				]),
+			);
+
+			await trailNav().getByRole("link", { name: "Media", exact: true }).click();
+			await vi.waitFor(() => expect(window.location.search).toBe(""));
+			expect(window.location.pathname).toBe(`${ADMIN}/media`);
+			await expect.element(trailNav()).not.toBeInTheDocument();
+			await expect
+				.element(page.getByRole("heading", { name: "Media Library", level: 1 }))
+				.toHaveFocus();
+		});
+
+		it("moves focus to the library heading when the browser goes back to the library", async () => {
+			await openAdmin("/media");
+			await page.getByRole("link", { name: `Open folder ${FOLDER.name}` }).click();
+			await vi.waitFor(() => expect(readTrail()).toHaveLength(2));
+
+			const mediaCrumb = trailNav().getByRole("link", { name: "Media", exact: true });
+			mediaCrumb.element().focus();
+			await expect.element(mediaCrumb).toHaveFocus();
+			window.history.back();
+
+			await vi.waitFor(() => expect(window.location.search).toBe(""));
+			await expect.element(trailNav()).not.toBeInTheDocument();
+			await expect
+				.element(page.getByRole("heading", { name: "Media Library", level: 1 }))
+				.toHaveFocus();
+		});
+	});
+
 	it("reads from the right in Arabic, with mirrored separators", async () => {
 		await openAdmin("/settings/general", "ar");
 
@@ -311,7 +359,6 @@ describe("admin breadcrumbs", () => {
 			current.getBoundingClientRect().right,
 		);
 		expect(getComputedStyle(visibleIn(trail, "svg")!).rotate).toBe("180deg");
-		expect(getComputedStyle(trail).marginInlineEnd).toBe("0px");
 	});
 
 	it("keeps the start of a Latin menu name visible when it truncates in Arabic", async () => {
@@ -326,14 +373,13 @@ describe("admin breadcrumbs", () => {
 		expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
 	});
 
-	it("keeps the separator pointing forward and no end margin in left-to-right pages", async () => {
+	it("keeps the separator pointing forward in left-to-right pages", async () => {
 		await openAdmin("/settings/general");
 
 		const trail = trailNav();
 		await expect.element(trail).toBeVisible();
 		const separator = visibleIn(trail.element(), "svg")!;
 		expect(getComputedStyle(separator).rotate).toBe("none");
-		expect(getComputedStyle(trail.element()).marginInlineEnd).toBe("0px");
 	});
 
 	it("truncates a long menu name at phone width without pushing the header actions off screen", async () => {

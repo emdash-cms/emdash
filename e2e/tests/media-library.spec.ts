@@ -138,6 +138,12 @@ async function fetchUncachedBytes(serverInfo: ServerInfo, url: string): Promise<
 	return new Uint8Array(await response.arrayBuffer());
 }
 
+function mediaCrumb(page: Page) {
+	return page
+		.getByRole("navigation", { name: "Breadcrumb", exact: true })
+		.getByRole("link", { name: "Media", exact: true });
+}
+
 async function createFolder(page: Page, name: string) {
 	await page.getByRole("button", { name: "Add new folder" }).click();
 	const dialog = page.getByRole("dialog", { name: "Add new folder" });
@@ -708,7 +714,7 @@ test.describe("Media Library", () => {
 		expect(new URL(movedGridSrc!, page.url()).searchParams.get("href") ?? movedGridSrc).toBe(
 			originalMediaUrl,
 		);
-		await page.getByRole("link", { name: "Back" }).click();
+		await mediaCrumb(page).click();
 		await page.getByRole("button", { name: `Edit folder ${gridFolderName}` }).click();
 		let editDialog = page.getByRole("dialog", { name: "Edit folder" });
 		await editDialog.getByRole("button", { name: "Delete folder" }).click();
@@ -742,7 +748,7 @@ test.describe("Media Library", () => {
 		expect(new URL(movedListSrc!, page.url()).searchParams.get("href") ?? movedListSrc).toBe(
 			originalMediaUrl,
 		);
-		await page.getByRole("link", { name: "Back" }).click();
+		await mediaCrumb(page).click();
 		await page.getByRole("button", { name: `Edit folder ${listFolderName}` }).click();
 		editDialog = page.getByRole("dialog", { name: "Edit folder" });
 		await editDialog.getByRole("button", { name: "Delete folder" }).click();
@@ -1043,8 +1049,7 @@ test.describe("Media Library", () => {
 		await expect(pageSize).toContainText("70");
 		await expect(mediaRow).toBeVisible();
 		const main = page.locator("main");
-		const headerBack = page.getByRole("link", { name: "Back" });
-		await headerBack.focus();
+		await mediaCrumb(page).focus();
 		const scrollFixture = await page.addStyleTag({
 			content: "main { padding-bottom: 1200px !important; }",
 		});
@@ -1085,8 +1090,7 @@ test.describe("Media Library", () => {
 		const rootFoldersResponse = page.waitForResponse((response) =>
 			new URL(response.url()).pathname.endsWith("/_emdash/api/media/folders"),
 		);
-		const delayedBack = page.getByRole("link", { name: "Back" });
-		await delayedBack.focus();
+		await mediaCrumb(page).focus();
 		const delayedScrollFixture = await page.addStyleTag({
 			content: "main { padding-bottom: 1200px !important; }",
 		});
@@ -1105,6 +1109,23 @@ test.describe("Media Library", () => {
 		await expect(page).toHaveURL(/\/media\?folder=/);
 		await page.goForward();
 		await expect(page).toHaveURL(/\/media\/?$/);
+
+		await page.getByRole("link", { name: `Open folder ${folderName}` }).click();
+		await expect(page).toHaveURL(/\/media\?folder=/);
+		await mediaCrumb(page).focus();
+		const historyScrollFixture = await page.addStyleTag({
+			content: "main { padding-bottom: 1200px !important; }",
+		});
+		const historyScrollBeforeBack = await main.evaluate((element) => {
+			element.scrollTop = 400;
+			return element.scrollTop;
+		});
+		expect(historyScrollBeforeBack).toBeGreaterThan(0);
+		await page.goBack();
+		await expect(page).toHaveURL(/\/media\/?$/);
+		await expect(page.getByRole("heading", { name: "Media Library" })).toBeFocused();
+		await expect.poll(() => main.evaluate((element) => element.scrollTop)).toBeGreaterThan(0);
+		await historyScrollFixture.evaluate((element) => element.remove());
 
 		const search = page.getByRole("searchbox", { name: "Search media" });
 		await search.fill(folderName);
