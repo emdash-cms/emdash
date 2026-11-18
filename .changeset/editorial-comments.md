@@ -25,6 +25,12 @@ AI agents can review entries through four MCP tools: `editorial_thread_list`, `e
 
 `editorial_thread_create` starts a thread on the whole entry, or on one field when you pass `field`. To comment on specific text, pass `field` and the exact `quote`, with optional `prefix` and `suffix` to tell repeated text apart. The tool finds the quote in the entry's current draft. Passing `prefix` or `suffix` without `quote` fails with `VALIDATION_ERROR`.
 
+#### Visual editing
+
+Editors can review threads on the site itself. In edit mode, each element bound to an entry or field with `{...entry.edit}` or `{...entry.edit.field}` shows a badge with the number of its open threads. Threads on text and blocks in a field count toward that field's badge. Hover over a bound element, or put the cursor in it to edit it, to show its comment button. From the keyboard, the comment buttons come after the page's content and the toolbar in the tab order, in the order of the elements they belong to, and each one shows when it has focus. Badges move with their elements as the page or a scrollable container scrolls, are hidden while their element is hidden or scrolled out of view in its container, which also closes an open popover, and sit side by side when two elements share a corner. The button opens a popover with that element's open threads, where you can reply, resolve a thread you're allowed to resolve, follow **Open in admin** to the thread in the entry editor, and start a new thread on the entry or field. Threads on a range of text are still started in the entry editor.
+
+The toolbar loads threads with one request per entry on the page, at most four at a time, and only for signed-in users in edit mode who can take part in threads. The popover's code loads the first time someone opens it, from the editor-only `/_emdash/visual-editing/comments` page, which the site's Astro build bundles with `@astrojs/react`, as it does the inline editor. Pages for logged-out visitors don't change.
+
 #### Permissions
 
 Two permissions are new in `@emdash-cms/auth`. Every editorial route also needs `content:read_drafts`.
