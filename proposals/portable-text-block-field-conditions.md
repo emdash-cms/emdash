@@ -32,7 +32,7 @@ fields: [
 ],
 ```
 
-<!-- TODO: add the demo GIF here, or attach it to the design PR. -->
+https://github.com/user-attachments/assets/b2b3b907-c459-44b4-a586-c1780c1b4369
 
 - `field` is another field's `action_id`. The condition sets either `eq` or `neq`.
 - A `repeater` sub-field can set `condition` too. It names another sub-field of the same row, and each row follows its own values.
