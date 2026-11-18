@@ -9,7 +9,7 @@ import {
 	sameAnchor,
 	textOffsetToPos,
 	type EditorialTextAnchor,
-} from "../../src/editorial-anchors.js";
+} from "../src/editorial-anchors.js";
 
 function block(key: string, ...texts: string[]) {
 	return {
@@ -63,6 +63,14 @@ describe("createTextAnchor", () => {
 		expect(createTextAnchor(value, "content", "b1", 40, 50)).toBeNull();
 		expect(createTextAnchor(value, "content", "img", 0, 1)).toBeNull();
 		expect(createTextAnchor(value, "content", "nope", 0, 1)).toBeNull();
+	});
+
+	it("refuses a range that splits a surrogate pair", () => {
+		const value = [block("b1", "a😀b")];
+
+		expect(createTextAnchor(value, "content", "b1", 0, 2)).toBeNull();
+		expect(createTextAnchor(value, "content", "b1", 2, 4)).toBeNull();
+		expect(createTextAnchor(value, "content", "b1", 1, 3)?.quote).toBe("😀");
 	});
 });
 
@@ -132,6 +140,42 @@ describe("resolveAnchor", () => {
 		expect(resolveAnchor([block("b1", "cat cat cat cat")], bare)).toMatchObject({
 			state: "attached",
 			anchor: { start: 12 },
+		});
+	});
+
+	it("orphans an anchor with an empty quote", () => {
+		const anchor: EditorialTextAnchor = { ...anchorOn([block("b1", FOX)], "b1", "fox"), quote: "" };
+
+		expect(resolveAnchor([block("b1", FOX)], anchor)).toEqual({ state: "orphaned" });
+	});
+
+	it("orphans a short quote whose block was deleted rather than attach it elsewhere", () => {
+		const original = [block("b1", "Intro to the topic."), block("b2", "We think it is fine.")];
+		const anchor = anchorOn(original, "b2", "it");
+
+		expect(resolveAnchor([block("b1", "Intro to the topic, with it all.")], anchor)).toEqual({
+			state: "orphaned",
+		});
+	});
+
+	it("still follows a quote into another block when it is the only one", () => {
+		const anchor = anchorOn([block("b1", FOX)], "b1", "lazy");
+
+		expect(resolveAnchor([block("b9", "A lazy afternoon.")], anchor)).toMatchObject({
+			state: "attached",
+			anchor: { blockKey: "b9", start: 2, quote: "lazy" },
+		});
+	});
+
+	it("prefers the occurrence that kept its context over one moved onto the stored range", () => {
+		const original = [block("b1", "one red cat sat")];
+		const anchor = anchorOn(original, "b1", "red");
+		// A different "red" now sits at the stored offset; the original moved right.
+		const edited = [block("b1", "two red dog, one red cat sat")];
+
+		expect(resolveAnchor(edited, anchor)).toMatchObject({
+			state: "attached",
+			anchor: { start: 17, prefix: "two red dog, one ", suffix: " cat sat" },
 		});
 	});
 
@@ -239,6 +283,13 @@ describe("ProseMirror position conversion", () => {
 			const pos = textOffsetToPos(paragraph, contentStart, offset);
 			expect(posToTextOffset(paragraph, contentStart, pos)).toBe(offset);
 		}
+	});
+
+	it("maps the start of a range after a mention", () => {
+		// "e" is offset 5–6, after the mention at positions 6–7.
+		expect(textOffsetToPos(paragraph, contentStart, 5)).toBe(6);
+		expect(textOffsetToPos(paragraph, contentStart, 5, 1)).toBe(7);
+		expect(textOffsetToPos(paragraph, contentStart, 6, 1)).toBe(8);
 	});
 
 	it("places offsets past the end at the end of the block", () => {

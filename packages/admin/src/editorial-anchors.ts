@@ -101,11 +101,21 @@ function textAnchorAt(field: string, block: TextBlock, start: number, end: numbe
 	} satisfies EditorialTextAnchor;
 }
 
+/** Whether `offset` falls between the two halves of a surrogate pair. */
+function splitsSurrogatePair(text: string, offset: number): boolean {
+	return (
+		offset > 0 &&
+		offset < text.length &&
+		isHighSurrogate(text.charCodeAt(offset - 1)) &&
+		isLowSurrogate(text.charCodeAt(offset))
+	);
+}
+
 /**
  * A text anchor for the range `start`–`end` of a block, with its quote and
  * surrounding context taken from the field's value. Returns `null` when the
  * block isn't a text block in the field, or the range is empty, out of bounds,
- * or longer than a quote may be.
+ * splits a character, or is longer than a quote may be.
  */
 export function createTextAnchor(
 	fieldValue: unknown,
@@ -119,24 +129,31 @@ export function createTextAnchor(
 	if (!Number.isInteger(start) || !Number.isInteger(end)) return null;
 	if (start < 0 || end > block.text.length || start >= end) return null;
 	if (end - start > EDITORIAL_QUOTE_MAX_LENGTH) return null;
+	if (splitsSurrogatePair(block.text, start) || splitsSurrogatePair(block.text, end)) return null;
 	return textAnchorAt(field, block, start, end);
 }
 
-function commonSuffixLength(a: string, b: string): number {
+/** How many code units of `prefix` end `text` just before `index`. */
+function prefixMatchLength(text: string, index: number, prefix: string): number {
 	let length = 0;
 	while (
-		length < a.length &&
-		length < b.length &&
-		a.charCodeAt(a.length - 1 - length) === b.charCodeAt(b.length - 1 - length)
+		length < index &&
+		length < prefix.length &&
+		text.charCodeAt(index - 1 - length) === prefix.charCodeAt(prefix.length - 1 - length)
 	) {
 		length += 1;
 	}
 	return length;
 }
 
-function commonPrefixLength(a: string, b: string): number {
+/** How many code units of `suffix` start `text` at `index`. */
+function suffixMatchLength(text: string, index: number, suffix: string): number {
 	let length = 0;
-	while (length < a.length && length < b.length && a.charCodeAt(length) === b.charCodeAt(length)) {
+	while (
+		index + length < text.length &&
+		length < suffix.length &&
+		text.charCodeAt(index + length) === suffix.charCodeAt(length)
+	) {
 		length += 1;
 	}
 	return length;
@@ -155,16 +172,17 @@ function findCandidates(
 	context: { prefix: string; suffix: string; start?: number },
 ): Candidate[] {
 	const candidates: Candidate[] = [];
+	// An empty quote matches everywhere, and `indexOf("", n)` never runs out.
+	if (quote.length === 0) return candidates;
 	for (const block of blocks) {
 		let index = block.text.indexOf(quote);
 		while (index !== -1) {
-			const before = block.text.slice(0, index);
-			const after = block.text.slice(index + quote.length);
 			candidates.push({
 				block,
 				start: index,
 				context:
-					commonSuffixLength(before, context.prefix) + commonPrefixLength(after, context.suffix),
+					prefixMatchLength(block.text, index, context.prefix) +
+					suffixMatchLength(block.text, index + quote.length, context.suffix),
 				distance: context.start === undefined ? 0 : Math.abs(index - context.start),
 			});
 			index = block.text.indexOf(quote, index + 1);
@@ -175,9 +193,11 @@ function findCandidates(
 
 /**
  * Finds the anchor's place in the field's current value. A text anchor is
- * looked for at its stored range, then by its quote in its own block, then by
- * its quote anywhere in the field. Matches are ranked by how much of the
- * stored context surrounds them, then by distance from the stored offset.
+ * looked for by its quote in its own block, then anywhere in the field.
+ * Matches are ranked by how much of the stored context surrounds them, then by
+ * distance from the stored offset, so the stored range wins a tie. Outside its
+ * own block, a match must be the quote's only occurrence or keep at least half
+ * of the stored context.
  *
  * Field anchors always resolve here; whether the field still exists in the
  * collection is for the caller to check.
@@ -199,27 +219,23 @@ export function resolveAnchor(fieldValue: unknown, anchor: EditorialAnchor): Res
 function resolveTextAnchor(fieldValue: unknown, anchor: EditorialTextAnchor): ResolvedAnchor {
 	const blocks = textBlocks(fieldValue);
 	const own = blocks.find((block) => block.key === anchor.blockKey);
+	const attachAt = (best: Candidate): ResolvedAnchor => ({
+		state: "attached",
+		anchor: textAnchorAt(anchor.field, best.block, best.start, best.start + anchor.quote.length),
+	});
 
-	if (own && own.text.slice(anchor.start, anchor.end) === anchor.quote) {
-		return { state: "attached", anchor: textAnchorAt(anchor.field, own, anchor.start, anchor.end) };
+	if (own) {
+		const [best] = findCandidates([own], anchor.quote, anchor);
+		if (best) return attachAt(best);
 	}
 
-	const searches = own ? [[own], blocks] : [blocks];
-	for (const scope of searches) {
-		const [best] = findCandidates(scope, anchor.quote, anchor);
-		if (best) {
-			return {
-				state: "attached",
-				anchor: textAnchorAt(
-					anchor.field,
-					best.block,
-					best.start,
-					best.start + anchor.quote.length,
-				),
-			};
-		}
-	}
-	return { state: "orphaned" };
+	const candidates = findCandidates(blocks, anchor.quote, anchor);
+	const [best] = candidates;
+	if (!best) return { state: "orphaned" };
+	const storedContext = anchor.prefix.length + anchor.suffix.length;
+	const trusted =
+		candidates.length === 1 || (storedContext > 0 && best.context * 2 >= storedContext);
+	return trusted ? attachAt(best) : { state: "orphaned" };
 }
 
 export type QuoteLookup =
@@ -300,12 +316,15 @@ function inlineTextLength(node: InlineNodeLike): number {
 
 /**
  * The document position of a text offset in a textblock whose content starts
- * at `contentStart` (the textblock's position plus one).
+ * at `contentStart` (the textblock's position plus one). An offset next to an
+ * inline node with no text, such as a mention, maps before it when `assoc` is
+ * -1 and after it when `assoc` is 1, as for the start of a range.
  */
 export function textOffsetToPos(
 	textblock: TextblockLike,
 	contentStart: number,
 	offset: number,
+	assoc: -1 | 1 = -1,
 ): number {
 	let remaining = offset;
 	let pos: number | null = null;
@@ -314,8 +333,10 @@ export function textOffsetToPos(
 		size = childOffset + child.nodeSize;
 		if (pos !== null) return;
 		const length = inlineTextLength(child);
-		if (child.isText ? remaining <= length : remaining === 0) {
-			pos = contentStart + childOffset + remaining;
+		const here =
+			assoc === 1 ? remaining < length : child.isText ? remaining <= length : remaining === 0;
+		if (here) {
+			pos = contentStart + childOffset + (child.isText ? remaining : 0);
 			return;
 		}
 		remaining -= length;
