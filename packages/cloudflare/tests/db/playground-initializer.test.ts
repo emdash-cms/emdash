@@ -181,4 +181,61 @@ describe("initializePlayground", () => {
 		const text = block?.children.map((child) => child.text ?? "").join("") ?? "";
 		expect(text.slice(anchor.start, anchor.end)).toBe(anchor.quote);
 	});
+	it("restores an example thread or reply that an earlier attempt didn't create", async () => {
+		const db = createDatabase();
+		databases.push(db);
+
+		await initializePlayground(db, loadPlaygroundSeed());
+		await db
+			.deleteFrom("_emdash_editorial_comments")
+			.where("author_id", "=", "playground-admin")
+			.execute();
+		const excerpt = await db
+			.selectFrom("_emdash_editorial_threads")
+			.select("id")
+			.where("anchor", "like", '%"excerpt"%')
+			.executeTakeFirstOrThrow();
+		await db.deleteFrom("_emdash_editorial_comments").where("thread_id", "=", excerpt.id).execute();
+		await db.deleteFrom("_emdash_editorial_threads").where("id", "=", excerpt.id).execute();
+		await new OptionsRepository(db).delete("emdash:setup_complete");
+		await initializePlayground(db, loadPlaygroundSeed());
+
+		const threads = await db
+			.selectFrom("_emdash_editorial_threads")
+			.select(["id", "anchor"])
+			.orderBy("created_at")
+			.orderBy("id")
+			.execute();
+		expect(threads.map((thread) => JSON.parse(thread.anchor))).toMatchObject([
+			{ type: "text" },
+			{ type: "field", field: "excerpt" },
+		]);
+		const replies = await db
+			.selectFrom("_emdash_editorial_comments")
+			.select("author_id")
+			.where("thread_id", "=", threads[0]!.id)
+			.execute();
+		expect(
+			replies.map((reply) => reply.author_id ?? "").toSorted((a, b) => a.localeCompare(b)),
+		).toEqual(["playground-admin", "playground-reviewer"]);
+	});
+
+	it("skips the example threads when posts have no content or excerpt field", async () => {
+		const db = createDatabase();
+		databases.push(db);
+		const seed = loadPlaygroundSeed();
+		const posts = seed.collections?.find((collection) => collection.slug === "posts");
+		posts!.fields = posts!.fields.filter(
+			(field) => field.slug !== "content" && field.slug !== "excerpt",
+		);
+		for (const entry of seed.content?.posts ?? []) {
+			delete entry.data.content;
+			delete entry.data.excerpt;
+		}
+
+		await initializePlayground(db, seed);
+
+		expect(await db.selectFrom("_emdash_editorial_threads").select("id").execute()).toEqual([]);
+		expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBe(true);
+	});
 });
