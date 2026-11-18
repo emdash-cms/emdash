@@ -824,7 +824,8 @@ const contentPaths = {
 			description:
 				"Saves anchors the editor recomputed after the entry's content changed, and " +
 				"marks threads whose text is gone as `orphaned`. Threads on other entries are " +
-				"ignored. Needs edit access to the entry. Fails with 409 when `_rev` is stale.",
+				"ignored. Needs edit access to the entry and the entry's current `_rev`. Fails " +
+				"with 409, storing nothing, when the entry is in the trash or changes from that `_rev`.",
 			tags: ["Editorial comments"],
 			requestParams: { path: entryPathParams, query: localeQuery },
 			requestBody: { content: { [JSON_CONTENT]: { schema: editorialAnchorsUpdateBody } } },
@@ -845,7 +846,9 @@ const contentPaths = {
 		patch: {
 			operationId: "updateEditorialThread",
 			summary: "Resolve or reopen a thread",
-			description: "Editors, the thread's creator, and the entry's author may change its status.",
+			description:
+				"Editors, the thread's creator, and the entry's author when they may edit their " +
+				"published content (`content:edit_own`) may change its status.",
 			tags: ["Editorial comments"],
 			requestParams: { path: threadPathParams, query: localeQuery },
 			requestBody: { content: { [JSON_CONTENT]: { schema: editorialThreadUpdateBody } } },
@@ -860,7 +863,7 @@ const contentPaths = {
 			summary: "Delete a thread",
 			description:
 				"Editors may delete any thread. Its creator may delete it while nobody else " +
-				"has replied.",
+				"has replied. Works while the entry is in the trash.",
 			tags: ["Editorial comments"],
 			requestParams: { path: threadPathParams, query: localeQuery },
 			responses: {
@@ -916,7 +919,8 @@ const contentPaths = {
 			summary: "Delete a comment",
 			description:
 				"The comment's author or an editor may delete it. The comment stays in the " +
-				"thread with an empty body; deleting the last live comment deletes the thread.",
+				"thread with an empty body; deleting the last live comment deletes the thread. " +
+				"Works while the entry is in the trash.",
 			tags: ["Editorial comments"],
 			requestParams: {
 				path: threadPathParams.extend({

@@ -1,8 +1,15 @@
-import type { Kysely, Selectable, SelectQueryBuilder } from "kysely";
+import { sql, type Kysely, type Selectable, type SelectQueryBuilder } from "kysely";
 import { monotonicFactory } from "ulidx";
 
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import type { Database, EditorialThreadTable } from "../types.js";
-import { decodeCursor, encodeCursor, type FindManyResult } from "./types.js";
+import { validateIdentifier } from "../validate.js";
+import {
+	ContentMutationConflictError,
+	decodeCursor,
+	encodeCursor,
+	type FindManyResult,
+} from "./types.js";
 
 export type EditorialAnchor =
 	| { type: "entry" }
@@ -468,16 +475,50 @@ export class EditorialThreadRepository {
 			.execute();
 	}
 
+	/** The stored anchors of those of `threadIds` that are on the entry. */
+	async findAnchors(
+		collection: string,
+		entryId: string,
+		threadIds: string[],
+	): Promise<Map<string, EditorialAnchor>> {
+		const anchors = new Map<string, EditorialAnchor>();
+		for (const batch of chunks([...new Set(threadIds)], SQL_BATCH_SIZE)) {
+			// oxlint-disable-next-line no-await-in-loop -- batches stay within D1's bind-parameter limit
+			const rows = await this.db
+				.selectFrom("_emdash_editorial_threads")
+				.select(["id", "anchor"])
+				.where("collection", "=", collection)
+				.where("entry_id", "=", entryId)
+				.where("id", "in", batch)
+				.execute();
+			for (const row of rows) anchors.set(row.id, parseAnchor(row.anchor));
+		}
+		return anchors;
+	}
+
 	/**
-	 * Stores new anchors for threads on one entry. Updates naming a thread on
-	 * another entry are ignored. Returns how many threads changed.
+	 * Stores new anchors for threads on one entry, while the entry is out of
+	 * the trash and still has `expected`'s `version` and `updatedAt`. Updates
+	 * naming a thread on another entry are ignored. Returns how many threads
+	 * changed. Throws `ContentMutationConflictError` once the entry no longer
+	 * matches; call it inside `withTransaction`, so that rolls back the
+	 * anchors already stored where transactions are available.
 	 */
 	async updateAnchors(input: {
 		collection: string;
 		entryId: string;
+		expected: { version: number; updatedAt: string };
 		updates: EditorialAnchorUpdate[];
 		now: string;
 	}): Promise<number> {
+		validateIdentifier(input.collection, "collection type");
+		const currentEntry = sql`
+			SELECT 1 FROM ${sql.ref(`ec_${input.collection}`)}
+			WHERE id = ${input.entryId}
+			AND deleted_at IS NULL
+			AND version = ${input.expected.version}
+			AND updated_at = ${input.expected.updatedAt}
+		`;
 		let updated = 0;
 		for (const update of input.updates) {
 			// oxlint-disable-next-line no-await-in-loop -- each row gets its own anchor value
@@ -491,8 +532,15 @@ export class EditorialThreadRepository {
 				.where("id", "=", update.threadId)
 				.where("collection", "=", input.collection)
 				.where("entry_id", "=", input.entryId)
+				.where(sql<boolean>`EXISTS (${currentEntry})`)
 				.executeTakeFirst();
-			updated += Number(result.numUpdatedRows);
+			const changed = Number(result.numUpdatedRows);
+			if (changed === 0) {
+				// oxlint-disable-next-line no-await-in-loop -- tells a stale entry from a thread on another entry
+				const stillCurrent = await currentEntry.execute(this.db);
+				if (stillCurrent.rows.length === 0) throw new ContentMutationConflictError();
+			}
+			updated += changed;
 		}
 		return updated;
 	}

@@ -1,4 +1,4 @@
-import { hasPermission, type RoleLevel } from "@emdash-cms/auth";
+import { canActOnOwn, hasPermission, type RoleLevel } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
 
 import { ContentRepository } from "../../database/repositories/content.js";
@@ -10,12 +10,16 @@ import {
 	type EditorialThread,
 	type EditorialThreadHead,
 } from "../../database/repositories/editorial-threads.js";
-import { InvalidCursorError, type ContentItem } from "../../database/repositories/types.js";
+import {
+	ContentMutationConflictError,
+	InvalidCursorError,
+	type ContentItem,
+} from "../../database/repositories/types.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { entryEditAccess } from "../authorize.js";
 import { ErrorCode } from "../errors.js";
-import { validateRev } from "../rev.js";
+import { decodeRev, validateRev } from "../rev.js";
 import type { ApiResult } from "../types.js";
 
 export interface EditorialActor {
@@ -125,16 +129,14 @@ function isManager(actor: EditorialActor): boolean {
 }
 
 /**
- * Resolving or reopening is open to editors, the thread's creator, and whoever
- * may edit the entry as its owner.
+ * Resolving or reopening is open to editors, the thread's creator, and the
+ * entry's owner when they may edit it beyond drafts.
  */
 function canResolve(actor: EditorialActor, entry: Entry, thread: { createdBy: string | null }) {
 	if (isManager(actor) || thread.createdBy === actor.id) return true;
 	const authorId = entry.item.authorId ?? "";
 	return (
-		authorId !== "" &&
-		authorId === actor.id &&
-		entryEditAccess(actor, { authorId, status: entry.item.status }) !== null
+		authorId === actor.id && canActOnOwn(actor, authorId, "content:edit_own", "content:edit_any")
 	);
 }
 
@@ -192,6 +194,12 @@ async function run<T>(
 		return await fn();
 	} catch (error) {
 		if (error instanceof InvalidCursorError) return fail(ErrorCode.INVALID_CURSOR, error.message);
+		if (error instanceof ContentMutationConflictError) {
+			return fail(
+				ErrorCode.CONFLICT,
+				"Content has been modified since last read (version conflict)",
+			);
+		}
 		console.error(`[editorial-comments] ${label} failed:`, error);
 		return fail(ErrorCode.EDITORIAL_COMMENT_ERROR, `Failed to ${label}`);
 	}
@@ -420,14 +428,53 @@ export function handleEditorialCommentDelete(
 }
 
 /**
+ * Like `checkAnchor` for each update, except that a thread may be marked
+ * orphaned on the field its stored anchor names once that field is gone or
+ * can no longer hold the anchor.
+ */
+async function checkAnchorUpdates(
+	db: Kysely<Database>,
+	entry: Entry,
+	updates: EditorialAnchorUpdate[],
+): Promise<Failure | null> {
+	const orphaned: { update: EditorialAnchorUpdate; invalid: Failure }[] = [];
+	for (const update of updates) {
+		const invalid = checkAnchor(entry, update.anchor);
+		if (!invalid) continue;
+		if (update.anchorState !== "orphaned") return invalid;
+		orphaned.push({ update, invalid });
+	}
+	if (orphaned.length === 0) return null;
+
+	const stored = await new EditorialThreadRepository(db).findAnchors(
+		entry.collection,
+		entry.item.id,
+		orphaned.map(({ update }) => update.threadId),
+	);
+	for (const { update, invalid } of orphaned) {
+		const storedAnchor = stored.get(update.threadId);
+		if (!storedAnchor) continue;
+		if (
+			storedAnchor.type === "entry" ||
+			update.anchor.type === "entry" ||
+			storedAnchor.field !== update.anchor.field
+		) {
+			return invalid;
+		}
+	}
+	return null;
+}
+
+/**
  * Stores anchors the editor recomputed after the entry's content changed.
- * Only someone who may edit the entry may send them.
+ * Only someone who may edit the entry may send them, and only while the
+ * entry is still at `_rev`.
  */
 export function handleEditorialAnchorsUpdate(
 	db: Kysely<Database>,
 	actor: EditorialActor,
 	ref: EditorialEntryRef,
-	input: { _rev?: string; anchors: EditorialAnchorUpdate[] },
+	input: { _rev: string; anchors: EditorialAnchorUpdate[] },
 ): Promise<ApiResult<{ updated: number }>> {
 	return run("update the comment anchors", () =>
 		withTransaction(db, async (trx) => {
@@ -443,16 +490,17 @@ export function handleEditorialAnchorsUpdate(
 					"Only someone who may edit the entry may move its comments",
 				);
 			}
-			const refused = await checkWritable(trx, entry, input._rev);
+			const refused =
+				(await checkWritable(trx, entry, input._rev)) ??
+				(await checkAnchorUpdates(trx, entry, input.anchors));
 			if (refused) return refused;
-			for (const update of input.anchors) {
-				const invalid = checkAnchor(entry, update.anchor);
-				if (invalid) return invalid;
-			}
+			const expected = decodeRev(input._rev);
+			if (!expected) return fail(ErrorCode.CONFLICT, "Malformed _rev token");
 
 			const updated = await new EditorialThreadRepository(trx).updateAnchors({
 				collection: entry.collection,
 				entryId: entry.item.id,
+				expected,
 				updates: input.anchors,
 				now: now(),
 			});

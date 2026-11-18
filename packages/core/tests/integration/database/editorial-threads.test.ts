@@ -402,10 +402,12 @@ describeEachDialect("editorial threads", (dialect) => {
 		const mine = await createThread();
 		const theirs = await createThread(otherEntryId);
 		const moved: EditorialAnchor = { ...TEXT_ANCHOR, start: 16, end: 21 };
+		const entry = await new ContentRepository(db).findById("post", entryId);
 
 		await threads.updateAnchors({
 			collection: "post",
 			entryId,
+			expected: { version: entry!.version, updatedAt: entry!.updatedAt },
 			updates: [
 				{ threadId: mine.threadId, anchor: moved, anchorState: "attached" },
 				{ threadId: theirs.threadId, anchor: moved, anchorState: "orphaned" },

@@ -1,6 +1,6 @@
 import { Role } from "@emdash-cms/auth";
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { handleContentDelete } from "../../../src/api/handlers/content.js";
 import {
@@ -18,8 +18,12 @@ import {
 } from "../../../src/api/handlers/editorial-comments.js";
 import { encodeRev } from "../../../src/api/rev.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
-import type { EditorialAnchor } from "../../../src/database/repositories/editorial-threads.js";
+import {
+	EditorialThreadRepository,
+	type EditorialAnchor,
+} from "../../../src/database/repositories/editorial-threads.js";
 import type { Database } from "../../../src/database/types.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	describeEachDialect,
 	setupForDialectWithCollections,
@@ -30,6 +34,7 @@ import {
 const OWNER: EditorialActor = { id: "user-owner", role: Role.CONTRIBUTOR };
 const REVIEWER: EditorialActor = { id: "user-reviewer", role: Role.CONTRIBUTOR };
 const BYSTANDER: EditorialActor = { id: "user-bystander", role: Role.CONTRIBUTOR };
+const AUTHOR: EditorialActor = { id: "user-author", role: Role.AUTHOR };
 const EDITOR: EditorialActor = { id: "user-editor", role: Role.EDITOR };
 
 const TEXT_ANCHOR: EditorialAnchor = {
@@ -62,7 +67,7 @@ describeEachDialect("editorial comment handlers", (dialect) => {
 		await db
 			.insertInto("users")
 			.values(
-				[OWNER, REVIEWER, BYSTANDER, EDITOR].map((actor) => ({
+				[OWNER, REVIEWER, BYSTANDER, AUTHOR, EDITOR].map((actor) => ({
 					id: actor.id,
 					email: `${actor.id}@example.com`,
 					name: actor.id,
@@ -283,17 +288,23 @@ describeEachDialect("editorial comment handlers", (dialect) => {
 		expect(thread).toMatchObject({ status: "open", comments: [{ body: "Source?" }] });
 	});
 
-	it("lets the creator, the entry's owner and an editor resolve a thread, but nobody else", async () => {
-		const { id } = await startThread();
+	it("lets the creator, the entry's author and an editor resolve a thread, but nobody else", async () => {
+		const authored = await new ContentRepository(db).create({
+			type: "post",
+			data: { title: "Authored" },
+			authorId: AUTHOR.id,
+		});
+		const ref = { collection: "post", id: authored.id };
+		const { id } = await startThread(REVIEWER, ref);
 
-		const bystander = await handleEditorialThreadUpdate(db, BYSTANDER, entry, id, {
+		const bystander = await handleEditorialThreadUpdate(db, BYSTANDER, ref, id, {
 			status: "resolved",
 		});
 		expect(bystander).toMatchObject({ success: false, error: { code: "FORBIDDEN" } });
 
-		for (const actor of [REVIEWER, OWNER, EDITOR]) {
+		for (const actor of [REVIEWER, AUTHOR, EDITOR]) {
 			// oxlint-disable-next-line no-await-in-loop -- each actor resolves after the previous reopen
-			const resolved = await handleEditorialThreadUpdate(db, actor, entry, id, {
+			const resolved = await handleEditorialThreadUpdate(db, actor, ref, id, {
 				status: "resolved",
 			});
 			expect(expectData(resolved)).toMatchObject({
@@ -301,19 +312,22 @@ describeEachDialect("editorial comment handlers", (dialect) => {
 				resolvedBy: { id: actor.id },
 			});
 			// oxlint-disable-next-line no-await-in-loop -- reopen before the next actor tries
-			await handleEditorialThreadUpdate(db, EDITOR, entry, id, { status: "open" });
+			await handleEditorialThreadUpdate(db, EDITOR, ref, id, { status: "open" });
 		}
 	});
 
-	it("stops the owner resolving once they can no longer edit the entry", async () => {
+	it("doesn't let a contributor resolve someone else's thread on their own draft", async () => {
 		const { id } = await startThread();
-		await new ContentRepository(db).update("post", entry.id, { status: "published" });
 
 		const result = await handleEditorialThreadUpdate(db, OWNER, entry, id, {
 			status: "resolved",
 		});
+		const [listed] = expectData(
+			await handleEditorialThreadList(db, OWNER, entry, { status: "open", limit: 50 }),
+		).items;
 
 		expect(result).toMatchObject({ success: false, error: { code: "FORBIDDEN" } });
+		expect(listed).toMatchObject({ id, status: "open", can: { resolve: false } });
 	});
 
 	it("reopens a resolved thread on reply", async () => {
@@ -444,5 +458,85 @@ describeEachDialect("editorial comment handlers", (dialect) => {
 		});
 
 		expect(result).toMatchObject({ success: false, error: { code: "CONFLICT" } });
+	});
+
+	it("refuses recomputed anchors when the entry is saved while they are being stored", async () => {
+		const { id } = await startThread();
+		const rev = await currentRev();
+		const storeAnchors = EditorialThreadRepository.prototype.updateAnchors;
+		const spy = vi
+			.spyOn(EditorialThreadRepository.prototype, "updateAnchors")
+			.mockImplementation(async function (this: EditorialThreadRepository, input) {
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- saves through the handler's own connection
+				const trx = (this as unknown as { db: Kysely<Database> }).db;
+				await new ContentRepository(trx).update("post", entry.id, { data: { title: "Saved" } });
+				return storeAnchors.call(this, input);
+			});
+
+		try {
+			const result = await handleEditorialAnchorsUpdate(db, OWNER, entry, {
+				_rev: rev,
+				anchors: [
+					{ threadId: id, anchor: { ...TEXT_ANCHOR, start: 10, end: 15 }, anchorState: "attached" },
+				],
+			});
+
+			expect(result).toMatchObject({ success: false, error: { code: "CONFLICT" } });
+		} finally {
+			spy.mockRestore();
+		}
+		const [thread] = expectData(
+			await handleEditorialThreadList(db, REVIEWER, entry, { status: "open", limit: 50 }),
+		).items;
+		expect(thread!.anchor).toEqual(TEXT_ANCHOR);
+	});
+
+	it("marks threads orphaned on a removed field alongside other anchor updates", async () => {
+		const onRemoved = await startThread();
+		const moving = await startThread(REVIEWER, entry, { type: "entry" });
+		await new SchemaRegistry(db).deleteField("post", "content");
+		const titleAnchor: EditorialAnchor = { type: "field", field: "title" };
+
+		const attachedToRemoved = await handleEditorialAnchorsUpdate(db, OWNER, entry, {
+			_rev: await currentRev(),
+			anchors: [{ threadId: onRemoved.id, anchor: TEXT_ANCHOR, anchorState: "attached" }],
+		});
+		const result = await handleEditorialAnchorsUpdate(db, OWNER, entry, {
+			_rev: await currentRev(),
+			anchors: [
+				{ threadId: onRemoved.id, anchor: TEXT_ANCHOR, anchorState: "orphaned" },
+				{ threadId: moving.id, anchor: titleAnchor, anchorState: "attached" },
+			],
+		});
+
+		expect(attachedToRemoved).toMatchObject({
+			success: false,
+			error: { code: "VALIDATION_ERROR" },
+		});
+		expect(result).toMatchObject({ success: true, data: { updated: 2 } });
+		const threads = expectData(
+			await handleEditorialThreadList(db, REVIEWER, entry, { status: "open", limit: 50 }),
+		).items;
+		expect(threads.find((t) => t.id === onRemoved.id)).toMatchObject({
+			anchor: TEXT_ANCHOR,
+			anchorState: "orphaned",
+		});
+		expect(threads.find((t) => t.id === moving.id)).toMatchObject({
+			anchor: titleAnchor,
+			anchorState: "attached",
+		});
+	});
+
+	it("still refuses an orphaned anchor on a field the thread wasn't on", async () => {
+		const { id } = await startThread(REVIEWER, entry, { type: "entry" });
+
+		const result = await handleEditorialAnchorsUpdate(db, OWNER, entry, {
+			_rev: await currentRev(),
+			anchors: [
+				{ threadId: id, anchor: { type: "field", field: "subtitle" }, anchorState: "orphaned" },
+			],
+		});
+
+		expect(result).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
 	});
 });
