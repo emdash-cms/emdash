@@ -321,7 +321,7 @@ msgstr "{0, plural, one {# meny kommer att importeras} other {# menyer kommer at
 #. placeholder {0}: users.length
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:69
 msgid "{0, plural, one {# other person here} other {# other people here}}"
-msgstr ""
+msgstr "{0, plural, one {# annan person här} other {# andra personer här}}"
 
 #. placeholder {0}: capabilities.length
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:224
@@ -437,7 +437,7 @@ msgstr "{0, plural, one {Mediefil} other {Mediefiler}}"
 #. placeholder {0}: policyRejected - policyRejections.length
 #: packages/admin/src/components/Dashboard.tsx:218
 msgid "{0, plural, one {One more entry is not shown.} other {# more entries are not shown.}}"
-msgstr ""
+msgstr "{0, plural, one {En post till visas inte.} other {# poster till visas inte.}}"
 
 #. placeholder {0}: bulkDeleteIds.length
 #: packages/admin/src/components/comments/CommentInbox.tsx:485
@@ -457,7 +457,7 @@ msgstr "{0, plural, one {Visa # till} other {Visa # till}}"
 #. placeholder {0}: users.length
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:156
 msgid "{0, plural, one {Show the # person here} other {Show the # people here}}"
-msgstr ""
+msgstr "{0, plural, one {Visa # person här} other {Visa de # personerna här}}"
 
 #. placeholder {0}: stats.userCount
 #: packages/admin/src/components/Dashboard.tsx:428
@@ -763,7 +763,7 @@ msgstr "{label} i {menuName}"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "{label} is always shown"
-msgstr ""
+msgstr "{label} visas alltid"
 
 #. placeholder {0}: newIndex + 1
 #. placeholder {1}: images.length
@@ -779,7 +779,7 @@ msgstr "{label} flyttades till position {0}."
 #: packages/admin/src/components/settings/LayoutList.tsx:436
 #: packages/admin/src/components/settings/LayoutList.tsx:468
 msgid "{label} moved to position {position} of {count}."
-msgstr ""
+msgstr "{label} flyttades till position {position} av {count}."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:558
 msgid "{label} options"
@@ -851,7 +851,7 @@ msgstr "{minimum, plural, one {Använd minst # tecken} other {Använd minst # te
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:155
 msgid "{more, plural, one {Show # more person} other {Show # more people}}"
-msgstr ""
+msgstr "{more, plural, one {Visa # person till} other {Visa # personer till}}"
 
 #: packages/admin/src/components/BlockListField.tsx:677
 #: packages/admin/src/components/BlocksField.tsx:1129
@@ -865,15 +865,15 @@ msgstr "{moved} är redan sist"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:64
 msgid "{name} · Editing {field}"
-msgstr ""
+msgstr "{name} · Redigerar {field}"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:62
 msgid "{name} · Viewing"
-msgstr ""
+msgstr "{name} · Tittar"
 
 #: packages/admin/src/router.tsx:1262
 msgid "{name} changed this entry"
-msgstr ""
+msgstr "{name} ändrade den här posten"
 
 #: packages/admin/src/lib/content-validation-errors.ts:76
 msgid "{name} does not match the required format."
@@ -941,7 +941,7 @@ msgstr "{origin} omdirigerar till {target}. Ange den adressen i stället."
 
 #: packages/admin/src/components/revisions/revision-format.ts:131
 msgid "{others, plural, one {# other person} other {# other people}}"
-msgstr ""
+msgstr "{others, plural, one {# person till} other {# personer till}}"
 
 #: packages/admin/src/components/Dashboard.tsx:158
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
@@ -975,7 +975,7 @@ msgstr "{plural} publiceras direkt. Ändringar i utkast förblir opublicerade."
 
 #: packages/admin/src/components/Dashboard.tsx:172
 msgid "{policyRejected, plural, one {Open the affected entry, fix the reason shown, and schedule it again. A successful schedule or publish clears this notice.} other {Open the affected entries, fix the reasons shown, and schedule them again. A successful schedule or publish clears each notice.}}"
-msgstr ""
+msgstr "{policyRejected, plural, one {Öppna posten det gäller, åtgärda orsaken som visas och schemalägg den igen. Meddelandet försvinner när posten schemaläggs eller publiceras.} other {Öppna posterna det gäller, åtgärda orsakerna som visas och schemalägg dem igen. Varje meddelande försvinner när posten schemaläggs eller publiceras.}}"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:309
 msgid "{position} of {total}"
@@ -1145,7 +1145,7 @@ msgstr "← Tillbaka"
 #: packages/admin/src/components/presence/FieldPresence.tsx:48
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:152
 msgid "+{more}"
-msgstr ""
+msgstr "+{more}"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:418
 msgid "<0>{from}</0> becomes <1>{to}</1>"
@@ -2114,7 +2114,7 @@ msgstr "Alternativt kan du exportera från WordPress (Verktyg → Exportera) och
 
 #: packages/admin/src/components/settings/LayoutList.tsx:154
 msgid "Always shown"
-msgstr ""
+msgstr "Visas alltid"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:324
 msgid "An earlier import of this package stopped after it started writing to this site. Abandon that import, then reset this site or set up a new one before importing again."
@@ -2273,7 +2273,7 @@ msgstr "Valfritt antal"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:60
 msgid "Anything typed into the changed fields during the restore will be lost."
-msgstr ""
+msgstr "Det som skrivs i de ändrade fälten medan versionen återställs går förlorat."
 
 #: packages/admin/src/components/Settings.tsx:105
 #: packages/admin/src/components/Settings.tsx:109
@@ -2293,7 +2293,7 @@ msgstr "Applikationslösenord"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:127
 msgid "Applies to every collection. Sections a collection doesn't use are skipped."
-msgstr ""
+msgstr "Gäller alla samlingar. Sektioner som en samling inte använder hoppas över."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:610
 #: packages/admin/src/components/PortableTextEditor.tsx:5425
@@ -2931,7 +2931,7 @@ msgstr "Kan visa innehåll"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:150
 msgid "Can’t reach EmDash"
-msgstr ""
+msgstr "Kan inte nå EmDash"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:324
 #: packages/admin/src/components/BulkTagDialog.tsx:505
@@ -3007,7 +3007,7 @@ msgstr "Avbryt den här importen?"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:447
 msgid "Cancelled. {label} is back at position {position} of {count}."
-msgstr ""
+msgstr "Avbrutet. {label} är tillbaka på position {position} av {count}."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:357
 msgid "Cancelling…"
@@ -3432,11 +3432,11 @@ msgstr "Välj vilken typ av innehåll fältet ska innehålla."
 
 #: packages/admin/src/components/Settings.tsx:143
 msgid "Choose what the navigation and editor sidebars show, and in what order"
-msgstr ""
+msgstr "Välj vad navigeringen och redigerarens sidofält visar och i vilken ordning"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:81
 msgid "Choose what your sidebars show and in what order. Only you see your layout, and it follows you to any browser."
-msgstr ""
+msgstr "Välj vad sidofälten visar och i vilken ordning. Bara du ser din layout och den följer med dig till alla webbläsare."
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:531
 msgid "Choose when the unpublished changes go live."
@@ -3448,7 +3448,7 @@ msgstr "Välj när posten ska publiceras."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:687
 msgid "Choose which date appears in the content list."
-msgstr ""
+msgstr "Välj vilket datum som visas i innehållslistan."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:180
 msgid "Choose Windows Hello or another available credential manager, then confirm with your PIN, fingerprint, or face."
@@ -3799,7 +3799,7 @@ msgstr "{0} ansluten"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:146
 msgid "Connecting to the live version of this entry."
-msgstr ""
+msgstr "Ansluter till den senaste versionen av posten."
 
 #: packages/auth-atproto/src/admin.tsx:111
 #: packages/auth-atproto/src/admin.tsx:200
@@ -4004,7 +4004,7 @@ msgstr "Kopiera inbjudningslänk"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:238
 msgid "Copy my edits"
-msgstr ""
+msgstr "Kopiera mina ändringar"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copy receipt"
@@ -4115,7 +4115,7 @@ msgstr "Kunde inte bekräfta att mediefilen eller den valda mappen fortfarande f
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:223
 msgid "Couldn’t copy. Select the text on the page and copy it instead."
-msgstr ""
+msgstr "Kunde inte kopiera. Markera texten på sidan och kopiera den själv."
 
 #: packages/admin/src/components/WordPressImport.tsx:1317
 msgid "Couldn't detect WordPress"
@@ -4123,7 +4123,7 @@ msgstr "Kunde inte identifiera WordPress"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:147
 msgid "Couldn’t join. Try again."
-msgstr ""
+msgstr "Kunde inte gå med. Försök igen."
 
 #: packages/admin/src/components/ContentEditor.tsx:4516
 msgid "Couldn't load all references."
@@ -4179,7 +4179,7 @@ msgstr "Kunde inte läsa in versioner"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:88
 msgid "Couldn't load your sidebars"
-msgstr ""
+msgstr "Kunde inte läsa in sidofälten"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:67
 msgid "Couldn't map \"{draft}\" to a MIME type. Type the MIME directly."
@@ -4195,7 +4195,7 @@ msgstr "Kunde inte läsa in importplanen igen"
 
 #: packages/admin/src/lib/api/admin-layout.ts:277
 msgid "Couldn't save your sidebars"
-msgstr ""
+msgstr "Kunde inte spara sidofälten"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:368
 msgid "Couldn’t search bylines."
@@ -4566,7 +4566,7 @@ msgstr "Anpassade taxonomier"
 #: packages/admin/src/components/ContentEditor.tsx:3010
 #: packages/admin/src/components/Sidebar.tsx:796
 msgid "Customize sidebar"
-msgstr ""
+msgstr "Anpassa sidofältet"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:238
 msgid "Daily automatic backups"
@@ -4608,7 +4608,7 @@ msgstr "Väljare för datum och tid"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:672
 msgid "Date column source"
-msgstr ""
+msgstr "Källa för datumkolumnen"
 
 #: packages/admin/src/components/ContentList.tsx:1098
 msgid "Date field to filter on"
@@ -4952,7 +4952,7 @@ msgstr "Tar bort …"
 #. placeholder {0}: blocker.slug
 #: packages/admin/src/components/settings/transfer/labels.ts:109
 msgid "Deletion of collection “{0}” failed. Retry it by sending {body} to {action} before importing."
-msgstr ""
+msgstr "Det gick inte att ta bort samlingen ”{0}”. Försök igen genom att skicka {body} till {action} innan du importerar."
 
 #: packages/admin/src/lib/api/marketplace.ts:446
 #: packages/admin/src/lib/api/marketplace.ts:457
@@ -5269,7 +5269,7 @@ msgstr "Klar"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:289
 msgid "Down arrow"
-msgstr ""
+msgstr "Nedåtpil"
 
 #. placeholder {0}: archive.name
 #: packages/admin/src/components/settings/BackupSettings.tsx:321
@@ -5399,7 +5399,7 @@ msgstr "Dra widgetar till ett område för att lägga till dem"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:283
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
-msgstr ""
+msgstr "Dra eller tryck på <0>Alt <1/></0> <2>Alt <3/></2>"
 
 #: packages/admin/src/components/media/ImageDropTarget.tsx:149
 msgid "Drop an image here or <0>browse</0>"
@@ -5427,11 +5427,11 @@ msgstr "Släpp din WordPress-exportfil här"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:442
 msgid "Dropped {label} at position {position} of {count}."
-msgstr ""
+msgstr "{label} släpptes på position {position} av {count}."
 
 #: packages/admin/src/components/settings/LayoutList.tsx:440
 msgid "Dropped {label}."
-msgstr ""
+msgstr "{label} släpptes."
 
 #: packages/admin/src/components/ContentList.tsx:1617
 #: packages/admin/src/components/editor/BlockMenu.tsx:201
@@ -5703,11 +5703,11 @@ msgstr "Redigerade en bildbeskrivning"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:475
 msgid "Edited by <0>{people}</0>"
-msgstr ""
+msgstr "Redigerad av <0>{people}</0>"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:311
 msgid "Editing {field}"
-msgstr ""
+msgstr "Redigerar {field}"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:301
 msgid "Editing is paused until the import finishes. Keep this page open; if you leave, the import continues when you come back."
@@ -5743,15 +5743,15 @@ msgstr ""
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:110
 msgid "Editor sidebar"
-msgstr ""
+msgstr "Redigerarens sidofält"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:64
 msgid "Editor sidebar reset"
-msgstr ""
+msgstr "Redigerarens sidofält har återställts"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:148
 msgid "Editor sidebar sections"
-msgstr ""
+msgstr "Sektioner i redigerarens sidofält"
 
 #: packages/admin/src/components/FieldEditor.tsx:1790
 msgid "Editors can select a second image that the site shows in dark mode."
@@ -5863,15 +5863,15 @@ msgstr "EmDash {latest} finns tillgänglig (du kör {0})"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:145
 msgid "EmDash couldn’t join this entry yet and keeps trying every few seconds."
-msgstr ""
+msgstr "EmDash kunde inte ansluta till posten ännu och försöker igen med några sekunders mellanrum."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:172
 msgid "EmDash couldn’t keep the edits you made before joining as a recovery revision. Copy them, or try again."
-msgstr ""
+msgstr "EmDash kunde inte spara ändringarna du gjorde innan du gick med som en återställningsrevision. Kopiera dem eller försök igen."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:168
 msgid "EmDash couldn’t merge them or keep them as a recovery revision. Your edits are still on this page."
-msgstr ""
+msgstr "EmDash kunde inte slå ihop dem eller spara dem som en återställningsrevision. Dina ändringar finns kvar på sidan."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1955
 msgid "EmDash does not keep the previous image."
@@ -5895,7 +5895,7 @@ msgstr "EmDash tar aldrig emot din pinkod, ditt lösenord eller dina biometriska
 
 #: packages/admin/src/router.tsx:2568
 msgid "EmDash or this entry’s fields changed since you opened it."
-msgstr ""
+msgstr "EmDash eller postens fält har ändrats sedan du öppnade den."
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:39
 msgid "EmDash site package"
@@ -6255,7 +6255,7 @@ msgstr "Alla relationer som innehållstypen ingår i tas också bort:"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:65
 msgid "Everything is shown again, in the default order."
-msgstr ""
+msgstr "Allt visas igen i standardordningen."
 
 #: packages/admin/src/components/Redirects.tsx:695
 msgid "Exact group name..."
@@ -6879,7 +6879,7 @@ msgstr "Det gick inte att hämta revisionen"
 
 #: packages/admin/src/lib/api/content.ts:669
 msgid "Failed to fetch revision editors"
-msgstr ""
+msgstr "Det gick inte att hämta revisionens redaktörer"
 
 #: packages/admin/src/lib/api/content.ts:649
 msgid "Failed to fetch revisions"
@@ -7244,7 +7244,7 @@ msgstr "Det gick inte att spara"
 
 #: packages/admin/src/lib/api/rooms.ts:90
 msgid "Failed to save a recovery revision"
-msgstr ""
+msgstr "Det gick inte att spara en återställningsrevision"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:103
 msgid "Failed to save backup settings"
@@ -7265,7 +7265,7 @@ msgstr "Det gick inte att spara inställningar"
 
 #: packages/admin/src/lib/api/admin-layout.ts:113
 msgid "Failed to save sidebar layout"
-msgstr ""
+msgstr "Det gick inte att spara sidofältens layout"
 
 #: packages/admin/src/lib/api/content.ts:438
 msgid "Failed to schedule content"
@@ -7637,7 +7637,7 @@ msgstr "Filter: {activeCount} valda"
 
 #: packages/admin/src/router.tsx:1218
 msgid "Find it in this entry’s revisions."
-msgstr ""
+msgstr "Du hittar den bland postens revisioner."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:590
 msgid "Finish any current edits."
@@ -8026,7 +8026,7 @@ msgstr "Dölj för sökmotorer"
 
 #: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Hide settings"
-msgstr ""
+msgstr "Dölj inställningar"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:294
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:301
@@ -8703,7 +8703,7 @@ msgstr "Isolerad ram"
 
 #: packages/admin/src/components/ContentEditor.tsx:2745
 msgid "It has formatting this editor can’t keep."
-msgstr ""
+msgstr "Ändringen har formatering som redigeraren inte kan behålla."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:507
 msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
@@ -8715,7 +8715,7 @@ msgstr "Den startades någon annanstans, så planen kan inte längre ändras. F�
 
 #: packages/admin/src/router.tsx:2589
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
-msgstr ""
+msgstr "Den visas skrivskyddad. En post i papperskorgen kan återställas därifrån."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3645
 #: packages/admin/src/components/PortableTextEditor.tsx:5202
@@ -8774,24 +8774,24 @@ msgstr "job_title"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:148
 msgid "Join"
-msgstr ""
+msgstr "Gå med"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:167
 msgid "Join them to edit it together, or open it read-only."
-msgstr ""
+msgstr "Gå med för att redigera tillsammans med dem eller öppna posten skrivskyddad."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:143
 msgid "Joining this entry"
-msgstr ""
+msgstr "Ansluter till posten"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:148
 msgid "Joining..."
-msgstr ""
+msgstr "Ansluter …"
 
 #: packages/admin/src/components/ContentEditor.tsx:3036
 #: packages/admin/src/components/SaveButton.tsx:54
 msgid "Joining…"
-msgstr ""
+msgstr "Ansluter …"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:65
 msgid "JS"
@@ -8853,11 +8853,11 @@ msgstr "Skriv mer för att begränsa listan."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:153
 msgid "Keep typing. Your edits stay in this tab and save once EmDash can be reached again, so keep the tab open. Until then, you can’t publish or preview."
-msgstr ""
+msgstr "Fortsätt skriva. Dina ändringar finns kvar i den här fliken och sparas när EmDash går att nå igen, så låt fliken vara öppen. Tills dess kan du inte publicera eller förhandsgranska."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:159
 msgid "Keep typing. Your edits stay in this tab and save when you’re back online, so keep the tab open. Until then, you can’t publish or preview."
-msgstr ""
+msgstr "Fortsätt skriva. Dina ändringar finns kvar i den här fliken och sparas när du är online igen, så låt fliken vara öppen. Tills dess kan du inte publicera eller förhandsgranska."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:315
 #: packages/admin/src/components/SectionEditor.tsx:305
@@ -8938,7 +8938,7 @@ msgstr "Senast uppdaterad"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:676
 msgid "Last updated (default)"
-msgstr ""
+msgstr "Senast uppdaterad (standard)"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:394
 #: packages/admin/src/components/settings/PasskeyItem.tsx:134
@@ -9831,7 +9831,7 @@ msgstr "Mer formatering"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:15
 msgid "More information"
-msgstr ""
+msgstr "Mer information"
 
 #: packages/admin/src/components/DialogSection.tsx:28
 #: packages/admin/src/components/FieldHelpLabel.tsx:110
@@ -10105,7 +10105,7 @@ msgstr "Navigering"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:64
 msgid "Navigation reset"
-msgstr ""
+msgstr "Navigeringen har återställts"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:458
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:462
@@ -10739,7 +10739,7 @@ msgstr "Sparades inte i den här versionen"
 #: packages/admin/src/components/SaveButton.tsx:56
 #: packages/admin/src/components/SaveButton.tsx:57
 msgid "Not saved"
-msgstr ""
+msgstr "Inte sparad"
 
 #: packages/admin/src/components/ContentEditor.tsx:3052
 msgid "Not saved yet"
@@ -10774,7 +10774,7 @@ msgstr "Inget att förhandsgranska ännu."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:197
 msgid "Nothing you change here will be saved."
-msgstr ""
+msgstr "Inget du ändrar här sparas."
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:104
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:385
@@ -10812,7 +10812,7 @@ msgstr "Av"
 #: packages/admin/src/components/ContentEditor.tsx:3038
 #: packages/admin/src/components/SaveButton.tsx:55
 msgid "Offline"
-msgstr ""
+msgstr "Offline"
 
 #: packages/admin/src/components/SeoImageField.tsx:88
 msgid "OG Image"
@@ -11039,11 +11039,11 @@ msgstr "Övrigt"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:152
 msgid "Other people’s edits show here again once EmDash can be reached."
-msgstr ""
+msgstr "Andras ändringar visas här igen när EmDash går att nå."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:158
 msgid "Other people’s edits show here again once you’re back online."
-msgstr ""
+msgstr "Andras ändringar visas här igen när du är online igen."
 
 #: packages/admin/src/components/editor/DocumentOutline.tsx:242
 #: packages/admin/src/lib/editor-sections.ts:38
@@ -11227,7 +11227,7 @@ msgstr "Lösenord"
 #. placeholder {0}: result.passwordProtected.length
 #: packages/admin/src/components/WordPressImport.tsx:2413
 msgid "Password-Protected Entries ({0})"
-msgstr ""
+msgstr "Lösenordsskyddade poster ({0})"
 
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:248
 msgid "Paste an embed code or an https link…"
@@ -11291,11 +11291,11 @@ msgstr "Väntande ändringar"
 #: packages/admin/src/components/EntryLockNotice.tsx:162
 #: packages/admin/src/components/EntryLockNotice.tsx:189
 msgid "People are editing this entry together"
-msgstr ""
+msgstr "Flera redigerar den här posten tillsammans"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:307
 msgid "People in this entry"
-msgstr ""
+msgstr "Personer i posten"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:545
 msgid "People shown publicly on this post."
@@ -11319,7 +11319,7 @@ msgstr "Behörigheter"
 
 #: packages/admin/src/components/Settings.tsx:138
 msgid "Personal"
-msgstr ""
+msgstr "Personligt"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:613
 msgid "Phosphor icon name, e.g. calendar-blank or trophy"
@@ -11331,7 +11331,7 @@ msgstr "PHP"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:430
 msgid "Picked up {label}, position {position} of {count}."
-msgstr ""
+msgstr "{label} har plockats upp, position {position} av {count}."
 
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:143
 msgid "Picked up {label}."
@@ -11655,7 +11655,7 @@ msgstr "Förhandsgranskning av {0}"
 
 #: packages/admin/src/router.tsx:1450
 msgid "Preview opens once your edits are saved"
-msgstr ""
+msgstr "Förhandsgranskningen öppnas när dina ändringar har sparats"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:579
 msgid "Preview unavailable for this format"
@@ -12137,7 +12137,7 @@ msgstr "Versionsinformation"
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:109
 #: packages/admin/src/router.tsx:2576
 msgid "Reload"
-msgstr ""
+msgstr "Ladda om"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:325
 msgid "Reload after updating EmDash before trying again."
@@ -12149,7 +12149,7 @@ msgstr "Ladda om sidan"
 
 #: packages/admin/src/router.tsx:2567
 msgid "Reloading the admin"
-msgstr ""
+msgstr "Laddar om administrationen"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:489
 msgid "Reloading the plan…"
@@ -12408,7 +12408,7 @@ msgstr "Ändra ordning på {0}"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:311
 msgid "Reorder {label}"
-msgstr ""
+msgstr "Ändra ordning på {label}"
 
 #: packages/admin/src/components/FieldEditor.tsx:746
 msgid "Repeater"
@@ -12604,11 +12604,11 @@ msgstr "Återställ beskärning"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:119
 msgid "Reset editor sidebar"
-msgstr ""
+msgstr "Återställ redigerarens sidofält"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:119
 msgid "Reset navigation"
-msgstr ""
+msgstr "Återställ navigeringen"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:677
 msgid "Reset to original"
@@ -13155,7 +13155,7 @@ msgstr "Schemalagda ändringar"
 
 #: packages/admin/src/components/Dashboard.tsx:171
 msgid "Scheduled content was not published"
-msgstr ""
+msgstr "Schemalagt innehåll publicerades inte"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:74
 msgid "Scheduled entries appear here with their publish time."
@@ -13930,7 +13930,7 @@ msgstr "Visa"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:165
 msgid "Show {label}"
-msgstr ""
+msgstr "Visa {label}"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:230
 msgid "Show changes"
@@ -13958,7 +13958,7 @@ msgstr "Visa antal inlägg"
 
 #: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Show settings"
-msgstr ""
+msgstr "Visa inställningar"
 
 #: packages/admin/src/components/Widgets.tsx:145
 msgid "Show thumbnails"
@@ -13996,7 +13996,7 @@ msgstr "Visar en knapp för att skapa en ny post"
 #: packages/admin/src/components/Settings.tsx:142
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:80
 msgid "Sidebars"
-msgstr ""
+msgstr "Sidofält"
 
 #: packages/admin/src/components/SignupPage.tsx:466
 #: packages/admin/src/locales/emails.ts:65
@@ -14335,7 +14335,7 @@ msgstr "Vissa referenser pekar på innehåll som inte finns i paketet"
 
 #: packages/admin/src/router.tsx:1260
 msgid "Someone"
-msgstr ""
+msgstr "Någon"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:160
 #: packages/admin/src/components/SignupPage.tsx:288
@@ -14368,7 +14368,7 @@ msgstr "Sortera teman"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:259
 msgid "sortable"
-msgstr ""
+msgstr "sorterbar"
 
 #: packages/admin/src/components/ContentTypeList.tsx:221
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:563
@@ -14818,7 +14818,7 @@ msgstr "fältet {0} i {1}, där man väljer poster att länka till"
 
 #: packages/admin/src/router.tsx:1193
 msgid "The admin was updated"
-msgstr ""
+msgstr "Administrationen har uppdaterats"
 
 #: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
@@ -15109,7 +15109,7 @@ msgstr "Tillägget har inte sparat ändringarna. Granska dem innan du uppdaterar
 
 #: packages/admin/src/components/ContentEditor.tsx:1809
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
-msgstr ""
+msgstr "Tilläggets resultat har formatering som redigeraren inte kan visa, så det tillämpades inte."
 
 #: packages/admin/src/components/ContentEditor.tsx:1779
 #: packages/admin/src/components/ContentEditor.tsx:1795
@@ -15277,7 +15277,7 @@ msgstr "Det finns för många omdirigeringar för att de ska kunna kontrolleras 
 
 #: packages/admin/src/components/WordPressImport.tsx:2416
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
-msgstr ""
+msgstr "De här posterna är lösenordsskyddade i WordPress. EmDash har inga lösenord per post, så de importerades som utkast. Granska var och en innan du publicerar den."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:295
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
@@ -15285,7 +15285,7 @@ msgstr "Verktygen förblir inaktiverade efter installationen tills du uttrycklig
 
 #: packages/admin/src/router.tsx:1263
 msgid "They changed its publishing or schedule, or replaced its draft."
-msgstr ""
+msgstr "Publiceringen, schemaläggningen eller utkastet har ändrats."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:932
 msgid "This also removes:"
@@ -15318,7 +15318,7 @@ msgstr "Blocket använder en äldre version av sin typ, så det kan inte återst
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3221
 msgid "This block was deleted, so your changes can't be saved."
-msgstr ""
+msgstr "Blocket har tagits bort, så dina ändringar kan inte sparas."
 
 #: packages/admin/src/components/BlocksField.tsx:954
 msgid "This block's stored definition is unavailable, so it can't be restored after you delete it."
@@ -15326,7 +15326,7 @@ msgstr "Blockets sparade definition är inte tillgänglig, så blocket kan inte 
 
 #: packages/admin/src/components/EntryLockNotice.tsx:198
 msgid "This browser can’t join them, so nothing you change here will be saved."
-msgstr ""
+msgstr "Den här webbläsaren kan inte gå med, så inget du ändrar här sparas."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:225
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
@@ -15405,7 +15405,7 @@ msgstr "Posten är skrivskyddad eftersom dess schema använder fälttyper som de
 
 #: packages/admin/src/components/ContentEditor.tsx:2223
 msgid "This entry is still loading."
-msgstr ""
+msgstr "Posten läses fortfarande in."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:409
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
@@ -15413,11 +15413,11 @@ msgstr "Posten skulle ha publicerats {lateness} men är fortfarande inte publice
 
 #: packages/admin/src/router.tsx:2588
 msgid "This entry was moved to Trash or deleted"
-msgstr ""
+msgstr "Posten har flyttats till papperskorgen eller tagits bort"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:167
 msgid "This entry was moved to Trash or deleted. Your edits are still on this page."
-msgstr ""
+msgstr "Posten har flyttats till papperskorgen eller tagits bort. Dina ändringar finns kvar på sidan."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:224
 msgid "This export is large"
@@ -15808,7 +15808,7 @@ msgstr "Använd <0>Flytt</0> för att flytta en webbplats till en annan EmDash-i
 
 #: packages/admin/src/components/settings/LayoutList.tsx:453
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
-msgstr ""
+msgstr "Tryck på blanksteg eller Enter för att plocka upp ett objekt. Flytta det med uppåt- och nedåtpilen och tryck sedan på blanksteg eller Enter för att släppa det eller på Escape för att avbryta. Alt tillsammans med uppåt- eller nedåtpilen flyttar det ett steg direkt."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:502
 msgid "to select"
@@ -15865,7 +15865,7 @@ msgstr "Verktygstips"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:138
 msgid "Top"
-msgstr ""
+msgstr "Överst"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:101
 msgid "Track content history"
@@ -15993,7 +15993,7 @@ msgstr "Försök igen"
 
 #: packages/admin/src/router.tsx:1451
 msgid "Try again in a moment."
-msgstr ""
+msgstr "Försök igen om en stund."
 
 #: packages/admin/src/components/MediaLibrary.tsx:605
 msgid "Try again."
@@ -16043,7 +16043,7 @@ msgstr "Omvandla till"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:126
 msgid "Turn off pages you don't use, and drag to reorder them within their group."
-msgstr ""
+msgstr "Stäng av sidor du inte använder och dra för att ändra ordningen på dem inom gruppen."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:578
 msgid "Turn on"
@@ -16276,7 +16276,7 @@ msgstr "Oanvända referenser utelämnades"
 
 #: packages/admin/src/components/settings/LayoutList.tsx:286
 msgid "Up arrow"
-msgstr ""
+msgstr "Uppåtpil"
 
 #: packages/admin/src/components/BylineFilter.tsx:175
 msgid "Up to {MAX_SELECTED} bylines can be selected"
@@ -16857,7 +16857,7 @@ msgstr "Visa licensen {license} på spdx.org"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:311
 msgid "Viewing"
-msgstr ""
+msgstr "Tittar"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:518
 msgid "Viewing the version from {when} by {name}."
@@ -16907,7 +16907,7 @@ msgstr "Väntar på passkey …"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:143
 msgid "Waiting to join"
-msgstr ""
+msgstr "Väntar på att ansluta"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:335
 msgid "Warn"
@@ -17302,7 +17302,7 @@ msgstr "Du behöver administratörsbehörighet för att flytta webbplatsen."
 
 #: packages/admin/src/components/RequireAdmin.tsx:26
 msgid "You need admin permissions to view this page."
-msgstr ""
+msgstr "Du behöver administratörsbehörighet för att visa den här sidan."
 
 #: packages/admin/src/router.tsx:3116
 msgid "You need Editor permissions to moderate comments."
@@ -17310,7 +17310,7 @@ msgstr "Du behöver redaktörsbehörighet för att moderera kommentarer."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:165
 msgid "You no longer have edit access to this entry. Your edits are still on this page."
-msgstr ""
+msgstr "Du har inte längre behörighet att redigera posten. Dina ändringar finns kvar på sidan."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:96
 msgid "You no longer hold this entry"
@@ -17344,7 +17344,7 @@ msgstr "Du registrerar dig som <0>{roleName}</0>"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:156
 msgid "You’re offline"
-msgstr ""
+msgstr "Du är offline"
 
 #. placeholder {0}: window.location.host
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
@@ -17387,15 +17387,15 @@ msgstr "Din webbläsare stöder inte passkeys. Använd en modern webbläsare som
 
 #: packages/admin/src/components/ContentEditor.tsx:2744
 msgid "Your change to {refusedFieldLabel} wasn’t saved"
-msgstr ""
+msgstr "Din ändring i {refusedFieldLabel} sparades inte"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:195
 msgid "Your changes are no longer being saved."
-msgstr ""
+msgstr "Dina ändringar sparas inte längre."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:194
 msgid "Your changes are no longer being saved. Join them to carry on."
-msgstr ""
+msgstr "Dina ändringar sparas inte längre. Gå med för att fortsätta."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:202
 msgid "Your credential manager, such as Google Password Manager, saves it and may sync it to your other devices."
@@ -17430,15 +17430,15 @@ msgstr "Ditt utkast ersätts med versionen från {when}. Ditt nuvarande utkast f
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:171
 msgid "Your earlier edits weren’t kept"
-msgstr ""
+msgstr "Dina tidigare ändringar behölls inte"
 
 #: packages/admin/src/router.tsx:1194
 msgid "Your edits are still on this page. Reload it to edit with others."
-msgstr ""
+msgstr "Dina ändringar finns kvar på sidan. Ladda om den för att redigera tillsammans med andra."
 
 #: packages/admin/src/router.tsx:1415
 msgid "Your edits couldn’t be saved, so this didn’t run. Try again."
-msgstr ""
+msgstr "Dina ändringar kunde inte sparas, så det här kördes inte. Försök igen."
 
 #: packages/admin/src/components/SetupWizard.tsx:262
 msgid "Your Email"
@@ -17458,11 +17458,11 @@ msgstr "Ditt Instagram-användarnamn"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:162
 msgid "Your last edits weren’t saved"
-msgstr ""
+msgstr "Dina senaste ändringar sparades inte"
 
 #: packages/admin/src/router.tsx:1227
 msgid "Your latest edits couldn’t be saved"
-msgstr ""
+msgstr "Dina senaste ändringar kunde inte sparas"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:179
 msgid "Your LinkedIn profile username"
@@ -17527,15 +17527,15 @@ msgstr "Dina osparade ändringar går förlorade."
 
 #: packages/admin/src/router.tsx:1217
 msgid "Your unsaved edits are in a recovery revision"
-msgstr ""
+msgstr "Dina osparade ändringar finns i en återställningsrevision"
 
 #: packages/admin/src/router.tsx:1202
 msgid "Your unsaved edits are in a recovery revision. Reload the page to edit with others."
-msgstr ""
+msgstr "Dina osparade ändringar finns i en återställningsrevision. Ladda om sidan för att redigera tillsammans med andra."
 
 #: packages/admin/src/router.tsx:1206
 msgid "Your unsaved edits couldn’t be kept"
-msgstr ""
+msgstr "Dina osparade ändringar kunde inte behållas"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1885
 msgid "Your unsaved media changes will be lost."
