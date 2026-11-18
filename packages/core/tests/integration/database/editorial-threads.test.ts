@@ -141,6 +141,34 @@ describeEachDialect("editorial threads", (dialect) => {
 		expect(second.nextCursor).toBeUndefined();
 	});
 
+	it("pages one at a time through threads written at the same moment, in creation order", async () => {
+		const at = now();
+		const ids: string[] = [];
+		for (let i = 0; i < 4; i++) {
+			// oxlint-disable-next-line no-await-in-loop -- creation order is the list order
+			const { threadId } = await threads.createThread({
+				collection: "post",
+				entryId,
+				anchor: TEXT_ANCHOR,
+				createdBy: ADA,
+				body: `Thread ${i}`,
+				now: at,
+			});
+			ids.push(threadId);
+		}
+
+		const seen: string[] = [];
+		let cursor: string | undefined;
+		do {
+			// oxlint-disable-next-line no-await-in-loop -- each page needs the previous cursor
+			const page = await threads.listForEntry("post", entryId, { limit: 1, cursor });
+			seen.push(...page.items.map((t) => t.id));
+			cursor = page.nextCursor;
+		} while (cursor && seen.length <= ids.length);
+
+		expect(seen).toEqual(ids);
+	});
+
 	it("filters by status and names who resolved a thread", async () => {
 		const open = await createThread();
 		const resolved = await createThread();
@@ -190,6 +218,34 @@ describeEachDialect("editorial threads", (dialect) => {
 		expect(thread!.comments[0]).toMatchObject({ id: commentId, body: "" });
 		expect(thread!.comments[0]!.deletedAt).not.toBeNull();
 		expect(thread!.comments[1]).toMatchObject({ body: "Reply", deletedAt: null });
+	});
+
+	it("keeps the first deletion time when a comment is deleted again", async () => {
+		const { threadId, commentId } = await createThread();
+		await threads.addComment({ threadId, authorId: LINUS, body: "Reply", now: now() });
+		const firstDeletion = now();
+		await threads.deleteComment({ commentId, threadId, now: firstDeletion });
+
+		const threadDeleted = await threads.deleteComment({ commentId, threadId, now: now() });
+
+		expect(threadDeleted).toBe(false);
+		expect((await threads.findComment(commentId))?.deletedAt).toBe(firstDeletion);
+	});
+
+	it("leaves no thread behind when its first comment can't be stored", async () => {
+		await expect(
+			threads.createThread({
+				collection: "post",
+				entryId,
+				anchor: TEXT_ANCHOR,
+				createdBy: ADA,
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- a null body breaks the comment insert
+				body: null as unknown as string,
+				now: now(),
+			}),
+		).rejects.toThrow();
+
+		expect((await threads.listForEntry("post", entryId, { limit: 50 })).items).toEqual([]);
 	});
 
 	it("deletes the thread when its last live comment is deleted", async () => {
