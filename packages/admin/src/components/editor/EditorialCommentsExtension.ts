@@ -293,7 +293,7 @@ export function locateAnchor(
 	const contentStart = block.pos + 1;
 	return {
 		kind: "text",
-		from: textOffsetToPos(block.node, contentStart, start),
+		from: textOffsetToPos(block.node, contentStart, start, 1),
 		to: textOffsetToPos(block.node, contentStart, end),
 	};
 }

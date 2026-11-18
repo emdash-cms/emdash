@@ -1,4 +1,4 @@
-import { Editor, Extension } from "@tiptap/core";
+import { Editor, Extension, Node } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -26,6 +26,14 @@ const KeyAttribute = Extension.create({
 	},
 });
 
+const InlineAtom = Node.create({
+	name: "testInlineAtom",
+	group: "inline",
+	inline: true,
+	atom: true,
+	renderHTML: () => ["span"],
+});
+
 let editor: Editor | null = null;
 
 function createEditor(
@@ -34,7 +42,12 @@ function createEditor(
 ) {
 	editor = new Editor({
 		element: document.createElement("div"),
-		extensions: [StarterKit, KeyAttribute, createEditorialCommentsExtension({ current: bridge })],
+		extensions: [
+			StarterKit,
+			KeyAttribute,
+			InlineAtom,
+			createEditorialCommentsExtension({ current: bridge }),
+		],
 		content: {
 			type: "doc",
 			content: paragraphs.map((paragraph) => ({
@@ -78,6 +91,25 @@ describe("editorial comment highlights", () => {
 
 		expect(range).not.toBeNull();
 		expect(ed.state.doc.textBetween(range!.from, range!.to)).toBe("line");
+	});
+
+	it("starts a highlight after an inline node with no text, such as a mention", () => {
+		const ed = createEditor([
+			{ key: "b1", content: [text("Hi "), { type: "testInlineAtom" }, text("Ann")] },
+		]);
+		const anchor: EditorialTextAnchor = {
+			type: "text",
+			field: "content",
+			blockKey: "b1",
+			start: 3,
+			end: 6,
+			quote: "Ann",
+			prefix: "Hi ",
+			suffix: "",
+		};
+
+		// Paragraph content starts at 1: "Hi " is 1–4, the atom 4–5, "Ann" 5–8.
+		expect(locateAnchor(ed.state.doc, anchor)).toEqual({ kind: "text", from: 5, to: 8 });
 	});
 
 	it("finds a quote in content saved without block keys, without storing a stand-in key", () => {
