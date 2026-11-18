@@ -261,11 +261,3 @@ export {
 	type RegistryUpdateCheck,
 	type RegistryUpdateResult,
 } from "./registry.js";
-
-// Editorial comments
-export {
-	handleEditorialCommentCreate,
-	handleEditorialThreadCreate,
-	type EditorialActor,
-	type EditorialEntryRef,
-} from "./editorial-comments.js";
