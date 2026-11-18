@@ -360,7 +360,7 @@ export interface EmDashHandlers {
 		locale?: string,
 		referenceOptions?: { includeDrafts: boolean },
 		draftOptions?: { includeStagedSlug?: boolean },
-	) => Promise<HandlerResponse<ContentResponse>>;
+	) => Promise<HandlerResponse<ContentResponse & { item: Record<string, unknown> }>>;
 
 	handleContentCreate: (
 		collection: string,
@@ -566,7 +566,9 @@ export interface EmDashHandlers {
 		since: string | null,
 	) => Promise<HandlerResponse>;
 
-	handleRevisionGet: (revisionId: string) => Promise<HandlerResponse<RevisionResponse>>;
+	handleRevisionGet: (
+		revisionId: string,
+	) => Promise<HandlerResponse<RevisionResponse & { item: Record<string, unknown> }>>;
 
 	/**
 	 * A recovery revision restores as a save by the caller, with `role` or else their current
