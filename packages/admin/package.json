@@ -66,9 +66,9 @@
       "types": "./dist/internal/video-block.d.ts",
       "default": "./dist/internal/video-block.js"
     },
-    "./editorial-anchors": {
-      "types": "./dist/editorial-anchors.d.ts",
-      "default": "./dist/editorial-anchors.js"
+    "./internal/editorial-anchors": {
+      "types": "./dist/internal/editorial-anchors.d.ts",
+      "default": "./dist/internal/editorial-anchors.js"
     }
   },
   "scripts": {
