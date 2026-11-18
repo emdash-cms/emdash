@@ -66,6 +66,7 @@ function month({
 	shownMonth = "2026-10",
 	height = 682,
 	compact = false,
+	width = 1100,
 	today = "2026-10-15",
 	at = now,
 	shown = days,
@@ -78,6 +79,7 @@ function month({
 	shownMonth?: string;
 	height?: number;
 	compact?: boolean;
+	width?: number;
 	today?: string;
 	at?: number;
 	shown?: typeof days;
@@ -88,7 +90,7 @@ function month({
 	onClearFilters?: () => void;
 } = {}) {
 	return (
-		<div style={{ display: "flex", flexDirection: "column", width: 1100, height }}>
+		<div style={{ display: "flex", flexDirection: "column", width, height }}>
 			<CalendarMonth
 				month={shownMonth}
 				gridDays={monthGridDays(shownMonth, 0)}
@@ -237,11 +239,19 @@ describe("CalendarMonth", () => {
 	});
 
 	it("spreads a phone's month across its width in round, touch-sized days", async () => {
-		const screen = await render(<div style={{ width: 360 }}>{month({ compact: true })}</div>);
-		const grid = screen.getByRole("grid").element().getBoundingClientRect();
-		const headings = Array.from(
-			screen.getByRole("grid").element().querySelectorAll("thead th"),
-			(th) => th.getBoundingClientRect(),
+		const screen = await render(month({ compact: true, width: 360 }));
+		const gridElement = screen.getByRole("grid").element();
+		const grid = gridElement.getBoundingClientRect();
+		const picker = gridElement.closest<HTMLElement>(".rdp-root")!;
+		const pickerStyle = getComputedStyle(picker);
+		const pickerContentWidth =
+			picker.clientWidth -
+			Number.parseFloat(pickerStyle.paddingLeft) -
+			Number.parseFloat(pickerStyle.paddingRight);
+		expect(picker.getBoundingClientRect().width).toBeLessThanOrEqual(360);
+		expect(grid.width).toBeCloseTo(pickerContentWidth, 0);
+		const headings = Array.from(gridElement.querySelectorAll("thead th"), (th) =>
+			th.getBoundingClientRect(),
 		);
 		expect(headings[0]!.left).toBeCloseTo(grid.left, 0);
 		expect(headings[6]!.right).toBeCloseTo(grid.right, 0);
