@@ -273,7 +273,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 	try {
 		const fetchOptions = proxyFetchOptions(controller.signal);
-		let bytes: Uint8Array | undefined;
+		let bytes: Uint8Array<ArrayBuffer> | undefined;
 		let headers: Headers | undefined;
 		let checksumValid: boolean | undefined;
 		if (resolvedArtifact.imageCacheUrl) {
@@ -413,7 +413,8 @@ async function resolveArtifact(
 
 	const descriptor = resolveDeclaredArtifact(releaseView.release.artifacts, kind, index);
 	if (!descriptor || descriptor.requiresAuth || releaseView.release.auth !== undefined) return null;
-	const blobCid = descriptor.blob?.ref.$link;
+	const blobCid =
+		descriptor.blob && "ref" in descriptor.blob ? descriptor.blob.ref.$link : undefined;
 	let imageCacheUrl: URL | undefined;
 	if (blobCid) {
 		const expected = multihashFromBlobCid(blobCid);
@@ -478,13 +479,14 @@ async function fetchRawArtifact(
 	resolved: ResolvedArtifact,
 	options: ReturnType<typeof proxyFetchOptions>,
 ): Promise<
-	| { success: true; bytes: Uint8Array; headers: Headers; checksumValid: boolean }
+	| { success: true; bytes: Uint8Array<ArrayBuffer>; headers: Headers; checksumValid: boolean }
 	| { success: false; code: string }
 > {
 	const urls: URL[] = [];
-	const blobCid = resolved.artifact.blob?.ref.$link;
+	const { blob } = resolved.artifact;
+	const blobCid = blob && "ref" in blob ? blob.ref.$link : undefined;
 	let lastCode = "FETCH_FAILED";
-	let checksumMismatch: { bytes: Uint8Array; headers: Headers } | undefined;
+	let checksumMismatch: { bytes: Uint8Array<ArrayBuffer>; headers: Headers } | undefined;
 	if (blobCid) {
 		const pds = await resolvePublisherPdsEndpoint(resolved.record.did, options);
 		if (pds.success) {
