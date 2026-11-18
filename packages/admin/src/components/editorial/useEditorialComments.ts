@@ -26,6 +26,7 @@ import {
 	anchorForRange,
 	anchorForSelection,
 	getEditorialHighlights,
+	getEditorialPending,
 	locateAnchor,
 	setEditorialHighlights,
 	type EditorialHighlight,
@@ -34,6 +35,8 @@ import {
 } from "../editor/EditorialCommentsExtension.js";
 
 const POLL_INTERVAL_MS = 30_000;
+/** The most anchors one request to the anchors route may carry. */
+const ANCHOR_BATCH_SIZE = 100;
 
 export interface EditorialDraft {
 	anchor: EditorialAnchor;
@@ -117,15 +120,23 @@ export function useEditorialComments({
 	const entryKey = entryKeyOf(entry);
 	const [stateEntryKey, setStateEntryKey] = React.useState(entryKey);
 	const [stateThreadLink, setStateThreadLink] = React.useState(initialThreadId);
+	/** A thread a link asked for that the margin hasn't brought into view yet. */
+	const [linkedThreadId, setLinkedThreadId] = React.useState<string | null>(
+		initialThreadId ?? null,
+	);
 	if (stateEntryKey !== entryKey) {
 		setStateEntryKey(entryKey);
 		setStateThreadLink(initialThreadId);
 		setDraft(null);
 		setActiveThreadId(initialThreadId ?? null);
+		setLinkedThreadId(initialThreadId ?? null);
 		setNotice(null);
 	} else if (stateThreadLink !== initialThreadId) {
 		setStateThreadLink(initialThreadId);
-		if (initialThreadId) setActiveThreadId(initialThreadId);
+		if (initialThreadId) {
+			setActiveThreadId(initialThreadId);
+			setLinkedThreadId(initialThreadId);
+		}
 	}
 	const entryKeyRef = React.useRef(entryKey);
 	React.useLayoutEffect(() => {
@@ -191,12 +202,25 @@ export function useEditorialComments({
 
 	const scope = (): MutationScope => ({ target: entry! });
 
+	/** A text draft's anchor as its highlight now sits, after any edits since it was started. */
+	const currentDraftAnchor = (anchor: EditorialAnchor): EditorialAnchor => {
+		if (anchor.type !== "text") return anchor;
+		const editor = editors.get(anchor.field);
+		const pending = editor && !editor.isDestroyed ? getEditorialPending(editor.state) : null;
+		if (!editor || pending?.kind !== "text") return anchor;
+		return anchorForRange(editor.state.doc, anchor.field, pending.from, pending.to) ?? anchor;
+	};
+
 	const createThread = useMutation({
 		onMutate: scope,
 		mutationFn: (input: { anchor: EditorialAnchor; body: string }) =>
 			// A read-only editor may show an entry someone has saved since, so its anchor
 			// goes without `_rev` and its quote and context place it.
-			createEditorialThread(entry!, { ...input, _rev: canEdit && !isDirty ? rev : undefined }),
+			createEditorialThread(entry!, {
+				...input,
+				anchor: currentDraftAnchor(input.anchor),
+				_rev: canEdit && !isDirty ? rev : undefined,
+			}),
 		onSuccess: (thread, _input, mutation) => {
 			replaceThread(mutation.target, thread);
 			if (!isCurrent(mutation)) return;
@@ -369,7 +393,16 @@ export function useEditorialComments({
 		const signature = `${rev}:${JSON.stringify(updates)}`;
 		if (lastSyncedRef.current === signature) return;
 		lastSyncedRef.current = signature;
-		updateEditorialAnchors(entry, { _rev: rev, anchors: updates }).then(
+		const store = async () => {
+			for (let index = 0; index < updates.length; index += ANCHOR_BATCH_SIZE) {
+				// oxlint-disable-next-line no-await-in-loop -- a conflict stops the batches after it
+				await updateEditorialAnchors(entry, {
+					_rev: rev,
+					anchors: updates.slice(index, index + ANCHOR_BATCH_SIZE),
+				});
+			}
+		};
+		store().then(
 			() => {
 				// The stored anchors now describe the highlights as they are, so the refetch keeps them.
 				for (const update of updates) {
@@ -383,12 +416,16 @@ export function useEditorialComments({
 				return invalidate(entry);
 			},
 			(error: unknown) => {
-				if (!(error instanceof ApiResponseError) || error.code !== "CONFLICT") return;
+				void invalidate(entry);
+				if (!(error instanceof ApiResponseError) || error.code !== "CONFLICT") {
+					// Let the next change to the threads or highlights try again.
+					if (lastSyncedRef.current === signature) lastSyncedRef.current = null;
+					return;
+				}
 				// The entry changed since it loaded; once it reloads, its anchors are worked out again.
 				void queryClient.invalidateQueries({
 					queryKey: ["content", entry.collection, entry.id],
 				});
-				void invalidate(entry);
 			},
 		);
 	}, [canEdit, entry, editors, rev, isDirty, query.data, highlights, invalidate, queryClient]);
@@ -472,6 +509,8 @@ export function useEditorialComments({
 		draft,
 		setDraft,
 		startComment,
+		linkedThreadId,
+		clearLinkedThread: React.useCallback(() => setLinkedThreadId(null), []),
 		notice,
 		dismissNotice: React.useCallback(() => setNotice(null), []),
 		showResolved,
@@ -498,6 +537,10 @@ const SELECTION_NOTICES: Record<
 	},
 	empty: { title: msg`Select text within one paragraph to comment on it` },
 	"multiple-blocks": { title: msg`Select text within one paragraph to comment on it` },
+	unsupported: {
+		title: msg`Text here can’t take a comment`,
+		description: msg`Comment on the whole field instead.`,
+	},
 };
 
 export type EditorialCommentsState = ReturnType<typeof useEditorialComments>;

@@ -456,18 +456,58 @@ describe("editorial comment links", () => {
 	const fields = { content: { kind: "portableText", label: "Content" } } as const;
 	const data = { content: [paragraph("b1", "The quick brown fox")] };
 
-	it("opens the margin on a thread linked after the entry is already shown", async () => {
+	/** Records what is scrolled into view while `run` runs. */
+	async function scrolledDuring(run: () => Promise<void>): Promise<Element[]> {
+		const scrolled: Element[] = [];
+		const spy = vi
+			.spyOn(Element.prototype, "scrollIntoView")
+			.mockImplementation(function (this: Element) {
+				scrolled.push(this);
+			});
+		try {
+			await run();
+		} finally {
+			spy.mockRestore();
+		}
+		return scrolled;
+	}
+
+	it("opens the margin on a thread linked after the entry is already shown, at its text", async () => {
 		const screen = await renderEntry({
 			fields,
 			data,
 			threads: [textThread("thread-1", "content", "quick", "The ")],
 		});
 		expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
+		const { dom } = editorFor("Content");
 
-		await screen.navigate({ initialThreadId: "thread-1" });
+		const scrolled = await scrolledDuring(async () => {
+			await screen.navigate({ initialThreadId: "thread-1" });
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await expect.element(margin.getByRole("textbox", { name: "Reply" })).toBeVisible();
+			await vi.waitFor(() =>
+				expect(dom.querySelector('[data-editorial-thread="thread-1"]')).not.toBeNull(),
+			);
+		});
 
+		expect(scrolled.some((element) => dom.contains(element))).toBe(true);
+	});
+
+	it("selects a thread's text from its card", async () => {
+		const screen = await renderEntry({
+			fields,
+			data,
+			threads: [textThread("thread-1", "content", "quick", "The ")],
+			initialThreadId: "thread-1",
+		});
+		const { editor, dom } = editorFor("Content");
 		const margin = screen.getByRole("complementary", { name: "Comments" });
-		await expect.element(margin.getByRole("textbox", { name: "Reply" })).toBeVisible();
+
+		await margin.getByRole("button", { name: "Go to text" }).click();
+
+		const { from, to } = editor.state.selection;
+		expect(editor.state.doc.textBetween(from, to)).toBe("quick");
+		expect(dom.contains(document.activeElement)).toBe(true);
 	});
 });
 
@@ -557,6 +597,41 @@ describe("editorial block comments without edit access", () => {
 			expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
 				expect.anything(),
 				expect.objectContaining({ anchor: { type: "block", field: "content", blockKey: "hr1" } }),
+			),
+		);
+	});
+});
+
+describe("editorial comment drafts", () => {
+	const fields = { content: { kind: "portableText", label: "Content" } } as const;
+	const data = { content: [paragraph("b1", "The quick brown fox")] };
+
+	it("sends the selected text as edited while the comment was written", async () => {
+		vi.mocked(createEditorialThread).mockImplementation(async (_entry, input) => ({
+			...textThread("thread-new", "content", "x", ""),
+			anchor: input.anchor,
+		}));
+		const screen = await renderEntry({ fields, data });
+		const { editor, dom } = editorFor("Content");
+
+		dom.focus();
+		selectText(editor, "brown");
+		await userEvent.keyboard(COMMENT_SHORTCUT);
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		await margin.getByRole("textbox", { name: "Comment" }).fill("Which shade?");
+		let inside = -1;
+		editor.state.doc.descendants((node, pos) => {
+			if (node.isText && inside < 0) inside = pos + node.text!.indexOf("brown") + 2;
+		});
+		editor.commands.insertContentAt(inside, "-");
+		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+
+		await vi.waitFor(() =>
+			expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({
+					anchor: expect.objectContaining({ quote: "br-own", start: 10, end: 16 }),
+				}),
 			),
 		);
 	});
