@@ -1295,6 +1295,67 @@ describe("ContentListPage – numbered pages", () => {
 		]);
 	});
 
+	it("drops a term filter when switching to a collection without that taxonomy", async () => {
+		const listFetch = globalThis.fetch;
+		globalThis.fetch = async (input, init) => {
+			const href =
+				typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			const path = new URL(href, location.origin).pathname;
+			if (path === "/_emdash/api/taxonomies") {
+				return Response.json({
+					data: {
+						taxonomies: [
+							{
+								id: "tax_topics",
+								name: "topics",
+								label: "Topics",
+								labelSingular: "Topic",
+								hierarchical: false,
+								collections: ["posts"],
+							},
+						],
+					},
+				});
+			}
+			if (path === "/_emdash/api/taxonomies/topics/terms") {
+				return Response.json({
+					data: {
+						terms: [
+							{
+								id: "t_rodeo",
+								name: "topics",
+								slug: "rodeo",
+								label: "Rodeo",
+								parentId: null,
+								children: [],
+								locale: "fr",
+								translationGroup: "t_rodeo",
+							},
+						],
+					},
+				});
+			}
+			return listFetch(input, init);
+		};
+		const { screen, router } = await renderPosts();
+
+		await screen.getByRole("button", { name: "Filter by Topics" }).click();
+		await screen.getByRole("checkbox", { name: "Rodeo" }).click();
+		await vi.waitFor(() => expect(requests.some((url) => url.includes("termFilters="))).toBe(true));
+
+		await router.navigate({ to: "/content/$collection", params: { collection: "pages" } });
+
+		await expect.element(screen.getByText("Showing 1-3 of 3")).toBeInTheDocument();
+		const pageRequests = requests.filter((url) => url.startsWith("/_emdash/api/content/pages?"));
+		expect(pageRequests.length).toBeGreaterThan(0);
+		expect(pageRequests.some((url) => url.includes("termFilters"))).toBe(false);
+
+		await router.navigate({ to: "/content/$collection", params: { collection: "posts" } });
+		await expect
+			.element(screen.getByRole("button", { name: "Filter by Topics" }))
+			.toHaveTextContent("All Topics");
+	});
+
 	it("waits for the manifest before loading the trash", async () => {
 		let releaseManifest = () => {};
 		holdManifest = new Promise<void>((resolve) => {

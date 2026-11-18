@@ -277,6 +277,42 @@ describe("localeCode validator", () => {
 		).toThrow();
 	});
 
+	it("contentListQuery parses taxonomy term filters", () => {
+		const result = contentListQuery.parse({
+			termFilters: JSON.stringify({ topics: ["rodeo", "polo"], places: ["kentucky"] }),
+		});
+
+		expect(result.termFilters).toEqual({ topics: ["rodeo", "polo"], places: ["kentucky"] });
+	});
+
+	it("contentListQuery enforces taxonomy term filter boundaries", () => {
+		const parse = (value: unknown) =>
+			contentListQuery.parse({ termFilters: JSON.stringify(value) }).termFilters;
+
+		expect(() => contentListQuery.parse({ termFilters: "not-json" })).toThrow();
+		expect(() => parse({ topics: [] })).toThrow();
+		expect(() => parse({ topics: [""] })).toThrow();
+		expect(() => parse({ "topics;drop": ["rodeo"] })).toThrow();
+		expect(() => parse({ Topics: ["rodeo"] })).toThrow();
+		expect(() => parse({ [`t${"x".repeat(63)}`]: ["rodeo"] })).toThrow();
+		expect(parse({ topics: ["x".repeat(200)] })).toEqual({ topics: ["x".repeat(200)] });
+		expect(() => parse({ topics: ["x".repeat(201)] })).toThrow();
+
+		const ten = Object.fromEntries(
+			Array.from({ length: 10 }, (_, index) => [`tax_${index}`, ["a"]]),
+		);
+		expect(parse(ten)).toEqual(ten);
+		expect(() => parse({ ...ten, tax_10: ["a"] })).toThrow();
+
+		// Slugs are bound as one JSON value per taxonomy, so their number has no
+		// parameter budget; only the raw parameter's length bounds it.
+		const many = Array.from({ length: 300 }, (_, index) => `slug-${index}`);
+		expect(parse({ topics: many })).toEqual({ topics: many });
+		expect(() =>
+			contentListQuery.parse({ termFilters: JSON.stringify({ topics: ["x".repeat(8192)] }) }),
+		).toThrow();
+	});
+
 	it("contentCreateBody keeps the locale casing", () => {
 		const result = contentCreateBody.parse({ data: { title: "Hi" }, locale: "pt-BR" });
 		expect(result.locale).toBe("pt-BR");

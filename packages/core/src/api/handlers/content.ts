@@ -6,7 +6,7 @@ import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
 import { after } from "../../after.js";
-import type { ContentFieldFilters } from "../../content-list-query.js";
+import type { ContentFieldFilters, ContentTermFilters } from "../../content-list-query.js";
 import { isSqlite } from "../../database/dialect-helpers.js";
 import { BylineRepository } from "../../database/repositories/byline.js";
 import type { ContentBylineInput } from "../../database/repositories/byline.js";
@@ -22,6 +22,10 @@ import { RedirectRepository, redirectPathVariants } from "../../database/reposit
 import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
+import {
+	parseTaxonomyCollections,
+	selectTaxonomyDefs,
+} from "../../database/repositories/taxonomy-def.js";
 import { TaxonomyRepository } from "../../database/repositories/taxonomy.js";
 import {
 	ContentCollectionNotFoundError,
@@ -970,6 +974,7 @@ export async function handleContentList(
 		bylinesNone?: boolean;
 		includeInferredBylines?: boolean;
 		fieldFilters?: ContentFieldFilters;
+		termFilters?: ContentTermFilters;
 	},
 ): Promise<ApiResult<ContentListResponse>> {
 	try {
@@ -993,6 +998,29 @@ export async function handleContentList(
 		if (params.authorId) where.authorId = params.authorId;
 		if (params.fieldFilters && Object.keys(params.fieldFilters).length > 0) {
 			where.fieldFilters = params.fieldFilters;
+		}
+
+		// A taxonomy not applied to this collection can never match: reject it
+		// rather than return an empty or unfiltered list.
+		if (params.termFilters && Object.keys(params.termFilters).length > 0) {
+			const names = Object.keys(params.termFilters);
+			const defs = await selectTaxonomyDefs(db).where("d.name", "in", names).execute();
+			const appliesHere = new Set(
+				defs
+					.filter((def) => parseTaxonomyCollections(def.collections).includes(collection))
+					.map((def) => def.name),
+			);
+			const unknown = names.filter((name) => !appliesHere.has(name));
+			if (unknown.length > 0) {
+				return {
+					success: false,
+					error: {
+						code: "VALIDATION_ERROR",
+						message: `Taxonomy not applied to ${collection}: ${unknown.join(", ")}`,
+					},
+				};
+			}
+			where.termFilters = params.termFilters;
 		}
 
 		const bylineFilter = resolveBylineFilter(params, locale);
