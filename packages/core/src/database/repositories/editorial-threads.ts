@@ -2,6 +2,7 @@ import { sql, type Kysely, type Selectable, type SelectQueryBuilder } from "kyse
 import { monotonicFactory } from "ulidx";
 
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
 import type { Database, EditorialThreadTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 import {
@@ -501,8 +502,9 @@ export class EditorialThreadRepository {
 	 * the trash and still has `expected`'s `version` and `updatedAt`. Updates
 	 * naming a thread on another entry are ignored. Returns how many threads
 	 * changed. Throws `ContentMutationConflictError` once the entry no longer
-	 * matches; call it inside `withTransaction`, so that rolls back the
-	 * anchors already stored where transactions are available.
+	 * matches. On D1 the check and every write run as one atomic batch; call it
+	 * inside `withTransaction` so that elsewhere a conflict rolls back the
+	 * anchors already stored.
 	 */
 	async updateAnchors(input: {
 		collection: string;
@@ -512,17 +514,15 @@ export class EditorialThreadRepository {
 		now: string;
 	}): Promise<number> {
 		validateIdentifier(input.collection, "collection type");
-		const currentEntry = sql`
-			SELECT 1 FROM ${sql.ref(`ec_${input.collection}`)}
+		const currentEntry = sql<{ current: number }>`
+			SELECT 1 AS current FROM ${sql.ref(`ec_${input.collection}`)}
 			WHERE id = ${input.entryId}
 			AND deleted_at IS NULL
 			AND version = ${input.expected.version}
 			AND updated_at = ${input.expected.updatedAt}
 		`;
-		let updated = 0;
-		for (const update of input.updates) {
-			// oxlint-disable-next-line no-await-in-loop -- each row gets its own anchor value
-			const result = await this.db
+		const writes = input.updates.map((update) =>
+			this.db
 				.updateTable("_emdash_editorial_threads")
 				.set({
 					anchor: JSON.stringify(update.anchor),
@@ -533,8 +533,19 @@ export class EditorialThreadRepository {
 				.where("collection", "=", input.collection)
 				.where("entry_id", "=", input.entryId)
 				.where(sql<boolean>`EXISTS (${currentEntry})`)
-				.executeTakeFirst();
-			const changed = Number(result.numUpdatedRows);
+				.returning("id"),
+		);
+
+		const batched = await executeAtomicBatchIfSupported(this.db, [currentEntry, ...writes]);
+		if (batched) {
+			if (batched[0]?.rows.length !== 1) throw new ContentMutationConflictError();
+			return batched.slice(1).reduce((total, result) => total + result.rows.length, 0);
+		}
+
+		let updated = 0;
+		for (const write of writes) {
+			// oxlint-disable-next-line no-await-in-loop -- each row gets its own anchor value
+			const changed = (await write.execute()).length;
 			if (changed === 0) {
 				// oxlint-disable-next-line no-await-in-loop -- tells a stale entry from a thread on another entry
 				const stillCurrent = await currentEntry.execute(this.db);
