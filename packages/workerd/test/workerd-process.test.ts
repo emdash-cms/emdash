@@ -1,7 +1,9 @@
 import { ChildProcess, spawn } from "node:child_process";
 import type { ChildProcess as ChildProcessType } from "node:child_process";
 import { existsSync as realExistsSync } from "node:fs";
-import { readFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, stat as fsStat, symlink } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { dirname, join } from "node:path";
 import { execPath } from "node:process";
 
 import { describe, expect, it, vi } from "vitest";
@@ -321,4 +323,71 @@ describe("workerd process lifecycle", () => {
 			await terminate(child);
 		}
 	});
+	it.skipIf(!posix)("treats executable paths and arguments as literal data", async () => {
+		const directory = await mkdtemp(join(tmpdir(), "emdash-literal-argv-"));
+		const marker = join(directory, "injected");
+		const binary = join(directory, "node with spaces ' ; $literal");
+		const args = ["space separated", "quote'\"\\backslash", "line\nbreak", `;$(touch ${marker})`];
+		let child: ChildProcessType | undefined;
+		try {
+			await symlink(execPath, binary);
+			child = spawnWorkerd(
+				binary,
+				["-e", 'console.log("RESULT:" + JSON.stringify(process.argv.slice(1)))', "--", ...args],
+				{},
+			);
+			const output = await waitForOutput(child, /RESULT:(.*)/);
+			expect(JSON.parse(output[1]!)).toEqual(args);
+			expect((await closeWithin(child))?.code).toBe(0);
+			expect(realExistsSync(marker)).toBe(false);
+		} finally {
+			if (child) await terminate(child);
+			await rm(directory, { recursive: true, force: true });
+		}
+	});
+
+	it.skipIf(!posix || !realExistsSync("/bin/sh"))(
+		"uses private permissions for the supervisor script and removes it after shutdown",
+		async () => {
+			const actualSpawn = childProcess.spawn;
+			if (!actualSpawn) throw new Error("native spawn is unavailable");
+			const spawnMock = vi.mocked(spawn);
+			let scriptPath: string | undefined;
+			let native: ChildProcessType | undefined;
+			let watchdog: ChildProcessType | undefined;
+			spawnMock.mockImplementation((...args) => {
+				const [, argv] = args;
+				if (!native) {
+					scriptPath = String(argv?.[0]);
+					native = actualSpawn(...args);
+					return native;
+				}
+				watchdog = actualSpawn(...args);
+				return watchdog;
+			});
+			try {
+				const child = spawnWorkerd(
+					process.execPath,
+					["-e", 'console.log("READY"); setInterval(()=>{},1000)'],
+					{},
+				);
+				await waitForOutput(child, /READY/);
+				if (!native || !watchdog || !scriptPath) throw new Error("supervisor did not spawn");
+				const parentDirectory = dirname(scriptPath);
+				expect((await fsStat(scriptPath)).mode & 0o077).toBe(0);
+				expect((await fsStat(parentDirectory)).mode & 0o077).toBe(0);
+				signalWorkerd(native, "SIGTERM");
+				expect((await closeWithin(native, 1_500))?.signal).toBe("SIGTERM");
+				expect((await closeWithin(watchdog, 1_500))?.code).toBe(0);
+				await expect.poll(() => realExistsSync(parentDirectory)).toBe(false);
+			} finally {
+				spawnMock.mockReset();
+				spawnMock.mockImplementation(actualSpawn);
+				if (watchdog && watchdog.exitCode === null && watchdog.signalCode === null)
+					await terminate(watchdog);
+				if (native && native.exitCode === null && native.signalCode === null)
+					await terminate(native);
+			}
+		},
+	);
 });

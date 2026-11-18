@@ -1,18 +1,22 @@
 import { spawn } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 
 const CHILDREN_KEY = Symbol.for("emdash.workerd-children");
 const childrenGlobal = globalThis as typeof globalThis & {
 	[CHILDREN_KEY]?: {
 		children: Set<ChildProcess>;
 		watchdogs: Map<ChildProcess, ChildProcess>;
+		supervisorDirectory: string | null;
 		onExit: () => void;
 	};
 };
 const state = (childrenGlobal[CHILDREN_KEY] ??= {
 	children: new Set<ChildProcess>(),
 	watchdogs: new Map<ChildProcess, ChildProcess>(),
+	supervisorDirectory: null,
 	onExit: killWorkerdChildren,
 });
 const children = state.children;
@@ -20,6 +24,7 @@ const watchdogs = state.watchdogs;
 
 export function killWorkerdChildren(): void {
 	for (const child of children) signalWorkerd(child, "SIGKILL");
+	cleanupSupervisorScript();
 }
 
 function unrefProcess(child: ChildProcess): void {
@@ -49,44 +54,83 @@ export function signalWorkerd(child: ChildProcess, signal: NodeJS.Signals): void
 	}
 }
 
-// Do not exec the binary until the host has spawned its sibling watchdog.
-// If the host dies before that handshake, EOF makes this launcher exit too.
-const START_GATE = `
-read -r ready <&4 || exit 1
-exec "$@" 4<&-
+const SUPERVISOR_SOURCE = `
+case "$1" in
+	start)
+		shift
+		read -r ready <&4 || exit 1
+		exec "$@" 4<&-
+		;;
+	watch)
+		shift
+		while read -r line; do
+			[ "$line" = "stop" ] && exit 0
+		done
+		kill -KILL -"$1"
+		;;
+	*)
+		exit 2
+		;;
+esac
 `;
 
-// The watchdog is the host's own child, so Node reaps it even when Node is
-// PID 1. A stop message disarms it after workerd exits; bare EOF means the
-// host died while the process group may still be running.
-const WATCHDOG = `
-while read -r line; do
-	[ "$line" = "stop" ] && exit 0
-done
-kill -KILL -"$1"
-`;
+function cleanupSupervisorScript(): void {
+	const directory = state.supervisorDirectory;
+	state.supervisorDirectory = null;
+	if (!directory) return;
+	try {
+		rmSync(directory, { recursive: true, force: true });
+	} catch {
+		// Cleanup must not interrupt process-group termination.
+	}
+}
+
+function supervisorScript(): string {
+	if (state.supervisorDirectory) return join(state.supervisorDirectory, "supervisor.sh");
+	const directory = mkdtempSync(join(tmpdir(), "emdash-workerd-supervisor-"));
+	state.supervisorDirectory = directory;
+	const script = join(directory, "supervisor.sh");
+	try {
+		writeFileSync(script, SUPERVISOR_SOURCE, { mode: 0o600, flag: "wx" });
+	} catch (error) {
+		cleanupSupervisorScript();
+		throw error;
+	}
+	return script;
+}
 
 export function supportsWorkerdWatchdog(): boolean {
 	return process.platform !== "win32" && existsSync("/bin/sh");
 }
 
 function removeExitHandlerIfIdle(): void {
-	if (children.size === 0 && watchdogs.size === 0) process.off("exit", state.onExit);
+	if (children.size === 0 && watchdogs.size === 0) {
+		process.off("exit", state.onExit);
+		cleanupSupervisorScript();
+	}
 }
 
 export function spawnWorkerd(binary: string, args: string[], env: NodeJS.ProcessEnv): ChildProcess {
 	const supervised = supportsWorkerdWatchdog();
-	const child = supervised
-		? spawn("/bin/sh", ["-c", START_GATE, "emdash-workerd", binary, ...args], {
-				detached: true,
-				stdio: ["ignore", "pipe", "pipe", "pipe", "pipe"],
-				env,
-			})
-		: spawn(binary, args, {
-				detached: process.platform !== "win32",
-				stdio: ["ignore", "pipe", "pipe", "pipe"],
-				env,
-			});
+	// Keep the script out of the module directory so consumer bundles can relocate the code.
+	const script = supervised ? supervisorScript() : undefined;
+	let child: ChildProcess;
+	try {
+		child = script
+			? spawn("/bin/sh", [script, "start", binary, ...args], {
+					detached: true,
+					stdio: ["ignore", "pipe", "pipe", "pipe", "pipe"],
+					env,
+				})
+			: spawn(binary, args, {
+					detached: process.platform !== "win32",
+					stdio: ["ignore", "pipe", "pipe", "pipe"],
+					env,
+				});
+	} catch (error) {
+		removeExitHandlerIfIdle();
+		throw error;
+	}
 	if (children.size === 0 && watchdogs.size === 0) process.on("exit", state.onExit);
 	children.add(child);
 
@@ -106,10 +150,11 @@ export function spawnWorkerd(binary: string, args: string[], env: NodeJS.Process
 	// 'close' can wait for launcher descendants holding inherited output pipes.
 	child.once("exit", releaseWatchdog);
 
-	if (supervised && child.pid !== undefined) {
+	if (script && child.pid !== undefined) {
+		// Keep the watchdog parented to Node so Node also reaps it when running as PID 1.
 		let watchdog: ChildProcess;
 		try {
-			watchdog = spawn("/bin/sh", ["-c", WATCHDOG, "emdash-workerd-watchdog", String(child.pid)], {
+			watchdog = spawn("/bin/sh", [script, "watch", String(child.pid)], {
 				detached: true,
 				stdio: ["pipe", "ignore", "ignore"],
 				env,
