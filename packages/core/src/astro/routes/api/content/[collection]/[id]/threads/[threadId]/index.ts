@@ -1,10 +1,3 @@
-/**
- * One editorial thread
- *
- * PATCH  /_emdash/api/content/{collection}/{id}/threads/{threadId} - Resolve or reopen
- * DELETE /_emdash/api/content/{collection}/{id}/threads/{threadId} - Delete the thread
- */
-
 import type { APIRoute } from "astro";
 
 import { requireEditorialPerm } from "#api/authorize.js";
