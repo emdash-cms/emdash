@@ -66,6 +66,30 @@ const slowIoPlugin = `export default {
 	}
 };`;
 
+const yieldingLoopPlugin = `export default {
+	routes: {
+		loop: { handler: async (_input, ctx) => {
+			for (;;) {
+				let work = 0;
+				for (let i = 0; i < 10000; i++) work += i;
+				if (work < 0) throw new Error("unreachable");
+				await ctx.http.fetch("https://93.184.216.34/yield");
+			}
+		} },
+		ping: { handler: async () => ({ plugin: "yielding", ok: true }) }
+	}
+};`;
+
+const slowThenSpinPlugin = `export default {
+	routes: {
+		fetch: { handler: async ({ input }, ctx) => {
+			await ctx.http.fetch(input.url);
+			for (;;) {}
+		} },
+		ping: { handler: async () => ({ plugin: "slow-spin", ok: true }) }
+	}
+};`;
+
 type Operation = "route" | "hook";
 
 async function procPids(): Promise<number[]> {
@@ -173,6 +197,146 @@ describe.skipIf(!workerdAvailable)("workerd wall-time process isolation", () => 
 		15_000,
 	);
 
+	it("restarts after a yielding loop remains unsettled past the grace period", async () => {
+		const wallTimeMs = 1000;
+		let readyProbeCount = 0;
+		const originalFetch = globalThis.fetch;
+		const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const response = await originalFetch(input, init);
+			const url = input instanceof Request ? input.url : input.toString();
+			if (url.includes("/__ready")) readyProbeCount++;
+			return response;
+		});
+		const runner = new WorkerdSandboxRunner({
+			db: null as never,
+			limits: { wallTimeMs },
+			httpFetch: async () => new Response("yield"),
+		});
+		let oldPids = new Set<number>();
+		let loopCall: Promise<unknown> | undefined;
+		try {
+			const loop = await runner.load(
+				{ ...loopManifest, capabilities: ["network:request:unrestricted"] },
+				yieldingLoopPlugin,
+			);
+			const second = await runner.load(secondManifest, secondPlugin);
+			await runner.ensureRunning();
+			const oldProcess = runner["workerdProcess"];
+			const oldEpoch = runner["epoch"];
+			if (!oldProcess?.pid) throw new Error("workerd did not start");
+			oldPids = await descendants(oldProcess.pid);
+			oldPids.add(oldProcess.pid);
+			readyProbeCount = 0;
+
+			loopCall = loop.invokeRoute("loop", {}, request);
+			void loopCall.catch(() => {});
+			await expect(loopCall).rejects.toThrow(
+				"Plugin wall-time-loop exceeded wall-time limit of 1000ms during route:loop",
+			);
+			const recoveryDeadline = Date.now() + wallTimeMs + 3000;
+			await expect.poll(() => readyProbeCount, { timeout: 1000 }).toBeGreaterThan(0);
+			expect(runner["workerdProcess"]).toBe(oldProcess);
+			await expect
+				.poll(() => runner["epoch"], { timeout: Math.max(1, recoveryDeadline - Date.now()) })
+				.toBeGreaterThan(oldEpoch);
+			expect(runner["workerdProcess"]).not.toBe(oldProcess);
+			if (process.platform === "linux") {
+				await expect.poll(() => runningPids(oldPids), { timeout: 1000 }).toEqual(new Set());
+			}
+			expect(await loop.invokeRoute("ping", {}, request)).toEqual({ plugin: "yielding", ok: true });
+			expect(await second.invokeRoute("ping", {}, request)).toEqual({
+				plugin: "second",
+				ok: true,
+			});
+		} finally {
+			killPids(oldPids);
+			await loopCall?.catch(() => {});
+			fetchSpy.mockRestore();
+			await runner.terminateAll();
+		}
+	}, 15_000);
+
+	it("restarts when slow I/O enters a CPU loop after the grace probe", async () => {
+		const wallTimeMs = 1000;
+		let releaseSlowFetch!: () => void;
+		const slowFetch = new Promise<void>((resolve) => {
+			releaseSlowFetch = resolve;
+		});
+		let slowFetchStarted!: () => void;
+		const slowFetchStartedPromise = new Promise<void>((resolve) => {
+			slowFetchStarted = resolve;
+		});
+		let readyProbeCount = 0;
+		const originalFetch = globalThis.fetch;
+		const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const response = await originalFetch(input, init);
+			const url = input instanceof Request ? input.url : input.toString();
+			if (url.includes("/__ready")) readyProbeCount++;
+			return response;
+		});
+		const runner = new WorkerdSandboxRunner({
+			db: null as never,
+			limits: { wallTimeMs },
+			httpFetch: async (input) => {
+				const url = input instanceof Request ? input.url : input.toString();
+				if (url.endsWith("/slow-spin")) {
+					slowFetchStarted();
+					await slowFetch;
+				}
+				return new Response("released");
+			},
+		});
+		let oldPids = new Set<number>();
+		let slowCall: Promise<unknown> | undefined;
+		try {
+			const slowSpinManifest = {
+				...slowIoManifest("wall-time-slow-spin"),
+				routes: ["fetch", "ping"],
+			} satisfies PluginManifest;
+			const slow = await runner.load(slowSpinManifest, slowThenSpinPlugin);
+			const second = await runner.load(secondManifest, secondPlugin);
+			await runner.ensureRunning();
+			const oldProcess = runner["workerdProcess"];
+			const oldEpoch = runner["epoch"];
+			if (!oldProcess?.pid) throw new Error("workerd did not start");
+			oldPids = await descendants(oldProcess.pid);
+			oldPids.add(oldProcess.pid);
+			readyProbeCount = 0;
+
+			slowCall = slow.invokeRoute("fetch", { url: "https://93.184.216.34/slow-spin" }, request);
+			void slowCall.catch(() => {});
+			await Promise.race([slowFetchStartedPromise, slowCall]);
+			await expect(slowCall).rejects.toThrow(
+				"Plugin wall-time-slow-spin exceeded wall-time limit of 1000ms during route:fetch",
+			);
+			const recoveryDeadline = Date.now() + wallTimeMs + 3000;
+			await expect.poll(() => readyProbeCount, { timeout: 1000 }).toBeGreaterThan(0);
+			expect(runner["workerdProcess"]).toBe(oldProcess);
+			releaseSlowFetch();
+			await expect
+				.poll(() => runner["epoch"], { timeout: Math.max(1, recoveryDeadline - Date.now()) })
+				.toBeGreaterThan(oldEpoch);
+			expect(runner["workerdProcess"]).not.toBe(oldProcess);
+			if (process.platform === "linux") {
+				await expect.poll(() => runningPids(oldPids), { timeout: 1000 }).toEqual(new Set());
+			}
+			expect(await slow.invokeRoute("ping", {}, request)).toEqual({
+				plugin: "slow-spin",
+				ok: true,
+			});
+			expect(await second.invokeRoute("ping", {}, request)).toEqual({
+				plugin: "second",
+				ok: true,
+			});
+		} finally {
+			releaseSlowFetch();
+			killPids(oldPids);
+			await slowCall?.catch(() => {});
+			fetchSpy.mockRestore();
+			await runner.terminateAll();
+		}
+	}, 15_000);
+
 	it("keeps workerd alive when a timed-out plugin is waiting on I/O", async () => {
 		let releaseSlowFetch!: () => void;
 		const slowFetch = new Promise<void>((resolve) => {
@@ -239,7 +403,8 @@ describe.skipIf(!workerdAvailable)("workerd wall-time process isolation", () => 
 			await expect.poll(() => readyProbeCount, { timeout: 1000 }).toBeGreaterThan(0);
 			releaseFastFetch();
 			await expect(fastCall).resolves.toBe("fast");
-			await new Promise((resolve) => setTimeout(resolve, 600));
+			releaseSlowFetch();
+			await new Promise((resolve) => setTimeout(resolve, 1200));
 			expect(runner["workerdProcess"]).toBe(originalProcess);
 			expect(runner["epoch"]).toBe(originalEpoch);
 		} finally {

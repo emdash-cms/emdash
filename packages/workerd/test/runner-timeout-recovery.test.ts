@@ -33,6 +33,26 @@ async function flush(): Promise<void> {
 	await vi.advanceTimersByTimeAsync(0);
 }
 
+function requestUrl(input: RequestInfo | URL): string {
+	if (typeof input === "string") return input;
+	if (input instanceof URL) return input.href;
+	return input.url;
+}
+
+function deferred<T>(): {
+	promise: Promise<T>;
+	resolve: (value: T) => void;
+	reject: (error: unknown) => void;
+} {
+	let resolve!: (value: T) => void;
+	let reject!: (error: unknown) => void;
+	const promise = new Promise<T>((res, rej) => {
+		resolve = res;
+		reject = rej;
+	});
+	return { promise, resolve, reject };
+}
+
 describe("workerd timeout recovery", () => {
 	let runner: WorkerdSandboxRunner | undefined;
 
@@ -78,10 +98,162 @@ describe("workerd timeout recovery", () => {
 		return { plugin, oldProcess, pendingFetches, pendingProbes };
 	}
 
+	function useResponsiveProbe(): void {
+		vi.mocked(fetch).mockImplementation((input) => {
+			const url = requestUrl(input);
+			if (url.endsWith("/__ready")) return Promise.resolve(new Response("", { status: 200 }));
+			return new Promise<Response>(() => {});
+		});
+	}
+
+	it("rejects at the initial deadline without killing a responsive process", async () => {
+		const { plugin, oldProcess } = await setup();
+		useResponsiveProbe();
+		const invocation = plugin.invokeRoute("ping", {}, REQUEST);
+		void invocation.catch(() => {});
+
+		await vi.advanceTimersByTimeAsync(100);
+		await expect(invocation).rejects.toThrow("exceeded wall-time limit of 100ms");
+		await flush();
+		expect(oldProcess.kill).not.toHaveBeenCalled();
+	});
+
+	it("measures the grace period from the timeout, not from probe completion", async () => {
+		const { plugin, oldProcess } = await setup();
+		const probe = deferred<Response>();
+		vi.mocked(fetch).mockImplementation((input) =>
+			requestUrl(input).endsWith("/__ready") ? probe.promise : new Promise<Response>(() => {}),
+		);
+		const replacement = fakeProcess();
+		const restart = vi.fn(async () => {
+			runner!["epoch"] = 2;
+			runner!["workerdProcess"] = replacement;
+			runner!["healthy"] = true;
+			runner!["plugins"].get("timeout-recovery:1.0.0")!.port = 4200;
+		});
+		runner!["restart"] = restart;
+		const invocation = plugin.invokeRoute("ping", {}, REQUEST);
+		void invocation.catch(() => {});
+
+		await vi.advanceTimersByTimeAsync(100);
+		await expect(invocation).rejects.toThrow("exceeded wall-time limit of 100ms");
+		await vi.advanceTimersByTimeAsync(50);
+		probe.resolve(new Response("", { status: 200 }));
+		await flush();
+		await vi.advanceTimersByTimeAsync(49);
+		expect(oldProcess.kill).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+		await flush();
+
+		expect(oldProcess.kill).toHaveBeenCalledWith("SIGKILL");
+		expect(restart).toHaveBeenCalledOnce();
+		expect(replacement.kill).not.toHaveBeenCalled();
+	});
+
+	it.each(["fulfills", "rejects"])(
+		"cancels the grace watchdog when invocation %s",
+		async (outcome) => {
+			const { plugin, oldProcess } = await setup();
+			const settled = deferred<Response>();
+			vi.mocked(fetch).mockImplementation((input) =>
+				requestUrl(input).endsWith("/__ready")
+					? Promise.resolve(new Response("", { status: 200 }))
+					: settled.promise,
+			);
+			const invocation = plugin.invokeRoute("ping", {}, REQUEST);
+			void invocation.catch(() => {});
+			await vi.advanceTimersByTimeAsync(100);
+			await expect(invocation).rejects.toThrow("exceeded wall-time limit");
+			await flush();
+			if (outcome === "fulfills") settled.resolve(new Response('{"ok":true}'));
+			else settled.reject(new Error("request failed"));
+			await flush();
+			await vi.advanceTimersByTimeAsync(100);
+
+			expect(oldProcess.kill).not.toHaveBeenCalled();
+			expect(runner!["timeoutWatchdogs"]).toHaveLength(0);
+			expect(vi.getTimerCount()).toBe(0);
+		},
+	);
+
+	it.each<
+		[string, (current: WorkerdSandboxRunner, oldProcess: ChildProcess) => ChildProcess | void]
+	>([
+		["the epoch changes", (current) => void (current["epoch"] = 2)],
+		[
+			"the process is replaced",
+			(current) => {
+				const replacement = fakeProcess();
+				current["workerdProcess"] = replacement;
+				return replacement;
+			},
+		],
+		["the process is cleared", (current) => void (current["workerdProcess"] = null)],
+		["shutdown starts", (current) => void (current["shuttingDown"] = true)],
+	])("does not kill or restart when %s before the grace kill", async (_, changeState) => {
+		const { plugin, oldProcess } = await setup();
+		useResponsiveProbe();
+		const restart = vi.fn(async () => {});
+		runner!["restart"] = restart;
+		const invocation = plugin.invokeRoute("ping", {}, REQUEST);
+		void invocation.catch(() => {});
+		await vi.advanceTimersByTimeAsync(100);
+		await expect(invocation).rejects.toThrow("exceeded wall-time limit");
+		await flush();
+		const replacement = changeState(runner!, oldProcess);
+		await vi.advanceTimersByTimeAsync(100);
+		await flush();
+
+		expect(oldProcess.kill).not.toHaveBeenCalled();
+		if (replacement) expect(replacement.kill).not.toHaveBeenCalled();
+		expect(restart).not.toHaveBeenCalled();
+		expect(runner!["needsRestart"]).toBe(false);
+	});
+
+	it("clears the grace watchdog on shutdown without respawning", async () => {
+		const { plugin, oldProcess } = await setup();
+		useResponsiveProbe();
+		const restart = vi.fn(async () => {});
+		runner!["restart"] = restart;
+		const invocation = plugin.invokeRoute("ping", {}, REQUEST);
+		void invocation.catch(() => {});
+		await vi.advanceTimersByTimeAsync(100);
+		await expect(invocation).rejects.toThrow("exceeded wall-time limit");
+		await flush();
+		await runner!.terminateAll();
+		expect(runner!["timeoutWatchdogs"]).toHaveLength(0);
+		expect(vi.getTimerCount()).toBe(0);
+		await vi.advanceTimersByTimeAsync(100);
+		expect(oldProcess.kill).not.toHaveBeenCalledWith("SIGKILL");
+		expect(restart).not.toHaveBeenCalled();
+	});
+
+	it("does not run the grace watchdog after an unresponsive probe kills first", async () => {
+		const { plugin, oldProcess } = await setup();
+		const replacement = fakeProcess();
+		const restart = vi.fn(async () => {
+			runner!["epoch"] = 2;
+			runner!["workerdProcess"] = replacement;
+			runner!["healthy"] = true;
+		});
+		runner!["restart"] = restart;
+		const invocation = plugin.invokeRoute("ping", {}, REQUEST);
+		void invocation.catch(() => {});
+		await vi.advanceTimersByTimeAsync(100);
+		await expect(invocation).rejects.toThrow("exceeded wall-time limit");
+		await flush();
+		expect(oldProcess.kill).toHaveBeenCalledWith("SIGKILL");
+		expect(restart).toHaveBeenCalledOnce();
+		await vi.advanceTimersByTimeAsync(100);
+		await flush();
+		expect(restart).toHaveBeenCalledOnce();
+		expect(replacement.kill).not.toHaveBeenCalled();
+	});
+
 	it("waits during recovery and invokes only the replacement listener", async () => {
 		const { plugin, oldProcess, pendingFetches, pendingProbes } = await setup();
 		vi.mocked(fetch).mockImplementation((input) => {
-			const url = input instanceof Request ? input.url : input.toString();
+			const url = requestUrl(input);
 			if (url.endsWith("/__ready")) {
 				return new Promise<Response>((resolve) => {
 					pendingProbes.push(() => resolve(new Response("", { status: 503 })));
@@ -134,11 +306,7 @@ describe("workerd timeout recovery", () => {
 		expect(replacementSettled).toBe(true);
 		expect(pendingFetches).toHaveLength(1);
 		expect(
-			vi
-				.mocked(fetch)
-				.mock.calls.filter(
-					([url]) => !(url instanceof Request ? url.url : url.toString()).endsWith("/__ready"),
-				),
+			vi.mocked(fetch).mock.calls.filter(([url]) => !requestUrl(url).endsWith("/__ready")),
 		).toHaveLength(2);
 		pendingFetches.forEach((settle) => settle());
 	});
@@ -171,7 +339,7 @@ describe("workerd timeout recovery", () => {
 	])("does not kill workerd when %s during the probe", async (_, changeState) => {
 		const { plugin, oldProcess, pendingFetches, pendingProbes } = await setup();
 		vi.mocked(fetch).mockImplementation((input) => {
-			const url = input instanceof Request ? input.url : input.toString();
+			const url = requestUrl(input);
 			if (url.endsWith("/__ready")) {
 				return new Promise<Response>((resolve) => {
 					pendingProbes.push(() => resolve(new Response("", { status: 503 })));
@@ -204,7 +372,7 @@ describe("workerd timeout recovery", () => {
 	it("does not restart when the listener responds to the timeout probe", async () => {
 		const { plugin, oldProcess, pendingFetches } = await setup();
 		vi.mocked(fetch).mockImplementation((input) => {
-			const url = input instanceof Request ? input.url : input.toString();
+			const url = requestUrl(input);
 			if (url.endsWith("/__ready")) return Promise.resolve(new Response(""));
 			return new Promise<Response>((resolve) => {
 				pendingFetches.push(() => resolve(new Response('{"ok":true}')));
