@@ -5544,7 +5544,7 @@ describe("editorial comments", () => {
 			const margin = await openThreadMenu(screen);
 
 			await screen.getByRole("menuitem", { name: "Edit" }).click();
-			const composer = margin.getByRole("textbox", { name: "Edit comment" });
+			const composer = margin.getByRole("combobox", { name: "Edit comment" });
 			await composer.fill("Could this be much shorter?");
 			await margin.getByRole("button", { name: "Save", exact: true }).click();
 
