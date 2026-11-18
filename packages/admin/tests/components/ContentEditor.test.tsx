@@ -5561,6 +5561,20 @@ describe("editorial comments", () => {
 			);
 		});
 
+		it("reopens suggestions after a dismissed @ is deleted and typed again", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
+			const { composer } = await openComposer();
+
+			await userEvent.keyboard("@sa");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+			await userEvent.keyboard("{Escape}");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "false");
+
+			await userEvent.keyboard("{Backspace}{Backspace}{Backspace}@sa");
+
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+		});
+
 		function threadMentioning(body: string, mentions: EditorialThread["mentions"]) {
 			const thread = fieldThread("body");
 			return {

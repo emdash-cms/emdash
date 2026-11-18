@@ -157,6 +157,10 @@ export function useMentionPicker({
 	const trigger = findTrigger(draft.text, caret);
 	const open = trigger !== null && trigger.from !== dismissedAt && entry !== null;
 
+	React.useEffect(() => {
+		if (dismissedAt !== null && trigger?.from !== dismissedAt) setDismissedAt(null);
+	}, [dismissedAt, trigger?.from]);
+
 	const query = useDebouncedValue(trigger?.query ?? "", SEARCH_DEBOUNCE_MS);
 
 	const { data: people = [] } = useQuery({
