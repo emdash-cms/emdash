@@ -97,6 +97,8 @@ Audio, video, and other non-image files are not cached: `memoryCache()` ignores 
 
 A `/_image` URL for EmDash media whose query has unknown or repeated parameters, lists them in a different order than Astro writes them, or encodes a value differently (for example an `href` with unencoded `/`), redirects with a `301` to its canonical form, so each variant has one cache entry. URLs built by `<Image>` and `getImage()` are already canonical. By default, `memoryCache()` sorts and re-encodes the query and drops tracking parameters before its lookup, so a reordered, differently encoded, or tracking-tagged URL can be answered from an existing entry without the redirect. Browsers still revalidate media on every visit, because browser caches can't be purged.
 
+Middleware that answers these URLs differently depending on a request header, such as serving another image format for some `Accept` values, must set `Vary` naming that header on every response for the URL, including the responses it passes through from EmDash. Without it, the cache serves the first response it stored to every visitor. Responses the middleware builds itself need the same `emdash:media:<storageKey>` tag, so that replacing or deleting the image also purges them.
+
 ## Keep responses out of the cache
 
 Route rules match the request path, so they also apply to responses you do not want cached under a long TTL. EmDash keeps responses rendered for a signed-in user, and responses sent with `Cache-Control: private` or `no-store`, out of the route cache automatically, and 404 responses too. Other error responses and your own middleware redirects are the template's job, opted out per request with `Astro.cache.set(false)`.
