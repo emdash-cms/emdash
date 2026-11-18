@@ -124,7 +124,7 @@ describe("initializePlayground", () => {
 		expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBe(true);
 	});
 
-	it("seeds example editorial threads that visitors can reply to and resolve", async () => {
+	it("seeds an open text thread with a reply and an open field thread", async () => {
 		const db = createDatabase();
 		databases.push(db);
 
@@ -163,7 +163,22 @@ describe("initializePlayground", () => {
 		await new OptionsRepository(db).delete("emdash:setup_complete");
 		await initializePlayground(db, loadPlaygroundSeed());
 
-		const threads = await db.selectFrom("_emdash_editorial_threads").select("id").execute();
+		const threads = await db.selectFrom("_emdash_editorial_threads").select("anchor").execute();
 		expect(threads).toHaveLength(2);
+
+		// The rerun rewrites the post from the seed; the text thread must still point at its quote.
+		const anchor = threads
+			.map((thread) => JSON.parse(thread.anchor))
+			.find((candidate) => candidate.type === "text");
+		const post = await sql<{ content: string }>`
+			SELECT content FROM ec_posts WHERE slug = ${"building-for-the-long-term"} AND locale = ${"en"}
+		`.execute(db);
+		const blocks = JSON.parse(post.rows[0]!.content) as Array<{
+			_key?: string;
+			children: Array<{ text?: string }>;
+		}>;
+		const block = blocks.find((candidate) => candidate._key === anchor.blockKey);
+		const text = block?.children.map((child) => child.text ?? "").join("") ?? "";
+		expect(text.slice(anchor.start, anchor.end)).toBe(anchor.quote);
 	});
 });
