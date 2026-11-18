@@ -1,12 +1,21 @@
-import type { ChildProcess } from "node:child_process";
+import { ChildProcess, spawn } from "node:child_process";
+import type { ChildProcess as ChildProcessType } from "node:child_process";
 import { existsSync as realExistsSync } from "node:fs";
+import { readFile } from "node:fs/promises";
 import { execPath } from "node:process";
 
 import { describe, expect, it, vi } from "vitest";
 
-const { shellOverride } = vi.hoisted(() => ({
+const { childProcess, shellOverride } = vi.hoisted(() => ({
+	childProcess: { spawn: undefined as typeof import("node:child_process").spawn | undefined },
 	shellOverride: { value: undefined as boolean | undefined },
 }));
+
+vi.mock("node:child_process", async (importOriginal) => {
+	const nodeChildProcess = await importOriginal<typeof import("node:child_process")>();
+	childProcess.spawn = nodeChildProcess.spawn;
+	return { ...nodeChildProcess, spawn: vi.fn(nodeChildProcess.spawn) };
+});
 
 vi.mock("node:fs", async (importOriginal) => {
 	const fs = await importOriginal<typeof import("node:fs")>();
@@ -23,7 +32,7 @@ import { waitForWorkerdReady } from "../src/sandbox/workerd-startup.js";
 const posix = process.platform !== "win32";
 
 async function closeWithin(
-	child: ChildProcess,
+	child: ChildProcessType,
 	timeoutMs = 1_000,
 ): Promise<{ code: number | null; signal: NodeJS.Signals | null } | undefined> {
 	if (child.exitCode !== null || child.signalCode !== null) {
@@ -51,9 +60,38 @@ function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T> {
 	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
-async function terminate(child: ChildProcess): Promise<void> {
+async function terminate(child: ChildProcessType): Promise<void> {
 	if (child.exitCode === null && child.signalCode === null) signalWorkerd(child, "SIGKILL");
 	await closeWithin(child);
+}
+
+async function waitForOutput(
+	child: ChildProcessType,
+	pattern: RegExp,
+	timeoutMs = 1_500,
+): Promise<RegExpMatchArray> {
+	let output = "";
+	child.stdout?.setEncoding("utf8");
+	return withTimeout(
+		new Promise<RegExpMatchArray>((resolve, reject) => {
+			const onData = (chunk: string) => {
+				output += chunk;
+				const match = output.match(pattern);
+				if (match) {
+					child.stdout?.off("data", onData);
+					resolve(match);
+				}
+			};
+			child.stdout?.on("data", onData);
+			if (!child.stdout) reject(new Error("stdout is unavailable"));
+		}),
+		timeoutMs,
+	);
+}
+
+async function expectVictimResponse(port: number): Promise<void> {
+	const response = await withTimeout(fetch(`http://127.0.0.1:${port}`), 1_000);
+	expect(await response.text()).toBe("victim");
 }
 
 describe("workerd process lifecycle", () => {
@@ -104,6 +142,168 @@ describe("workerd process lifecycle", () => {
 				);
 			} finally {
 				await terminate(child);
+			}
+		},
+	);
+
+	it.skipIf(!posix || !realExistsSync("/bin/sh"))(
+		"does not release the start gate when the watchdog fails to spawn",
+		async () => {
+			const nativeSpawn = childProcess.spawn;
+			if (!nativeSpawn) throw new Error("native spawn is unavailable");
+			const spawnMock = vi.mocked(spawn);
+			spawnMock.mockImplementationOnce(nativeSpawn);
+			spawnMock.mockImplementationOnce(() => nativeSpawn("/nonexistent/watchdog"));
+
+			const child = spawnWorkerd(
+				process.execPath,
+				["-e", 'console.log("UNSUPERVISED"); setInterval(()=>{},1000)'],
+				{},
+			);
+			let stdout = "";
+			child.stdout?.setEncoding("utf8");
+			child.stdout?.on("data", (chunk: string) => {
+				stdout += chunk;
+			});
+			try {
+				const ready = waitForWorkerdReady(child, new Map(), async () => false, 10_000);
+				await expect(withTimeout(ready, 1_000)).rejects.toThrow(
+					"workerd exited during startup with signal SIGKILL",
+				);
+				await closeWithin(child);
+				expect(stdout).not.toContain("UNSUPERVISED");
+			} finally {
+				await terminate(child);
+				spawnMock.mockReset();
+				spawnMock.mockImplementation(nativeSpawn);
+			}
+		},
+	);
+
+	it.skipIf(!posix || !realExistsSync("/bin/sh"))(
+		"does not kill a recycled process-group id when the native process exits",
+		async () => {
+			const nativeSpawn = childProcess.spawn;
+			if (!nativeSpawn) throw new Error("native spawn is unavailable");
+			const victim = nativeSpawn(
+				execPath,
+				[
+					"-e",
+					'const server=require("node:http").createServer((_,res)=>res.end("victim")); server.listen(0,"127.0.0.1",()=>console.log(`PORT:${server.address().port}`)); setInterval(()=>{},1000);',
+				],
+				{ detached: true, stdio: ["ignore", "pipe", "pipe"] },
+			);
+			let watchdog: ChildProcessType | undefined;
+			let native: ChildProcessType | undefined;
+			const spawnMock = vi.mocked(spawn);
+			const victimPid = victim.pid;
+			let victimPort: number | undefined;
+			try {
+				if (victimPid === undefined) throw new Error("victim has no pid");
+				victimPort = Number((await waitForOutput(victim, /PORT:(\d+)/))[1]);
+				spawnMock.mockImplementationOnce(nativeSpawn);
+				spawnMock.mockImplementationOnce((...args) => {
+					const [file, argv, options] = args;
+					const rewritten = [...(argv ?? [])];
+					rewritten[rewritten.length - 1] = String(victimPid);
+					watchdog = nativeSpawn(file, rewritten, options);
+					return watchdog;
+				});
+				native = spawnWorkerd(
+					execPath,
+					["-e", 'console.log("READY");setInterval(()=>{},1000)'],
+					{},
+				);
+				await waitForOutput(native, /READY/);
+				if (!watchdog) throw new Error("watchdog was not spawned");
+				if (process.platform === "linux" && watchdog.pid !== undefined) {
+					const stat = await readFile(`/proc/${watchdog.pid}/stat`, "utf8");
+					expect(stat.slice(stat.lastIndexOf(")") + 2).split(" ")[1]).toBe(String(process.pid));
+				}
+				signalWorkerd(native, "SIGTERM");
+				expect((await closeWithin(native, 1_500))?.signal).toBe("SIGTERM");
+				expect((await closeWithin(watchdog, 1_500))?.code).toBe(0);
+				if (process.platform === "linux" && watchdog.pid !== undefined)
+					expect(realExistsSync(`/proc/${watchdog.pid}`)).toBe(false);
+				if (victimPort === undefined) throw new Error("victim did not report a port");
+				await expectVictimResponse(victimPort);
+			} finally {
+				spawnMock.mockReset();
+				spawnMock.mockImplementation(nativeSpawn);
+				if (watchdog && watchdog.exitCode === null && watchdog.signalCode === null)
+					await terminate(watchdog);
+				if (native) await terminate(native);
+				if (victimPid !== undefined && victim.exitCode === null && victim.signalCode === null) {
+					try {
+						process.kill(-victimPid, "SIGKILL");
+					} catch {
+						// The victim may have exited after the response.
+					}
+					await closeWithin(victim);
+				}
+			}
+		},
+	);
+
+	it.skipIf(!posix || !realExistsSync("/bin/sh"))(
+		"rethrows a synchronous watchdog spawn error and reaps the native gate",
+		async () => {
+			const nativeSpawn = childProcess.spawn;
+			if (!nativeSpawn) throw new Error("native spawn is unavailable");
+			const spawnMock = vi.mocked(spawn);
+			let native: ChildProcessType | undefined;
+			let stdout = "";
+			const testError = Object.assign(new Error("out of memory"), { code: "ENOMEM" });
+			spawnMock.mockImplementationOnce((...args) => (native = nativeSpawn(...args)));
+			spawnMock.mockImplementationOnce(() => {
+				throw testError;
+			});
+			try {
+				expect(() => spawnWorkerd(execPath, ["-e", 'console.log("UNSUPERVISED")'], {})).toThrow(
+					testError,
+				);
+				if (!native) throw new Error("native gate was not spawned");
+				native.stdout?.setEncoding("utf8");
+				native.stdout?.on("data", (chunk: string) => {
+					stdout += chunk;
+				});
+				expect((await closeWithin(native, 1_500))?.signal).toBe("SIGKILL");
+				expect(stdout).not.toContain("UNSUPERVISED");
+			} finally {
+				spawnMock.mockReset();
+				spawnMock.mockImplementation(nativeSpawn);
+				if (native && native.exitCode === null && native.signalCode === null)
+					await terminate(native);
+			}
+		},
+	);
+
+	it.skipIf(!posix || !realExistsSync("/bin/sh"))(
+		"cleans up when the watchdog emits error without close",
+		async () => {
+			const nativeSpawn = childProcess.spawn;
+			if (!nativeSpawn) throw new Error("native spawn is unavailable");
+			const spawnMock = vi.mocked(spawn);
+			const baseline = process.listeners("exit").length;
+			let native: ChildProcessType | undefined;
+			const fakeWatchdog = new ChildProcess();
+			spawnMock.mockImplementationOnce((...args) => (native = nativeSpawn(...args)));
+			spawnMock.mockImplementationOnce(() => {
+				queueMicrotask(() => fakeWatchdog.emit("error", new Error("watchdog failed")));
+				return fakeWatchdog;
+			});
+			try {
+				const child = spawnWorkerd(execPath, ["-e", 'console.log("UNSUPERVISED")'], {});
+				if (!native) throw new Error("native gate was not spawned");
+				expect((await closeWithin(child, 1_500))?.signal).toBe("SIGKILL");
+				await expect
+					.poll(() => process.listeners("exit").length, { timeout: 1_000 })
+					.toBe(baseline);
+			} finally {
+				spawnMock.mockReset();
+				spawnMock.mockImplementation(nativeSpawn);
+				if (native && native.exitCode === null && native.signalCode === null)
+					await terminate(native);
 			}
 		},
 	);
