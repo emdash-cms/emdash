@@ -1782,7 +1782,7 @@ function MediaListDetailCells({
 	);
 }
 
-function FolderBreadcrumb({ name }: { name: string | undefined }) {
+export function FolderBreadcrumb({ name }: { name: string | undefined }) {
 	useBreadcrumbLabel(name, { nested: true });
 	return null;
 }

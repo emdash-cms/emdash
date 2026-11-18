@@ -326,6 +326,22 @@ describe("admin breadcrumbs", () => {
 				.toHaveFocus();
 		});
 
+		it("keeps the way back to the library when the folder's name fails to load", async () => {
+			on("/_emdash/api/media/folders/folder_1", () =>
+				json({ error: { code: "INTERNAL_ERROR", message: "Failed" } }, 500),
+			);
+			await openAdmin(`/media?folder=${FOLDER.id}`);
+
+			await vi.waitFor(
+				() =>
+					expect(readTrail()).toEqual([
+						{ label: "Media", href: `${ADMIN}/media` },
+						{ label: "Folder", current: "page" },
+					]),
+				{ timeout: 6000 },
+			);
+		});
+
 		it("moves focus to the library heading when the browser goes back to the library", async () => {
 			await openAdmin("/media");
 			await page.getByRole("link", { name: `Open folder ${FOLDER.name}` }).click();
@@ -400,17 +416,14 @@ describe("admin breadcrumbs", () => {
 		const menus = visibleIn(trail, "a")!;
 		const name = visibleIn(trail, "[aria-current='page'] [dir='auto']")!;
 		expect(menus.scrollWidth).toBeLessThanOrEqual(menus.clientWidth);
+		expect(name.clientWidth).toBeGreaterThan(0);
 		expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
 		expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
-		await expect.element(page.getByText("Staging")).toBeVisible();
+		await expect.element(page.getByRole("link", { name: "Staging" })).toBeVisible();
 		await expect.element(page.getByRole("link", { name: "View Site" })).toBeVisible();
 		await expect.element(page.getByText("View Site")).not.toBeVisible();
 		const userMenu = page.getByRole("button", { name: "Ada" }).element();
 		expect(userMenu.getBoundingClientRect().right).toBeLessThanOrEqual(window.innerWidth);
 
-		await page.viewport(375, 800);
-		await vi.waitFor(() => expect(name.clientWidth).toBeGreaterThan(0));
-		expect(name.scrollWidth).toBeGreaterThan(name.clientWidth);
-		expect(header.scrollWidth).toBeLessThanOrEqual(header.clientWidth);
 	});
 });

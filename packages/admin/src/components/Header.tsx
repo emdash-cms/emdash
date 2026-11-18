@@ -1,6 +1,6 @@
 import { Badge, Button, LinkButton, Popover } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { SignOut, Shield, Gear, ArrowSquareOut } from "@phosphor-icons/react";
+import { SignOut, Shield, Gear, ArrowSquareOut, EyeSlash } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -46,6 +46,13 @@ export function Header({ staging = false }: { staging?: boolean }) {
 
 	const displayName = user?.name || user?.email || t`User`;
 
+	const stagingBadge = (
+		<Badge variant="warning">
+			<EyeSlash aria-hidden="true" className="size-3.5 sm:hidden" />
+			<span className="sr-only sm:not-sr-only">{t`Staging`}</span>
+		</Badge>
+	);
+
 	return (
 		// h-[58px] is mirrored by ADMIN_HEADER_HEIGHT_PX in ContentEditor.tsx
 		// (the settings sheet offsets its body by it) — change both together.
@@ -61,11 +68,11 @@ export function Header({ staging = false }: { staging?: boolean }) {
 				{staging &&
 					((user?.role ?? 0) >= ROLE_ADMIN ? (
 						<Link to="/settings/general" title={t`Hidden from search engines until you go live`}>
-							<Badge variant="warning">{t`Staging`}</Badge>
+							{stagingBadge}
 						</Link>
 					) : (
 						<span title={t`Hidden from search engines until you go live`}>
-							<Badge variant="warning">{t`Staging`}</Badge>
+							{stagingBadge}
 						</span>
 					))}
 

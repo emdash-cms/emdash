@@ -52,7 +52,7 @@ import { EntryLockNotice } from "./components/EntryLockNotice";
 import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
 import { MagicLinkConfirmPage } from "./components/MagicLinkConfirmPage";
-import { MediaLibrary } from "./components/MediaLibrary";
+import { FolderBreadcrumb, MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
 import { PluginManager } from "./components/PluginManager";
@@ -2936,7 +2936,12 @@ function MediaPage() {
 	);
 
 	if (currentFolderQuery.error && !missingFolder) {
-		return <ErrorScreen error={currentFolderQuery.error.message} />;
+		return (
+			<>
+				<FolderBreadcrumb name={t`Folder`} />
+				<ErrorScreen error={currentFolderQuery.error.message} />
+			</>
+		);
 	}
 
 	if (error) {
