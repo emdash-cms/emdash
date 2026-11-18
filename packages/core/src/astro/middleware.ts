@@ -212,11 +212,10 @@ function buildDependencies(
 		config,
 		migrationMode,
 		plugins: getPlugins(),
-		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
+		createDialect: virtualCreateDialect as RuntimeDependencies["createDialect"],
 		// Optional: only batching backends (D1, DO) export this; undefined otherwise.
-		createCoalescingDialect: virtualCreateCoalescingDialect as
-			| ((config: Record<string, unknown>) => unknown)
-			| undefined,
+		createCoalescingDialect:
+			virtualCreateCoalescingDialect as RuntimeDependencies["createCoalescingDialect"],
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
 		createScheduler: virtualCreateScheduler as CreateSchedulerFn | null,
 		createRoomHost: virtualCreateRoomHost as CreateRoomHostFn | null,
@@ -879,7 +878,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			config && !playgroundDb && isImageEndpointRequest(context)
 				? tryGetStorage(config, migrationMode)
 				: null;
-		if (imageStorage) {
+		if (config && imageStorage) {
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; the image endpoint reads only storage, the auth middleware db
 			const imageLocals = { storage: imageStorage } as EmDashHandlers;
 			locals.emdash = imageLocals;

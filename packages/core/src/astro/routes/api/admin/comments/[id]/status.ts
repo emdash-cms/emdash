@@ -7,7 +7,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, apiSuccess, handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { handleCommentGet } from "#api/handlers/comments.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { commentStatusBody } from "#api/schemas.js";
@@ -24,8 +24,9 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 		return apiError("VALIDATION_ERROR", "Comment ID required", 400);
 	}
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "comments:moderate");
 	if (denied) return denied;

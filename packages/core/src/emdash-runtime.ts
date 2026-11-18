@@ -5082,7 +5082,7 @@ export class EmDashRuntime {
 			const { allowed } = await this.hooks.runContentBeforeDelete(id, collection);
 			if (!allowed) {
 				return {
-					success: false,
+					success: false as const,
 					error: {
 						code: "DELETE_BLOCKED",
 						message: "Delete blocked by plugin hook",
