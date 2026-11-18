@@ -1,6 +1,7 @@
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, readFileSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { connect } from "node:net";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -23,6 +24,7 @@ const hostSource = (
 	listener: "none" | "on" | "once" | "prependOnceListener" | "removed" | "reraised",
 	signal: "SIGTERM" | "SIGINT",
 	shellless: boolean,
+	binaryPath?: string,
 ) => `
 import { createSandboxRunner } from ${JSON.stringify(modulePath)};
 import { stdin, stdout } from "node:process";
@@ -34,6 +36,7 @@ ${shellless ? `const existsSync = fs.existsSync; fs.existsSync = (path) => path 
 ${listener === "on" || listener === "once" ? `process.${listener}(${JSON.stringify(signal)}, () => stdout.write("HANDLED\\n"));` : ""}
 ${listener === "reraised" ? `function reraise() { if (process.listenerCount(${JSON.stringify(signal)}) === 1) { process.off(${JSON.stringify(signal)}, reraise); process.kill(process.pid, ${JSON.stringify(signal)}); } } process.on(${JSON.stringify(signal)}, reraise);` : ""}
 const runner = createSandboxRunner({ db: null, siteInfo: { name: "exit-test", url: "http://localhost", locale: "en" } });
+${binaryPath ? `runner.resolveWorkerdBinary = () => ${JSON.stringify(binaryPath)};` : ""}
 ${listener === "prependOnceListener" ? `process.prependOnceListener(${JSON.stringify(signal)}, () => stdout.write("HANDLED\\n"));` : ""}
 ${listener === "removed" ? `const removedHandler = () => stdout.write("UNEXPECTED\\n"); process.prependOnceListener(${JSON.stringify(signal)}, removedHandler); process.off(${JSON.stringify(signal)}, removedHandler);` : ""}
 const plugin = await runner.load(
@@ -198,7 +201,33 @@ async function runMode(
 		| "reraised",
 	signal: "SIGTERM" | "SIGINT" = "SIGTERM",
 	shellless = false,
+	useFakeBinary = false,
 ): Promise<void> {
+	const fakeBinaryDir = useFakeBinary
+		? mkdtempSync(join(tmpdir(), "emdash-fake-workerd-"))
+		: undefined;
+	const fakeBinary = fakeBinaryDir ? join(fakeBinaryDir, "workerd") : undefined;
+	if (fakeBinary) {
+		writeFileSync(
+			fakeBinary,
+			`#!/usr/bin/env node
+const fs = require("node:fs");
+const http = require("node:http");
+if (process.argv[2] === "--version") process.exit(0);
+const config = fs.readFileSync(process.argv[3], "utf8");
+const socket = /name = "(socket-[^"]+)"/.exec(config)[1];
+process.on("SIGTERM", () => {});
+const server = http.createServer((req, res) => {
+  if (req.url === "/__ready") return res.writeHead(200).end("ok");
+  res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ value: { ok: true } }));
+});
+server.listen(0, "127.0.0.1", () => {
+  fs.writeSync(3, JSON.stringify({ event: "listen", socket, port: server.address().port }) + "\\n");
+});
+`,
+		);
+		chmodSync(fakeBinary, 0o755);
+	}
 	const host = spawn(
 		process.execPath,
 		[
@@ -219,6 +248,7 @@ async function runMode(
 									: "none",
 				signal,
 				shellless,
+				fakeBinary,
 			),
 		],
 		{
@@ -279,6 +309,7 @@ async function runMode(
 		if (mode.startsWith("handled") && ready) {
 			await waitForPortClosed(ready.port).catch(() => {});
 		}
+		if (fakeBinaryDir) rmSync(fakeBinaryDir, { recursive: true, force: true });
 	}
 }
 
@@ -321,6 +352,11 @@ describe.skipIf(isWindows || !workerdAvailable)("runner parent exit cleanup", ()
 	it.each(["SIGTERM", "SIGINT"] as const)(
 		"stops sandboxes before a shell-less application-owned %s drain",
 		(signal) => runMode("handled", signal, true),
+		20_000,
+	);
+	it.each(["SIGTERM", "SIGINT"] as const)(
+		"cleans up an unhandled shell-less %s with a SIGTERM-resistant sidecar",
+		(signal) => runMode(signal, signal, true, true),
 		20_000,
 	);
 });
