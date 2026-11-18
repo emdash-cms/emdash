@@ -291,7 +291,7 @@ async function getRuntime(
 		},
 	);
 	if (virtualCreateScheduler && cache?.enabled) {
-		// Only long-lived runtimes may retain the request's cache handle beyond the request.
+		// The timer scheduler needs the active provider's cache handle outside requests.
 		instance.setPluginContentCacheInvalidator((tags) => cache.invalidate({ tags }));
 	}
 	return instance;
@@ -780,6 +780,7 @@ function getPublicPageSignals(context: APIContext) {
 	const publicPath =
 		base && url.pathname.startsWith(`${base}/`) ? url.pathname.slice(base.length) : url.pathname;
 	return {
+		publicPath,
 		isEmDashRoute: url.pathname.startsWith("/_emdash"),
 		isPublicRuntimeRoute:
 			PUBLIC_RUNTIME_ROUTES.has(publicPath) || isCollectionSitemapPath(publicPath),
@@ -857,8 +858,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		const config = getConfig();
 		const migrationMode = config ? resolveConfiguredMigrationMode(config) : "auto";
 		const pageSignals = getPublicPageSignals(context);
-		const { isEmDashRoute, hasEditCookie, hasPreviewToken, hasSessionCookie, playgroundDb } =
-			pageSignals;
+		const {
+			publicPath,
+			isEmDashRoute,
+			hasEditCookie,
+			hasPreviewToken,
+			hasSessionCookie,
+			playgroundDb,
+		} = pageSignals;
 
 		// Read the Astro session user once up-front. Both the anonymous fast path
 		// and the full doInit path need this, and the session store is network-backed
@@ -1115,6 +1122,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// runWithContext so that getDatabase() and all init queries use the real
 		// DO database via the same AsyncLocalStorage instance as the loader.
 		const doInit = async () => {
+			let refreshPluginRoutes: (() => Promise<void>) | undefined;
 			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
 			const mwStart = performance.now();
 
@@ -1131,6 +1139,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					initSubTimings,
 					context.isPrerendered ? undefined : context.cache,
 				);
+				const installedPluginId = publicPath.startsWith("/_emdash/api/plugins/")
+					? publicPath.slice("/_emdash/api/plugins/".length).split("/")[0]
+					: undefined;
+				if (installedPluginId && runtime.mayNeedInstalledPluginRefresh(installedPluginId)) {
+					refreshPluginRoutes = () => runtime.refreshInstalledPluginRoute(installedPluginId);
+				}
 				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 				// Forward any sub-phase samples so cold-start breakdown is visible
 				// in Server-Timing. Each phase appears prefixed "rt." to distinguish
@@ -1312,6 +1326,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			});
 
 			const renderAndFinalize = async () => {
+				// Warm isolates do not observe installs handled by another isolate.
+				// Refresh before downstream auth reads plugin route metadata, using
+				// the request-scoped database when the adapter provides one.
+				if (refreshPluginRoutes && publicPath.startsWith("/_emdash/api/plugins/")) {
+					try {
+						await refreshPluginRoutes();
+					} catch (error) {
+						console.error("EmDash: Failed to refresh installed plugin routes:", error);
+						return finalizeResponse(
+							apiError("PLUGIN_SYNC_ERROR", "Plugin routes are temporarily unavailable", 503),
+						);
+					}
+				}
 				const t0 = performance.now();
 				const response = await next();
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });

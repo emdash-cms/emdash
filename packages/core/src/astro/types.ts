@@ -719,7 +719,11 @@ export interface EmDashHandlers {
 	getRuntimePluginSettingsSchema: (pluginId: string) => Record<string, unknown> | null;
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
-	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;
+	setPluginStatus: (
+		pluginId: string,
+		status: "active" | "inactive",
+		generation?: bigint,
+	) => Promise<void>;
 
 	// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
 	collectPageMetadata: (
