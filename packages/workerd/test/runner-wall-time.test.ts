@@ -203,7 +203,8 @@ describe.skipIf(!workerdAvailable)("workerd wall-time process isolation", () => 
 			db: null as never,
 			limits: { wallTimeMs: 1000 },
 			httpFetch: async (input) => {
-				if (String(input).endsWith("/slow")) {
+				const url = input instanceof Request ? input.url : input.toString();
+				if (url.endsWith("/slow")) {
 					slowFetchStarted();
 					await slowFetch;
 					return new Response("slow");

@@ -81,7 +81,7 @@ describe("workerd timeout recovery", () => {
 	it("waits during recovery and invokes only the replacement listener", async () => {
 		const { plugin, oldProcess, pendingFetches, pendingProbes } = await setup();
 		vi.mocked(fetch).mockImplementation((input) => {
-			const url = String(input);
+			const url = input instanceof Request ? input.url : input.toString();
 			if (url.endsWith("/__ready")) {
 				return new Promise<Response>((resolve) => {
 					pendingProbes.push(() => resolve(new Response("", { status: 503 })));
@@ -134,7 +134,11 @@ describe("workerd timeout recovery", () => {
 		expect(replacementSettled).toBe(true);
 		expect(pendingFetches).toHaveLength(1);
 		expect(
-			vi.mocked(fetch).mock.calls.filter(([url]) => !String(url).endsWith("/__ready")),
+			vi
+				.mocked(fetch)
+				.mock.calls.filter(
+					([url]) => !(url instanceof Request ? url.url : url.toString()).endsWith("/__ready"),
+				),
 		).toHaveLength(2);
 		pendingFetches.forEach((settle) => settle());
 	});
@@ -167,7 +171,7 @@ describe("workerd timeout recovery", () => {
 	])("does not kill workerd when %s during the probe", async (_, changeState) => {
 		const { plugin, oldProcess, pendingFetches, pendingProbes } = await setup();
 		vi.mocked(fetch).mockImplementation((input) => {
-			const url = String(input);
+			const url = input instanceof Request ? input.url : input.toString();
 			if (url.endsWith("/__ready")) {
 				return new Promise<Response>((resolve) => {
 					pendingProbes.push(() => resolve(new Response("", { status: 503 })));
@@ -200,7 +204,7 @@ describe("workerd timeout recovery", () => {
 	it("does not restart when the listener responds to the timeout probe", async () => {
 		const { plugin, oldProcess, pendingFetches } = await setup();
 		vi.mocked(fetch).mockImplementation((input) => {
-			const url = String(input);
+			const url = input instanceof Request ? input.url : input.toString();
 			if (url.endsWith("/__ready")) return Promise.resolve(new Response(""));
 			return new Promise<Response>((resolve) => {
 				pendingFetches.push(() => resolve(new Response('{"ok":true}')));
