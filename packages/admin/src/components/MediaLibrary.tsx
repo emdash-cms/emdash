@@ -73,7 +73,7 @@ import {
 	metaNumber,
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
-import { useBreadcrumbLabel } from "./AdminBreadcrumbs.js";
+import { NestedBreadcrumb } from "./AdminBreadcrumbs.js";
 import {
 	DataTable,
 	DataTableMessage,
@@ -765,7 +765,7 @@ export function MediaLibrary({
 			<div className="flex items-center justify-between gap-2 sm:gap-4">
 				<div className="min-w-0">
 					{activeProvider === "local" && folderId && (currentFolderLoading || currentFolder) && (
-						<FolderBreadcrumb name={currentFolder?.name} />
+						<NestedBreadcrumb label={currentFolder?.name} />
 					)}
 					<h1
 						ref={mediaHeadingRef}
@@ -1780,11 +1780,6 @@ function MediaListDetailCells({
 			</td>
 		</>
 	);
-}
-
-export function FolderBreadcrumb({ name }: { name: string | undefined }) {
-	useBreadcrumbLabel(name, { nested: true });
-	return null;
 }
 
 export default MediaLibrary;

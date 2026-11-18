@@ -54,6 +54,12 @@ export function useBreadcrumbLabel(label: string | undefined, options?: { nested
 	}, [context, kind, label]);
 }
 
+/** Adds `label` as a level below the current route, for a page that renders it conditionally. */
+export function NestedBreadcrumb({ label }: { label: string | undefined }) {
+	useBreadcrumbLabel(label, { nested: true });
+	return null;
+}
+
 export function AdminBreadcrumbs() {
 	const { i18n } = useLingui();
 	const claim = React.useContext(BreadcrumbClaimContext);

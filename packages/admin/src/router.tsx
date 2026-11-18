@@ -29,7 +29,7 @@ import {
 import * as React from "react";
 
 import type { OutsideValue } from "./co-editing/types.js";
-import { useBreadcrumbLabel } from "./components/AdminBreadcrumbs.js";
+import { NestedBreadcrumb, useBreadcrumbLabel } from "./components/AdminBreadcrumbs.js";
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import type { BylineFormValues } from "./components/BylineFormDialog.js";
@@ -52,7 +52,7 @@ import { EntryLockNotice } from "./components/EntryLockNotice";
 import { InviteAcceptPage } from "./components/InviteAcceptPage";
 import { LoginPage } from "./components/LoginPage";
 import { MagicLinkConfirmPage } from "./components/MagicLinkConfirmPage";
-import { FolderBreadcrumb, MediaLibrary } from "./components/MediaLibrary";
+import { MediaLibrary } from "./components/MediaLibrary";
 import { MenuEditor } from "./components/MenuEditor";
 import { MenuList } from "./components/MenuList";
 import { PluginManager } from "./components/PluginManager";
@@ -2938,7 +2938,7 @@ function MediaPage() {
 	if (currentFolderQuery.error && !missingFolder) {
 		return (
 			<>
-				<FolderBreadcrumb name={t`Folder`} />
+				<NestedBreadcrumb label={t`Folder`} />
 				<ErrorScreen error={currentFolderQuery.error.message} />
 			</>
 		);
