@@ -300,7 +300,10 @@ async function importCaptureFingerprint(
 	record: CollectionRecord,
 	fields: readonly FieldRecord[],
 ): Promise<string> {
-	return `media-usage-import:v1:${await canonicalDigest({ collection: record, fields })}`;
+	const { autoSlugRedirects, ...baseRecord } = record;
+	const collection =
+		autoSlugRedirects === false ? { ...baseRecord, autoSlugRedirects: false } : baseRecord;
+	return `media-usage-import:v1:${await canonicalDigest({ collection, fields })}`;
 }
 
 /** Search stays disabled until the import's rebuild stage builds the index. */

@@ -758,6 +758,68 @@ function keepUnsharedResponsesOutOfRouteCache(context: APIContext, response: Res
 	}
 }
 
+const ANONYMOUS_RENDER = Symbol.for("emdash:anonymous-render");
+
+type RenderLocals = App.Locals & {
+	[ANONYMOUS_RENDER]?: {
+		method: string;
+		db: unknown;
+		metrics: RequestMetrics | undefined;
+	};
+};
+
+function getPublicPageSignals(context: APIContext) {
+	const { url, cookies } = context;
+	const base = import.meta.env.BASE_URL.replace(TRAILING_SLASH_RE, "");
+	const publicPath =
+		base && url.pathname.startsWith(`${base}/`) ? url.pathname.slice(base.length) : url.pathname;
+	return {
+		publicPath,
+		isEmDashRoute: url.pathname.startsWith("/_emdash"),
+		isPublicRuntimeRoute:
+			PUBLIC_RUNTIME_ROUTES.has(publicPath) || isCollectionSitemapPath(publicPath),
+		hasEditCookie: !context.isPrerendered && cookies.get("emdash-edit-mode")?.value === "true",
+		hasPreviewToken: url.searchParams.has("_preview"),
+		hasSessionCookie:
+			!context.isPrerendered &&
+			cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") !== undefined,
+		playgroundDb: context.locals.__playgroundDb,
+	};
+}
+
+function isAnonymousPublicPage(
+	signals: ReturnType<typeof getPublicPageSignals>,
+	hasSession: boolean,
+): boolean {
+	return (
+		!signals.isEmDashRoute &&
+		!signals.isPublicRuntimeRoute &&
+		!signals.hasEditCookie &&
+		!signals.hasPreviewToken &&
+		!hasSession &&
+		!signals.playgroundDb
+	);
+}
+
+function canReuseAnonymousRender(context: APIContext): boolean {
+	const original = (context.locals as RenderLocals)[ANONYMOUS_RENDER];
+	const parent = getRequestContext();
+	if (!original || !parent) return false;
+	if (context.request.method !== original.method) return false;
+	if (context.locals.user || parent.editMode || parent.preview) return false;
+	if (parent.db !== original.db || parent.metrics !== original.metrics) return false;
+	if (context.request.headers.has("authorization")) return false;
+	const signals = getPublicPageSignals(context);
+	// A rewrite may have acquired a session cookie since the original anonymous render.
+	if (!isAnonymousPublicPage(signals, signals.hasSessionCookie)) return false;
+	if (isImageEndpointRequest(context)) return false;
+	// A newly cacheable target must not reuse data loaded from an unverified object-cache snapshot.
+	if (virtualConfig?.objectCacheEnabled && context.cache?.enabled && !parent.routeCacheFill) {
+		return false;
+	}
+	return true;
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
@@ -776,6 +838,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 	}
 
+	// Astro re-enters middleware with the same locals while the original render is
+	// still active. Its outer scope owns prefetch, metrics, and connection cleanup.
+	if (canReuseAnonymousRender(context)) return next();
+
 	const queryRecorder = isInstrumentationEnabled()
 		? createRecorder(url.pathname, request.method, request.headers.get("x-perf-phase") ?? "default")
 		: undefined;
@@ -785,25 +851,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	const run = async (): Promise<Response> => {
 		const config = getConfig();
 		const migrationMode = config ? resolveConfiguredMigrationMode(config) : "auto";
-		// Process /_emdash routes and public routes with an active session
-		// (logged-in editors need the runtime for toolbar/visual editing on public pages)
-		const isEmDashRoute = url.pathname.startsWith("/_emdash");
-		const base = import.meta.env.BASE_URL.replace(TRAILING_SLASH_RE, "");
-		const publicPath =
-			base && url.pathname.startsWith(`${base}/`) ? url.pathname.slice(base.length) : url.pathname;
-		const isPublicRuntimeRoute =
-			PUBLIC_RUNTIME_ROUTES.has(publicPath) || isCollectionSitemapPath(publicPath);
-
-		// Check for edit mode cookie - editors viewing public pages need the runtime
-		// so auth middleware can verify their session for visual editing
-		const hasEditCookie =
-			!context.isPrerendered && cookies.get("emdash-edit-mode")?.value === "true";
-		const hasPreviewToken = url.searchParams.has("_preview");
-
-		// Playground mode: the playground middleware stashes the per-session DO database
-		// on locals.__playgroundDb. When present, use runWithContext() to make it
-		// available to getDb() and the runtime's db getter via the correct ALS instance.
-		const playgroundDb = locals.__playgroundDb;
+		const pageSignals = getPublicPageSignals(context);
+		const {
+			publicPath,
+			isEmDashRoute,
+			hasEditCookie,
+			hasPreviewToken,
+			hasSessionCookie,
+			playgroundDb,
+		} = pageSignals;
 
 		// Read the Astro session user once up-front. Both the anonymous fast path
 		// and the full doInit path need this, and the session store is network-backed
@@ -814,9 +870,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// The cookie check matters on Cloudflare Workers, where Astro's session
 		// backend is KV: calling session.get() on every anonymous public request
 		// turns normal traffic into a flood of KV read misses. See #733.
-		const hasSessionCookie =
-			!context.isPrerendered &&
-			cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") !== undefined;
 		const sessionUser =
 			context.isPrerendered || !hasSessionCookie ? null : await resolveSessionUser(context.session);
 
@@ -855,184 +908,196 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			!hasEditCookie &&
 			!hasPreviewToken;
 
-		if (!isEmDashRoute && !isPublicRuntimeRoute && !hasEditCookie && !hasPreviewToken) {
-			if (!sessionUser && !playgroundDb) {
-				const timings: Array<{ name: string; dur: number; desc?: string }> = [];
-				const mwStart = performance.now();
+		if (isAnonymousPublicPage(pageSignals, !!sessionUser)) {
+			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+			const mwStart = performance.now();
 
-				// On a fresh deployment the database may be completely empty.
-				// Public pages call getSiteSettings() / getMenu() via getDb(), which
-				// bypasses runtime init and would crash with "no such table: options".
-				// Do a one-time lightweight probe using the same getDb() instance the
-				// page will use: if the migrations table doesn't exist, no migrations
-				// have ever run, and the page may only render once runtime init has
-				// migrated the database.
-				// Skip the probe when prerendering: the build database is legitimately
-				// empty in CI, and a response derived from it would be baked into the
-				// static page (session reads are already skipped for prerender above
-				// for the same reason).
-				// Runtime init starts before the probe so the two round trips overlap.
-				// Sub-phase timings are populated only on the cold init. Warm
-				// requests hit the cached runtime and leave this empty.
-				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
-				const runtimeInitStart = performance.now();
-				const runtimeInit = config ? getRuntime(config, migrationMode, initSubTimings) : undefined;
-				// Awaited below unless the probe fails; then it settles in the background.
-				runtimeInit?.catch(() => {});
+			// On a fresh deployment the database may be completely empty.
+			// Public pages call getSiteSettings() / getMenu() via getDb(), which
+			// bypasses runtime init and would crash with "no such table: options".
+			// Do a one-time lightweight probe using the same getDb() instance the
+			// page will use: if the migrations table doesn't exist, no migrations
+			// have ever run, and the page may only render once runtime init has
+			// migrated the database.
+			// Skip the probe when prerendering: the build database is legitimately
+			// empty in CI, and a response derived from it would be baked into the
+			// static page (session reads are already skipped for prerender above
+			// for the same reason).
+			// Runtime init starts before the probe so the two round trips overlap.
+			// Sub-phase timings are populated only on the cold init. Warm
+			// requests hit the cached runtime and leave this empty.
+			const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
+			const runtimeInitStart = performance.now();
+			const runtimeInit = config ? getRuntime(config, migrationMode, initSubTimings) : undefined;
+			// Awaited below unless the probe fails; then it settles in the background.
+			runtimeInit?.catch(() => {});
 
-				let unmigrated = false;
-				let probeFailed = false;
-				if (migrationMode === "auto" && !isSetupVerified() && !context.isPrerendered) {
-					const t0 = performance.now();
-					try {
-						const { getDb } = await import("../loader.js");
-						const db = await getDb();
-						await db.selectFrom("_emdash_migrations").selectAll().limit(1).execute();
-						markSetupVerified();
-					} catch (error) {
-						if (isMissingTableError(error)) {
-							unmigrated = true;
-						} else {
-							// Any other failure (transient D1/replica error, timeout, cold-start
-							// race, locked SQLite) must NOT be read as "fresh install". Leave the
-							// flag unset so a later request can re-verify, and fall through to
-							// render the page normally. Unless a runtime is already running,
-							// don't wait for runtime init on this request: it connects to the
-							// same database and would make the visitor wait through a second
-							// timeout. getRuntime anchors it with after(), so it can still
-							// finish for later requests.
-							probeFailed = !getRuntimeHolder().instance;
-							console.error("Setup probe failed (non-fatal):", error);
-						}
+			let unmigrated = false;
+			let probeFailed = false;
+			if (migrationMode === "auto" && !isSetupVerified() && !context.isPrerendered) {
+				const t0 = performance.now();
+				try {
+					const { getDb } = await import("../loader.js");
+					const db = await getDb();
+					await db.selectFrom("_emdash_migrations").selectAll().limit(1).execute();
+					markSetupVerified();
+				} catch (error) {
+					if (isMissingTableError(error)) {
+						unmigrated = true;
+					} else {
+						// Any other failure (transient D1/replica error, timeout, cold-start
+						// race, locked SQLite) must NOT be read as "fresh install". Leave the
+						// flag unset so a later request can re-verify, and fall through to
+						// render the page normally. Unless a runtime is already running,
+						// don't wait for runtime init on this request: it connects to the
+						// same database and would make the visitor wait through a second
+						// timeout. getRuntime anchors it with after(), so it can still
+						// finish for later requests.
+						probeFailed = !getRuntimeHolder().instance;
+						console.error("Setup probe failed (non-fatal):", error);
 					}
-					timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 				}
-
-				// Wait for the runtime for page:metadata and page:fragments hooks.
-				// The runtime is a cached singleton — after the first request,
-				// getRuntime() is just a null-check. This enables SEO plugins to
-				// contribute meta tags for all visitors, not just logged-in editors,
-				// except on a request whose setup probe just failed.
-				if (runtimeInit && !probeFailed) {
-					try {
-						const runtime = await runtimeInit;
-						markSetupVerified();
-						const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
-						const getPublicMediaUrl = providePublicMediaUrl(runtime.storage);
-						// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
-						locals.emdash = {
-							handlePublicPluginApiRoute,
-							getPublicPluginRouteMeta: (pluginId, path) =>
-								getPublicPluginRouteMeta(runtime, pluginId, path),
-							collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
-							collectPageFragments: runtime.collectPageFragments.bind(runtime),
-							getPublicMediaUrl,
-							storage: runtime.storage,
-						} as EmDashHandlers;
-					} catch (error) {
-						if (isMigrationRequiredError(error)) {
-							return migrationRequiredErrorResponse(error);
-						}
-						if (migrationMode === "manual" && isMissingTableError(error)) {
-							console.error(
-								"[emdash] database schema is unavailable in manual migration mode:",
-								error,
-							);
-							return migrationRequiredResponse();
-						}
-						// Non-fatal — EmDashHead falls back to base SEO contributions —
-						// but log it (throttled): a persistently failing init (e.g. a
-						// failing migration, #1744) is otherwise invisible on the
-						// anonymous path, silently degrading every public page.
-						if (Date.now() - lastRuntimeInitErrorLogAt >= RUNTIME_INIT_ERROR_LOG_INTERVAL_MS) {
-							lastRuntimeInitErrorLogAt = Date.now();
-							console.error("[emdash] runtime init failed (page renders without CMS data):", error);
-						}
-					}
-					timings.push({
-						name: "rt",
-						dur: performance.now() - runtimeInitStart,
-						desc: "Runtime init",
-					});
-					// Append cold-only sub-phase timings so the breakdown is visible
-					// in Server-Timing (rt.db, rt.fts, rt.plugins, rt.site,
-					// rt.sandbox, rt.market, rt.hooks, rt.cron).
-					for (const sub of initSubTimings) timings.push(sub);
-				}
-				if (unmigrated && !locals.emdash) {
-					return finalizeResponse(unmigratedDatabaseResponse(), timings);
-				}
-
-				// Even on the anonymous fast path we ask the adapter for a per-request
-				// scoped db. For D1 with read replication this routes anonymous reads
-				// to the nearest replica; for other adapters it's a no-op.
-				const lastContentWriteAt =
-					canUseCachedBinding && config?.database?.needsLastContentWriteAt
-						? await getLastContentWriteAt()
-						: undefined;
-				const anonScoped = createRequestScopedDb({
-					config: config?.database?.config,
-					isAuthenticated,
-					endedAuthenticated,
-					isWrite,
-					canUseCachedBinding,
-					cookies,
-					url,
-					lastContentWriteAt,
-				});
-				const runAnon = async () => {
-					const t0 = performance.now();
-					const response = await next();
-					timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
-					timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
-					pushMetricsTimings(timings, metrics);
-					// Server-Timing only sees pre-stream queries; the stream-end
-					// wrapper (instrumentation-gated, no-op otherwise) emits the
-					// final counters once the body finishes streaming.
-					return wrapBodyForStreamMetrics(finalizeResponse(response, timings));
-				};
-				if (anonScoped) {
-					const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle(anonScoped);
-					const parent = getRequestContext();
-					const ctx = parent
-						? { ...parent, db: anonScoped.db, deferredTasks }
-						: { editMode: false, db: anonScoped.db, metrics, deferredTasks };
-					// Eagerly warm site-global layout data (menus, widget areas,
-					// taxonomy terms, settings) concurrently so the layout's
-					// per-component reads overlap into ~one wall-clock round trip and
-					// hit a warm cache instead of serializing. Four guards:
-					//  - request-scoped (remote) backend only -- this branch implies it;
-					//    pointless on synchronous local SQLite.
-					//  - an adapter that can overlap queries -- without that, Kysely's
-					//    connection mutex (D1 sessions without `coalesce`) queues the
-					//    prefetch ahead of the page's own first query.
-					//  - HTML navigations only -- feeds/sitemaps/JSON don't render the
-					//    layout, so prefetching their chrome is pure waste.
-					//  - the work starts immediately, then after() keeps both it and the
-					//    request-scoped connection alive until the response also finishes.
-					// Gate on the CLIENT'S PREFERRED type (leading media range), not a
-					// substring -- browser navigations lead with `text/html`, while feed
-					// readers lead with `application/rss+xml` etc. and only list
-					// `text/html;q=0.8` later, so a substring match would leak onto feeds.
-					const acceptsHtml = (request.headers.get("accept") ?? "")
-						.split(",", 1)[0]!
-						.trim()
-						.startsWith("text/html");
-					return runWithContext(ctx, async () => {
-						if (
-							acceptsHtml &&
-							anonScoped.db.getExecutor().adapter.supportsMultipleConnections !== false
-						) {
-							after(() => prefetchLayoutData(context.currentLocale));
-						}
-						// commit() persists per-request state (e.g. the D1 bookmark cookie)
-						// before the response is returned, even if render throws; close()
-						// waits for stream-end and request-owned deferred work. See finishScoped.
-						return finishScoped(lifecycle, runAnon);
-					});
-				}
-				return runAnon();
+				timings.push({ name: "setup", dur: performance.now() - t0, desc: "Setup probe" });
 			}
+
+			// Wait for the runtime for page:metadata and page:fragments hooks.
+			// The runtime is a cached singleton — after the first request,
+			// getRuntime() is just a null-check. This enables SEO plugins to
+			// contribute meta tags for all visitors, not just logged-in editors,
+			// except on a request whose setup probe just failed.
+			if (runtimeInit && !probeFailed) {
+				try {
+					const runtime = await runtimeInit;
+					markSetupVerified();
+					const handlePublicPluginApiRoute = createPublicPluginApiRouteHandler(runtime);
+					const getPublicMediaUrl = providePublicMediaUrl(runtime.storage);
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; getPageRuntime() only checks for the page-contribution methods
+					locals.emdash = {
+						handlePublicPluginApiRoute,
+						getPublicPluginRouteMeta: (pluginId, path) =>
+							getPublicPluginRouteMeta(runtime, pluginId, path),
+						collectPageMetadata: runtime.collectPageMetadata.bind(runtime),
+						collectPageFragments: runtime.collectPageFragments.bind(runtime),
+						getPublicMediaUrl,
+						storage: runtime.storage,
+					} as EmDashHandlers;
+				} catch (error) {
+					if (isMigrationRequiredError(error)) {
+						return migrationRequiredErrorResponse(error);
+					}
+					if (migrationMode === "manual" && isMissingTableError(error)) {
+						console.error(
+							"[emdash] database schema is unavailable in manual migration mode:",
+							error,
+						);
+						return migrationRequiredResponse();
+					}
+					// Non-fatal — EmDashHead falls back to base SEO contributions —
+					// but log it (throttled): a persistently failing init (e.g. a
+					// failing migration, #1744) is otherwise invisible on the
+					// anonymous path, silently degrading every public page.
+					if (Date.now() - lastRuntimeInitErrorLogAt >= RUNTIME_INIT_ERROR_LOG_INTERVAL_MS) {
+						lastRuntimeInitErrorLogAt = Date.now();
+						console.error("[emdash] runtime init failed (page renders without CMS data):", error);
+					}
+				}
+				timings.push({
+					name: "rt",
+					dur: performance.now() - runtimeInitStart,
+					desc: "Runtime init",
+				});
+				// Append cold-only sub-phase timings so the breakdown is visible
+				// in Server-Timing (rt.db, rt.fts, rt.plugins, rt.site,
+				// rt.sandbox, rt.market, rt.hooks, rt.cron).
+				for (const sub of initSubTimings) timings.push(sub);
+			}
+			if (unmigrated && !locals.emdash) {
+				return finalizeResponse(unmigratedDatabaseResponse(), timings);
+			}
+
+			// Even on the anonymous fast path we ask the adapter for a per-request
+			// scoped db. For D1 with read replication this routes anonymous reads
+			// to the nearest replica; for other adapters it's a no-op.
+			const lastContentWriteAt =
+				canUseCachedBinding && config?.database?.needsLastContentWriteAt
+					? await getLastContentWriteAt()
+					: undefined;
+			const anonScoped = createRequestScopedDb({
+				config: config?.database?.config,
+				isAuthenticated,
+				endedAuthenticated,
+				isWrite,
+				canUseCachedBinding,
+				cookies,
+				url,
+				lastContentWriteAt,
+			});
+			const runAnon = async () => {
+				const t0 = performance.now();
+				const renderLocals = locals as RenderLocals;
+				const previous = renderLocals[ANONYMOUS_RENDER];
+				const scope = getRequestContext();
+				renderLocals[ANONYMOUS_RENDER] = {
+					method: request.method,
+					db: scope?.db,
+					metrics: scope?.metrics,
+				};
+				let response: Response;
+				try {
+					response = await next();
+				} finally {
+					if (previous) renderLocals[ANONYMOUS_RENDER] = previous;
+					else delete renderLocals[ANONYMOUS_RENDER];
+				}
+				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
+				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
+				pushMetricsTimings(timings, metrics);
+				// Server-Timing only sees pre-stream queries; the stream-end
+				// wrapper (instrumentation-gated, no-op otherwise) emits the
+				// final counters once the body finishes streaming.
+				return wrapBodyForStreamMetrics(finalizeResponse(response, timings));
+			};
+			if (anonScoped) {
+				const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle(anonScoped);
+				const parent = getRequestContext();
+				const ctx = parent
+					? { ...parent, db: anonScoped.db, deferredTasks }
+					: { editMode: false, db: anonScoped.db, metrics, deferredTasks };
+				// Eagerly warm site-global layout data (menus, widget areas,
+				// taxonomy terms, settings) concurrently so the layout's
+				// per-component reads overlap into ~one wall-clock round trip and
+				// hit a warm cache instead of serializing. Four guards:
+				//  - request-scoped (remote) backend only -- this branch implies it;
+				//    pointless on synchronous local SQLite.
+				//  - an adapter that can overlap queries -- without that, Kysely's
+				//    connection mutex (D1 sessions without `coalesce`) queues the
+				//    prefetch ahead of the page's own first query.
+				//  - HTML navigations only -- feeds/sitemaps/JSON don't render the
+				//    layout, so prefetching their chrome is pure waste.
+				//  - the work starts immediately, then after() keeps both it and the
+				//    request-scoped connection alive until the response also finishes.
+				// Gate on the CLIENT'S PREFERRED type (leading media range), not a
+				// substring -- browser navigations lead with `text/html`, while feed
+				// readers lead with `application/rss+xml` etc. and only list
+				// `text/html;q=0.8` later, so a substring match would leak onto feeds.
+				const acceptsHtml = (request.headers.get("accept") ?? "")
+					.split(",", 1)[0]!
+					.trim()
+					.startsWith("text/html");
+				return runWithContext(ctx, async () => {
+					if (
+						acceptsHtml &&
+						anonScoped.db.getExecutor().adapter.supportsMultipleConnections !== false
+					) {
+						after(() => prefetchLayoutData(context.currentLocale));
+					}
+					// commit() persists per-request state (e.g. the D1 bookmark cookie)
+					// before the response is returned, even if render throws; close()
+					// waits for stream-end and request-owned deferred work. See finishScoped.
+					return finishScoped(lifecycle, runAnon);
+				});
+			}
+			return runAnon();
 		}
 
 		if (!config) {
@@ -1044,6 +1109,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// runWithContext so that getDatabase() and all init queries use the real
 		// DO database via the same AsyncLocalStorage instance as the loader.
 		const doInit = async () => {
+			let refreshPluginRoutes: (() => Promise<void>) | undefined;
 			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
 			const mwStart = performance.now();
 
@@ -1055,6 +1121,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 				let t0 = performance.now();
 				const runtime = await getRuntime(config, migrationMode, initSubTimings);
+				const installedPluginId = publicPath.startsWith("/_emdash/api/plugins/")
+					? publicPath.slice("/_emdash/api/plugins/".length).split("/")[0]
+					: undefined;
+				if (installedPluginId && runtime.mayNeedInstalledPluginRefresh(installedPluginId)) {
+					refreshPluginRoutes = () => runtime.refreshInstalledPluginRoute(installedPluginId);
+				}
 				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 				// Forward any sub-phase samples so cold-start breakdown is visible
 				// in Server-Timing. Each phase appears prefixed "rt." to distinguish
@@ -1236,6 +1308,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			});
 
 			const renderAndFinalize = async () => {
+				// Warm isolates do not observe installs handled by another isolate.
+				// Refresh before downstream auth reads plugin route metadata, using
+				// the request-scoped database when the adapter provides one.
+				if (refreshPluginRoutes && publicPath.startsWith("/_emdash/api/plugins/")) {
+					try {
+						await refreshPluginRoutes();
+					} catch (error) {
+						console.error("EmDash: Failed to refresh installed plugin routes:", error);
+						return finalizeResponse(
+							apiError("PLUGIN_SYNC_ERROR", "Plugin routes are temporarily unavailable", 503),
+						);
+					}
+				}
 				const t0 = performance.now();
 				const response = await next();
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });

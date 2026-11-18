@@ -994,6 +994,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		<Input
 			dir="ltr"
 			label={t`Slug`}
+			data-settings-field="slug"
 			value={slug}
 			onChange={(event) => onSlugChange(event.target.value)}
 			placeholder="my-post-slug"
@@ -1039,7 +1040,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 											{item.publishedAt ? (
 												<dl>
 													{canUpdatePublishedDate && onPublishedAtChange ? (
-														<div data-emdash-outside="publishedAt">
+														<div
+															data-emdash-outside="publishedAt"
+															data-settings-field="publishedAt"
+														>
 															<dt className="sr-only">{t`Publication date`}</dt>
 															<dd>
 																<PublicationDateDialog

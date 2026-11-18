@@ -82,6 +82,8 @@ export interface SettingsPanelToggleProps {
 export interface SettingsPanel {
 	/** Undefined below lg, so the phone sheet stays Kumo's own. */
 	providerOpen: boolean | undefined;
+	/** Opens the desktop panel without changing the stored visibility choice. */
+	reveal: () => void;
 	/** Stable. Replays a validation report deferred by `onInvalidCapture` once the panel has opened. */
 	onOpenChangeComplete: (open: boolean) => void;
 	asideProps: {
@@ -176,10 +178,12 @@ export function useSettingsPanel({
 		[desktop, open],
 	);
 
+	const reveal = React.useCallback(() => setChoice("shown"), []);
 	const collapsed = desktop && !open;
 
 	return {
 		providerOpen: desktop ? open : undefined,
+		reveal,
 		onOpenChangeComplete,
 		asideProps: {
 			ref: panelRef,
