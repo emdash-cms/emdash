@@ -191,6 +191,9 @@ export function ContentTypeEditor({
 	const [urlPattern, setUrlPattern] = React.useState(collection?.urlPattern ?? "");
 	const [dateField, setDateField] = React.useState(collection?.dateField ?? "");
 	const [routable, setRoutable] = React.useState(collection?.routable ?? true);
+	const [autoSlugRedirects, setAutoSlugRedirects] = React.useState(
+		collection?.autoSlugRedirects ?? true,
+	);
 	const [editLocking, setEditLocking] = React.useState(collection?.editLocking ?? true);
 	const [icon, setIcon] = React.useState(collection?.icon ?? "");
 	const [group, setGroup] = React.useState(collection?.group ?? "");
@@ -251,6 +254,7 @@ export function ContentTypeEditor({
 			urlPattern !== (collection.urlPattern ?? "") ||
 			dateField !== (collection.dateField ?? "") ||
 			routable !== (collection.routable ?? true) ||
+			autoSlugRedirects !== (collection.autoSlugRedirects ?? true) ||
 			editLocking !== (collection.editLocking ?? true) ||
 			icon !== (collection.icon ?? "") ||
 			group !== (collection.group ?? "") ||
@@ -274,6 +278,7 @@ export function ContentTypeEditor({
 		urlPattern,
 		dateField,
 		routable,
+		autoSlugRedirects,
 		editLocking,
 		icon,
 		group,
@@ -320,6 +325,7 @@ export function ContentTypeEditor({
 				description: description || undefined,
 				urlPattern: urlPattern || undefined,
 				routable,
+				autoSlugRedirects,
 				editLocking,
 				icon: icon.trim() || undefined,
 				group: group.trim() || undefined,
@@ -336,6 +342,7 @@ export function ContentTypeEditor({
 				urlPattern: urlPattern || undefined,
 				...(dateField !== (collection?.dateField ?? "") ? { dateField: dateField || null } : {}),
 				routable,
+				autoSlugRedirects,
 				editLocking,
 				icon: icon.trim(),
 				group: group.trim() || null,
@@ -586,6 +593,20 @@ export function ContentTypeEditor({
 									{t`Pattern for generating URLs, e.g. /blog/${"{slug}"}. Tokens: ${"{slug}"}, ${"{id}"}, and date tokens ${"{year}"}/${"{month}"}/${"{day}"} (also ${"{hour}"}/${"{minute}"}/${"{second}"}) from the publish date — e.g. ${"/{year}/{month}/{day}/{slug}.html"} for WordPress-style permalinks.`}
 								</p>
 							</div>
+
+							<Switch
+								checked={autoSlugRedirects}
+								onCheckedChange={setAutoSlugRedirects}
+								disabled={isFromCode}
+								label={
+									<div>
+										<span className="text-sm font-medium">{t`Automatic slug redirects`}</span>
+										<p className="text-xs text-kumo-subtle">
+											{t`Create redirects when published slugs change. Turn off for custom routing and manage redirects manually.`}
+										</p>
+									</div>
+								}
+							/>
 
 							<div className="space-y-3">
 								<Label>{t`Navigation`}</Label>
