@@ -1,7 +1,7 @@
 ---
 title: Editorial comments
 type: rfc
-status: proposed
+status: accepted
 authors:
   - Matt Kane (@ascorbic)
 champion: Matt Kane (@ascorbic)
