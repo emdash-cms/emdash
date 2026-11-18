@@ -29,6 +29,8 @@ import type { AuthProviderDescriptor } from "emdash";
 import { finalizeSetup, getPublicOrigin, OptionsRepository } from "emdash/api/route-utils";
 import type { Kysely } from "kysely";
 
+import { recordLogin } from "../record-login.js";
+
 export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 	const { emdash } = locals;
 
@@ -190,6 +192,7 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 
 		// Create Astro session
 		if (session) {
+			await recordLogin(emdash.db, user.id);
 			session.set("user", { id: user.id });
 		}
 

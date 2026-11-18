@@ -77,9 +77,9 @@ Creating, editing, or deleting a redirect invalidates the cached page at the red
 
 The comment API routes invalidate `[collection, id]` for the commented entry when a submission is approved immediately, when admin moderation moves a comment into or out of approved status, or when deletion removes an approved comment or reply. Bulk moderation and deletion invalidate only the entries whose approved comments change. Pending submissions, moderation between non-approved statuses, and deletion of non-approved comments without approved replies leave the route cache unchanged. Comment moderation through the plugin API (`ctx.comments.moderate`) does not invalidate the route cache.
 
-Scheduled publishing invalidates `[collection, id]` on Node and Cloudflare. On Node, plugin content actions such as `ctx.content.publish` also invalidate those tags when called from plugin routes, hooks, or cron tasks.
+Scheduled publishing invalidates `[collection, id]` on Node and Cloudflare. The plugin methods `ctx.content.publish`, `unpublish`, `schedule`, `unschedule`, and `restore` invalidate those tags from plugin routes on both platforms. They also invalidate from hooks and cron tasks on Node, and from cron tasks run by the Cloudflare Cron Trigger.
 
-Restoring an older revision, and changes to bylines and the media library, invalidate nothing. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again.
+Plugin writes through `ctx.content.create` or `ctx.content.update` do not invalidate the route cache. Restoring an older revision, and changes to bylines and the media library, invalidate nothing. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again.
 
 This is also why the tag convention matters: EmDash invalidates collection names, entry ids, and the `emdash:*` chrome tags. If your route rules use other tag names, the built-in invalidation will not match them and stale entries survive until `maxAge` expires.
 
