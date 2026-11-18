@@ -99,7 +99,10 @@ export function updateDraftText(draft: MentionDraft, text: string, caret: number
 	const before = draft.text;
 	let suffix = 0;
 	const maxSuffix = Math.min(before.length, text.length - caret);
-	while (suffix < maxSuffix && before[before.length - 1 - suffix] === text[text.length - 1 - suffix]) {
+	while (
+		suffix < maxSuffix &&
+		before[before.length - 1 - suffix] === text[text.length - 1 - suffix]
+	) {
 		suffix++;
 	}
 	let prefix = 0;
