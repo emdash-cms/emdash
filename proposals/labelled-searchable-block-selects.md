@@ -6,7 +6,8 @@ authors:
   - Baran Özdemir (@baranozdemir1)
 champion: Baran Özdemir (@baranozdemir1)
 sponsor: null
-discussions: []
+discussions:
+  - https://github.com/emdash-cms/emdash/discussions/4951
 created: 2026-11-18
 ---
 
@@ -64,6 +65,18 @@ REST validation and BlockTypeRegistry validation must retain and validate both p
 
 Use Lingui for search, empty-state and icon-button labels. Preserve the enclosing field's accessible name and read-only state. Forward native input props, events and refs. Apply quiet-input classes to the actual input using the render API; its wrapper must not introduce padding or a competing height. Retain logical inline-end padding for the controls. Keyboard navigation, clearing, no-match handling and Escape must retain native Combobox semantics.
 
+## Design decisions
+
+The first release is block-specific and API-defined. Ordinary collection selects and their REST contracts retain their existing behavior. Adding label/search configuration controls to the block-type designer is deferred; editing an existing definition must preserve this metadata when unrelated settings change.
+
+Omitting `searchable` or setting it to false retains the existing Select. Labels apply in both presentation modes, fall back to the option value when absent, and remain plain display text. Renaming a label never rewrites the stored option value. Duplicate labels remain distinct selections by value; adding secondary record metadata is outside this scope.
+
+## Related designs
+
+The implemented [Blocks field redesign](https://github.com/emdash-cms/emdash/blob/main/proposals/blocks-field-redesign.md) remains authoritative for row structure, quiet controls, repeater actions and publication behavior. This RFC adds opt-in select presentation metadata within that design; it does not replace its layout rules or introduce field grouping.
+
+[#1657](https://github.com/emdash-cms/emdash/pull/1657) covers ordinary repeater search. Its behavior is retained; this RFC covers the native Blocks descriptor path and separate labels for string values. The pending [collection-field projection RFC #4849](https://github.com/emdash-cms/emdash/pull/4849) concerns read-query projection, not select editing or option identity, and is unaffected. No amendment or supersession of these designs is proposed.
+
 ## Compatibility and migration
 
 This is additive and opt-in. Stored content remains a string enum; type generation and value validation retain their existing meaning. Label/search updates are compatible schema changes. Removing a stored option remains a breaking schema change under the existing version contract. Existing schemas and values require no migration. Integrations converting old slug values to IDs must explicitly migrate their own block versions and preserve live/draft state; that application migration is outside this proposal.
@@ -82,7 +95,7 @@ Reject invalid labels, labels for undeclared values and nonboolean search flags 
 
 ## Verification
 
-Cover REST metadata retention, registry validation, unchanged string enums, duplicate labels with distinct values, compatible label changes and breaking value removal. Browser checks cover top-level and nested selects, filtering, pointer/keyboard selection, clearing, read-only state, no matches, Escape, save/reload and independent block order. Check both light/dark themes and narrow viewports. Verify that input and wrapper align, focus remains visible, labels are accessible and the publication sidebar remains native.
+Cover REST metadata retention, registry validation, unchanged string enums, duplicate labels with distinct values, compatible label changes and breaking value removal. Include metadata round trips when an existing block definition is edited through the designer, and labels on non-searchable selects. Browser checks cover top-level and nested selects, filtering, pointer/keyboard selection, clearing, read-only state, no matches, Escape, save/reload and independent block order. Check both light/dark themes and narrow viewports. Verify that input and wrapper align, focus remains visible, labels are accessible and the publication sidebar remains native.
 
 [Source/test diff and screenshots](https://github.com/baranozdemir1/emdash/tree/codex/block-select-review-assets/contribution-assets/block-select) are available in the fork.
 
@@ -90,7 +103,7 @@ The local prototype has passed 33 affected SQLite tests, core/admin types and ta
 
 ## Rollout and implementation
 
-Obtain a human Maintainer sponsor and Ideas Discussion before opening this RFC manually. Merge the accepted design before opening an implementation PR. Publish core/admin together with a minor changeset. No database migration is needed. Review the prototype against current main before implementation submission; its current tested runtime is the 1.5.0 tag.
+The linked Ideas Discussion establishes the user case; this PR is ready for design review. A human Maintainer sponsor is requested, not assumed. Merge the accepted design before opening an implementation PR. Publish core/admin together with a minor changeset. No database migration is needed. Review the prototype against current main before implementation submission; its current tested runtime is the 1.5.0 tag.
 
 ## Alternatives
 
@@ -100,8 +113,8 @@ Use human-readable titles as stored values, at the cost of rename stability. Use
 
 Two optional schema properties become a maintained public contract. Applications still need to refresh labels and enforce record publication rules. Duplicate display titles can be ambiguous even though values remain distinct.
 
-## Open questions
+## Review and acceptance
 
-- Maintainer sponsor and Ideas Discussion are pending.
-- Should this remain block-specific, or share a future option-label contract with collection fields?
-- Should the native block-type designer expose these properties, or should the first iteration remain API-defined?
+The public contract and first-release scope are specified above. A human Maintainer sponsor, independent Maintainer support and Project Lead acceptance remain external review requirements. The proposal remains `proposed`; `accepted` must not be set before those requirements and the normally seven-day public review period are satisfied. The review-period start and any extension are determined by the upstream Maintainers, not asserted by this contribution.
+
+The PR's CLA check also requires the contributor's personal legal acceptance. No agent signature, sponsorship or reviewer approval substitutes for that acceptance.
