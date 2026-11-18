@@ -1,7 +1,7 @@
 import { readdir, readFile } from "node:fs/promises";
 
 import type { PluginManifest } from "emdash";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { WorkerdSandboxRunner } from "../src/sandbox/runner.js";
 
@@ -45,6 +45,26 @@ const secondPlugin = `export default {
 };`;
 
 const request = { method: "POST", url: "/test", headers: {} };
+
+const slowIoManifest = (id: string): PluginManifest => ({
+	id,
+	version: "1.0.0",
+	capabilities: ["network:request:unrestricted"],
+	allowedHosts: [],
+	storage: {},
+	hooks: [],
+	routes: ["fetch"],
+	admin: {},
+});
+
+const slowIoPlugin = `export default {
+	routes: {
+		fetch: { handler: async ({ input }, ctx) => {
+			const response = await ctx.http.fetch(input.url);
+			return response.text();
+		} }
+	}
+};`;
 
 type Operation = "route" | "hook";
 
@@ -137,10 +157,10 @@ describe.skipIf(!workerdAvailable)("workerd wall-time process isolation", () => 
 					);
 				}
 
+				expect(await loop.invokeRoute("ping", {}, request)).toEqual({ plugin: "loop", ok: true });
 				if (process.platform === "linux") {
 					await expect.poll(() => runningPids(oldPids), { timeout: 1000 }).toEqual(new Set());
 				}
-				expect(await loop.invokeRoute("ping", {}, request)).toEqual({ plugin: "loop", ok: true });
 				expect(await second.invokeRoute("ping", {}, request)).toEqual({
 					plugin: "second",
 					ok: true,
@@ -152,4 +172,82 @@ describe.skipIf(!workerdAvailable)("workerd wall-time process isolation", () => 
 		},
 		15_000,
 	);
+
+	it("keeps workerd alive when a timed-out plugin is waiting on I/O", async () => {
+		let releaseSlowFetch!: () => void;
+		const slowFetch = new Promise<void>((resolve) => {
+			releaseSlowFetch = resolve;
+		});
+		let releaseFastFetch!: () => void;
+		const fastFetch = new Promise<void>((resolve) => {
+			releaseFastFetch = resolve;
+		});
+		let slowFetchStarted!: () => void;
+		const slowFetchStartedPromise = new Promise<void>((resolve) => {
+			slowFetchStarted = resolve;
+		});
+		let fastFetchStarted!: () => void;
+		const fastFetchStartedPromise = new Promise<void>((resolve) => {
+			fastFetchStarted = resolve;
+		});
+		let readyProbeCount = 0;
+		const originalFetch = globalThis.fetch;
+		const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+			const response = await originalFetch(input, init);
+			if (typeof input === "string" && input.includes("/__ready")) {
+				readyProbeCount++;
+			}
+			return response;
+		});
+		const runner = new WorkerdSandboxRunner({
+			db: null as never,
+			limits: { wallTimeMs: 1000 },
+			httpFetch: async (input) => {
+				if (String(input).endsWith("/slow")) {
+					slowFetchStarted();
+					await slowFetch;
+					return new Response("slow");
+				}
+				fastFetchStarted();
+				await fastFetch;
+				return new Response("fast");
+			},
+		});
+		let slowCall: Promise<unknown> | undefined;
+		let fastCall: Promise<unknown> | undefined;
+		try {
+			const slowPlugin = await runner.load(slowIoManifest("wall-time-slow-io"), slowIoPlugin);
+			const fastPlugin = await runner.load(slowIoManifest("wall-time-fast-io"), slowIoPlugin);
+			await runner.ensureRunning();
+			const originalProcess = runner["workerdProcess"];
+			const originalEpoch = runner["epoch"];
+			if (!originalProcess) throw new Error("workerd did not start");
+			readyProbeCount = 0;
+
+			slowCall = slowPlugin.invokeRoute("fetch", { url: "https://93.184.216.34/slow" }, request);
+			void slowCall.catch(() => {});
+			await Promise.race([slowFetchStartedPromise, slowCall]);
+			await new Promise((resolve) => setTimeout(resolve, 500));
+			fastCall = fastPlugin.invokeRoute("fetch", { url: "https://93.184.216.34/fast" }, request);
+			void fastCall.catch(() => {});
+			await Promise.race([fastFetchStartedPromise, fastCall]);
+
+			await expect(slowCall).rejects.toThrow(
+				"Plugin wall-time-slow-io exceeded wall-time limit of 1000ms during route:fetch",
+			);
+			await expect.poll(() => readyProbeCount, { timeout: 1000 }).toBeGreaterThan(0);
+			releaseFastFetch();
+			await expect(fastCall).resolves.toBe("fast");
+			await new Promise((resolve) => setTimeout(resolve, 600));
+			expect(runner["workerdProcess"]).toBe(originalProcess);
+			expect(runner["epoch"]).toBe(originalEpoch);
+		} finally {
+			releaseSlowFetch();
+			releaseFastFetch();
+			await slowCall?.catch(() => {});
+			await fastCall?.catch(() => {});
+			fetchSpy.mockRestore();
+			await runner.terminateAll();
+		}
+	}, 15_000);
 });

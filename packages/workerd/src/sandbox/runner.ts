@@ -351,6 +351,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	/** Serializes concurrent ensureRunning() calls */
 	private startupPromise: Promise<void> | null = null;
 	private stoppingPromise: Promise<void> | null = null;
+	private timeoutProbes = new Set<Promise<void>>();
 
 	/** Crash restart state */
 	private crashCount = 0;
@@ -479,6 +480,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	async ensureRunning(options?: { waitForPendingRestart?: boolean }): Promise<void> {
 		if (this.shuttingDown || this.gaveUp || this.plugins.size === 0) return;
+		if (this.timeoutProbes.size > 0) {
+			await Promise.all(this.timeoutProbes);
+			return this.ensureRunning(options);
+		}
 		if (this.restartTimer) {
 			if (!options?.waitForPendingRestart) return;
 			await new Promise<void>((resolve) => {
@@ -812,7 +817,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// Generate capnp config. Note: cpuMs/memoryMb/subrequests from
 		// this.limits are NOT passed here because standalone workerd doesn't
 		// support per-worker enforcement of those limits (Cloudflare-only).
-		// Wall-time enforcement stops and restarts workerd on timeout.
+		// Wall-time enforcement restarts workerd if the timed-out listener is unresponsive.
 		const capnpConfig = generateCapnpConfig({
 			plugins,
 			backingServiceAddress: this.backingServiceAddress,
@@ -1051,14 +1056,24 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		return this.siteInfo;
 	}
 
-	/** Recover only the process that handled the timed-out invocation. */
-	recoverFromTimeout(epoch: number): void {
-		if (epoch !== this.epoch || !this.workerdProcess || this.shuttingDown) return;
-		this.needsRestart = true;
-		// stopWorkerd invalidates the listener synchronously, before another
-		// invocation can reach the doomed process. ensureRunning shares recovery.
-		void this.stopWorkerd(true);
-		void this.ensureRunning().catch(() => {});
+	/** Recover an unresponsive listener without interrupting plugins waiting on I/O. */
+	async recoverFromTimeout(pluginId: string, epoch: number): Promise<void> {
+		const proc = this.workerdProcess;
+		if (epoch !== this.epoch || !proc || this.shuttingDown) return;
+		const port = this.getPluginPort(pluginId);
+		const probe = (async () => {
+			if (await probeAllReady([{ port }], this.invokeToken, 500)) return;
+			if (epoch !== this.epoch || this.workerdProcess !== proc || this.shuttingDown) return;
+			this.needsRestart = true;
+			await this.stopWorkerd(true);
+		})();
+		this.timeoutProbes.add(probe);
+		try {
+			await probe;
+		} finally {
+			this.timeoutProbes.delete(probe);
+		}
+		await this.ensureRunning();
 	}
 
 	/** Get the current epoch (incremented on each workerd restart) */
@@ -1222,11 +1237,9 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 						`Plugin ${this.manifest.id} exceeded wall-time limit of ${wallTimeMs}ms during ${operation}`,
 					),
 				);
-				try {
-					this.runner.recoverFromTimeout(epoch);
-				} catch (error) {
+				void this.runner.recoverFromTimeout(this.id, epoch).catch((error: unknown) => {
 					console.error("[emdash:workerd] timeout recovery failed:", error);
-				}
+				});
 			}, wallTimeMs);
 		});
 
