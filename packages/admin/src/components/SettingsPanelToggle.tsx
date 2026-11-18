@@ -186,7 +186,10 @@ export function useSettingsPanel({
 		[desktop, open],
 	);
 
-	const reveal = React.useCallback(() => setChoice("shown"), []);
+	const reveal = React.useCallback(() => {
+		yieldTo?.();
+		setChoice("shown");
+	}, [yieldTo]);
 	const collapsed = desktop && !open;
 
 	return {

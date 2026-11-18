@@ -5403,6 +5403,24 @@ describe("editorial comments", () => {
 			await expect.element(screen.getByRole("button", { name: "Show comments" })).toBeVisible();
 		});
 
+		it("closes comments for a link to a settings field on a narrow screen", async () => {
+			vi.mocked(fetchEditorialThreads).mockResolvedValue([fieldThread("body")]);
+			const onFieldFocused = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				currentUser: { id: "u-1", role: 50 },
+				initialThreadId: "thread-body",
+				focusField: "slug",
+				onFieldFocused,
+			});
+
+			await vi.waitFor(() => expect(onFieldFocused).toHaveBeenCalled());
+			expect(document.activeElement).toBe(screen.getByLabelText("Slug").element());
+			expect(settingsPanel(screen).element()).not.toHaveAttribute("inert");
+			expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
+		});
+
 		it("keeps both open on a wide screen", async () => {
 			await page.viewport(1800, 900);
 			const screen = await renderWithThreads([fieldThread("body")]);
