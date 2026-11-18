@@ -3005,7 +3005,7 @@ export function ContentEditor({
 										search={{ tab: "editor" }}
 										variant="ghost"
 										icon={<PencilSimple aria-hidden="true" />}
-										className="w-full min-w-0 justify-start ps-2.5 pb-0.5 text-kumo-subtle hover:text-kumo-default [--kumo-button-text-lift:1px] [&>svg:first-child]:translate-y-(--kumo-button-text-lift)"
+										className="w-full min-w-0 justify-start ps-2.5 text-kumo-subtle hover:text-kumo-default"
 									>
 										<span className="truncate">{t`Customize sidebar`}</span>
 									</RouterLinkButton>
