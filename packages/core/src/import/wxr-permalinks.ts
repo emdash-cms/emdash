@@ -342,8 +342,8 @@ export async function importWxrPermalinks(
 			);
 			let edges: RedirectEdge[] = rows.map((row) => ({
 				id: row.id,
-				source: storedPath(row.source),
-				destination: storedPath(row.destination),
+				source: row.source,
+				destination: row.destination,
 				enabled: row.enabled === 1,
 				isPattern: row.is_pattern === 1,
 			}));
@@ -410,7 +410,7 @@ export async function importWxrPermalinks(
 				)
 					continue;
 				const otherEdges = edges.filter((edge) => edge.id !== existing?.id);
-				if (wouldCreateLoop(candidate.source, storedPath(candidate.destination), otherEdges)) {
+				if (wouldCreateLoop(candidate.source, candidate.destination, otherEdges)) {
 					errors.push({
 						title: candidate.title,
 						error:
@@ -451,7 +451,7 @@ export async function importWxrPermalinks(
 				edges.push({
 					id: redirect.id,
 					source: candidate.source,
-					destination: storedPath(candidate.destination),
+					destination: candidate.destination,
 					enabled: true,
 					isPattern: false,
 				});

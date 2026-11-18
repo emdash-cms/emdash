@@ -4,6 +4,7 @@
  */
 // eslint-disable-next-line no-control-regex -- matching control characters is the purpose of this regex
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+const LOCATION_METADATA = /[?#]/;
 
 /**
  * Returns true if `destination` is a single-slash site-relative path, i.e. a
@@ -17,4 +18,11 @@ export function isSiteRelativeDestination(destination: string): boolean {
 		destination[1] !== "\\" &&
 		!CONTROL_CHARS.test(destination)
 	);
+}
+
+/** Keep external locations intact; local redirect matching ignores query and fragment metadata. */
+export function redirectDestinationPath(destination: string): string {
+	if (!isSiteRelativeDestination(destination)) return destination;
+	const end = destination.search(LOCATION_METADATA);
+	return end < 0 ? destination : destination.slice(0, end);
 }

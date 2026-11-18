@@ -10,6 +10,7 @@
  * sources and resolves the destination using captured parameters.
  */
 
+import { isSiteRelativeDestination, redirectDestinationPath } from "./destination.js";
 import {
 	compilePattern,
 	matchPattern,
@@ -129,7 +130,11 @@ function resolveNext(
 	edges?: RedirectEdge[],
 ): { destination: string; id: string } | null {
 	// Exact match (fast) — works for both real paths and template strings
-	const exact = graph.get(path);
+	let exact = graph.get(path);
+	if (!exact && path.length > 1) {
+		const alternate = path.endsWith("/") ? path.slice(0, -1) : `${path}/`;
+		exact = graph.get(alternate);
+	}
 	if (exact) return exact;
 
 	if (!path.includes("[")) {
@@ -138,7 +143,7 @@ function resolveNext(
 			const params = matchPattern(pr.compiled, path);
 			if (params) {
 				const resolved = interpolateDestination(pr.destination, params);
-				return { destination: resolved, id: pr.id };
+				return { destination: normalizeDestination(resolved), id: pr.id };
 			}
 		}
 	} else {
@@ -149,7 +154,7 @@ function resolveNext(
 				const params = matchPattern(pr.compiled, rep);
 				if (params) {
 					const resolved = interpolateDestination(pr.destination, params);
-					return { destination: resolved, id: pr.id };
+					return { destination: normalizeDestination(resolved), id: pr.id };
 				}
 			}
 		}
@@ -174,12 +179,17 @@ function buildGraph(edges: RedirectEdge[]): Map<string, { destination: string; i
 	return graph;
 }
 
+function normalizeDestination(destination: string): string {
+	const path = redirectDestinationPath(destination);
+	return isSiteRelativeDestination(path) ? normalizeRedirectPath(path) : path;
+}
+
 /** Compare paths in the form the runtime matches them in. */
 function normalizeEdges(edges: RedirectEdge[]): RedirectEdge[] {
 	return edges.map((edge) => ({
 		...edge,
 		source: normalizeRedirectPath(edge.source),
-		destination: normalizeRedirectPath(edge.destination),
+		destination: normalizeDestination(edge.destination),
 	}));
 }
 
@@ -262,7 +272,7 @@ export function wouldCreateLoop(
 	excludeId?: string,
 ): string[] | null {
 	const source = normalizeRedirectPath(rawSource);
-	const destination = normalizeRedirectPath(rawDestination);
+	const destination = normalizeDestination(rawDestination);
 	if (source === destination) return [rawSource, rawDestination];
 	const filtered = normalizeEdges(
 		excludeId ? existingEdges.filter((e) => e.id !== excludeId) : existingEdges,
@@ -307,6 +317,10 @@ export function wouldCreateLoop(
 		// Walk the chain until it ends or we revisit a node
 		// eslint-disable-next-line no-constant-condition -- terminates via return/break when chain ends or cycle found
 		while (true) {
+			if (!sourceIsPattern && !graph.has(current) && current.length > 1) {
+				const alternate = current.endsWith("/") ? current.slice(0, -1) : `${current}/`;
+				if (alternate === source) return [...path, source];
+			}
 			const next = resolveNext(current, graph, patterns, filtered);
 			if (!next) break; // chain ends, try next starting point
 

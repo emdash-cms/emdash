@@ -241,6 +241,100 @@ describeEachDialect("WordPress extension-bearing permalink middleware boundary",
 		expect(next).toHaveBeenCalledOnce();
 	});
 
+	it.each(["/legacy?from=wp", "/legacy#anchor", "/legacy/?from=wp", "/legacy/#anchor"])(
+		"rejects an imported redirect that would loop through an existing rule ending in %s",
+		async (existingDestination) => {
+			const repository = new RedirectRepository(ctx.db);
+			await repository.create({
+				source: "/posts/example",
+				destination: existingDestination,
+				type: 301,
+			});
+			invalidateRedirectCache();
+
+			const result = await importWxrPermalinks(ctx.db, [
+				{
+					title: "Example",
+					link: "https://wp.test/legacy/",
+					collection: "posts",
+					pattern: "/posts/{slug}",
+					item: {
+						id: "example",
+						slug: "example",
+						status: "published",
+						publishedAt: "2004-05-02T00:00:00.000Z",
+						locale: "en",
+					},
+				},
+			]);
+
+			expect(result).toHaveLength(1);
+			expect(result[0]?.error).toContain("redirect loop");
+			expect(
+				await ctx.db.selectFrom("_emdash_redirects").select(["source", "destination"]).execute(),
+			).toEqual([{ source: "/posts/example", destination: existingDestination }]);
+
+			const first = await onRequest(buildContext("/posts/example"), vi.fn());
+			expect(first.status).toBe(301);
+			expect(first.headers.get("Location")).toBe(existingDestination);
+
+			const next = vi.fn(async () => new Response("not found", { status: 404 }));
+			const second = await onRequest(
+				buildContext(new URL(existingDestination, "https://example.com").pathname),
+				next,
+			);
+			expect(second.status).toBe(404);
+			expect(next).toHaveBeenCalledOnce();
+		},
+	);
+
+	it("rejects a loop at the encoded percent layer without over-decoding its destination", async () => {
+		const repository = new RedirectRepository(ctx.db);
+		await repository.create({
+			source: "/posts/example",
+			destination: "/literal%2541?x=1",
+			type: 301,
+		});
+		invalidateRedirectCache();
+
+		const result = await importWxrPermalinks(ctx.db, [
+			{
+				title: "Literal percent",
+				link: "https://wp.test/literal%2541/",
+				collection: "posts",
+				pattern: "/posts/{slug}",
+				item: {
+					id: "example",
+					slug: "example",
+					status: "published",
+					publishedAt: "2004-05-02T00:00:00.000Z",
+					locale: "en",
+				},
+			},
+		]);
+		expect(result[0]?.error).toContain("redirect loop");
+		expect(
+			await ctx.db.selectFrom("_emdash_redirects").select(["source", "destination"]).execute(),
+		).toEqual([{ source: "/posts/example", destination: "/literal%2541?x=1" }]);
+
+		const noCycle = await importWxrPermalinks(ctx.db, [
+			{
+				title: "Single encoded literal",
+				link: "https://wp.test/literal%41/",
+				collection: "posts",
+				pattern: "/posts/{slug}",
+				item: {
+					id: "other",
+					slug: "example",
+					status: "published",
+					publishedAt: "2004-05-02T00:00:00.000Z",
+					locale: "en",
+				},
+			},
+		]);
+		expect(noCycle).toHaveLength(0);
+	});
+
 	it("does not report a redirect failure when the extension-bearing URL is already canonical", async () => {
 		expect(
 			await importWxrPermalinks(ctx.db, [
