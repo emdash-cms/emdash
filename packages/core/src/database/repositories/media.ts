@@ -16,8 +16,6 @@ import { chunkJsonRows } from "./media-usage.js";
 import type { FindManyResult } from "./types.js";
 import { encodeCursor, decodeCursor } from "./types.js";
 
-const URL_QUERY_OR_FRAGMENT = /[?#].*$/;
-
 /** Escape LIKE wildcard characters and the escape char itself in user-supplied values */
 function escapeLike(value: string): string {
 	return value.replaceAll("\\", "\\\\").replaceAll("%", "\\%").replaceAll("_", "\\_");
@@ -711,7 +709,10 @@ export class MediaRepository {
 
 		let term = options.q?.trim() ?? "";
 		if (term.includes("/")) {
-			term = term.replace(URL_QUERY_OR_FRAGMENT, "");
+			const queryIndex = term.indexOf("?");
+			if (queryIndex !== -1) term = term.slice(0, queryIndex);
+			const fragmentIndex = term.indexOf("#");
+			if (fragmentIndex !== -1) term = term.slice(0, fragmentIndex);
 			term = term.slice(term.lastIndexOf("/") + 1).trim();
 		}
 		if (term) {

@@ -90,6 +90,9 @@ describeEachDialect("MediaRepository.findMany filename search (#1221)", (dialect
 			item.id,
 			`/_emdash/api/media/file/${storageKey}?download=1#preview`,
 			`https://example.test/_emdash/api/media/file/${storageKey}?download=1#preview`,
+			`/_emdash/api/media/file/${storageKey}#preview?ignored=/another-file`,
+			`/_emdash/api/media/file/${storageKey}?${"#".repeat(100)}\n/ignored`,
+			`/_emdash/api/media/file/${storageKey}#${"#".repeat(100)}\n/ignored`,
 		]) {
 			expect((await findMany(q)).items).toContainEqual(expected);
 			expect(await findPage(q)).toEqual({
