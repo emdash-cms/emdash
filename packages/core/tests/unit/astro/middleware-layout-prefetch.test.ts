@@ -464,6 +464,38 @@ describe("layout prefetch on anonymous HTML navigations", () => {
 		},
 	);
 
+	it("renders the target locale after rewriting across locale prefixes without a scoped database", async () => {
+		createRequestScopedDb.mockReturnValue(null);
+		const target = createComponent((result, props, slots) => {
+			const Astro = result.createAstro(createAstro(), props, slots);
+			return render`<p>${Astro.currentLocale}</p>`;
+		});
+		const source = createComponent((result, props, slots) => {
+			const Astro = result.createAstro(createAstro(), props, slots);
+			return Astro.rewrite("/de/target");
+		});
+		const container = await AstroContainer.create({
+			manifest: {
+				i18n: {
+					strategy: "pathname-prefix-other-locales",
+					defaultLocale: "cs",
+					locales: ["cs", "en", "de"],
+					domainLookupTable: {},
+				},
+				middleware: async () => ({ onRequest }),
+			} as NonNullable<Parameters<typeof AstroContainer.create>[0]>["manifest"],
+		});
+		container.insertPageRoute("/de/target", target);
+		const response = await container.renderToResponse(source, {
+			request: new Request("https://example.com/en/missing", {
+				headers: { accept: "text/html" },
+			}),
+		});
+		expect(await response.text()).toContain("<p>de</p>");
+		expect(createRequestScopedDb).toHaveBeenCalledOnce();
+		expect(prefetchLayoutData).not.toHaveBeenCalled();
+	});
+
 	it("reuses the prefetched layout read for an anonymous rewrite", async () => {
 		const scope = await rewrite();
 
@@ -488,12 +520,6 @@ describe("layout prefetch on anonymous HTML navigations", () => {
 
 		expect(rewriteQueryCount).toHaveBeenCalledTimes(2);
 		expect(createRequestScopedDb).toHaveBeenCalledTimes(2);
-	});
-
-	it("does not reuse the cache for a different locale target", async () => {
-		await rewrite({ targetProperties: { currentLocale: "fr" } });
-
-		expect(rewriteQueryCount).toHaveBeenCalledTimes(2);
 	});
 
 	it.each(["/_emdash/api/content", "/sitemap.xml", "/robots.txt", "/sitemap-post.xml"])(

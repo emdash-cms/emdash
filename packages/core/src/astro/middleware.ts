@@ -763,7 +763,6 @@ const ANONYMOUS_RENDER = Symbol.for("emdash:anonymous-render");
 type RenderLocals = App.Locals & {
 	[ANONYMOUS_RENDER]?: {
 		method: string;
-		locale: string | undefined;
 		db: unknown;
 		metrics: RequestMetrics | undefined;
 	};
@@ -806,7 +805,6 @@ function canReuseAnonymousRender(context: APIContext): boolean {
 	const parent = getRequestContext();
 	if (!original || !parent) return false;
 	if (context.request.method !== original.method) return false;
-	if (context.currentLocale !== original.locale) return false;
 	if (context.locals.user || parent.editMode || parent.preview) return false;
 	if (parent.db !== original.db || parent.metrics !== original.metrics) return false;
 	if (context.request.headers.has("authorization")) return false;
@@ -1034,7 +1032,6 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const scope = getRequestContext();
 				renderLocals[ANONYMOUS_RENDER] = {
 					method: request.method,
-					locale: context.currentLocale,
 					db: scope?.db,
 					metrics: scope?.metrics,
 				};
