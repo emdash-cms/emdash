@@ -134,11 +134,19 @@ function mapHighlights(tr: Transaction, highlights: EditorialHighlight[]): Edito
 	return highlights.flatMap((highlight) => mapRange(tr, highlight) ?? []);
 }
 
-/** The highlight under `pos`, preferring the shortest, so nested text wins over its block. */
+/**
+ * The highlight under `pos`, preferring the shortest, so nested text wins over
+ * its block. A click at either edge of a text highlight only places the caret
+ * beside it, while a click on a block reports the position before it.
+ */
 function highlightAt(highlights: EditorialHighlight[], pos: number): EditorialHighlight | null {
 	let best: EditorialHighlight | null = null;
 	for (const highlight of highlights) {
-		if (pos < highlight.from || pos > highlight.to) continue;
+		const inside =
+			highlight.kind === "block"
+				? pos >= highlight.from && pos < highlight.to
+				: pos > highlight.from && pos < highlight.to;
+		if (!inside) continue;
 		if (!best || highlight.to - highlight.from < best.to - best.from) best = highlight;
 	}
 	return best;
@@ -249,6 +257,11 @@ export function getEditorialHighlights(state: EditorState): EditorialHighlight[]
 	return editorialCommentsKey.getState(state)?.highlights ?? [];
 }
 
+/** Where the comment being written sits now, mapped through any edits since it started. */
+export function getEditorialPending(state: EditorState): EditorialRange | null {
+	return editorialCommentsKey.getState(state)?.pending ?? null;
+}
+
 interface DocTextBlock {
 	key: string;
 	/** The block has no Portable Text key yet, so `key` is a stand-in that is never stored. */
@@ -258,13 +271,23 @@ interface DocTextBlock {
 }
 
 /**
- * Every textblock in document order. Content saved without block keys still
- * gets stand-in keys, so threads on it can be found by their quote.
+ * Whether a node is saved as a Portable Text text block: a top-level paragraph
+ * or heading, or a list item's or quote's paragraph. Code blocks and table
+ * cells are saved differently, so text anchors never point into them.
+ */
+function isPortableTextTextblock(node: PMNode, parent: PMNode | null): boolean {
+	return node.isTextblock && node.type.name !== "codeBlock" && ownsPortableTextKey(node, parent);
+}
+
+/**
+ * Every Portable Text text block in document order. Content saved without
+ * block keys still gets stand-in keys, so threads on it can be found by their quote.
  */
 function documentTextblocks(doc: PMNode): DocTextBlock[] {
 	const blocks: DocTextBlock[] = [];
-	doc.descendants((node, pos) => {
+	doc.descendants((node, pos, parent) => {
 		if (!node.isTextblock) return true;
+		if (!isPortableTextTextblock(node, parent)) return false;
 		const key: unknown = node.attrs[PORTABLE_TEXT_KEY_ATTR];
 		if (typeof key === "string" && key) blocks.push({ key, unkeyed: false, node, pos });
 		else blocks.push({ key: `\u0000${pos}`, unkeyed: true, node, pos });
@@ -350,7 +373,7 @@ export function anchorForRange(
 
 export type SelectionAnchorResult =
 	| { ok: true; anchor: EditorialAnchor; range: EditorialRange }
-	| { ok: false; reason: "empty" | "multiple-blocks" | "too-long" | "unkeyed" };
+	| { ok: false; reason: "empty" | "multiple-blocks" | "too-long" | "unkeyed" | "unsupported" };
 
 /** Whether a node is a top-level block other than a paragraph or heading, such as an image. */
 export function isCommentableBlock(node: PMNode, parent: PMNode | null): boolean {
@@ -385,6 +408,20 @@ export function anchorForSelection(
 	if (from === to) return { ok: false, reason: "empty" };
 	if (!$from.sameParent($to) || !$from.parent.isTextblock) {
 		return { ok: false, reason: "multiple-blocks" };
+	}
+	if (!isPortableTextTextblock($from.parent, $from.node($from.depth - 1))) {
+		// Text in a code block takes a comment on the whole block.
+		const blockPos = $from.before();
+		if (isCommentableBlock($from.parent, $from.node($from.depth - 1))) {
+			const keyed = ensureKey(state, dispatch, blockPos, generateKey, assignKey);
+			if (!keyed) return { ok: false, reason: "unkeyed" };
+			return {
+				ok: true,
+				anchor: { type: "block", field, blockKey: keyed.key },
+				range: { kind: "block", from: blockPos, to: blockPos + $from.parent.nodeSize },
+			};
+		}
+		return { ok: false, reason: "unsupported" };
 	}
 	const keyed = ensureKey(state, dispatch, $from.before(), generateKey, assignKey);
 	if (!keyed) return { ok: false, reason: "unkeyed" };

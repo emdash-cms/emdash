@@ -1,4 +1,8 @@
 import { Editor, Extension, Node } from "@tiptap/core";
+import { Table } from "@tiptap/extension-table";
+import { TableCell } from "@tiptap/extension-table-cell";
+import { TableHeader } from "@tiptap/extension-table-header";
+import { TableRow } from "@tiptap/extension-table-row";
 import { undoDepth } from "@tiptap/pm/history";
 import StarterKit from "@tiptap/starter-kit";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -20,7 +24,7 @@ const KeyAttribute = Extension.create({
 	addGlobalAttributes() {
 		return [
 			{
-				types: ["paragraph"],
+				types: ["paragraph", "codeBlock"],
 				attributes: { [PORTABLE_TEXT_KEY_ATTR]: { default: null, rendered: false } },
 			},
 		];
@@ -208,6 +212,22 @@ describe("editorial comment highlights", () => {
 		expect(onActivate).toHaveBeenCalledOnce();
 	});
 
+	it("leaves a click at the edge of a highlight to place the caret", () => {
+		const onActivate = vi.fn();
+		const ed = createEditor([{ key: "b1", content: [text("The quick brown fox")] }], {
+			onActivate,
+		});
+		setEditorialHighlights(ed.state, ed.view.dispatch, {
+			highlights: [{ threadId: "t1", kind: "text", from: 5, to: 10 }],
+		});
+
+		for (const pos of [5, 10]) {
+			ed.view.someProp("handleClick", (handle) => handle(ed.view, pos, new MouseEvent("click")));
+		}
+
+		expect(onActivate).not.toHaveBeenCalled();
+	});
+
 	it("drops a highlight whose text is deleted", () => {
 		const ed = createEditor([{ key: "b1", content: [text("The quick brown fox")] }]);
 		setEditorialHighlights(ed.state, ed.view.dispatch, {
@@ -373,5 +393,86 @@ describe("editorial comments in a read-only editor", () => {
 		);
 
 		expect(onCommentShortcut).toHaveBeenCalledOnce();
+	});
+});
+
+describe("editorial comments on text that isn't saved as a text block", () => {
+	const quickAnchor: EditorialTextAnchor = {
+		type: "text",
+		field: "content",
+		blockKey: "gone",
+		start: 4,
+		end: 9,
+		quote: "quick",
+		prefix: "The ",
+		suffix: " brown fox",
+	};
+
+	function createEditorWith(content: unknown[]) {
+		editor = new Editor({
+			element: document.createElement("div"),
+			extensions: [
+				StarterKit,
+				KeyAttribute,
+				Table,
+				TableRow,
+				TableCell,
+				TableHeader,
+				createEditorialCommentsExtension({ current: {} }),
+			],
+			content: { type: "doc", content },
+		});
+		return editor;
+	}
+
+	const codeBlock = {
+		type: "codeBlock",
+		attrs: { [PORTABLE_TEXT_KEY_ATTR]: "code1" },
+		content: [text("The quick brown fox")],
+	};
+	const table = {
+		type: "table",
+		content: [
+			{
+				type: "tableRow",
+				content: [
+					{
+						type: "tableCell",
+						content: [{ type: "paragraph", content: [text("The quick brown fox")] }],
+					},
+				],
+			},
+		],
+	};
+
+	it("doesn't find a deleted paragraph's quote in a code block or a table cell", () => {
+		const ed = createEditorWith([codeBlock, table]);
+
+		expect(locateAnchor(ed.state.doc, quickAnchor)).toBeNull();
+	});
+
+	it("comments on the whole code block when text in it is selected", () => {
+		const ed = createEditorWith([codeBlock]);
+		ed.commands.setTextSelection({ from: 5, to: 10 });
+
+		expect(anchorForSelection(ed.state, ed.view.dispatch, "content", () => "x")).toEqual({
+			ok: true,
+			anchor: { type: "block", field: "content", blockKey: "code1" },
+			range: { kind: "block", from: 0, to: codeBlock.content[0]!.text.length + 2 },
+		});
+	});
+
+	it("refuses text selected in a table cell", () => {
+		const ed = createEditorWith([table]);
+		let cellText = -1;
+		ed.state.doc.descendants((node, pos) => {
+			if (node.isText && cellText < 0) cellText = pos;
+		});
+		ed.commands.setTextSelection({ from: cellText + 4, to: cellText + 9 });
+
+		expect(anchorForSelection(ed.state, ed.view.dispatch, "content", () => "x")).toEqual({
+			ok: false,
+			reason: "unsupported",
+		});
 	});
 });

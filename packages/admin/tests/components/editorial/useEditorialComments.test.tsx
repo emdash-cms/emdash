@@ -367,6 +367,21 @@ describe("useEditorialComments after the entry changes elsewhere", () => {
 	});
 });
 
+describe("useEditorialComments with many threads", () => {
+	it("stores more anchors than one request may carry", async () => {
+		const lost = Array.from({ length: 101 }, (_, index) => ({
+			...lostThread,
+			id: `thread-${index}`,
+		}));
+		await renderComments(true, lost);
+
+		await vi.waitFor(() => expect(vi.mocked(updateEditorialAnchors)).toHaveBeenCalledTimes(2));
+		const sent = vi.mocked(updateEditorialAnchors).mock.calls.map(([, body]) => body.anchors);
+		expect(sent.map((anchors) => anchors.length)).toEqual([100, 1]);
+		expect(new Set(sent.flat().map((update) => update.threadId)).size).toBe(101);
+	});
+});
+
 describe("useEditorialComments resolution", () => {
 	it("counts a resolved thread's anchor as found without highlighting it", async () => {
 		const resolved: EditorialThread = { ...brownThread, status: "resolved" };

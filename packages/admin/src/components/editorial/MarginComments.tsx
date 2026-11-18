@@ -9,6 +9,7 @@ import {
 	PencilSimple,
 	Trash,
 } from "@phosphor-icons/react";
+import { NodeSelection, TextSelection } from "@tiptap/pm/state";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
@@ -34,6 +35,40 @@ export interface EditorialCommentsUser {
 	id: string;
 	name?: string | null;
 	avatarUrl?: string | null;
+}
+
+/**
+ * Scrolls a thread's text or block into view, and with `select` selects it and
+ * focuses its editor. Returns whether the anchor was found.
+ */
+function goToAnchor(
+	editors: ReadonlyMap<string, Editor>,
+	thread: EditorialThread,
+	select: boolean,
+): boolean {
+	const { anchor } = thread;
+	if (!isEditorAnchor(anchor)) return false;
+	const editor = editors.get(anchor.field);
+	if (!editor || editor.isDestroyed) return false;
+	// A resolved thread gets its highlight only once it is active, so look for its text directly.
+	const range =
+		getEditorialHighlights(editor.state).find((h) => h.threadId === thread.id) ??
+		locateAnchor(editor.state.doc, anchor);
+	if (!range) return false;
+	if (select) {
+		const { doc } = editor.state;
+		const selection =
+			range.kind === "block"
+				? NodeSelection.create(doc, range.from)
+				: TextSelection.create(doc, range.from, range.to);
+		editor.view.dispatch(editor.state.tr.setSelection(selection));
+		editor.view.focus();
+	}
+	const dom = editor.view.nodeDOM(range.from);
+	const target =
+		dom instanceof HTMLElement ? dom : editor.view.domAtPos(range.from).node.parentElement;
+	target?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+	return true;
 }
 
 function initials(name: string | null | undefined): string {
@@ -250,6 +285,23 @@ export function MarginComments({
 	const gutterRef = React.useRef<HTMLDivElement>(null);
 	const { threads, highlights, attachedIds, editors, activeThreadId, draft, showResolved } =
 		comments;
+
+	const { linkedThreadId, clearLinkedThread, isLoading } = comments;
+	React.useEffect(() => {
+		if (!linkedThreadId || isLoading) return;
+		const thread = threads.find((candidate) => candidate.id === linkedThreadId);
+		const { anchor } = thread ?? {};
+		// Wait for the editor of a field on the page, so the link lands on its text.
+		if (anchor && isEditorAnchor(anchor) && Object.hasOwn(fieldLabels, anchor.field)) {
+			if (!editors.has(anchor.field)) return;
+		}
+		if (thread && !goToAnchor(editors, thread, false)) {
+			gutterRef.current
+				?.querySelector(`[data-editorial-thread-card="${CSS.escape(thread.id)}"]`)
+				?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+		}
+		clearLinkedThread();
+	}, [linkedThreadId, isLoading, threads, editors, fieldLabels, clearLinkedThread]);
 
 	const highlighted = React.useMemo(
 		() => new Set(highlights.map((highlight) => highlight.threadId)),
@@ -604,19 +656,7 @@ function ThreadCard({
 	const activate = () => {
 		if (active) return;
 		comments.setActiveThreadId(thread.id);
-		const editor = isEditorAnchor(thread.anchor)
-			? comments.editors.get(thread.anchor.field)
-			: undefined;
-		if (!editor || editor.isDestroyed) return;
-		// A resolved thread gets its highlight only once it is active, so look for its text directly.
-		const highlight =
-			getEditorialHighlights(editor.state).find((h) => h.threadId === thread.id) ??
-			locateAnchor(editor.state.doc, thread.anchor);
-		if (!highlight) return;
-		const dom = editor.view.nodeDOM(highlight.from);
-		const target =
-			dom instanceof HTMLElement ? dom : editor.view.domAtPos(highlight.from).node.parentElement;
-		target?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+		goToAnchor(comments.editors, thread, false);
 	};
 
 	const visibleComments = active ? thread.comments : thread.comments.slice(0, 1);
@@ -712,6 +752,21 @@ function ThreadCard({
 					<p className="mt-2 ps-8 text-xs font-medium text-kumo-link">
 						{plural(hiddenReplies, { one: "# reply", other: "# replies" })}
 					</p>
+				)}
+
+				{active && isEditorAnchor(thread.anchor) && !detached && (
+					<Button
+						variant="ghost"
+						size="sm"
+						type="button"
+						className="mt-2"
+						onClick={(event) => {
+							event.stopPropagation();
+							goToAnchor(comments.editors, thread, true);
+						}}
+					>
+						{thread.anchor.type === "block" ? t`Go to block` : t`Go to text`}
+					</Button>
 				)}
 
 				{active && canComment && (
