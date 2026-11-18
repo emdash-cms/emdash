@@ -1102,6 +1102,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// runWithContext so that getDatabase() and all init queries use the real
 		// DO database via the same AsyncLocalStorage instance as the loader.
 		const doInit = async () => {
+			let refreshPluginRoutes: (() => Promise<void>) | undefined;
 			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
 			const mwStart = performance.now();
 
@@ -1113,6 +1114,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 				let t0 = performance.now();
 				const runtime = await getRuntime(config, migrationMode, initSubTimings);
+				const installedPluginId = publicPath.startsWith("/_emdash/api/plugins/")
+					? publicPath.slice("/_emdash/api/plugins/".length).split("/")[0]
+					: undefined;
+				if (installedPluginId && runtime.mayNeedInstalledPluginRefresh(installedPluginId)) {
+					refreshPluginRoutes = () => runtime.refreshInstalledPluginRoute(installedPluginId);
+				}
 				timings.push({ name: "rt", dur: performance.now() - t0, desc: "Runtime init" });
 				// Forward any sub-phase samples so cold-start breakdown is visible
 				// in Server-Timing. Each phase appears prefixed "rt." to distinguish
@@ -1294,6 +1301,19 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			});
 
 			const renderAndFinalize = async () => {
+				// Warm isolates do not observe installs handled by another isolate.
+				// Refresh before downstream auth reads plugin route metadata, using
+				// the request-scoped database when the adapter provides one.
+				if (refreshPluginRoutes && publicPath.startsWith("/_emdash/api/plugins/")) {
+					try {
+						await refreshPluginRoutes();
+					} catch (error) {
+						console.error("EmDash: Failed to refresh installed plugin routes:", error);
+						return finalizeResponse(
+							apiError("PLUGIN_SYNC_ERROR", "Plugin routes are temporarily unavailable", 503),
+						);
+					}
+				}
 				const t0 = performance.now();
 				const response = await next();
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });

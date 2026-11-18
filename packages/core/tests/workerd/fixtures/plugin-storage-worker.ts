@@ -11,6 +11,7 @@ import type {
 } from "../../../src/rooms/types.js";
 
 export { EmDashRoom } from "../../../../cloudflare/src/rooms/object.js";
+export { EmDashDB } from "../../../../cloudflare/src/db/do-sql-class.js";
 
 export class PluginBridge extends StorageBridge {}
 
