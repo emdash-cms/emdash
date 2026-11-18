@@ -756,6 +756,11 @@ export class FTSManager {
 	async verifyAndRepairAll(options: { checkRowCounts?: boolean } = {}): Promise<number> {
 		if (!isSqlite(this.db)) return 0;
 
+		if (options.checkRowCounts === false) {
+			const repaired = await this.repairMissingOrEmptyIndexes();
+			if (repaired !== null) return repaired;
+		}
+
 		const collections = await this.db
 			.selectFrom("_emdash_collections")
 			.select("slug")
@@ -775,6 +780,76 @@ export class FTSManager {
 			}
 		}
 
+		return repaired;
+	}
+
+	/**
+	 * Request-path health check: finds missing and empty indexes for every
+	 * search-enabled collection in two statements, independent of the number
+	 * of collections, and rebuilds only those. Returns null when the batched
+	 * probe fails so the caller can fall back to per-collection verification,
+	 * which isolates a broken collection instead of failing them all.
+	 */
+	private async repairMissingOrEmptyIndexes(): Promise<number | null> {
+		const rows = await this.db
+			.selectFrom("_emdash_collections as c")
+			.select([
+				"c.slug",
+				"c.search_config",
+				"c.title_field",
+				sql<number>`EXISTS (
+					SELECT 1 FROM sqlite_master
+					WHERE type = 'table' AND name = ${"_emdash_fts_"} || c.slug
+				)`.as("fts_exists"),
+			])
+			.where("c.search_config", "is not", null)
+			.execute();
+
+		const enabled = rows.flatMap((row) => {
+			const config = row.search_config
+				? parseSearchConfig(row.search_config, row.title_field)
+				: null;
+			return config?.enabled
+				? [{ slug: row.slug, config, ftsExists: Boolean(row.fts_exists) }]
+				: [];
+		});
+
+		const needsRepair = new Set(enabled.filter((c) => !c.ftsExists).map((c) => c.slug));
+		const existing = enabled.filter((c) => c.ftsExists);
+		if (existing.length > 0) {
+			// A rebuild can stop after creating the table but before its atomic
+			// populate statement completes, leaving an empty docsize table while
+			// live content exists.
+			try {
+				const probes = existing.map(
+					({ slug }) => sql`SELECT ${slug} AS slug
+						WHERE NOT EXISTS (SELECT 1 FROM ${sql.ref(`${this.getFtsTableName(slug)}_docsize`)})
+						AND EXISTS (
+							SELECT 1 FROM ${sql.ref(this.getContentTableName(slug))} WHERE deleted_at IS NULL
+						)`,
+				);
+				const empty = await sql<{ slug: string }>`${sql.join(probes, sql` UNION ALL `)}`.execute(
+					this.db,
+				);
+				for (const row of empty.rows) needsRepair.add(row.slug);
+			} catch {
+				return null;
+			}
+		}
+
+		let repaired = 0;
+		for (const { slug, config, ftsExists } of enabled) {
+			if (!needsRepair.has(slug)) continue;
+			try {
+				const fields = await this.getSearchableFields(slug);
+				if (fields.length === 0) continue;
+				if (!ftsExists) console.warn(`FTS index for "${slug}" is missing. Rebuilding.`);
+				await this.rebuildIndex(slug, fields, config.weights, config.tokenize);
+				repaired++;
+			} catch (error) {
+				console.error(`Failed to verify/repair FTS index for "${slug}":`, error);
+			}
+		}
 		return repaired;
 	}
 }

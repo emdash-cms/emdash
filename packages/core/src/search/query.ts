@@ -143,30 +143,13 @@ export async function searchWithDb(
 	// row detects whether a further page exists.
 	const perCollectionLimit = offset + limit + 1;
 
-	// Search each collection and merge results
-	const allResults: RankedSearchResult[] = [];
-	for (const collection of collections) {
-		const collectionMetadata = metadata.get(collection);
-		if (!collectionMetadata) {
-			continue;
-		}
-
-		const collectionResults = await searchSingleCollection(
-			db,
-			collection,
-			query,
-			{
-				status,
-				locale: options.locale,
-				limit: perCollectionLimit,
-				scope: options.scope,
-			},
-			collectionMetadata,
-			true,
-		);
-
-		allResults.push(...collectionResults);
-	}
+	const allResults = await searchCollections(
+		db,
+		collections,
+		query,
+		{ status, locale: options.locale, limit: perCollectionLimit, scope: options.scope },
+		metadata,
+	);
 
 	allResults.sort(
 		(a, b) =>
@@ -259,6 +242,24 @@ function compareIds(a: string, b: string): number {
 	return a < b ? -1 : a > b ? 1 : 0;
 }
 
+type SearchRow = {
+	id: string;
+	slug: string | null;
+	locale: string;
+	title: string | null;
+	snippet: string | null;
+	score: number;
+	title_match_tier: number;
+	raw_score: number;
+	title_length: number;
+};
+
+/**
+ * D1 rejects statements with more than 100 bound parameters, so a combined
+ * cross-collection search is split into statements under this budget.
+ */
+const MAX_SEARCH_STATEMENT_PARAMETERS = 100;
+
 /**
  * Internal function to search a single collection
  */
@@ -270,6 +271,128 @@ async function searchSingleCollection(
 	metadata: CollectionSearchMetadata,
 	rankAcrossCollections = false,
 ): Promise<RankedSearchResult[]> {
+	const statement = buildCollectionSearch(
+		db,
+		collection,
+		query,
+		options,
+		metadata,
+		rankAcrossCollections,
+	);
+	if (!statement) return [];
+	const rows = await executeSearch(db, statement);
+	return rows.map((row) => toRankedSearchResult(collection, row));
+}
+
+/**
+ * Search several collections with as few statements as possible. Each
+ * collection's ranked query becomes one arm of a UNION ALL, so a
+ * cross-collection search costs one database round trip instead of one per
+ * collection.
+ */
+async function searchCollections(
+	db: Kysely<Database>,
+	collections: string[],
+	query: string,
+	options: CollectionSearchOptions,
+	metadata: Map<string, CollectionSearchMetadata>,
+): Promise<RankedSearchResult[]> {
+	const arms: { statement: RawBuilder<SearchRow & { collection: string }>; params: number }[] = [];
+	for (const collection of collections) {
+		const collectionMetadata = metadata.get(collection);
+		if (!collectionMetadata) continue;
+		const statement = buildCollectionSearch(
+			db,
+			collection,
+			query,
+			options,
+			collectionMetadata,
+			true,
+		);
+		if (!statement) continue;
+		const arm = sql<
+			SearchRow & { collection: string }
+		>`SELECT ${collection} AS collection, s.* FROM (${statement}) s`;
+		arms.push({ statement: arm, params: arm.compile(db).parameters.length });
+	}
+
+	const batches: (typeof arms)[] = [];
+	let params = 0;
+	for (const arm of arms) {
+		const current = batches.at(-1);
+		if (current && params + arm.params <= MAX_SEARCH_STATEMENT_PARAMETERS) {
+			current.push(arm);
+			params += arm.params;
+		} else {
+			batches.push([arm]);
+			params = arm.params;
+		}
+	}
+
+	const results: RankedSearchResult[] = [];
+	for (const batch of batches) {
+		const statement = sql<SearchRow & { collection: string }>`${sql.join(
+			batch.map((arm) => arm.statement),
+			sql` UNION ALL `,
+		)}`;
+		// oxlint-disable-next-line no-await-in-loop -- batches only exist to stay under the bind-parameter limit
+		const rows = await executeSearch(db, statement);
+		for (const row of rows) results.push(toRankedSearchResult(row.collection, row));
+	}
+	return results;
+}
+
+async function executeSearch<T>(db: Kysely<Database>, statement: RawBuilder<T>): Promise<T[]> {
+	try {
+		return (await statement.execute(db)).rows;
+	} catch (error) {
+		// FTS5 returns syntax errors for queries with unbalanced quotes,
+		// stray operators, or other malformed input. Treat these as
+		// "no matches" so the user gets an empty result rather than an
+		// internals-leaking error. Other errors (table missing, IO) still
+		// propagate. Intentionally not logged: any anonymous client can
+		// trigger this path, and the underlying error message embeds the
+		// raw query, so logging would be both noisy and a log-injection
+		// vector.
+		if (isFts5SyntaxError(error)) {
+			return [];
+		}
+		throw error;
+	}
+}
+
+function toRankedSearchResult(collection: string, row: SearchRow): RankedSearchResult {
+	return {
+		collection,
+		id: row.id,
+		slug: row.slug,
+		locale: row.locale,
+		title: row.title ?? undefined,
+		// SQLite's snippet() returns NULL when the targeted column is
+		// NULL for that row — even if the row matched via a different
+		// searchable column. Skip sanitization in that case so we don't
+		// throw on `null.replace`. The SearchResult.snippet field is
+		// already optional, so omitting it is the documented contract.
+		snippet: row.snippet === null ? undefined : sanitizeSnippet(row.snippet),
+		score: Math.abs(row.score),
+		titleMatchTier: row.title_match_tier,
+		rawScore: row.raw_score,
+		titleLength: row.title_length,
+	};
+}
+
+/**
+ * Build one collection's search statement, or null when the collection
+ * cannot match (empty query, or title scope without an indexed title).
+ */
+function buildCollectionSearch(
+	db: Kysely<Database>,
+	collection: string,
+	query: string,
+	options: CollectionSearchOptions,
+	metadata: CollectionSearchMetadata,
+	rankAcrossCollections: boolean,
+): RawBuilder<SearchRow> | null {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
 
@@ -283,7 +406,7 @@ async function searchSingleCollection(
 	// Escape the query for FTS5
 	const escapedQuery = escapeQuery(query);
 	if (!escapedQuery) {
-		return [];
+		return null;
 	}
 
 	// Get searchable fields for snippet generation
@@ -303,7 +426,7 @@ async function searchSingleCollection(
 					? "title"
 					: undefined;
 		if (!titleColumn) {
-			return [];
+			return null;
 		}
 		validateIdentifier(titleColumn, "title field");
 		matchQuery = `${titleColumn} : (${escapeQuery(query, false)})`;
@@ -335,7 +458,6 @@ async function searchSingleCollection(
 		bm25Args = weightValues.join(", ");
 	}
 
-	// Build and execute the search query
 	// Using raw SQL because Kysely doesn't have FTS5 support
 	const bm25Expr = bm25Args ? `bm25("${ftsTable}", ${bm25Args})` : `bm25("${ftsTable}")`;
 
@@ -351,17 +473,6 @@ async function searchSingleCollection(
 	const titleLengthExpr = searchableFields.includes(titleColumn)
 		? sql`coalesce(length(c.${sql.ref(titleColumn)}), 0)`
 		: sql`0`;
-	type SearchRow = {
-		id: string;
-		slug: string | null;
-		locale: string;
-		title: string | null;
-		snippet: string | null;
-		score: number;
-		title_match_tier: number;
-		raw_score: number;
-		title_length: number;
-	};
 	const fromMatches = sql`FROM "${sql.raw(ftsTable)}" f
 		JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
 		WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery}
@@ -370,16 +481,14 @@ async function searchSingleCollection(
 		${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}`;
 	const displayFields = sql`c.id, c.slug, c.locale, ${titleExpr} AS title,
 		snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) AS snippet`;
-	let results;
-	try {
-		const rankedQuery = rankAcrossCollections
-			? sql<SearchRow>`WITH matches AS MATERIALIZED (
-				SELECT c.id, ${sql.raw(bm25Expr)} AS score, ${titleMatchTier} AS title_match_tier, ${titleLengthExpr} AS title_length
+	return rankAcrossCollections
+		? sql<SearchRow>`WITH matches AS MATERIALIZED (
+				SELECT c.id, f.rowid AS fts_rowid, ${sql.raw(bm25Expr)} AS score, ${titleMatchTier} AS title_match_tier, ${titleLengthExpr} AS title_length
 				${fromMatches}
 			), best AS MATERIALIZED (
 				SELECT nullif(max(abs(score)), 0) AS best_score FROM matches
 			), ranked AS MATERIALIZED (
-				SELECT m.id, m.title_match_tier, m.title_length,
+				SELECT m.id, m.fts_rowid, m.title_match_tier, m.title_length,
 					abs(m.score) AS raw_score,
 					coalesce(abs(m.score) / nullif(best.best_score, 0), 0) AS score
 				FROM matches m CROSS JOIN best
@@ -391,46 +500,13 @@ async function searchSingleCollection(
 			SELECT ${displayFields}, r.score, r.title_match_tier, r.raw_score, r.title_length
 			FROM ranked r
 			JOIN "${sql.raw(contentTable)}" c ON c.id = r.id
-			JOIN "${sql.raw(ftsTable)}" f ON f.id = c.id
+			JOIN "${sql.raw(ftsTable)}" f ON f.rowid = r.fts_rowid
 			WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery}
 			ORDER BY r.title_match_tier DESC,
 				CASE WHEN r.title_match_tier = 1 THEN r.title_length ELSE 0 END ASC,
 				r.score DESC, r.raw_score DESC, r.title_length ASC, r.id COLLATE BINARY`
-			: sql<SearchRow>`SELECT ${displayFields}, ${sql.raw(bm25Expr)} AS score, 0 AS title_match_tier, abs(${sql.raw(bm25Expr)}) AS raw_score, 0 AS title_length
+		: sql<SearchRow>`SELECT ${displayFields}, ${sql.raw(bm25Expr)} AS score, 0 AS title_match_tier, abs(${sql.raw(bm25Expr)}) AS raw_score, 0 AS title_length
 				${fromMatches} ORDER BY score, c.id COLLATE BINARY LIMIT ${limit}`;
-		results = await rankedQuery.execute(db);
-	} catch (error) {
-		// FTS5 returns syntax errors for queries with unbalanced quotes,
-		// stray operators, or other malformed input. Treat these as
-		// "no matches" so the user gets an empty result rather than an
-		// internals-leaking error. Other errors (table missing, IO) still
-		// propagate. Intentionally not logged: any anonymous client can
-		// trigger this path, and the underlying error message embeds the
-		// raw query, so logging would be both noisy and a log-injection
-		// vector.
-		if (isFts5SyntaxError(error)) {
-			return [];
-		}
-		throw error;
-	}
-
-	return results.rows.map((row) => ({
-		collection,
-		id: row.id,
-		slug: row.slug,
-		locale: row.locale,
-		title: row.title ?? undefined,
-		// SQLite's snippet() returns NULL when the targeted column is
-		// NULL for that row — even if the row matched via a different
-		// searchable column. Skip sanitization in that case so we don't
-		// throw on `null.replace`. The SearchResult.snippet field is
-		// already optional, so omitting it is the documented contract.
-		snippet: row.snippet === null ? undefined : sanitizeSnippet(row.snippet),
-		score: Math.abs(row.score),
-		titleMatchTier: row.title_match_tier,
-		rawScore: row.raw_score,
-		titleLength: row.title_length,
-	}));
 }
 
 // Module-scope regexes so the engine doesn't recompile per call —

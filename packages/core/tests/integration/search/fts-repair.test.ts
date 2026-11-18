@@ -79,6 +79,25 @@ describe("FTS repair", () => {
 		}
 	});
 
+	it("checks every collection's index health in a fixed number of statements", async () => {
+		for (const slug of ["board", "card", "dice"]) {
+			await registry.createCollection({ slug, label: slug, supports: ["search"] });
+			await registry.createField(slug, {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await ftsManager.enableSearch(slug);
+		}
+		const executeQuery = vi.spyOn(db.getExecutor(), "executeQuery");
+		executeQuery.mockClear();
+
+		await createTestRuntime(db).ensureSearchHealthy();
+
+		expect(executeQuery).toHaveBeenCalledTimes(2);
+	});
+
 	it("repairs an index left empty by an interrupted rebuild", async () => {
 		await ftsManager.dropFtsTable("game");
 		await ftsManager.createFtsTable("game", ["title", "blurb"]);

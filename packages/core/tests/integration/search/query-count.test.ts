@@ -68,7 +68,7 @@ describe("search query counts", () => {
 		expect(empty.items).toEqual([]);
 	});
 
-	it("discovers and explicitly searches only enabled collections with FTS tables", async () => {
+	it("searches every enabled collection with FTS tables in one statement", async () => {
 		const registry = new SchemaRegistry(db);
 		await registry.createCollection({ slug: "notes", label: "Notes", supports: ["search"] });
 		await registry.createField("notes", {
@@ -108,7 +108,7 @@ describe("search query counts", () => {
 		const executeQuery = vi.spyOn(db.getExecutor(), "executeQuery");
 		executeQuery.mockClear();
 		const discovered = await searchWithDb(db, "farrier");
-		expect(executeQuery).toHaveBeenCalledTimes(3);
+		expect(executeQuery).toHaveBeenCalledTimes(2);
 		expect(
 			discovered.items
 				.map((item) => item.slug)
@@ -120,8 +120,41 @@ describe("search query counts", () => {
 		const explicit = await searchWithDb(db, "farrier", {
 			collections: ["articles", "notes", "disabled", "missing", "not-a-collection"],
 		});
-		expect(executeQuery).toHaveBeenCalledTimes(3);
+		expect(executeQuery).toHaveBeenCalledTimes(2);
 		expect(explicit.items).toEqual(discovered.items);
+	});
+
+	it("splits a many-collection search to stay under the D1 bind-parameter limit", async () => {
+		const registry = new SchemaRegistry(db);
+		const slugs = Array.from({ length: 12 }, (_, i) => `shelf_${i}`);
+		for (const slug of slugs) {
+			await registry.createCollection({ slug, label: slug, supports: ["search"] });
+			await registry.createField(slug, {
+				slug: "title",
+				label: "Title",
+				type: "string",
+				searchable: true,
+			});
+			await fts.enableSearch(slug);
+			await repo.create({
+				type: slug,
+				slug: `${slug}-farrier`,
+				status: "published",
+				data: { title: `Farrier ${slug}` },
+			});
+		}
+
+		const executeQuery = vi.spyOn(db.getExecutor(), "executeQuery");
+		executeQuery.mockClear();
+		const result = await searchWithDb(db, "farrier", { limit: 50 });
+
+		const searches = executeQuery.mock.calls.slice(1).map(([query]) => query);
+		expect(searches.length).toBeGreaterThan(1);
+		expect(searches.length).toBeLessThan(slugs.length);
+		for (const query of searches) expect(query.parameters.length).toBeLessThanOrEqual(100);
+		expect(new Set(result.items.map((item) => item.collection))).toEqual(
+			new Set(["articles", ...slugs]),
+		);
 	});
 
 	it("counts searchCollection and skips whitespace-only searches", async () => {

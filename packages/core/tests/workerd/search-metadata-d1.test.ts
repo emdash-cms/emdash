@@ -176,15 +176,18 @@ describe("search metadata on D1", () => {
 		const executeQuery = queryCounter();
 		const result = await searchWithDb(db, "farrier");
 
-		expect(executeQuery).toHaveBeenCalledTimes(3);
+		expect(executeQuery).toHaveBeenCalledTimes(2);
 		expect(result.items).toHaveLength(2);
 		expect(
 			result.items.map((item) => item.collection).toSorted((a, b) => a.localeCompare(b)),
 		).toEqual(["articles", "guides"]);
 		expect(result.items[0]?.collection).toBe("articles");
-		expect(
-			executeQuery.mock.calls.filter(([query]) => String(query.sql).includes("MATCH")),
-		).toHaveLength(2);
+		const matches = executeQuery.mock.calls.filter(([query]) =>
+			String(query.sql).includes("MATCH"),
+		);
+		expect(matches).toHaveLength(1);
+		expect(String(matches[0]?.[0].sql)).toContain("_emdash_fts_articles");
+		expect(String(matches[0]?.[0].sql)).toContain("_emdash_fts_guides");
 
 		executeQuery.mockClear();
 		const explicit = await searchWithDb(db, "farrier", {
@@ -196,7 +199,7 @@ describe("search metadata on D1", () => {
 				...Array.from({ length: 120 }, (_, i) => `absent_${i}`),
 			],
 		});
-		expect(executeQuery).toHaveBeenCalledTimes(3);
+		expect(executeQuery).toHaveBeenCalledTimes(2);
 		expect(explicit.items).toEqual(result.items);
 
 		executeQuery.mockClear();
