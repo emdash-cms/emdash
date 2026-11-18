@@ -20,8 +20,11 @@ import type {
 } from "../../lib/api/editorial-threads.js";
 import { cn, formatRelativeTime } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
-import { getEditorialHighlights } from "../editor/EditorialCommentsExtension.js";
-import { EDITORIAL_DOCUMENT_FIELD, type EditorialCommentsState } from "./useEditorialComments.js";
+import {
+	editorialCommentsKey,
+	getEditorialHighlights,
+} from "../editor/EditorialCommentsExtension.js";
+import { isEditorAnchor, type EditorialCommentsState } from "./useEditorialComments.js";
 
 const CARD_GAP_PX = 8;
 const WHITESPACE = /\s+/;
@@ -115,56 +118,70 @@ function useFieldElements(
 
 /** Vertical positions for cards beside their anchors, pushed down so none overlap. */
 function useCardLayout(
-	editor: Editor | null,
+	editors: ReadonlyMap<string, Editor>,
 	gutterRef: React.RefObject<HTMLDivElement | null>,
 	fieldsRef: React.RefObject<HTMLElement | null>,
 	positionedIds: string[],
 	fieldThreads: Map<string, HTMLElement>,
-	draftFrom: number | null,
+	/** The fields whose editors hold the highlights and draft being placed. */
+	editorFields: string[],
+	draftField: string | null,
 	enabled: boolean,
 ) {
 	const cardRefs = React.useRef(new Map<string, HTMLElement>());
 	const [tops, setTops] = React.useState<Record<string, number>>({});
 	const [version, setVersion] = React.useState(0);
+	const frameRef = React.useRef(0);
+	const bump = React.useCallback(() => {
+		cancelAnimationFrame(frameRef.current);
+		frameRef.current = requestAnimationFrame(() => setVersion((value) => value + 1));
+	}, []);
+	// A card grows with a reply being written or a comment being edited, pushing the cards below it.
+	const [cardObserver] = React.useState(() => new ResizeObserver(bump));
+	React.useEffect(() => {
+		for (const element of cardRefs.current.values()) cardObserver.observe(element);
+		return () => {
+			cancelAnimationFrame(frameRef.current);
+			cardObserver.disconnect();
+		};
+	}, [cardObserver]);
 
 	React.useEffect(() => {
 		if (!enabled) return;
-		let frame = 0;
-		const bump = () => {
-			cancelAnimationFrame(frame);
-			frame = requestAnimationFrame(() => setVersion((value) => value + 1));
-		};
-		editor?.on("transaction", bump);
-		// Fields above the editor, such as an image that finishes loading, move the text without resizing it.
+		for (const editor of editors.values()) editor.on("transaction", bump);
+		// Fields above an editor, such as an image that finishes loading, move the text without resizing it.
 		const observer = new ResizeObserver(bump);
 		const fields = fieldsRef.current;
-		const page = fields?.closest(".emdash-editor-page") ?? fields ?? editor?.view.dom;
+		const page = fields?.closest(".emdash-editor-page") ?? fields;
 		if (page) observer.observe(page);
 		if (gutterRef.current) observer.observe(gutterRef.current);
 		return () => {
-			cancelAnimationFrame(frame);
-			editor?.off("transaction", bump);
+			for (const editor of editors.values()) editor.off("transaction", bump);
 			observer.disconnect();
 		};
-	}, [editor, enabled, gutterRef, fieldsRef]);
+	}, [editors, enabled, gutterRef, fieldsRef, bump]);
 
 	React.useLayoutEffect(() => {
 		const gutter = gutterRef.current;
 		if (!gutter || !enabled) return;
-		const view = editor && !editor.isDestroyed ? editor.view : null;
 		const origin = gutter.getBoundingClientRect().top;
-		const ranges = new Map(
-			view
-				? getEditorialHighlights(view.state).map((highlight) => [highlight.threadId, highlight])
-				: [],
-		);
+		const ranges = new Map<string, { editor: Editor; from: number }>();
+		for (const field of editorFields) {
+			const editor = editors.get(field);
+			if (!editor || editor.isDestroyed) continue;
+			for (const highlight of getEditorialHighlights(editor.state)) {
+				ranges.set(highlight.threadId, { editor, from: highlight.from });
+			}
+			const pending = editorialCommentsKey.getState(editor.state)?.pending;
+			if (pending && field === draftField) ranges.set("draft", { editor, from: pending.from });
+		}
 		const wanted = positionedIds
 			.map((id) => {
 				const field = fieldThreads.get(id);
 				if (field) return { id, top: field.getBoundingClientRect().top - origin };
-				const from = id === "draft" ? draftFrom : ranges.get(id)?.from;
-				if (from == null || !view) return null;
-				return { id, top: view.coordsAtPos(from).top - origin };
+				const range = ranges.get(id);
+				if (!range) return null;
+				return { id, top: range.editor.view.coordsAtPos(range.from).top - origin };
 			})
 			.filter((item): item is { id: string; top: number } => item !== null)
 			.toSorted((a, b) => a.top - b.top);
@@ -177,14 +194,30 @@ function useCardLayout(
 			floor = top + (cardRefs.current.get(item.id)?.offsetHeight ?? 0) + CARD_GAP_PX;
 		}
 		setTops((current) => (JSON.stringify(current) === JSON.stringify(next) ? current : next));
-	}, [editor, gutterRef, positionedIds, fieldThreads, draftFrom, enabled, version]);
+	}, [editors, gutterRef, positionedIds, fieldThreads, editorFields, draftField, enabled, version]);
 
+	// One callback per card, so re-rendering doesn't detach and observe it again.
+	const registrations = React.useRef(new Map<string, (element: HTMLElement | null) => void>());
 	const register = React.useCallback(
-		(id: string) => (element: HTMLElement | null) => {
-			if (element) cardRefs.current.set(id, element);
-			else cardRefs.current.delete(id);
+		(id: string) => {
+			let callback = registrations.current.get(id);
+			if (!callback) {
+				callback = (element) => {
+					const previous = cardRefs.current.get(id);
+					if (previous) cardObserver.unobserve(previous);
+					if (element) {
+						cardRefs.current.set(id, element);
+						cardObserver.observe(element);
+					} else {
+						cardRefs.current.delete(id);
+						registrations.current.delete(id);
+					}
+				};
+				registrations.current.set(id, callback);
+			}
+			return callback;
 		},
-		[],
+		[cardObserver],
 	);
 
 	return { tops, register };
@@ -198,7 +231,6 @@ function useCardLayout(
  */
 export function MarginComments({
 	comments,
-	editor,
 	currentUser,
 	fieldLabels,
 	fieldsRef,
@@ -206,7 +238,6 @@ export function MarginComments({
 	canComment,
 }: {
 	comments: EditorialCommentsState;
-	editor: Editor | null;
 	currentUser: EditorialCommentsUser | undefined;
 	fieldLabels: Record<string, string>;
 	/** Holds an element marked `data-editorial-field` for each field on the page. */
@@ -216,15 +247,27 @@ export function MarginComments({
 }) {
 	const { t } = useLingui();
 	const gutterRef = React.useRef<HTMLDivElement>(null);
-	const { threads, highlights, activeThreadId, draft, showResolved } = comments;
+	const { threads, highlights, attachedIds, editors, activeThreadId, draft, showResolved } =
+		comments;
 
-	const located = React.useMemo(() => new Set(highlights.map((h) => h.threadId)), [highlights]);
+	const highlighted = React.useMemo(
+		() => new Set(highlights.map((highlight) => highlight.threadId)),
+		[highlights],
+	);
+	const isDetached = (thread: EditorialThread) => {
+		const { anchor } = thread;
+		if (!isEditorAnchor(anchor)) return false;
+		if (!Object.hasOwn(fieldLabels, anchor.field)) return true;
+		// Until its field's editor is ready, a thread is as the server last found it.
+		if (!editors.has(anchor.field)) return thread.anchorState === "orphaned";
+		return !attachedIds.has(thread.id);
+	};
 	const visible = threads.filter(
 		(thread) => thread.status === "open" || showResolved || thread.id === activeThreadId,
 	);
 	const fieldThreads = useFieldElements(fieldsRef, visible, draft?.anchor ?? null, positioned);
 	const inPlace = positioned
-		? visible.filter((thread) => located.has(thread.id) || fieldThreads.has(thread.id))
+		? visible.filter((thread) => highlighted.has(thread.id) || fieldThreads.has(thread.id))
 		: [];
 	const listed = visible.filter((thread) => !inPlace.includes(thread));
 	const draftInPlace = positioned && (draft?.range != null || fieldThreads.has("draft"));
@@ -233,13 +276,28 @@ export function MarginComments({
 		// oxlint-disable-next-line react-hooks/exhaustive-deps -- recompute only when the set of ids changes
 		[inPlace.map((thread) => thread.id).join(), draftInPlace],
 	);
+	const draftAnchor = draft?.anchor;
+	const draftField = draftAnchor && isEditorAnchor(draftAnchor) ? draftAnchor.field : null;
+	const editorFieldsKey = [
+		...new Set([
+			...highlights.map((highlight) => highlight.field),
+			...(draftField ? [draftField] : []),
+		]),
+	]
+		.toSorted()
+		.join("\u0000");
+	const editorFields = React.useMemo(
+		() => (editorFieldsKey ? editorFieldsKey.split("\u0000") : []),
+		[editorFieldsKey],
+	);
 	const { tops, register } = useCardLayout(
-		editor,
+		editors,
 		gutterRef,
 		fieldsRef,
 		positionedIds,
 		fieldThreads,
-		draft?.range?.from ?? null,
+		editorFields,
+		draftField,
 		positioned,
 	);
 	const resolvedCount = threads.filter((thread) => thread.status === "resolved").length;
@@ -278,7 +336,7 @@ export function MarginComments({
 							size="sm"
 							type="button"
 							icon={<ChatCircleText aria-hidden="true" />}
-							onClick={comments.startComment}
+							onClick={() => comments.startComment()}
 						>
 							{t`Comment`}
 						</Button>
@@ -286,6 +344,32 @@ export function MarginComments({
 				</div>
 			</div>
 
+			{comments.loadError && (
+				<Banner
+					size="sm"
+					variant="error"
+					role="alert"
+					title={
+						comments.loadError === "load"
+							? t`Comments couldn’t be loaded`
+							: t`Comments couldn’t be refreshed`
+					}
+					description={
+						comments.loadError === "refresh" ? t`These may not be the latest comments.` : undefined
+					}
+					action={
+						<Button
+							variant="ghost"
+							size="xs"
+							type="button"
+							loading={comments.isRetrying}
+							onClick={() => void comments.retry()}
+						>
+							{t`Try again`}
+						</Button>
+					}
+				/>
+			)}
 			{comments.notice && (
 				<Banner
 					size="sm"
@@ -306,18 +390,13 @@ export function MarginComments({
 					key={thread.id}
 					thread={thread}
 					comments={comments}
-					editor={editor}
 					inPlace={false}
 					fieldLabels={fieldLabels}
-					detached={
-						(thread.anchor.type === "text" || thread.anchor.type === "block") &&
-						thread.anchor.field === EDITORIAL_DOCUMENT_FIELD &&
-						!located.has(thread.id)
-					}
+					detached={isDetached(thread)}
 					canComment={canComment}
 				/>
 			))}
-			{threads.length === 0 && !draft && !comments.isLoading && (
+			{threads.length === 0 && !draft && !comments.isLoading && comments.loadError !== "load" && (
 				<p className="text-sm text-kumo-subtle">
 					{t`Select text and press Comment, or comment on the whole entry.`}
 				</p>
@@ -338,7 +417,6 @@ export function MarginComments({
 							<ThreadCard
 								thread={thread}
 								comments={comments}
-								editor={editor}
 								inPlace
 								fieldLabels={fieldLabels}
 								detached={false}
@@ -497,7 +575,6 @@ function CommentComposer({
 function ThreadCard({
 	thread,
 	comments,
-	editor,
 	inPlace,
 	fieldLabels,
 	detached,
@@ -505,7 +582,6 @@ function ThreadCard({
 }: {
 	thread: EditorialThread;
 	comments: EditorialCommentsState;
-	editor: Editor | null;
 	inPlace: boolean;
 	fieldLabels: Record<string, string>;
 	detached: boolean;
@@ -527,6 +603,9 @@ function ThreadCard({
 	const activate = () => {
 		if (active) return;
 		comments.setActiveThreadId(thread.id);
+		const editor = isEditorAnchor(thread.anchor)
+			? comments.editors.get(thread.anchor.field)
+			: undefined;
 		if (!editor || editor.isDestroyed) return;
 		const highlight = getEditorialHighlights(editor.state).find((h) => h.threadId === thread.id);
 		if (!highlight) return;

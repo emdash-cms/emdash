@@ -1,4 +1,5 @@
 import { Editor, Extension, Node } from "@tiptap/core";
+import { undoDepth } from "@tiptap/pm/history";
 import StarterKit from "@tiptap/starter-kit";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -254,5 +255,123 @@ describe("editorial comment highlights", () => {
 			ok: false,
 			reason: "multiple-blocks",
 		});
+	});
+});
+
+const TestImage = Node.create({
+	name: "image",
+	group: "block",
+	atom: true,
+	selectable: true,
+	addAttributes: () => ({ [PORTABLE_TEXT_KEY_ATTR]: { default: null, rendered: false } }),
+	renderHTML: () => ["figure", ["img"]],
+});
+
+function createEditorWithImage(imageKey: string | null, bridge: EditorialCommentsBridge = {}) {
+	editor = new Editor({
+		element: document.createElement("div"),
+		extensions: [
+			StarterKit,
+			KeyAttribute,
+			TestImage,
+			createEditorialCommentsExtension({ current: bridge }),
+		],
+		content: {
+			type: "doc",
+			content: [
+				{
+					type: "paragraph",
+					attrs: { [PORTABLE_TEXT_KEY_ATTR]: "b1" },
+					content: [text("Caption")],
+				},
+				{ type: "image", attrs: { [PORTABLE_TEXT_KEY_ATTR]: imageKey } },
+			],
+		},
+	});
+	// The paragraph spans 0–9, so the image sits at 9.
+	return editor;
+}
+
+describe("editorial block comments", () => {
+	it("anchors a selected image to its block, keying it outside the undo history", () => {
+		const ed = createEditorWithImage(null);
+		ed.commands.setNodeSelection(9);
+		const depth = undoDepth(ed.state);
+
+		const result = anchorForSelection(ed.state, ed.view.dispatch, "body", () => "img1");
+
+		expect(result).toEqual({
+			ok: true,
+			anchor: { type: "block", field: "body", blockKey: "img1" },
+			range: { kind: "block", from: 9, to: 10 },
+		});
+		expect(ed.state.doc.child(1).attrs[PORTABLE_TEXT_KEY_ATTR]).toBe("img1");
+		expect(undoDepth(ed.state)).toBe(depth);
+	});
+
+	it("highlights a block thread on its node and opens it from a click", () => {
+		const onActivate = vi.fn();
+		const ed = createEditorWithImage("img1", { onActivate });
+		const range = locateAnchor(ed.state.doc, { type: "block", field: "body", blockKey: "img1" });
+		expect(range).toEqual({ kind: "block", from: 9, to: 10 });
+
+		setEditorialHighlights(ed.state, ed.view.dispatch, {
+			highlights: [{ threadId: "t1", ...range! }],
+		});
+
+		const figure = ed.view.dom.querySelector('[data-editorial-thread="t1"]');
+		expect(figure?.tagName).toBe("FIGURE");
+		expect(figure?.classList.contains("emdash-editorial-block")).toBe(true);
+		ed.view.someProp("handleClick", (handle) =>
+			handle(ed.view, 9, new MouseEvent("click", { bubbles: true })),
+		);
+		expect(onActivate).toHaveBeenCalledWith("t1");
+	});
+
+	it("drops a block highlight when its block is deleted", () => {
+		const ed = createEditorWithImage("img1");
+		setEditorialHighlights(ed.state, ed.view.dispatch, {
+			highlights: [{ threadId: "t1", kind: "block", from: 9, to: 10 }],
+		});
+
+		ed.commands.deleteRange({ from: 9, to: 10 });
+
+		expect(getEditorialHighlights(ed.state)).toEqual([]);
+	});
+});
+
+describe("editorial comments in a read-only editor", () => {
+	it("won't key a block to comment on it", () => {
+		const ed = createEditor([{ key: null, content: [text("Fresh paragraph")] }]);
+		ed.setEditable(false);
+		ed.commands.setTextSelection({ from: 7, to: 16 });
+
+		expect(anchorForSelection(ed.state, ed.view.dispatch, "content", () => "new1", false)).toEqual({
+			ok: false,
+			reason: "unkeyed",
+		});
+		expect(ed.state.doc.firstChild!.attrs[PORTABLE_TEXT_KEY_ATTR]).toBeNull();
+	});
+
+	it("starts a comment from the keyboard shortcut", () => {
+		const onCommentShortcut = vi.fn();
+		const ed = createEditor([{ key: "b1", content: [text("Fresh paragraph")] }], {
+			onCommentShortcut,
+		});
+		ed.setEditable(false);
+		const mac = /Mac|iPhone|iPad|iPod/.test(navigator.platform);
+
+		ed.view.dom.dispatchEvent(
+			new KeyboardEvent("keydown", {
+				code: "KeyM",
+				key: "m",
+				altKey: true,
+				metaKey: mac,
+				ctrlKey: !mac,
+				bubbles: true,
+			}),
+		);
+
+		expect(onCommentShortcut).toHaveBeenCalledOnce();
 	});
 });
