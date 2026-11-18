@@ -641,7 +641,10 @@ function buildReferencesPayload(
 	return any ? out : undefined;
 }
 
-/** Contributors and above may read and write editorial comments. */
+/**
+ * The lowest role with `editorial:comment` and `content:read_drafts`, which is all
+ * commenting needs: someone who can't edit the entry may still comment on it.
+ */
 const EDITORIAL_COMMENT_MIN_ROLE = 20;
 /** Narrower than this, the comments margin and the settings panel leave too little room to write. */
 const MARGIN_AND_SETTINGS_QUERY = "(min-width: 1680px)";
@@ -1185,6 +1188,29 @@ export function ContentEditor({
 	// Track portableText editor for document outline. Only the "content"
 	// field wires its editor into this slot (see onEditorReady below).
 	const [portableTextEditor, setPortableTextEditor] = React.useState<Editor | null>(null);
+	/** Every Portable Text field's editor, by field slug, for editorial comments. */
+	const [editorialEditors, setEditorialEditors] = React.useState<ReadonlyMap<string, Editor>>(
+		() => new Map(),
+	);
+	const editorReadyCallbacks = React.useRef(new Map<string, (editor: Editor | null) => void>());
+	const editorReadyFor = React.useCallback((name: string, isDocumentBody: boolean) => {
+		const key = `${name}:${isDocumentBody}`;
+		let callback = editorReadyCallbacks.current.get(key);
+		if (!callback) {
+			callback = (editor) => {
+				if (isDocumentBody) setPortableTextEditor(editor);
+				setEditorialEditors((current) => {
+					if ((current.get(name) ?? null) === editor) return current;
+					const next = new Map(current);
+					if (editor) next.set(name, editor);
+					else next.delete(name);
+					return next;
+				});
+			};
+			editorReadyCallbacks.current.set(key, callback);
+		}
+		return callback;
+	}, []);
 
 	// Block sidebar state – when a block (e.g. image) requests sidebar space, this holds
 	// the panel data. When non-null the sidebar shows the block panel instead of the
@@ -1630,7 +1656,7 @@ export function ContentEditor({
 	);
 	const editorial = useEditorialComments({
 		entry: editorialEntry,
-		editor: portableTextEditor,
+		editors: editorialEditors,
 		rev: item?._rev,
 		isDirty,
 		open: commentsOpen,
@@ -1649,20 +1675,22 @@ export function ContentEditor({
 		[],
 	);
 	const setActiveEditorialThread = editorial.setActiveThreadId;
-	const editorialBridge = React.useMemo<PortableTextEditorProps["editorialComments"]>(
-		() =>
-			canComment
-				? {
-						onComment: () => {
-							setCommentsOpen(true);
-							startEditorialComment();
-						},
-						onActivate: openEditorialThread,
-						onDeactivate: () => setActiveEditorialThread(null),
-					}
-				: undefined,
-		[canComment, startEditorialComment, openEditorialThread, setActiveEditorialThread],
-	);
+	const editorialBridges = React.useMemo(() => {
+		const bridges = new Map<string, PortableTextEditorProps["editorialComments"]>();
+		if (!canComment) return bridges;
+		for (const [name, field] of Object.entries(fields)) {
+			if (field.kind !== "portableText") continue;
+			bridges.set(name, {
+				onComment: () => {
+					setCommentsOpen(true);
+					startEditorialComment(name);
+				},
+				onActivate: openEditorialThread,
+				onDeactivate: () => setActiveEditorialThread(null),
+			});
+		}
+		return bridges;
+	}, [canComment, fields, startEditorialComment, openEditorialThread, setActiveEditorialThread]);
 	const setEditorialDraft = editorial.setDraft;
 	const startFieldComment = React.useCallback(
 		(field: string) => {
@@ -3085,8 +3113,9 @@ export function ContentEditor({
 											/>
 										) : null}
 										{/* Hidden, not unmounted, while a version is shown, so unsaved edits,
-									    undo history and the outline survive. */}
-										<fieldset disabled={readOnly} hidden={isViewing} className="contents">
+									    undo history and the outline survive. Comment controls stay enabled
+									    while the entry is read-only, so each field disables itself. */}
+										<fieldset hidden={isViewing} className="contents">
 											{unsupportedFields.length > 0 && (
 												<Banner
 													variant="error"
@@ -3111,6 +3140,7 @@ export function ContentEditor({
 															size="sm"
 															variant="secondary"
 															type="button"
+															disabled={readOnly}
 															onClick={submitSave}
 														>
 															{t`Save anyway`}
@@ -3146,8 +3176,11 @@ export function ContentEditor({
 														name,
 														field,
 														onChange: handleFieldChange,
-														onEditorReady: isDocumentBody ? setPortableTextEditor : undefined,
-														editorialComments: isDocumentBody ? editorialBridge : undefined,
+														onEditorReady:
+															field.kind === "portableText"
+																? editorReadyFor(name, isDocumentBody)
+																: undefined,
+														editorialComments: editorialBridges.get(name),
 														isDocumentTitle: name === documentTitleField,
 														titleInputRef:
 															name === documentTitleField ? documentTitleRef : undefined,
@@ -3196,10 +3229,12 @@ export function ContentEditor({
 																	threads={fieldThreads.get(name) ?? []}
 																	activeThreadId={editorial.activeThreadId}
 																	onOpen={openEditorialThread}
-																	onStart={readOnly ? undefined : () => startFieldComment(name)}
+																	onStart={() => startFieldComment(name)}
 																/>
 															)}
-															{fieldEl}
+															<fieldset disabled={readOnly} className="contents">
+																{fieldEl}
+															</fieldset>
 														</div>
 													);
 												})}
@@ -3271,12 +3306,11 @@ export function ContentEditor({
 										>
 											<MarginComments
 												comments={editorial}
-												editor={portableTextEditor}
 												currentUser={currentUser}
 												fieldLabels={fieldLabels}
 												fieldsRef={fieldsRef}
 												positioned={!isBelowLg}
-												canComment={canComment && !readOnly}
+												canComment={canComment}
 											/>
 										</div>
 									)}
@@ -3753,7 +3787,7 @@ interface FieldRendererProps {
 	/** Callback when a portableText editor is ready.
 	 * Called with the editor on mount, and with `null` on unmount. */
 	onEditorReady?: (editor: Editor | null) => void;
-	/** Editorial comment hooks for the document body's editor. */
+	/** Editorial comment hooks for a Portable Text field's editor. */
 	editorialComments?: PortableTextEditorProps["editorialComments"];
 	/** Minimal chrome - hides toolbar, fades labels, removes borders */
 	minimal?: boolean;
@@ -4145,6 +4179,7 @@ function FieldRenderer({
 							className="bg-kumo-control [--emdash-editor-surface:var(--color-kumo-control)] focus-within:border-kumo-focus/50"
 							pluginBlocks={pluginBlocks}
 							onEditorReady={onEditorReady}
+							editorialComments={editorialComments}
 							onBlockSidebarOpen={onBlockSidebarOpen}
 							onBlockSidebarClose={onBlockSidebarClose}
 							editable={!readOnly}

@@ -5552,6 +5552,155 @@ describe("editorial comments", () => {
 		});
 	});
 
+	describe("without edit access", () => {
+		it("lets a Contributor who can't edit the entry comment on a field", async () => {
+			vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
+			vi.mocked(fetchEditorialThreads).mockResolvedValue([]);
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				currentUser: { id: "u-3", role: 20 },
+				readOnly: true,
+			});
+			await expect.element(screen.getByLabelText("Title", { exact: true })).toBeDisabled();
+
+			await screen.getByRole("button", { name: "Comment on Title" }).click();
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await margin.getByRole("textbox", { name: "Comment" }).fill("Shorter, please");
+			await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+
+			await vi.waitFor(() =>
+				expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+					expect.objectContaining({ id: "item-1" }),
+					expect.objectContaining({ anchor: { type: "field", field: "title" } }),
+				),
+			);
+		});
+
+		it("lets someone viewing an entry another person has locked reply and start threads", async () => {
+			vi.mocked(fetchEditorialThreads).mockResolvedValue([fieldThread("body")]);
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				currentUser: { id: "u-1", role: 50 },
+				readOnly: true,
+			});
+
+			await screen.getByRole("button", { name: "1 comment thread on Body" }).click();
+
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await expect.element(margin.getByRole("textbox", { name: "Reply" })).toBeEnabled();
+			await expect
+				.element(margin.getByRole("button", { name: "Comment", exact: true }))
+				.toBeEnabled();
+		});
+	});
+
+	it("drops an unfinished field comment when another entry opens", async () => {
+		vi.mocked(fetchEditorialThreads).mockResolvedValue([]);
+		const props: ContentEditorProps = {
+			collection: "posts",
+			collectionLabel: "Post",
+			fields: defaultFields,
+			isNew: false,
+			onSave: vi.fn(),
+			item: makeItem(),
+			currentUser: { id: "u-1", role: 50 },
+		};
+		const screen = await render(<ContentEditor {...props} />, { wrapper: Toasty });
+		await screen.getByRole("button", { name: "Comment on Title" }).click();
+		const composer = screen
+			.getByRole("complementary", { name: "Comments" })
+			.getByRole("textbox", { name: "Comment" });
+		await composer.fill("Half a thought");
+
+		await screen.rerender(
+			<ContentEditor {...props} item={makeItem({ id: "item-2", data: { title: "Other" } })} />,
+		);
+
+		await expect.element(screen.getByLabelText("Title", { exact: true })).toHaveValue("Other");
+		await expect.element(composer).not.toBeInTheDocument();
+	});
+
+	describe("when threads can't be fetched", () => {
+		it("says the threads couldn't be loaded, in place of the instructions", async () => {
+			vi.mocked(fetchEditorialThreads).mockRejectedValue(new Error("Server unavailable"));
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				currentUser: { id: "u-1", role: 50 },
+			});
+
+			await screen.getByRole("button", { name: "Show comments" }).click();
+
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			const alert = margin.getByRole("alert");
+			await expect.element(alert).toHaveTextContent("Comments couldn’t be loaded");
+			expect(margin.getByText(/Select text and press Comment/).query()).toBeNull();
+
+			vi.mocked(fetchEditorialThreads).mockResolvedValue([fieldThread("body")]);
+			await alert.getByRole("button", { name: "Try again" }).click();
+
+			await expect.element(margin.getByText("Could this be shorter?")).toBeVisible();
+			expect(margin.getByRole("alert").query()).toBeNull();
+		});
+
+		it("keeps the threads it has when a refresh fails", async () => {
+			const screen = await renderWithThreads([fieldThread("body")]);
+			await screen.getByRole("button", { name: "Show comments" }).click();
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await expect.element(margin.getByText("Could this be shorter?")).toBeVisible();
+			vi.mocked(fetchEditorialThreads).mockRejectedValue(new Error("Server unavailable"));
+
+			// The window regaining focus refreshes the open margin's threads.
+			window.dispatchEvent(new Event("visibilitychange"));
+
+			await expect
+				.element(margin.getByRole("alert"))
+				.toHaveTextContent("Comments couldn’t be refreshed");
+			await expect.element(margin.getByText("Could this be shorter?")).toBeVisible();
+		});
+	});
+
+	it("moves the cards below a thread down as its reply grows", async () => {
+		const layout = document.createElement("style");
+		layout.textContent = `
+			.relative { position: relative; }
+			.absolute { position: absolute; }
+			.inset-x-0 { inset-inline: 0; }
+			.field-sizing-content { field-sizing: content; }
+		`;
+		document.head.append(layout);
+		// Wide enough for the settings panel too, so nothing else moves the cards meanwhile.
+		await page.viewport(1800, 900);
+		onTestFinished(async () => {
+			layout.remove();
+			await page.viewport(1280, 800);
+		});
+		const screen = await renderWithThreads([fieldThread("title"), fieldThread("body")]);
+		await screen.getByRole("button", { name: "1 comment thread on Title" }).click();
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		const cards = () =>
+			Array.from(
+				margin.element().querySelectorAll<HTMLElement>("[data-editorial-thread-card]"),
+				(card) => card.parentElement!,
+			);
+		const reply = margin.getByRole("textbox", { name: "Reply" });
+		await expect.element(reply).toBeVisible();
+		// Lets the cards settle where they start, so only the reply can move them.
+		for (let frame = 0; frame < 5; frame++) {
+			// oxlint-disable-next-line no-await-in-loop -- one frame at a time
+			await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+		}
+		await reply.fill(["One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight"].join("\n"));
+
+		await vi.waitFor(() => {
+			const [first, second] = cards();
+			const firstBottom = first!.getBoundingClientRect().bottom;
+			expect(second!.getBoundingClientRect().top).toBeGreaterThanOrEqual(firstBottom);
+		});
+	});
+
 	it("marks only fields with open threads", async () => {
 		const screen = await renderWithThreads([
 			{ ...fieldThread("title"), status: "resolved" },

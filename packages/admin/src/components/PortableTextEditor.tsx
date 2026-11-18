@@ -2760,6 +2760,14 @@ export function PortableTextEditor({
 	const editorLabel = t`Rich text editor`;
 	// Tiptap gives the editor a textbox role, so a read-only editor has to say so itself.
 	const editableRef = React.useRef(true);
+	// A read-only editor takes focus when it can be commented on, for the comment shortcut.
+	const commentableRef = React.useRef(false);
+	commentableRef.current = Boolean(editorialComments?.onComment);
+	// A read-only editor can sit in a disabled fieldset, which would disable its Comment button too.
+	const appendInlineBubbleMenu = React.useCallback(
+		() => (editableRef.current ? floatingRootRef.current! : document.body),
+		[],
+	);
 	// Stable editorProps reference — a new object every render would cause
 	// compareOptions to call setOptions → updateState → plugin teardown →
 	// Suggestion onExit → setSlashMenuState → re-render → infinite loop.
@@ -2773,6 +2781,7 @@ export function PortableTextEditor({
 				"aria-label": editorLabel,
 				...(ariaLabelledby ? { "aria-labelledby": ariaLabelledby } : {}),
 				...(editableRef.current ? {} : { "aria-readonly": "true" }),
+				...(editableRef.current || !commentableRef.current ? {} : { tabindex: "0" }),
 				class: isDocument
 					? "emdash-document flow-root min-h-32 pb-2 focus:outline-none"
 					: "prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
@@ -3482,7 +3491,8 @@ export function PortableTextEditor({
 			)}
 			<EditorBubbleMenu
 				editor={editor}
-				appendTo={appendBubbleMenu}
+				editable={editorEditable}
+				appendTo={appendInlineBubbleMenu}
 				getCollisionOptions={getBubbleMenuCollisionOptions}
 				onComment={editorialComments?.onComment}
 			/>
@@ -3538,6 +3548,7 @@ export function PortableTextEditor({
 							editor={editor}
 							onInsertBlock={openBlockInsertMenuAt}
 							editable={editable}
+							onComment={editorialComments?.onComment}
 						/>
 					)}
 				</div>
@@ -3702,11 +3713,14 @@ function playBubbleEntrance(surface: HTMLElement | null) {
  */
 function EditorBubbleMenu({
 	editor,
+	editable,
 	appendTo,
 	getCollisionOptions,
 	onComment,
 }: {
 	editor: Editor;
+	/** A read-only editor's menu offers only Comment. */
+	editable: boolean;
 	appendTo: () => HTMLElement;
 	getCollisionOptions: BubbleMenuCollisionOptions;
 	onComment?: () => void;
@@ -3755,6 +3769,8 @@ function EditorBubbleMenu({
 	}, [editor, linkInvalid]);
 	const showLinkInputRef = React.useRef(showLinkInput);
 	showLinkInputRef.current = showLinkInput;
+	const onCommentRef = React.useRef(onComment);
+	onCommentRef.current = onComment;
 	const closeLinkInputRef = React.useRef(closeLinkInput);
 	closeLinkInputRef.current = closeLinkInput;
 
@@ -3853,7 +3869,7 @@ function EditorBubbleMenu({
 						element.contains(activeElement) ||
 						Boolean(activeElement?.closest(`[${BUBBLE_POPUP_ATTR}]`));
 					return (
-						activeEditor.isEditable &&
+						(activeEditor.isEditable || onCommentRef.current !== undefined) &&
 						(selection instanceof TextSelection || selection instanceof AllSelection) &&
 						// A selection of only line breaks or spaces has nothing to format.
 						NON_WHITESPACE_REGEX.test(
@@ -3868,12 +3884,27 @@ function EditorBubbleMenu({
 					ref={surfaceRef}
 					data-emdash-inline-bubble-menu
 					role="toolbar"
-					aria-label={t`Format selection`}
+					aria-label={editable ? t`Format selection` : t`Selection actions`}
 					className={bubbleMenuClassName}
 					onKeyDown={(event) => moveToolbarFocus(event, false)}
 				>
 					<TooltipProvider delay={400}>
-						{showLinkInput ? (
+						{!editable ? (
+							onComment && (
+								<div className="flex items-center">
+									<BubbleButton
+										onClick={() => {
+											onComment();
+											editor.commands.setTextSelection(editor.state.selection.to);
+										}}
+										active={false}
+										title={t`Comment`}
+									>
+										<ChatCircleText className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								</div>
+							)
+						) : showLinkInput ? (
 							<div className="flex min-w-0 items-start gap-1">
 								<LinkDestinationInput
 									className="w-72 min-w-0 shrink"

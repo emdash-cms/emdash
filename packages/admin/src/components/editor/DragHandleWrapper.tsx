@@ -27,6 +27,8 @@ interface DragHandleWrapperProps {
 	onInsertBlock: (insertPos: number) => void;
 	/** Read-only stops native editing but not the menu's commands, so the menu closes. */
 	editable?: boolean;
+	/** Starts an editorial comment on the selected block, from the block menu. */
+	onComment?: () => void;
 }
 
 interface HoveredNode {
@@ -81,6 +83,7 @@ export function DragHandleWrapper({
 	editor,
 	onInsertBlock,
 	editable = true,
+	onComment,
 }: DragHandleWrapperProps) {
 	const { i18n, t } = useLingui();
 	const direction = getLocaleDir(i18n.locale);
@@ -315,6 +318,7 @@ export function DragHandleWrapper({
 				isOpen={menuOpen}
 				onClose={handleCloseMenu}
 				onCloseComplete={handleMenuCloseComplete}
+				onComment={onComment}
 			/>
 		</>
 	);

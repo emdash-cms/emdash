@@ -1,6 +1,12 @@
 import { Extension } from "@tiptap/core";
 import type { Node as PMNode } from "@tiptap/pm/model";
-import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
+import {
+	NodeSelection,
+	Plugin,
+	PluginKey,
+	type EditorState,
+	type Transaction,
+} from "@tiptap/pm/state";
 import { Decoration, DecorationSet, type EditorView } from "@tiptap/pm/view";
 
 import {
@@ -11,6 +17,7 @@ import {
 	type EditorialAnchor,
 	type EditorialTextAnchor,
 } from "../../editorial-anchors.js";
+import { ownsPortableTextKey } from "../../portable-text/keys.js";
 import { PORTABLE_TEXT_KEY_ATTR } from "./portableTextIdentity.js";
 
 /** A thread's place in the open document. Block highlights span the whole node. */
@@ -23,9 +30,12 @@ export interface EditorialHighlight {
 	badge?: string;
 }
 
+/** Where a comment being written will sit, highlighted until it is saved or cancelled. */
+export type EditorialRange = Pick<EditorialHighlight, "kind" | "from" | "to">;
+
 interface PluginState {
 	highlights: EditorialHighlight[];
-	pending: { from: number; to: number } | null;
+	pending: EditorialRange | null;
 	activeThreadId: string | null;
 	hoveredThreadId: string | null;
 	decorations: DecorationSet;
@@ -75,11 +85,13 @@ function buildDecorations(doc: PMNode, state: Omit<PluginState, "decorations">):
 			);
 		}
 	}
-	if (state.pending) {
+	const { pending } = state;
+	if (pending) {
+		const attrs = { class: `emdash-editorial-${pending.kind} emdash-editorial-active` };
 		decorations.push(
-			Decoration.inline(state.pending.from, state.pending.to, {
-				class: "emdash-editorial-text emdash-editorial-active",
-			}),
+			pending.kind === "block"
+				? Decoration.node(pending.from, pending.to, attrs)
+				: Decoration.inline(pending.from, pending.to, attrs),
 		);
 	}
 	return DecorationSet.create(doc, decorations);
@@ -108,16 +120,18 @@ function setHoveredThread(view: EditorView, threadId: string | null): void {
 	setEditorialHighlights(view.state, view.dispatch, { hoveredThreadId: threadId });
 }
 
+function mapRange<T extends EditorialRange>(tr: Transaction, range: T): T | null {
+	const from = tr.mapping.mapResult(range.from, range.kind === "text" ? 1 : -1);
+	const to = tr.mapping.mapResult(range.to, -1);
+	if (from.deleted && to.deleted) return null;
+	if (from.pos >= to.pos) return null;
+	if (range.kind === "block" && tr.doc.nodeAt(from.pos)?.nodeSize !== to.pos - from.pos)
+		return null;
+	return { ...range, from: from.pos, to: to.pos };
+}
+
 function mapHighlights(tr: Transaction, highlights: EditorialHighlight[]): EditorialHighlight[] {
-	const mapped: EditorialHighlight[] = [];
-	for (const highlight of highlights) {
-		const from = tr.mapping.mapResult(highlight.from, highlight.kind === "text" ? 1 : -1);
-		const to = tr.mapping.mapResult(highlight.to, -1);
-		if (from.deleted && to.deleted) continue;
-		if (from.pos >= to.pos) continue;
-		mapped.push({ ...highlight, from: from.pos, to: to.pos });
-	}
-	return mapped;
+	return highlights.flatMap((highlight) => mapRange(tr, highlight) ?? []);
 }
 
 /** The highlight under `pos`, preferring the shortest, so nested text wins over its block. */
@@ -128,6 +142,14 @@ function highlightAt(highlights: EditorialHighlight[], pos: number): EditorialHi
 		if (!best || highlight.to - highlight.from < best.to - best.from) best = highlight;
 	}
 	return best;
+}
+
+const MAC_PLATFORM = /Mac|iPhone|iPad|iPod/;
+
+/** Mod-Alt-M, matched by key position, since Alt changes the typed character on a Mac. */
+function isCommentShortcut(event: KeyboardEvent): boolean {
+	const mod = MAC_PLATFORM.test(navigator.platform) ? event.metaKey : event.ctrlKey;
+	return mod && event.altKey && !event.shiftKey && event.code === "KeyM";
 }
 
 export function createEditorialCommentsExtension(bridge: { current: EditorialCommentsBridge }) {
@@ -163,11 +185,7 @@ export function createEditorialCommentsExtension(bridge: { current: EditorialCom
 							const meta = tr.getMeta(editorialCommentsKey) as Meta | undefined;
 							if (!meta && !tr.docChanged) return previous;
 							let pending = previous.pending;
-							if (tr.docChanged && pending) {
-								const from = tr.mapping.map(pending.from, 1);
-								const to = tr.mapping.map(pending.to, -1);
-								pending = from < to ? { from, to } : null;
-							}
+							if (tr.docChanged && pending) pending = mapRange(tr, pending);
 							const next = {
 								highlights: meta?.highlights ?? mapHighlights(tr, previous.highlights),
 								pending: meta && "pending" in meta ? (meta.pending ?? null) : pending,
@@ -186,6 +204,14 @@ export function createEditorialCommentsExtension(bridge: { current: EditorialCom
 					props: {
 						decorations: (state) => editorialCommentsKey.getState(state)?.decorations,
 						handleDOMEvents: {
+							// The keymap only runs while the editor is editable.
+							keydown: (view, event) => {
+								if (view.editable || !isCommentShortcut(event)) return false;
+								if (!bridge.current.onCommentShortcut) return false;
+								event.preventDefault();
+								bridge.current.onCommentShortcut();
+								return true;
+							},
 							mouseover: (view, event) => {
 								setHoveredThread(view, threadIdAt(view, event.target));
 								return false;
@@ -195,10 +221,12 @@ export function createEditorialCommentsExtension(bridge: { current: EditorialCom
 								return false;
 							},
 						},
-						handleClick(view, pos) {
+						handleClick(view, pos, event) {
 							const state = editorialCommentsKey.getState(view.state);
-							const hit = state ? highlightAt(state.highlights, pos) : null;
-							if (hit) bridge.current.onActivate?.(hit.threadId);
+							const threadId =
+								(state ? highlightAt(state.highlights, pos)?.threadId : null) ??
+								threadIdAt(view, event.target);
+							if (threadId) bridge.current.onActivate?.(threadId);
 							else bridge.current.onDeactivate?.();
 							return false;
 						},
@@ -321,33 +349,65 @@ export function anchorForRange(
 }
 
 export type SelectionAnchorResult =
-	| { ok: true; anchor: EditorialTextAnchor; from: number; to: number }
-	| { ok: false; reason: "empty" | "multiple-blocks" | "too-long" };
+	| { ok: true; anchor: EditorialAnchor; range: EditorialRange }
+	| { ok: false; reason: "empty" | "multiple-blocks" | "too-long" | "unkeyed" };
+
+/** Whether a node is a top-level block other than a paragraph or heading, such as an image. */
+export function isCommentableBlock(node: PMNode, parent: PMNode | null): boolean {
+	if (node.isTextblock && node.type.name !== "codeBlock") return false;
+	return ownsPortableTextKey(node, parent);
+}
 
 /**
- * A text anchor for the current selection. A block without a Portable Text
- * key yet gets one, so the anchor and the next save agree on it.
+ * An anchor for the current selection: a text anchor for text within one
+ * block, or a block anchor for a selected block such as an image. A block
+ * without a Portable Text key yet gets one, so the anchor and the next save
+ * agree on it, unless `assignKey` is false, as in a read-only editor.
  */
 export function anchorForSelection(
 	state: EditorState,
 	dispatch: (tr: Transaction) => void,
 	field: string,
 	generateKey: () => string,
+	assignKey = true,
 ): SelectionAnchorResult {
-	const { from, to, $from, $to } = state.selection;
+	const { selection } = state;
+	const { from, to, $from, $to } = selection;
+	if (selection instanceof NodeSelection && isCommentableBlock(selection.node, $from.parent)) {
+		const keyed = ensureKey(state, dispatch, from, generateKey, assignKey);
+		if (!keyed) return { ok: false, reason: "unkeyed" };
+		return {
+			ok: true,
+			anchor: { type: "block", field, blockKey: keyed.key },
+			range: { kind: "block", from, to },
+		};
+	}
 	if (from === to) return { ok: false, reason: "empty" };
 	if (!$from.sameParent($to) || !$from.parent.isTextblock) {
 		return { ok: false, reason: "multiple-blocks" };
 	}
-	let doc = state.doc;
-	if (!$from.parent.attrs[PORTABLE_TEXT_KEY_ATTR]) {
-		const tr = state.tr
-			.setNodeAttribute($from.before(), PORTABLE_TEXT_KEY_ATTR, generateKey())
-			.setMeta("addToHistory", false);
-		dispatch(tr);
-		doc = tr.doc;
-	}
-	const anchor = anchorForRange(doc, field, from, to);
+	const keyed = ensureKey(state, dispatch, $from.before(), generateKey, assignKey);
+	if (!keyed) return { ok: false, reason: "unkeyed" };
+	const anchor = anchorForRange(keyed.doc, field, from, to);
 	if (!anchor) return { ok: false, reason: "too-long" };
-	return { ok: true, anchor, from, to };
+	return { ok: true, anchor, range: { kind: "text", from, to } };
+}
+
+/** The key of the block at `pos`, giving it one outside the undo history if it has none. */
+function ensureKey(
+	state: EditorState,
+	dispatch: (tr: Transaction) => void,
+	pos: number,
+	generateKey: () => string,
+	assignKey: boolean,
+): { key: string; doc: PMNode } | null {
+	const existing: unknown = state.doc.nodeAt(pos)?.attrs[PORTABLE_TEXT_KEY_ATTR];
+	if (typeof existing === "string" && existing) return { key: existing, doc: state.doc };
+	if (!assignKey) return null;
+	const key = generateKey();
+	const tr = state.tr
+		.setNodeAttribute(pos, PORTABLE_TEXT_KEY_ATTR, key)
+		.setMeta("addToHistory", false);
+	dispatch(tr);
+	return { key, doc: tr.doc };
 }

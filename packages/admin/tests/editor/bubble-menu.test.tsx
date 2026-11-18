@@ -391,6 +391,24 @@ describe("Bubble Menu", () => {
 		draft.remove();
 	});
 
+	it("offers only Comment on a selection in a read-only editor", async () => {
+		const onComment = vi.fn();
+		const { editor, pm } = await renderEditor({
+			editable: false,
+			editorialComments: { onComment },
+		});
+		await focusAndSelectAll(editor, pm);
+		const menu = await waitForBubbleMenu();
+
+		expect(menu.getAttribute("aria-label")).toBe("Selection actions");
+		const buttons = [...menu.querySelectorAll<HTMLElement>("button")];
+		expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual(["Comment"]);
+		await userEvent.click(buttons[0]!);
+
+		expect(onComment).toHaveBeenCalledOnce();
+		expect(editor.state.doc.textContent).toBe("Hello world");
+	});
+
 	it("is a toolbar whose buttons the arrow keys move between", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);
