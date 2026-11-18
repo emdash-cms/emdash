@@ -192,12 +192,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(פריט אחד)} two {(שני פריטים)} other {(# פריטים)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4587
+#: packages/admin/src/components/ContentEditor.tsx:4625
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} מתוך תו אחד, לפחות {min}} two {{counted} מתוך שני תווים, לפחות {min}} other {{counted} מתוך # תווים, לפחות {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4592
+#: packages/admin/src/components/ContentEditor.tsx:4630
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} מתוך תו אחד} two {{counted} מתוך שני תווים} other {{counted} מתוך # תווים}}"
 
@@ -219,7 +219,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {תגובה אחת יובאה} two {שתי תגובות יובאו} other {# תגובות יובאו}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:3075
+#: packages/admin/src/router.tsx:3093
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {תגובה אחת עודכנה} two {שתי תגובות עודכנו} other {# תגובות עודכנו}}"
 
@@ -244,7 +244,7 @@ msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {פריט אחד} two {שני פריטים} other {# פריטים}}"
 
 #. placeholder {0}: count ?? issues.length
-#: packages/admin/src/components/BlocksField.tsx:557
+#: packages/admin/src/components/BlocksField.tsx:567
 msgid "{0, plural, one {# field needs attention} other {# fields need attention}}"
 msgstr ""
 
@@ -416,7 +416,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:4597
+#: packages/admin/src/components/ContentEditor.tsx:4635
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {תו אחד לפחות} two {שני תווים לפחות} other {# תווים לפחות}}"
 
@@ -596,7 +596,7 @@ msgid "{0} preview"
 msgstr "תצוגה מקדימה של {0}"
 
 #. placeholder {0}: byline.displayName
-#: packages/admin/src/components/BylineCreditsEditor.tsx:528
+#: packages/admin/src/components/BylineCreditsEditor.tsx:529
 msgid "{0} removed from this post."
 msgstr "{0} הוסר מהפוסט הזה."
 
@@ -623,7 +623,7 @@ msgid "{0} updated to v{installedVersion}"
 msgstr "{0} עודכן לגרסה v{installedVersion}"
 
 #. placeholder {0}: draft.description.length
-#: packages/admin/src/components/SeoPanel.tsx:261
+#: packages/admin/src/components/SeoPanel.tsx:262
 msgid "{0}/160 characters"
 msgstr "{0}/160 תווים"
 
@@ -676,7 +676,7 @@ msgstr ""
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {קובץ אחד} two {שני קבצים} other {# קבצים}}"
 
-#: packages/admin/src/components/BlockListField.tsx:165
+#: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
 #: packages/admin/src/components/WordPressImport.tsx:2401
 msgid "{count, plural, one {# item} other {# items}}"
@@ -744,17 +744,17 @@ msgstr "{label} — אין תרגום"
 msgid "{label} — view translation"
 msgstr "{label} — הצגת תרגום"
 
-#: packages/admin/src/components/BlocksField.tsx:1648
+#: packages/admin/src/components/BlocksField.tsx:1736
 msgid "{label} · version {versionNumber}"
 msgstr ""
 
-#: packages/admin/src/components/BlockListField.tsx:1113
-#: packages/admin/src/components/BlockListField.tsx:1156
+#: packages/admin/src/components/BlockListField.tsx:1128
+#: packages/admin/src/components/BlockListField.tsx:1171
 msgid "{label} {position}"
 msgstr ""
 
-#: packages/admin/src/components/BlockListField.tsx:1022
-#: packages/admin/src/components/BlocksField.tsx:1599
+#: packages/admin/src/components/BlockListField.tsx:1037
+#: packages/admin/src/components/BlocksField.tsx:1687
 msgid "{label} actions"
 msgstr ""
 
@@ -790,7 +790,7 @@ msgstr "אפשרויות {label}"
 msgid "{label}, {restored}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:2283
+#: packages/admin/src/components/BlocksField.tsx:2371
 msgid "{label}: {value}"
 msgstr ""
 
@@ -798,7 +798,7 @@ msgstr ""
 msgid "{lateness} late"
 msgstr "באיחור של {lateness}"
 
-#: packages/admin/src/components/BlocksField.tsx:1238
+#: packages/admin/src/components/BlocksField.tsx:1325
 msgid "{list} +{more}"
 msgstr ""
 
@@ -830,7 +830,7 @@ msgstr ""
 msgid "{maximum, plural, one {Use at most # character} other {Use at most # characters}}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:495
+#: packages/admin/src/components/BlocksField.tsx:505
 msgid "{maxItems, plural, one {This field holds up to # block.} other {This field holds up to # blocks.}}"
 msgstr ""
 
@@ -854,13 +854,13 @@ msgstr ""
 msgid "{more, plural, one {Show # more person} other {Show # more people}}"
 msgstr ""
 
-#: packages/admin/src/components/BlockListField.tsx:662
-#: packages/admin/src/components/BlocksField.tsx:1044
+#: packages/admin/src/components/BlockListField.tsx:677
+#: packages/admin/src/components/BlocksField.tsx:1129
 msgid "{moved} is already first"
 msgstr ""
 
-#: packages/admin/src/components/BlockListField.tsx:662
-#: packages/admin/src/components/BlocksField.tsx:1045
+#: packages/admin/src/components/BlockListField.tsx:677
+#: packages/admin/src/components/BlocksField.tsx:1130
 msgid "{moved} is already last"
 msgstr ""
 
@@ -1072,11 +1072,11 @@ msgstr "{title} פורסם."
 msgid "{title} now goes live {when}."
 msgstr "{title} יתפרסם בתאריך {when}."
 
-#: packages/admin/src/components/BlocksField.tsx:945
+#: packages/admin/src/components/BlocksField.tsx:1023
 msgid "{toFix, plural, one {# to fix. Go to the problem} other {# to fix. Go to the next problem}}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:951
+#: packages/admin/src/components/BlocksField.tsx:1029
 msgid "{toFix, plural, one {# to fix} other {# to fix}}"
 msgstr ""
 
@@ -1164,7 +1164,7 @@ msgstr "<0>{name}</0> עורך/ת את הפריט הזה. פתחו אותו לק
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "<0>{name}</0> מחזיק/ה כעת בפריט הזה, ולכן השינויים שלכם אינם נשמרים עוד. קחו אותו בחזרה כדי להמשיך."
 
-#: packages/admin/src/components/BlocksField.tsx:1408
+#: packages/admin/src/components/BlocksField.tsx:1496
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
 msgid "<0>Alt-click</0> to add above"
 msgstr ""
@@ -1173,12 +1173,12 @@ msgstr ""
 msgid "<0>Click</0> to add below"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1454
+#: packages/admin/src/components/BlocksField.tsx:1542
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
 msgid "<0>Click</0> to open menu"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1450
+#: packages/admin/src/components/BlocksField.tsx:1538
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
 msgid "<0>Drag</0> to move"
 msgstr ""
@@ -1338,7 +1338,7 @@ msgstr "קובץ בחבילה חסר"
 msgid "A publication time has not been selected"
 msgstr "לא נבחר זמן פרסום"
 
-#: packages/admin/src/components/ContentEditor.tsx:2197
+#: packages/admin/src/components/ContentEditor.tsx:2217
 msgid "A publishing action is already in progress"
 msgstr "פעולת פרסום כבר מתבצעת"
 
@@ -1437,7 +1437,7 @@ msgstr "אישור הזמנה"
 msgid "Access denied"
 msgstr "הגישה נדחתה"
 
-#: packages/admin/src/router.tsx:3097
+#: packages/admin/src/router.tsx:3115
 msgid "Access Denied"
 msgstr "הגישה נדחתה"
 
@@ -1466,7 +1466,7 @@ msgstr "פרטי חשבון"
 msgid "ACF Fields"
 msgstr "שדות ACF"
 
-#: packages/admin/src/components/BlockListField.tsx:736
+#: packages/admin/src/components/BlockListField.tsx:751
 #: packages/admin/src/components/comments/CommentInbox.tsx:365
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentList.tsx:924
@@ -1550,7 +1550,7 @@ msgstr "הוספת {singularLower} לפוסט אחד"
 msgid "Add {singularLower} to posts"
 msgstr "הוספת {singularLower} לפוסטים"
 
-#: packages/admin/src/components/BlocksField.tsx:2222
+#: packages/admin/src/components/BlocksField.tsx:2310
 msgid "Add a caption"
 msgstr ""
 
@@ -1571,11 +1571,11 @@ msgstr "הוספת מפתח גישה עבור {0}"
 msgid "Add a person or team to credit on your content."
 msgstr "הוסיפו אדם או צוות שיקבלו קרדיט על התוכן שלכם."
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:467
+#: packages/admin/src/components/BylineCreditsEditor.tsx:468
 msgid "Add another byline"
 msgstr "הוספת קרדיט נוסף"
 
-#: packages/admin/src/components/BlocksField.tsx:1069
+#: packages/admin/src/components/BlocksField.tsx:1154
 msgid "Add at least {minItems} blocks."
 msgstr "הוסיפו לפחות {minItems} בלוקים."
 
@@ -1589,21 +1589,21 @@ msgstr ""
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "הוסיפו לפחות שדה משנה אחד כדי להגדיר את מבנה הרשימה החוזרת."
 
-#: packages/admin/src/components/BlocksField.tsx:908
+#: packages/admin/src/components/BlocksField.tsx:986
 #: packages/admin/src/components/BlockTypePicker.tsx:80
 msgid "Add block"
 msgstr "הוספת בלוק"
 
-#: packages/admin/src/components/BlocksField.tsx:1629
+#: packages/admin/src/components/BlocksField.tsx:1717
 msgid "Add block above"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1406
-#: packages/admin/src/components/BlocksField.tsx:1630
+#: packages/admin/src/components/BlocksField.tsx:1494
+#: packages/admin/src/components/BlocksField.tsx:1718
 msgid "Add block below"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1425
+#: packages/admin/src/components/BlocksField.tsx:1513
 msgid "Add block below {label}"
 msgstr ""
 
@@ -1680,7 +1680,7 @@ msgstr "הוספת תמונות"
 msgid "Add images to gallery"
 msgstr "הוספת תמונות לגלריה"
 
-#: packages/admin/src/components/BlockListField.tsx:885
+#: packages/admin/src/components/BlockListField.tsx:900
 #: packages/admin/src/components/PortableTextEditor.tsx:1633
 msgid "Add item"
 msgstr "הוספת פריט"
@@ -1689,15 +1689,15 @@ msgstr "הוספת פריט"
 msgid "Add Item"
 msgstr "הוספת פריט"
 
-#: packages/admin/src/components/BlockListField.tsx:1046
+#: packages/admin/src/components/BlockListField.tsx:1061
 msgid "Add item above"
 msgstr ""
 
-#: packages/admin/src/components/BlockListField.tsx:1047
+#: packages/admin/src/components/BlockListField.tsx:1062
 msgid "Add item below"
 msgstr ""
 
-#: packages/admin/src/components/BlockListField.tsx:882
+#: packages/admin/src/components/BlockListField.tsx:897
 msgid "Add item to {label}"
 msgstr ""
 
@@ -1725,7 +1725,7 @@ msgstr "הוספת חדש"
 msgid "Add new folder"
 msgstr "הוספת תיקייה חדשה"
 
-#: packages/admin/src/components/SeoPanel.tsx:287
+#: packages/admin/src/components/SeoPanel.tsx:288
 msgid "Add noindex meta tag"
 msgstr "הוספת תגית meta מסוג noindex"
 
@@ -1737,8 +1737,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "הוספת מפתח גישה"
 
-#: packages/admin/src/components/ContentEditor.tsx:4501
-#: packages/admin/src/components/ContentEditor.tsx:4501
+#: packages/admin/src/components/ContentEditor.tsx:4539
+#: packages/admin/src/components/ContentEditor.tsx:4539
 msgid "Add reference"
 msgstr "הוספת קישור"
 
@@ -1902,12 +1902,12 @@ msgstr "ניווט ניהול"
 msgid "Administrator"
 msgstr "מנהל/ת"
 
-#: packages/admin/src/components/BlocksField.tsx:2344
+#: packages/admin/src/components/BlocksField.tsx:2432
 #: packages/admin/src/components/PortableTextEditor.tsx:501
 msgid "Advanced"
 msgstr "מתקדם"
 
-#: packages/admin/src/components/BlocksField.tsx:2327
+#: packages/admin/src/components/BlocksField.tsx:2415
 msgid "Advanced: {blockLabel}"
 msgstr ""
 
@@ -2049,7 +2049,7 @@ msgid "Allowed block types"
 msgstr "סוגי בלוקים מותרים"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:3178
+#: packages/admin/src/router.tsx:3196
 msgid "Allowed Domains"
 msgstr "דומיינים מורשים"
 
@@ -2169,15 +2169,15 @@ msgstr "מפתח דיגיטלי מוצפן שנפתח באמצעות טביעת 
 #: packages/admin/src/router.tsx:1207
 #: packages/admin/src/router.tsx:1373
 #: packages/admin/src/router.tsx:1441
-#: packages/admin/src/router.tsx:1779
-#: packages/admin/src/router.tsx:1947
-#: packages/admin/src/router.tsx:1972
-#: packages/admin/src/router.tsx:2059
-#: packages/admin/src/router.tsx:2091
-#: packages/admin/src/router.tsx:3047
-#: packages/admin/src/router.tsx:3083
-#: packages/admin/src/router.tsx:3590
-#: packages/admin/src/router.tsx:3780
+#: packages/admin/src/router.tsx:1795
+#: packages/admin/src/router.tsx:1963
+#: packages/admin/src/router.tsx:1988
+#: packages/admin/src/router.tsx:2075
+#: packages/admin/src/router.tsx:2107
+#: packages/admin/src/router.tsx:3065
+#: packages/admin/src/router.tsx:3101
+#: packages/admin/src/router.tsx:3608
+#: packages/admin/src/router.tsx:3798
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "אירעה שגיאה"
@@ -2280,7 +2280,7 @@ msgstr ""
 #: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:3190
+#: packages/admin/src/router.tsx:3208
 msgid "API Tokens"
 msgstr "אסימוני API"
 
@@ -2411,11 +2411,11 @@ msgstr "עוזרים שמחוברים דרך MCP צריכים אישור של מ
 msgid "Astro"
 msgstr "מסגרת Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:4620
+#: packages/admin/src/components/ContentEditor.tsx:4658
 msgid "At least {min}"
 msgstr "לפחות {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4617
+#: packages/admin/src/components/ContentEditor.tsx:4655
 msgid "At most {max}"
 msgstr "לכל היותר {max}"
 
@@ -2462,7 +2462,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "האימות בוטל או שתם זמנו. נסו שוב."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1418
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1422
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2532,7 +2532,7 @@ msgstr "נוצר אוטומטית מהשם (ניתן לערוך)"
 msgid "Auto-generated from the title. You can change it."
 msgstr "נוצר אוטומטית מהכותרת. אפשר לשנות אותו."
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:550
+#: packages/admin/src/components/BylineCreditsEditor.tsx:551
 msgid "Automatic"
 msgstr "אוטומטי"
 
@@ -2546,11 +2546,11 @@ msgstr "גיבויים אוטומטיים"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "גיבויים אוטומטיים דורשים תשתית אחסון (R2, S3 או אחסון מקומי). הגדירו אחסון בתצורת EmDash שלכם כדי להפעיל אותם."
 
-#: packages/admin/src/router.tsx:1914
+#: packages/admin/src/router.tsx:1930
 msgid "Autosave failed"
 msgstr "שמירה אוטומטית נכשלה"
 
-#: packages/admin/src/components/ContentEditor.tsx:247
+#: packages/admin/src/components/ContentEditor.tsx:249
 msgid "Autosave paused"
 msgstr ""
 
@@ -2595,7 +2595,7 @@ msgstr "חזרה"
 msgid "Back"
 msgstr "חזרה"
 
-#: packages/admin/src/components/ContentEditor.tsx:2513
+#: packages/admin/src/components/ContentEditor.tsx:2533
 msgid "Back to {collectionLabel} list"
 msgstr "חזרה לרשימת {collectionLabel}"
 
@@ -2676,7 +2676,7 @@ msgstr "הגדרות הגיבוי נשמרו"
 
 #: packages/admin/src/components/Settings.tsx:126
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:3214
+#: packages/admin/src/router.tsx:3232
 msgid "Backups"
 msgstr "גיבויים"
 
@@ -2704,7 +2704,7 @@ msgstr "לפני שליחה:"
 msgid "Before you continue:"
 msgstr "לפני שתמשיכו:"
 
-#: packages/admin/src/components/ContentEditor.tsx:4614
+#: packages/admin/src/components/ContentEditor.tsx:4652
 msgid "Between {min} and {max}"
 msgstr "בין {min} ל-{max}"
 
@@ -2775,7 +2775,7 @@ msgstr ""
 msgid "Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links."
 msgstr "שני שדות הקישור שמשויכים לקשר הזה חולקים את המגבלות האלה, כך ששני הצדדים לא יכולים לחלוק על אותם קישורים."
 
-#: packages/admin/src/components/SeoPanel.tsx:241
+#: packages/admin/src/components/SeoPanel.tsx:242
 msgid "Brief summary shown below the title in search results"
 msgstr "תקציר קצר שמוצג מתחת לכותרת בתוצאות החיפוש"
 
@@ -2874,7 +2874,7 @@ msgid "Byline schema"
 msgstr "סכמת קרדיטים"
 
 #: packages/admin/src/components/Sidebar.tsx:583
-#: packages/admin/src/router.tsx:3527
+#: packages/admin/src/router.tsx:3545
 msgid "Byline Schema"
 msgstr "סכמת קרדיטים"
 
@@ -2884,12 +2884,12 @@ msgstr "הקרדיט עודכן"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:385
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1191
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1195
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:549
 #: packages/admin/src/lib/editor-sections.ts:34
-#: packages/admin/src/router.tsx:3516
+#: packages/admin/src/router.tsx:3534
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "קרדיטים"
@@ -3018,8 +3018,8 @@ msgstr "בביטול…"
 msgid "Cannot delete theme sections"
 msgstr "לא ניתן למחוק מקטעי ערכת עיצוב"
 
-#: packages/admin/src/components/SeoPanel.tsx:271
-#: packages/admin/src/components/SeoPanel.tsx:276
+#: packages/admin/src/components/SeoPanel.tsx:272
+#: packages/admin/src/components/SeoPanel.tsx:277
 msgid "Canonical URL"
 msgstr "URL קנוני"
 
@@ -3201,11 +3201,11 @@ msgstr ""
 msgid "Changelog"
 msgstr "יומן שינויים"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:626
+#: packages/admin/src/components/BylineCreditsEditor.tsx:629
 msgid "Changes apply everywhere this byline appears."
 msgstr "השינויים חלים בכל מקום שבו הקרדיט הזה מופיע."
 
-#: packages/admin/src/router.tsx:1990
+#: packages/admin/src/router.tsx:2006
 msgid "Changes discarded"
 msgstr "השינויים בוטלו"
 
@@ -3389,8 +3389,8 @@ msgstr "בחירת אפשרות אחרת"
 msgid "Choose at least one block type."
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:567
-#: packages/admin/src/components/BylineCreditsEditor.tsx:582
+#: packages/admin/src/components/BylineCreditsEditor.tsx:569
+#: packages/admin/src/components/BylineCreditsEditor.tsx:585
 msgid "Choose bylines"
 msgstr "בחירת קרדיטים"
 
@@ -3463,7 +3463,7 @@ msgstr "בחרו את שפת הניהול המועדפת עליכם"
 msgid "Choose…"
 msgstr "בחירה…"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:556
+#: packages/admin/src/components/BylineCreditsEditor.tsx:557
 msgid "Choosing a byline replaces this automatic credit."
 msgstr "בחירת קרדיט מחליפה את הקרדיט האוטומטי הזה."
 
@@ -3576,7 +3576,7 @@ msgstr "סגירת הגדרות תמונה"
 msgid "Close panel"
 msgstr "סגירת חלונית"
 
-#: packages/admin/src/components/ContentEditor.tsx:3323
+#: packages/admin/src/components/ContentEditor.tsx:3355
 msgid "Close settings"
 msgstr "סגירת הגדרות"
 
@@ -3600,7 +3600,7 @@ msgstr "בלוק קוד"
 msgid "Code block actions"
 msgstr "פעולות בלוק קוד"
 
-#: packages/admin/src/components/BlocksField.tsx:984
+#: packages/admin/src/components/BlocksField.tsx:1062
 msgid "Collapse all"
 msgstr ""
 
@@ -3630,7 +3630,7 @@ msgstr "האוסף “{0}” נוצר באתר הזה"
 
 #: packages/admin/src/router.tsx:848
 #: packages/admin/src/router.tsx:1051
-#: packages/admin/src/router.tsx:2510
+#: packages/admin/src/router.tsx:2526
 msgid "Collection \"{collection}\" not found"
 msgstr ""
 
@@ -3713,7 +3713,7 @@ msgstr "תגובות רגשיות לתגובות"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:513
-#: packages/admin/src/router.tsx:2972
+#: packages/admin/src/router.tsx:2990
 msgid "Comments"
 msgstr "תגובות"
 
@@ -3843,7 +3843,7 @@ msgstr "שגיאות תוכן ({0})"
 msgid "Content found:"
 msgstr "תוכן שנמצא:"
 
-#: packages/admin/src/router.tsx:2040
+#: packages/admin/src/router.tsx:2056
 msgid "Content has been scheduled for publishing"
 msgstr "התוכן תוזמן לפרסום"
 
@@ -3851,11 +3851,11 @@ msgstr "התוכן תוזמן לפרסום"
 msgid "Content ID:"
 msgstr "מזהה תוכן:"
 
-#: packages/admin/src/router.tsx:1941
+#: packages/admin/src/router.tsx:1957
 msgid "Content is now live"
 msgstr "התוכן חי כעת"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1151
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1155
 msgid "Content language"
 msgstr "שפת התוכן"
 
@@ -3876,11 +3876,11 @@ msgstr "התוכן מפנה למדיה בצורה לא תקינה"
 msgid "Content refers to media that is not in the package"
 msgstr "התוכן מפנה למדיה שאינה בחבילה"
 
-#: packages/admin/src/router.tsx:1966
+#: packages/admin/src/router.tsx:1982
 msgid "Content removed from public view"
 msgstr "התוכן הוסר מהתצוגה הציבורית"
 
-#: packages/admin/src/router.tsx:2052
+#: packages/admin/src/router.tsx:2068
 msgid "Content reverted to draft"
 msgstr "התוכן הוחזר לטיוטה"
 
@@ -3903,7 +3903,7 @@ msgstr "סוגי תוכן"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:579
-#: packages/admin/src/router.tsx:3535
+#: packages/admin/src/router.tsx:3553
 msgid "Content Types"
 msgstr "סוגי תוכן"
 
@@ -4126,7 +4126,7 @@ msgstr "לא ניתן לזהות WordPress"
 msgid "Couldn’t join. Try again."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4478
+#: packages/admin/src/components/ContentEditor.tsx:4516
 msgid "Couldn't load all references."
 msgstr "לא ניתן לטעון את כל הקישורים."
 
@@ -4289,7 +4289,7 @@ msgstr "יצירת פרופיל למי שמקבל/ת קרדיט על התוכן 
 msgid "Create an account"
 msgstr "יצירת חשבון"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:625
+#: packages/admin/src/components/BylineCreditsEditor.tsx:628
 msgid "Create and add"
 msgstr "יצירה והוספה"
 
@@ -4432,7 +4432,7 @@ msgid "Create, update, delete content"
 msgstr "יצירה, עדכון ומחיקת תוכן"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1100
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1104
 #: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:223
@@ -4450,11 +4450,11 @@ msgid "Created {0}"
 msgstr "{0} נוצר"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:2083
+#: packages/admin/src/router.tsx:2099
 msgid "Created {0} translation"
 msgstr "נוצר תרגום {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1080
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1084
 msgid "Created and updated"
 msgstr "נוצרו ועודכנו"
 
@@ -4564,7 +4564,7 @@ msgstr "מקטע מותאם אישית"
 msgid "Custom Taxonomies"
 msgstr "טקסונומיות מותאמות אישית"
 
-#: packages/admin/src/components/ContentEditor.tsx:2988
+#: packages/admin/src/components/ContentEditor.tsx:3010
 #: packages/admin/src/components/Sidebar.tsx:796
 msgid "Customize sidebar"
 msgstr ""
@@ -4678,7 +4678,7 @@ msgstr "הגדרת מבנה התוכן שלכם"
 msgid "Defined in code"
 msgstr "מוגדר בקוד"
 
-#: packages/admin/src/components/BlocksField.tsx:1099
+#: packages/admin/src/components/BlocksField.tsx:1184
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4758,7 +4758,7 @@ msgstr "מחיקת אזור וידג׳טים {0}"
 msgid "Delete {0}?"
 msgstr "למחוק את {0}?"
 
-#: packages/admin/src/components/BlocksField.tsx:1097
+#: packages/admin/src/components/BlocksField.tsx:1182
 msgid "Delete {confirmName}?"
 msgstr ""
 
@@ -4907,8 +4907,8 @@ msgstr ""
 msgid "Deleted"
 msgstr "נמחק"
 
-#: packages/admin/src/components/BlocksField.tsx:824
-#: packages/admin/src/components/BlocksField.tsx:850
+#: packages/admin/src/components/BlocksField.tsx:902
+#: packages/admin/src/components/BlocksField.tsx:928
 msgid "Deleted {name}"
 msgstr ""
 
@@ -4923,7 +4923,7 @@ msgstr "מחיקת \"{0}\" תמחק גם כל מונח שבו, בכל השפות
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "מחיקת \"{0}\" תסיר גם {1, plural, one {ערך שמור אחד} two {שני ערכים שמורים} other {# ערכים שמורים}} מכל הקרדיטים. לא ניתן לבטל פעולה זו."
 
-#: packages/admin/src/components/BlocksField.tsx:1100
+#: packages/admin/src/components/BlocksField.tsx:1185
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1796
@@ -5163,7 +5163,7 @@ msgstr "סגירת {0} שהושלמו"
 msgid "Dismiss import suggestion"
 msgstr "סגירת הצעת הייבוא"
 
-#: packages/admin/src/components/ContentEditor.tsx:3278
+#: packages/admin/src/components/ContentEditor.tsx:3310
 msgid "Dismiss save error"
 msgstr ""
 
@@ -5260,7 +5260,7 @@ msgid "Don’t map"
 msgstr "ללא מיפוי"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:505
-#: packages/admin/src/components/BylineCreditsEditor.tsx:774
+#: packages/admin/src/components/BylineCreditsEditor.tsx:777
 #: packages/admin/src/components/ContentList.tsx:1224
 #: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
@@ -5444,11 +5444,11 @@ msgstr "שכפול"
 msgid "Duplicate redirects were left out"
 msgstr "הפניות כפולות הושמטו"
 
-#: packages/admin/src/components/BlockListField.tsx:438
+#: packages/admin/src/components/BlockListField.tsx:453
 msgid "Duplicated {copied}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:766
+#: packages/admin/src/components/BlocksField.tsx:844
 msgid "Duplicated {name}"
 msgstr ""
 
@@ -5524,12 +5524,12 @@ msgstr "עריכת {0}"
 msgid "Edit {0} field"
 msgstr "עריכת שדה {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2307
-#: packages/admin/src/components/ContentEditor.tsx:2315
+#: packages/admin/src/components/ContentEditor.tsx:2327
+#: packages/admin/src/components/ContentEditor.tsx:2335
 msgid "Edit {itemLabel}"
 msgstr "עריכת {itemLabel}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2314
+#: packages/admin/src/components/ContentEditor.tsx:2334
 msgid "Edit {itemLabel}: {tabEntryTitle}"
 msgstr ""
 
@@ -5549,7 +5549,7 @@ msgstr "עריכת {label}"
 msgid "Edit asset"
 msgstr "עריכת נכס"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:735
+#: packages/admin/src/components/BylineCreditsEditor.tsx:738
 #: packages/admin/src/components/BylineFormDialog.tsx:387
 msgid "Edit byline"
 msgstr "עריכת קרדיט"
@@ -5568,7 +5568,7 @@ msgstr ""
 msgid "Edit content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3729
+#: packages/admin/src/router.tsx:3747
 msgid "Edit content type"
 msgstr ""
 
@@ -5619,7 +5619,7 @@ msgstr "נעילת עריכה"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "עריכת טקסט חלופי, כיתובים ונקודות מוקד של מדיה"
 
-#: packages/admin/src/router.tsx:3433
+#: packages/admin/src/router.tsx:3451
 msgid "Edit menu"
 msgstr ""
 
@@ -5645,11 +5645,11 @@ msgstr "עריכת הפניה"
 msgid "Edit redirect {0}"
 msgstr "עריכת הפניה {0}"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:727
+#: packages/admin/src/components/BylineCreditsEditor.tsx:730
 msgid "Edit role"
 msgstr "עריכת תפקיד"
 
-#: packages/admin/src/router.tsx:3482
+#: packages/admin/src/router.tsx:3500
 msgid "Edit section"
 msgstr ""
 
@@ -5806,7 +5806,7 @@ msgstr "ספק אימייל פעיל"
 
 #: packages/admin/src/components/Settings.tsx:116
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:3202
+#: packages/admin/src/router.tsx:3220
 msgid "Email Settings"
 msgstr "הגדרות אימייל"
 
@@ -5894,7 +5894,7 @@ msgstr "EmDash סורק תוכן קיים."
 msgid "EmDash never receives your PIN, password, or biometric information."
 msgstr "EmDash אינו מקבל לעולם את ה-PIN, הסיסמה או המידע הביומטרי שלכם."
 
-#: packages/admin/src/router.tsx:2552
+#: packages/admin/src/router.tsx:2568
 msgid "EmDash or this entry’s fields changed since you opened it."
 msgstr ""
 
@@ -5962,7 +5962,7 @@ msgstr "הפעילו מעקב כדי לאנדקס תוכן קיים ולשמור
 msgid "Enabled"
 msgstr "מופעל"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1154
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "נעשה שימוש באנגלית משום שלא מוגדרת שפת תוכן. שפת התוכן נשמרת עם הפריט ונפרדת משפת הניהול שלכם."
 
@@ -6104,7 +6104,7 @@ msgid "Enter a valid time"
 msgstr ""
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:4668
+#: packages/admin/src/components/ContentEditor.tsx:4706
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "הזינו URL תקין (למשל, https://example.com)"
 
@@ -6137,7 +6137,7 @@ msgstr "הזינו אישורים ידנית"
 msgid "Enter email"
 msgstr "הזנת אימייל"
 
-#: packages/admin/src/components/ContentEditor.tsx:3820
+#: packages/admin/src/components/ContentEditor.tsx:3856
 msgid "Enter markdown content..."
 msgstr "הזינו תוכן markdown..."
 
@@ -6202,7 +6202,7 @@ msgstr "פריט בצד המקשר"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:4063
+#: packages/admin/src/router.tsx:4081
 msgid "Error"
 msgstr "שגיאה"
 
@@ -6283,7 +6283,7 @@ msgstr "תוכן קיים מאונדקס. שינויים חדשים נמצאים
 msgid "Exists"
 msgstr "קיים"
 
-#: packages/admin/src/components/BlocksField.tsx:984
+#: packages/admin/src/components/BlocksField.tsx:1062
 msgid "Expand all"
 msgstr ""
 
@@ -6538,7 +6538,7 @@ msgid "Failed to create term translation"
 msgstr ""
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:874
-#: packages/admin/src/router.tsx:2088
+#: packages/admin/src/router.tsx:2104
 msgid "Failed to create translation"
 msgstr "יצירת תרגום נכשלה"
 
@@ -6938,7 +6938,7 @@ msgstr "אחזור סטטוס העדכון נכשל"
 #: packages/admin/src/lib/api/current-user.ts:30
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2993
+#: packages/admin/src/router.tsx:3011
 msgid "Failed to fetch user"
 msgstr "אחזור משתמש נכשל"
 
@@ -7127,7 +7127,7 @@ msgid "Failed to lock the entry"
 msgstr "נעילת הפריט נכשלה"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:3082
+#: packages/admin/src/router.tsx:3100
 msgid "Failed to perform bulk action"
 msgstr "ביצוע פעולה בכמות גדולה נכשל"
 
@@ -7145,8 +7145,8 @@ msgid "Failed to probe URL"
 msgstr ""
 
 #: packages/admin/src/router.tsx:783
-#: packages/admin/src/router.tsx:1946
-#: packages/admin/src/router.tsx:2296
+#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:2312
 msgid "Failed to publish"
 msgstr "הפרסום נכשל"
 
@@ -7158,7 +7158,7 @@ msgstr ""
 msgid "Failed to read byline field usage"
 msgstr "קריאת השימוש בשדה קרדיט נכשלה"
 
-#: packages/admin/src/router.tsx:3589
+#: packages/admin/src/router.tsx:3607
 msgid "Failed to register {slug}"
 msgstr ""
 
@@ -7235,11 +7235,11 @@ msgstr "ביטול אסימון API נכשל"
 msgid "Failed to rewrite URLs"
 msgstr "כתיבה מחדש של כתובות URL נכשלה"
 
-#: packages/admin/src/components/ContentEditor.tsx:3018
-#: packages/admin/src/components/ContentEditor.tsx:3270
+#: packages/admin/src/components/ContentEditor.tsx:3050
+#: packages/admin/src/components/ContentEditor.tsx:3302
 #: packages/admin/src/router.tsx:979
-#: packages/admin/src/router.tsx:1774
-#: packages/admin/src/router.tsx:3779
+#: packages/admin/src/router.tsx:1790
+#: packages/admin/src/router.tsx:3797
 msgid "Failed to save"
 msgstr "השמירה נכשלה"
 
@@ -7315,8 +7315,8 @@ msgstr "התחלת הייבוא נכשלה"
 msgid "Failed to uninstall plugin"
 msgstr "הסרת תוסף נכשלה"
 
-#: packages/admin/src/router.tsx:1971
-#: packages/admin/src/router.tsx:2343
+#: packages/admin/src/router.tsx:1987
+#: packages/admin/src/router.tsx:2359
 msgid "Failed to unpublish"
 msgstr "ביטול הפרסום נכשל"
 
@@ -7324,8 +7324,8 @@ msgstr "ביטול הפרסום נכשל"
 msgid "Failed to unpublish content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2058
-#: packages/admin/src/router.tsx:2437
+#: packages/admin/src/router.tsx:2074
+#: packages/admin/src/router.tsx:2453
 msgid "Failed to unschedule"
 msgstr "ביטול התזמון נכשל"
 
@@ -7424,7 +7424,7 @@ msgstr "עדכון מקטע נכשל"
 msgid "Failed to update settings"
 msgstr "עדכון הגדרות נכשל"
 
-#: packages/admin/src/router.tsx:3046
+#: packages/admin/src/router.tsx:3064
 msgid "Failed to update status"
 msgstr "עדכון סטטוס נכשל"
 
@@ -7661,19 +7661,19 @@ msgstr ""
 msgid "First-time commenters only"
 msgstr "מגיבים בפעם הראשונה בלבד"
 
-#: packages/admin/src/components/ContentEditor.tsx:251
+#: packages/admin/src/components/ContentEditor.tsx:253
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2289
+#: packages/admin/src/components/ContentEditor.tsx:2309
 msgid "Fix invalid fields before changing the publication date"
 msgstr "תקנו שדות לא תקינים לפני שינוי תאריך הפרסום"
 
-#: packages/admin/src/components/ContentEditor.tsx:2213
+#: packages/admin/src/components/ContentEditor.tsx:2233
 msgid "Fix invalid fields before changing the schedule"
 msgstr "תקנו שדות לא תקינים לפני שינוי התזמון"
 
-#: packages/admin/src/components/ContentEditor.tsx:250
+#: packages/admin/src/components/ContentEditor.tsx:252
 msgid "Fix the {block} block to resume saving."
 msgstr ""
 
@@ -7698,7 +7698,7 @@ msgstr "תיקייה"
 msgid "Folder deleted"
 msgstr "התיקייה נמחקה"
 
-#: packages/admin/src/router.tsx:2715
+#: packages/admin/src/router.tsx:2733
 msgid "Folder no longer exists"
 msgstr "התיקייה אינה קיימת עוד"
 
@@ -7771,7 +7771,7 @@ msgstr "מהחבילה (ריק)"
 msgid "From the package: “{packageValue}”"
 msgstr "מהחבילה: “{packageValue}”"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:553
+#: packages/admin/src/components/BylineCreditsEditor.tsx:554
 msgid "From the post owner"
 msgstr "מבעל/ת הפוסט"
 
@@ -7809,7 +7809,7 @@ msgid "General"
 msgstr "כללי"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:3253
+#: packages/admin/src/router.tsx:3271
 msgid "General Settings"
 msgstr "הגדרות כלליות"
 
@@ -7841,7 +7841,7 @@ msgstr "תנו למפתח הגישה הזה שם שיעזור לכם לזהות 
 msgid "Go"
 msgstr "מעבר"
 
-#: packages/admin/src/components/ContentEditor.tsx:2200
+#: packages/admin/src/components/ContentEditor.tsx:2220
 msgid "Go back to editing first."
 msgstr ""
 
@@ -7854,7 +7854,7 @@ msgid "Go live {countdown}"
 msgstr "יתפרסמו {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2500
-#: packages/admin/src/router.tsx:4083
+#: packages/admin/src/router.tsx:4101
 msgid "Go to Dashboard"
 msgstr "מעבר ללוח הבקרה"
 
@@ -7862,7 +7862,7 @@ msgstr "מעבר ללוח הבקרה"
 msgid "Go to sign-in"
 msgstr "מעבר להתחברות"
 
-#: packages/admin/src/components/BlocksField.tsx:938
+#: packages/admin/src/components/BlocksField.tsx:1016
 msgid "Go to the next problem"
 msgstr ""
 
@@ -7921,7 +7921,7 @@ msgstr "אורחים בלבד"
 msgid "Handle unavailable"
 msgstr "הכינוי אינו זמין"
 
-#: packages/admin/src/components/BlockListField.tsx:174
+#: packages/admin/src/components/BlockListField.tsx:176
 msgid "Has fields to fix"
 msgstr ""
 
@@ -8020,12 +8020,12 @@ msgstr "הסתרת פריטים מוקדמים"
 msgid "Hide from navigation"
 msgstr "הסתרה מהניווט"
 
-#: packages/admin/src/components/SeoPanel.tsx:290
-#: packages/admin/src/components/SeoPanel.tsx:293
+#: packages/admin/src/components/SeoPanel.tsx:291
+#: packages/admin/src/components/SeoPanel.tsx:294
 msgid "Hide from search engines"
 msgstr "הסתרה ממנועי חיפוש"
 
-#: packages/admin/src/components/SettingsPanelToggle.tsx:207
+#: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Hide settings"
 msgstr ""
 
@@ -8056,7 +8056,7 @@ msgstr "כניסות"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "החזיקו פריט בזמן שמישהו עורך אותו ודחו כותבים/ות אחרים"
 
-#: packages/admin/src/components/ContentEditor.tsx:4054
+#: packages/admin/src/components/ContentEditor.tsx:4090
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "מכיל מזהה פריט. הגדירו אוסף יעד תחת סוגי תוכן כדי לבחור פריטים במקום זאת."
 
@@ -8352,7 +8352,7 @@ msgid "Import failed"
 msgstr "הייבוא נכשל"
 
 #: packages/admin/src/components/WordPressImport.tsx:738
-#: packages/admin/src/router.tsx:3418
+#: packages/admin/src/router.tsx:3436
 msgid "Import from WordPress"
 msgstr "ייבוא מ-WordPress"
 
@@ -8447,7 +8447,7 @@ msgstr "בפח"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "בהגדרות Windows, פתחו חשבונות, לאחר מכן אפשרויות התחברות והגדירו PIN. טביעת אצבע וזיהוי פנים הם אופציונליים."
 
-#: packages/admin/src/components/BlocksField.tsx:1266
+#: packages/admin/src/components/BlocksField.tsx:1353
 msgid "Inactive version"
 msgstr "גרסה לא פעילה"
 
@@ -8644,7 +8644,7 @@ msgstr "כינוי לא תקין"
 msgid "Invalid invite link"
 msgstr "קישור הזמנה לא תקין"
 
-#: packages/admin/src/components/ContentEditor.tsx:4761
+#: packages/admin/src/components/ContentEditor.tsx:4799
 msgid "Invalid JSON"
 msgstr "JSON לא תקין"
 
@@ -8702,7 +8702,7 @@ msgstr "הפעלת כלי MCP מופעלים של תוסף זה בלבד"
 msgid "Isolated frame"
 msgstr "מסגרת מבודדת"
 
-#: packages/admin/src/components/ContentEditor.tsx:2725
+#: packages/admin/src/components/ContentEditor.tsx:2745
 msgid "It has formatting this editor can’t keep."
 msgstr ""
 
@@ -8714,7 +8714,7 @@ msgstr "הוא נשמר על ידי המאמת או מנהל האישורים ש
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "הוא הופעל ממקום אחר, כך שכבר לא ניתן לשנות את התוכנית שלו. ההתקדמות שלו תוצג כאן."
 
-#: packages/admin/src/router.tsx:2573
+#: packages/admin/src/router.tsx:2589
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
 msgstr ""
 
@@ -8724,7 +8724,7 @@ msgid "Italic"
 msgstr "נטוי"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/BlockListField.tsx:386
+#: packages/admin/src/components/BlockListField.tsx:401
 #: packages/admin/src/components/PortableTextEditor.tsx:1795
 #: packages/admin/src/components/RepeaterField.tsx:252
 msgid "Item {0}"
@@ -8789,7 +8789,7 @@ msgstr ""
 msgid "Joining..."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3004
+#: packages/admin/src/components/ContentEditor.tsx:3036
 #: packages/admin/src/components/SaveButton.tsx:54
 msgid "Joining…"
 msgstr ""
@@ -9008,7 +9008,7 @@ msgstr "רישיון"
 msgid "Limit"
 msgstr "מגבלה"
 
-#: packages/admin/src/components/BlocksField.tsx:2238
+#: packages/admin/src/components/BlocksField.tsx:2326
 #: packages/admin/src/components/PortableTextEditor.tsx:5386
 msgid "Link"
 msgstr "קישור"
@@ -9164,8 +9164,8 @@ msgid "Load preview"
 msgstr "טעינת תצוגה מקדימה"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/components/ContentEditor.tsx:2768
-#: packages/admin/src/router.tsx:4038
+#: packages/admin/src/components/ContentEditor.tsx:2788
+#: packages/admin/src/router.tsx:4056
 msgid "Loading"
 msgstr "בטעינה"
 
@@ -9194,8 +9194,8 @@ msgstr "מתבצעת טעינת אוספים..."
 msgid "Loading comments..."
 msgstr "מתבצעת טעינת תגובות..."
 
-#: packages/admin/src/router.tsx:4040
-#: packages/admin/src/router.tsx:4052
+#: packages/admin/src/router.tsx:4058
+#: packages/admin/src/router.tsx:4070
 msgid "Loading configuration..."
 msgstr "מתבצעת טעינת תצורה..."
 
@@ -9253,7 +9253,7 @@ msgstr "מתבצעת טעינת תוספים..."
 msgid "Loading redirects..."
 msgstr "מתבצעת טעינת הפניות..."
 
-#: packages/admin/src/components/ContentEditor.tsx:4486
+#: packages/admin/src/components/ContentEditor.tsx:4524
 msgid "Loading references..."
 msgstr "מתבצעת טעינת קישורים..."
 
@@ -9428,7 +9428,7 @@ msgstr "ניהול"
 msgid "Manage {0} for {1}"
 msgstr "ניהול {0} עבור {1}"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:599
+#: packages/admin/src/components/BylineCreditsEditor.tsx:602
 msgid "Manage bylines in {entryLocale}"
 msgstr "ניהול קרדיטים ב-{entryLocale}"
 
@@ -9504,11 +9504,11 @@ msgstr "תחביר Markdown"
 msgid "Marketplace"
 msgstr "חנות התוספים"
 
-#: packages/admin/src/router.tsx:3406
+#: packages/admin/src/router.tsx:3424
 msgid "Marketplace browsing is no longer available."
 msgstr "העיון בחנות התוספים אינו זמין עוד."
 
-#: packages/admin/src/router.tsx:3379
+#: packages/admin/src/router.tsx:3397
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "העיון בחנות התוספים אינו זמין עוד. נהלו תוספים מותקנים ממסך התוספים."
 
@@ -9560,7 +9560,7 @@ msgstr "תחביר MDX"
 #: packages/admin/src/components/WordPressImport.tsx:799
 #: packages/admin/src/components/WordPressImport.tsx:1197
 #: packages/admin/src/components/WordPressImport.tsx:1390
-#: packages/admin/src/router.tsx:2674
+#: packages/admin/src/router.tsx:2692
 msgid "Media"
 msgstr "מדיה"
 
@@ -9623,7 +9623,7 @@ msgstr "קריאת מדיה"
 msgid "Media results"
 msgstr "תוצאות מדיה"
 
-#: packages/admin/src/router.tsx:3149
+#: packages/admin/src/router.tsx:3167
 msgid "Media Usage"
 msgstr ""
 
@@ -9719,7 +9719,7 @@ msgstr ""
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:521
 #: packages/admin/src/components/WordPressImport.tsx:1201
-#: packages/admin/src/router.tsx:3426
+#: packages/admin/src/router.tsx:3444
 msgid "Menus"
 msgstr "תפריטים"
 
@@ -9736,8 +9736,8 @@ msgstr "ניהול תפריטים"
 msgid "Merge selected cells"
 msgstr "מיזוג תאים נבחרים"
 
-#: packages/admin/src/components/SeoPanel.tsx:245
-#: packages/admin/src/components/SeoPanel.tsx:249
+#: packages/admin/src/components/SeoPanel.tsx:246
+#: packages/admin/src/components/SeoPanel.tsx:250
 msgid "Meta Description"
 msgstr "תיאור meta"
 
@@ -9820,7 +9820,7 @@ msgstr "ארכיונים חודשיים/שנתיים"
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: section.title
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/BylineCreditsEditor.tsx:716
+#: packages/admin/src/components/BylineCreditsEditor.tsx:719
 #: packages/admin/src/components/Sections.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:1268
 msgid "More actions for {0}"
@@ -9870,7 +9870,7 @@ msgstr "להעביר את \"{title}\" לפח? אפשר לשחזר אותו מא�
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4453
+#: packages/admin/src/components/ContentEditor.tsx:4491
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "העברת {0} למטה"
@@ -9887,7 +9887,7 @@ msgstr "העברת {0} מאוחר יותר"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4442
+#: packages/admin/src/components/ContentEditor.tsx:4480
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "העברת {0} למעלה"
@@ -9927,14 +9927,14 @@ msgstr "העברה לפח"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1633
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1385
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1391
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1389
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1395
 msgid "Move to Trash"
 msgstr "העברה לפח"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1631
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1389
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1393
 msgid "Move to Trash?"
 msgstr "להעביר לפח?"
 
@@ -9955,11 +9955,11 @@ msgstr ""
 msgid "Moved {filename} to position {0}."
 msgstr "{filename} הועבר למיקום {0}."
 
-#: packages/admin/src/components/BlockListField.tsx:426
+#: packages/admin/src/components/BlockListField.tsx:441
 msgid "Moved {moved} to position {position} of {total}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:777
+#: packages/admin/src/components/BlocksField.tsx:855
 #: packages/admin/src/components/useDragAnnouncements.ts:72
 msgid "Moved {name} to position {position} of {total}"
 msgstr ""
@@ -10049,7 +10049,7 @@ msgid "Moving from another EmDash site?"
 msgstr "עוברים מאתר EmDash אחר?"
 
 #: packages/admin/src/components/ContentList.tsx:1634
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1392
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1396
 msgid "Moving to trash..."
 msgstr ""
 
@@ -10124,7 +10124,7 @@ msgstr "דורש תשומת לב"
 msgid "Never"
 msgstr "לעולם לא"
 
-#: packages/admin/src/router.tsx:2083
+#: packages/admin/src/router.tsx:2099
 msgid "new"
 msgstr "חדש"
 
@@ -10132,8 +10132,8 @@ msgstr "חדש"
 msgid "NEW"
 msgstr "חדש"
 
-#: packages/admin/src/components/ContentEditor.tsx:2307
-#: packages/admin/src/components/ContentEditor.tsx:2312
+#: packages/admin/src/components/ContentEditor.tsx:2327
+#: packages/admin/src/components/ContentEditor.tsx:2332
 msgid "New {itemLabel}"
 msgstr "{itemLabel} חדש"
 
@@ -10159,7 +10159,7 @@ msgstr "אוסף חדש"
 msgid "New content"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3632
+#: packages/admin/src/router.tsx:3650
 msgid "New content type"
 msgstr ""
 
@@ -10313,7 +10313,7 @@ msgstr "עדיין אין תגובות מאושרות."
 msgid "No block types defined"
 msgstr "לא הוגדרו סוגי בלוקים"
 
-#: packages/admin/src/components/BlocksField.tsx:1062
+#: packages/admin/src/components/BlocksField.tsx:1147
 msgid "No blocks yet"
 msgstr "אין עדיין בלוקים"
 
@@ -10333,7 +10333,7 @@ msgstr "לא משויך קרדיט"
 msgid "No byline fields yet."
 msgstr "עדיין אין שדות קרדיט."
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:591
+#: packages/admin/src/components/BylineCreditsEditor.tsx:594
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "אין קרדיטים זמינים ב-{entryLocale}. צרו גרסה מעמוד הקרדיטים לפני שתייחסו אחד לפריט זה."
 
@@ -10481,7 +10481,7 @@ msgstr "אין גרסאות שניתן להתקין"
 msgid "No invite token provided"
 msgstr "לא סופק אסימון הזמנה"
 
-#: packages/admin/src/components/BlockListField.tsx:870
+#: packages/admin/src/components/BlockListField.tsx:885
 #: packages/admin/src/components/PortableTextEditor.tsx:1718
 #: packages/admin/src/components/RepeaterField.tsx:172
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
@@ -10621,7 +10621,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "עדיין אין הפניות"
 
-#: packages/admin/src/components/ContentEditor.tsx:4396
+#: packages/admin/src/components/ContentEditor.tsx:4434
 msgid "No references selected."
 msgstr "לא נבחרו קישורים."
 
@@ -10736,13 +10736,13 @@ msgstr "לא הותאם"
 msgid "Not recorded in this version"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3008
+#: packages/admin/src/components/ContentEditor.tsx:3040
 #: packages/admin/src/components/SaveButton.tsx:56
 #: packages/admin/src/components/SaveButton.tsx:57
 msgid "Not saved"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3020
+#: packages/admin/src/components/ContentEditor.tsx:3052
 msgid "Not saved yet"
 msgstr ""
 
@@ -10810,7 +10810,7 @@ msgstr "הרשאת OAuth דורשת HTTPS. השתמשו באישורים ידנ�
 msgid "Off"
 msgstr "כבוי"
 
-#: packages/admin/src/components/ContentEditor.tsx:3006
+#: packages/admin/src/components/ContentEditor.tsx:3038
 #: packages/admin/src/components/SaveButton.tsx:55
 msgid "Offline"
 msgstr ""
@@ -10882,7 +10882,7 @@ msgid "Open"
 msgstr "פתיחה"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4431
+#: packages/admin/src/components/ContentEditor.tsx:4469
 msgid "Open {0} in a new tab"
 msgstr "פתיחת {0} בכרטיסייה חדשה"
 
@@ -11072,7 +11072,7 @@ msgstr "באיחור · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "מחליף את כותרת העמוד בתוצאות מנועי חיפוש"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1173
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1177
 #: packages/admin/src/lib/editor-sections.ts:33
 msgid "Ownership"
 msgstr "בעלות"
@@ -11091,11 +11091,11 @@ msgstr "תמצית החבילה"
 msgid "Package downloaded"
 msgstr "החבילה הורדה"
 
-#: packages/admin/src/router.tsx:3950
+#: packages/admin/src/router.tsx:3968
 msgid "Page not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:4078
+#: packages/admin/src/router.tsx:4096
 msgid "Page Not Found"
 msgstr "העמוד לא נמצא"
 
@@ -11298,7 +11298,7 @@ msgstr ""
 msgid "People in this entry"
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:544
+#: packages/admin/src/components/BylineCreditsEditor.tsx:545
 msgid "People shown publicly on this post."
 msgstr "אנשים המוצגים בפומבי בפוסט זה."
 
@@ -11383,7 +11383,7 @@ msgid "Please enter a valid URL"
 msgstr "הזינו URL תקין"
 
 #: packages/admin/src/components/WordPressImport.tsx:1234
-#: packages/admin/src/router.tsx:3926
+#: packages/admin/src/router.tsx:3944
 msgid "Plugin"
 msgstr "תוסף"
 
@@ -11408,7 +11408,7 @@ msgstr "פעולת תוסף נכשלה"
 msgid "Plugin actions"
 msgstr "פעולות תוסף"
 
-#: packages/admin/src/components/ContentEditor.tsx:2716
+#: packages/admin/src/components/ContentEditor.tsx:2736
 msgid "Plugin changes were not applied"
 msgstr "השינויים של התוסף לא הוחלו"
 
@@ -11420,8 +11420,8 @@ msgstr "עמודת תוסף אינה זמינה"
 msgid "Plugin details"
 msgstr "פרטי תוסף"
 
-#: packages/admin/src/router.tsx:3351
-#: packages/admin/src/router.tsx:3358
+#: packages/admin/src/router.tsx:3369
+#: packages/admin/src/router.tsx:3376
 msgid "Plugin Details"
 msgstr ""
 
@@ -11446,7 +11446,7 @@ msgstr "שגיאת תוסף ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "התקנת תוסף דורשת הסכמה מפורשת"
 
-#: packages/admin/src/router.tsx:3343
+#: packages/admin/src/router.tsx:3361
 msgid "Plugin Marketplace"
 msgstr ""
 
@@ -11486,7 +11486,7 @@ msgid "Plugin Permissions"
 msgstr "הרשאות תוסף"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:3300
+#: packages/admin/src/router.tsx:3318
 msgid "Plugin Registry"
 msgstr "רישום תוספים"
 
@@ -11495,8 +11495,8 @@ msgstr "רישום תוספים"
 msgid "Plugin registry configuration error"
 msgstr "שגיאת תצורת רישום תוספים"
 
-#: packages/admin/src/router.tsx:3336
-#: packages/admin/src/router.tsx:3370
+#: packages/admin/src/router.tsx:3354
+#: packages/admin/src/router.tsx:3388
 msgid "Plugin registry is not configured."
 msgstr "רישום התוספים אינו מוגדר."
 
@@ -11505,7 +11505,7 @@ msgstr "רישום התוספים אינו מוגדר."
 msgid "Plugin responded with {0}: {text}"
 msgstr "התוסף השיב עם {0}: {text}"
 
-#: packages/admin/src/router.tsx:3913
+#: packages/admin/src/router.tsx:3931
 msgid "Plugin Settings"
 msgstr ""
 
@@ -11538,7 +11538,7 @@ msgstr "שגיאת וידג׳ט של תוסף"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/Sidebar.tsx:587
-#: packages/admin/src/router.tsx:3285
+#: packages/admin/src/router.tsx:3303
 msgid "Plugins"
 msgstr "תוספים"
 
@@ -11550,7 +11550,7 @@ msgstr "הפנו את הדומיין לאתר הזה. ב-Cloudflare, פתחו א
 msgid "Point-in-Time Restore"
 msgstr "שחזור לנקודת זמן"
 
-#: packages/admin/src/components/SeoPanel.tsx:267
+#: packages/admin/src/components/SeoPanel.tsx:268
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
 msgstr "מפנה מנועי חיפוש לגרסה המקורית של עמוד זה, אם הוא משוכפל מ-URL אחר"
 
@@ -11730,9 +11730,9 @@ msgstr "ספק:"
 msgid "Public routes"
 msgstr "נתיבים ציבוריים"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1043
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1048
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1047
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1052
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1063
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "תאריך פרסום"
@@ -11744,7 +11744,7 @@ msgstr "פרסום בעריכה חזותית"
 
 #: packages/admin/src/components/ContentList.tsx:611
 #: packages/admin/src/components/ContentSettingsPanel.tsx:563
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1012
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1013
 #: packages/admin/src/lib/editor-sections.ts:31
 msgid "Publish"
 msgstr "פרסום"
@@ -11789,7 +11789,7 @@ msgstr "פורסם"
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:270
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:168
-#: packages/admin/src/router.tsx:1941
+#: packages/admin/src/router.tsx:1957
 msgid "Published"
 msgstr "פורסם"
 
@@ -11834,7 +11834,7 @@ msgstr "מדיניות גרסאות של מפרסם"
 msgid "Publishing"
 msgstr "פרסום"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1016
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1017
 msgid "Publishing summary"
 msgstr "סיכום פרסום"
 
@@ -11942,7 +11942,7 @@ msgid "Read your taxonomies and terms"
 msgstr "קריאת הטקסונומיות והמונחים שלכם"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:96
-#: packages/admin/src/router.tsx:2535
+#: packages/admin/src/router.tsx:2551
 msgid "Read-only"
 msgstr "קריאה בלבד"
 
@@ -12033,7 +12033,7 @@ msgstr "מתבצעת הפניה להתחברות..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:528
-#: packages/admin/src/router.tsx:3468
+#: packages/admin/src/router.tsx:3486
 msgid "Redirects"
 msgstr "הפניות"
 
@@ -12112,7 +12112,7 @@ msgstr "רישום"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3668
+#: packages/admin/src/router.tsx:3686
 msgid "Relations"
 msgstr "קשרים"
 
@@ -12136,7 +12136,7 @@ msgid "Release notes"
 msgstr "הערות גרסה"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:109
-#: packages/admin/src/router.tsx:2560
+#: packages/admin/src/router.tsx:2576
 msgid "Reload"
 msgstr ""
 
@@ -12148,7 +12148,7 @@ msgstr "טענו מחדש לאחר עדכון EmDash לפני שתנסו שוב.
 msgid "Reload page"
 msgstr "רענון הדף"
 
-#: packages/admin/src/router.tsx:2551
+#: packages/admin/src/router.tsx:2567
 msgid "Reloading the admin"
 msgstr ""
 
@@ -12162,8 +12162,8 @@ msgid "visualEditing.removeImage"
 msgstr "הסרה"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:109
-#: packages/admin/src/components/ContentEditor.tsx:4954
-#: packages/admin/src/components/ContentEditor.tsx:5020
+#: packages/admin/src/components/ContentEditor.tsx:4992
+#: packages/admin/src/components/ContentEditor.tsx:5058
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -12184,7 +12184,7 @@ msgstr "הסרה"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:4466
+#: packages/admin/src/components/ContentEditor.tsx:4504
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -12202,8 +12202,8 @@ msgid "Remove {entry}"
 msgstr "הסרת {entry}"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:4952
-#: packages/admin/src/components/ContentEditor.tsx:5018
+#: packages/admin/src/components/ContentEditor.tsx:4990
+#: packages/admin/src/components/ContentEditor.tsx:5056
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -12226,7 +12226,7 @@ msgstr "הסרת דומיין"
 msgid "Remove Domain?"
 msgstr "להסיר דומיין?"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:745
+#: packages/admin/src/components/BylineCreditsEditor.tsx:748
 msgid "Remove from post"
 msgstr "הסרה מהפוסט"
 
@@ -12401,8 +12401,8 @@ msgstr "שינוי סדר"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:1467
-#: packages/admin/src/components/BylineCreditsEditor.tsx:690
+#: packages/admin/src/components/BlocksField.tsx:1555
+#: packages/admin/src/components/BylineCreditsEditor.tsx:693
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
 msgstr "שינוי סדר {0}"
@@ -12426,9 +12426,9 @@ msgstr "החלפה"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:99
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:198
-#: packages/admin/src/components/ContentEditor.tsx:4909
-#: packages/admin/src/components/ContentEditor.tsx:4944
-#: packages/admin/src/components/ContentEditor.tsx:5010
+#: packages/admin/src/components/ContentEditor.tsx:4947
+#: packages/admin/src/components/ContentEditor.tsx:4982
+#: packages/admin/src/components/ContentEditor.tsx:5048
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12450,7 +12450,7 @@ msgstr "החלפה"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:97
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:4908
+#: packages/admin/src/components/ContentEditor.tsx:4946
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12488,7 +12488,7 @@ msgstr "להחליף את התמונה המקורית?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "החלפת המקור זמינה ביחס הממדים המקורי."
 
-#: packages/admin/src/components/ContentEditor.tsx:4501
+#: packages/admin/src/components/ContentEditor.tsx:4539
 msgid "Replace reference"
 msgstr "החלפת קישור"
 
@@ -12647,7 +12647,7 @@ msgstr "שינוי גודל חיתוך מהפינה השמאלית העליונ�
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "שינוי גודל חיתוך מהפינה הימנית העליונה. השתמשו במקשי החצים לשינוי גודל."
 
-#: packages/admin/src/components/ContentEditor.tsx:3098
+#: packages/admin/src/components/ContentEditor.tsx:3130
 msgid "Resize settings panel"
 msgstr "שינוי גודל חלונית הגדרות"
 
@@ -12698,13 +12698,13 @@ msgstr ""
 msgid "Results"
 msgstr "תוצאות"
 
-#: packages/admin/src/components/BlocksField.tsx:1267
+#: packages/admin/src/components/BlocksField.tsx:1354
 #: packages/admin/src/components/FieldEditor.tsx:1488
 msgid "Retired"
 msgstr "הוצא משימוש"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:4480
+#: packages/admin/src/components/ContentEditor.tsx:4518
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12721,7 +12721,7 @@ msgstr "הוצא משימוש"
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:92
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:276
-#: packages/admin/src/router.tsx:4066
+#: packages/admin/src/router.tsx:4084
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12772,7 +12772,7 @@ msgstr "בניסיון חוזר…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "בלוקי תוכן לשימוש חוזר שניתן להוסיף לכל תוכן"
 
-#: packages/admin/src/router.tsx:1991
+#: packages/admin/src/router.tsx:2007
 msgid "Reverted to published version"
 msgstr "הוחזר לגרסה שפורסמה"
 
@@ -12895,12 +12895,12 @@ msgstr "תפקיד"
 msgid "Role {role}"
 msgstr "תפקיד {role}"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:760
+#: packages/admin/src/components/BylineCreditsEditor.tsx:763
 msgid "Role on this post (optional)"
 msgstr "תפקיד בפוסט זה (אופציונלי)"
 
 #. placeholder {0}: byline.displayName
-#: packages/admin/src/components/BylineCreditsEditor.tsx:514
+#: packages/admin/src/components/BylineCreditsEditor.tsx:515
 msgid "Role updated for {0}."
 msgstr "התפקיד עבור {0} עודכן."
 
@@ -12988,7 +12988,7 @@ msgstr "שמירה (Enter)"
 msgid "Save alt text"
 msgstr "שמירת טקסט חלופי"
 
-#: packages/admin/src/components/ContentEditor.tsx:2752
+#: packages/admin/src/components/ContentEditor.tsx:2772
 msgid "Save anyway"
 msgstr "שמירה בכל זאת"
 
@@ -13013,7 +13013,7 @@ msgstr "שמירת תוכן כטיוטה לפני פרסום"
 msgid "Save date"
 msgstr "שמירת תאריך"
 
-#: packages/admin/src/components/ContentEditor.tsx:2920
+#: packages/admin/src/components/ContentEditor.tsx:2942
 #: packages/admin/src/components/ContentSettingsPanel.tsx:731
 msgid "Save draft"
 msgstr ""
@@ -13054,8 +13054,8 @@ msgstr "שמירת הגדרות"
 msgid "visualEditing.saved"
 msgstr "נשמר"
 
-#: packages/admin/src/components/ContentEditor.tsx:3014
-#: packages/admin/src/components/ContentEditor.tsx:3023
+#: packages/admin/src/components/ContentEditor.tsx:3046
+#: packages/admin/src/components/ContentEditor.tsx:3055
 #: packages/admin/src/components/SaveButton.tsx:53
 msgid "Saved"
 msgstr "נשמר"
@@ -13078,8 +13078,8 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr ""
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:3011
-#: packages/admin/src/components/ContentEditor.tsx:3016
+#: packages/admin/src/components/ContentEditor.tsx:3043
+#: packages/admin/src/components/ContentEditor.tsx:3048
 #: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
@@ -13146,7 +13146,7 @@ msgstr "התזמון הוסר"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:420
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:2039
+#: packages/admin/src/router.tsx:2055
 msgid "Scheduled"
 msgstr "מתוזמן"
 
@@ -13470,7 +13470,7 @@ msgstr "כותרת מקטע"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:542
-#: packages/admin/src/router.tsx:3475
+#: packages/admin/src/router.tsx:3493
 msgid "Sections"
 msgstr "מקטעים"
 
@@ -13527,7 +13527,7 @@ msgstr "שגיאת אבטחה. ודאו שאתם בחיבור מאובטח."
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:3157
+#: packages/admin/src/router.tsx:3175
 msgid "Security Settings"
 msgstr "הגדרות אבטחה"
 
@@ -13544,9 +13544,9 @@ msgid "Select"
 msgstr "בחירה"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:4908
-#: packages/admin/src/components/ContentEditor.tsx:4969
-#: packages/admin/src/components/ContentEditor.tsx:5030
+#: packages/admin/src/components/ContentEditor.tsx:4946
+#: packages/admin/src/components/ContentEditor.tsx:5007
+#: packages/admin/src/components/ContentEditor.tsx:5068
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13595,7 +13595,7 @@ msgstr "בחירת הכול בעמוד זה"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4504
+#: packages/admin/src/components/ContentEditor.tsx:4542
 msgid "Select at least one entry."
 msgstr "בחרו פריט אחד לפחות."
 
@@ -13628,8 +13628,8 @@ msgstr "בחירת סמל אתר"
 msgid "Select Favicon"
 msgstr "בחירת סמל אתר"
 
-#: packages/admin/src/components/ContentEditor.tsx:4971
-#: packages/admin/src/components/ContentEditor.tsx:5036
+#: packages/admin/src/components/ContentEditor.tsx:5009
+#: packages/admin/src/components/ContentEditor.tsx:5074
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "בחירת קובץ"
@@ -13780,7 +13780,7 @@ msgstr ""
 msgid "Sending..."
 msgstr "בשליחה..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1259
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1263
 #: packages/admin/src/components/ContentTypeEditor.tsx:700
 #: packages/admin/src/components/Settings.tsx:68
 #: packages/admin/src/lib/editor-sections.ts:37
@@ -13794,7 +13794,7 @@ msgid "SEO settings"
 msgstr "הגדרות SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:3277
+#: packages/admin/src/router.tsx:3295
 msgid "SEO Settings"
 msgstr "הגדרות SEO"
 
@@ -13803,7 +13803,7 @@ msgid "SEO settings saved"
 msgstr "הגדרות SEO נשמרו"
 
 #: packages/admin/src/components/SeoPanel.tsx:224
-#: packages/admin/src/components/SeoPanel.tsx:228
+#: packages/admin/src/components/SeoPanel.tsx:229
 msgid "SEO Title"
 msgstr "כותרת SEO"
 
@@ -13828,7 +13828,7 @@ msgstr "הגדרת שפה"
 msgid "Set language (current: {label})"
 msgstr "הגדרת שפה (נוכחית: {label})"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:727
+#: packages/admin/src/components/BylineCreditsEditor.tsx:730
 msgid "Set role"
 msgstr "הגדרת תפקיד"
 
@@ -13867,14 +13867,14 @@ msgid "Setting up..."
 msgstr "בהגדרה..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2887
+#: packages/admin/src/components/ContentEditor.tsx:2909
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
 #: packages/admin/src/components/Header.tsx:113
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
 #: packages/admin/src/components/WordPressImport.tsx:1861
-#: packages/admin/src/router.tsx:3142
+#: packages/admin/src/router.tsx:3160
 msgid "Settings"
 msgstr "הגדרות"
 
@@ -13925,7 +13925,7 @@ msgstr "טקסט קצר"
 msgid "Short Text"
 msgstr "טקסט קצר"
 
-#: packages/admin/src/components/ContentEditor.tsx:256
+#: packages/admin/src/components/ContentEditor.tsx:258
 msgid "Show"
 msgstr ""
 
@@ -13957,7 +13957,7 @@ msgstr ""
 msgid "Show post count"
 msgstr "הצגת מספר פוסטים"
 
-#: packages/admin/src/components/SettingsPanelToggle.tsx:207
+#: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Show settings"
 msgstr ""
 
@@ -13982,7 +13982,7 @@ msgstr "מוצגים {pageShowingRange} מתוך {0}"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr ""
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1194
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1198
 msgid "Shown to readers in this order."
 msgstr "מוצג לקוראים בסדר זה."
 
@@ -14201,7 +14201,7 @@ msgstr "דולג"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentEditor.tsx:2482
+#: packages/admin/src/components/ContentEditor.tsx:2502
 #: packages/admin/src/components/ContentSettingsPanel.tsx:996
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:518
@@ -14289,7 +14289,7 @@ msgstr "קישורי פרופילי מדיה חברתית"
 msgid "Social Profiles"
 msgstr "פרופילים חברתיים"
 
-#: packages/admin/src/router.tsx:3265
+#: packages/admin/src/router.tsx:3283
 msgid "Social Settings"
 msgstr ""
 
@@ -14455,8 +14455,8 @@ msgstr "התחילו עם הפוסטים והעמודים לדוגמה של הת
 msgid "Start writing with plain text"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3742
-#: packages/admin/src/components/ContentEditor.tsx:3765
+#: packages/admin/src/components/ContentEditor.tsx:3778
+#: packages/admin/src/components/ContentEditor.tsx:3801
 #: packages/admin/src/components/PortableTextEditor.tsx:2239
 msgid "Start writing, or type '/' for commands"
 msgstr "התחילו לכתוב, או הקלידו '/' לפקודות"
@@ -14689,7 +14689,7 @@ msgstr "שפת יעד"
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:989
 #: packages/admin/src/lib/editor-sections.ts:36
-#: packages/admin/src/router.tsx:3446
+#: packages/admin/src/router.tsx:3464
 msgid "Taxonomies"
 msgstr "טקסונומיות"
 
@@ -14788,7 +14788,7 @@ msgstr ""
 msgid "test@example.com"
 msgstr "בדיקה: test@example.com"
 
-#: packages/admin/src/components/BlocksField.tsx:2237
+#: packages/admin/src/components/BlocksField.tsx:2325
 #: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr ""
@@ -15088,7 +15088,7 @@ msgstr "תוכן החבילה נכתב לאתר זה. אי אפשר לבטל א�
 msgid "The package’s file index is not valid."
 msgstr "אינדקס הקבצים של החבילה אינו תקין."
 
-#: packages/admin/src/router.tsx:4080
+#: packages/admin/src/router.tsx:4098
 msgid "The page you're looking for doesn't exist."
 msgstr "העמוד שאתם מחפשים אינו קיים."
 
@@ -15108,12 +15108,12 @@ msgstr "הצגת וידג׳ט השדה של התוסף נכשלה."
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "התוסף לא שמר את השינויים האלה. בדקו אותם לפני עדכון העורך."
 
-#: packages/admin/src/components/ContentEditor.tsx:1789
+#: packages/admin/src/components/ContentEditor.tsx:1809
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1759
-#: packages/admin/src/components/ContentEditor.tsx:1775
+#: packages/admin/src/components/ContentEditor.tsx:1779
+#: packages/admin/src/components/ContentEditor.tsx:1795
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "התוצאה של התוסף אינה עדכנית: העורך השתנה בזמן שהוא עבד."
 
@@ -15239,7 +15239,7 @@ msgstr "ערכת עיצוב"
 msgid "Theme \"{id}\" not found"
 msgstr ""
 
-#: packages/admin/src/router.tsx:3397
+#: packages/admin/src/router.tsx:3415
 msgid "Theme Details"
 msgstr ""
 
@@ -15248,7 +15248,7 @@ msgstr ""
 msgid "Theme ID: {0}"
 msgstr "מזהה ערכת עיצוב: {0}"
 
-#: packages/admin/src/router.tsx:3389
+#: packages/admin/src/router.tsx:3407
 msgid "Theme Marketplace"
 msgstr ""
 
@@ -15292,7 +15292,7 @@ msgstr ""
 msgid "This also removes:"
 msgstr "פעולה זו מסירה גם:"
 
-#: packages/admin/src/components/BlocksField.tsx:1677
+#: packages/admin/src/components/BlocksField.tsx:1765
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr "אי אפשר לערוך את הבלוק הזה: ההגדרה השמורה שלו אינה זמינה."
 
@@ -15301,7 +15301,7 @@ msgstr "אי אפשר לערוך את הבלוק הזה: ההגדרה השמור
 msgid "This block embeds a page from {0}."
 msgstr "הבלוק הזה מטמיע דף מ-{0}."
 
-#: packages/admin/src/components/BlocksField.tsx:2069
+#: packages/admin/src/components/BlocksField.tsx:2157
 msgid "This block has no fields."
 msgstr ""
 
@@ -15309,11 +15309,11 @@ msgstr ""
 msgid "This block runs JavaScript."
 msgstr "הבלוק הזה מריץ JavaScript."
 
-#: packages/admin/src/components/BlocksField.tsx:881
+#: packages/admin/src/components/BlocksField.tsx:959
 msgid "This block type can no longer be added to this field, so the block can't be restored after you delete it."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:874
+#: packages/admin/src/components/BlocksField.tsx:952
 msgid "This block uses an older version of its type, so it can't be restored after you delete it."
 msgstr ""
 
@@ -15321,7 +15321,7 @@ msgstr ""
 msgid "This block was deleted, so your changes can't be saved."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:876
+#: packages/admin/src/components/BlocksField.tsx:954
 msgid "This block's stored definition is unavailable, so it can't be restored after you delete it."
 msgstr ""
 
@@ -15375,20 +15375,20 @@ msgstr "זה אינו נראה כמפתח העברה תקין. צרו מפתח �
 msgid "This domain is already in the list. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2748
+#: packages/admin/src/components/ContentEditor.tsx:2768
 msgid "This entry changed somewhere else after you opened it."
 msgstr "פריט זה השתנה במקום אחר לאחר שפתחתם אותו."
 
-#: packages/admin/src/components/ContentEditor.tsx:2219
+#: packages/admin/src/components/ContentEditor.tsx:2239
 #: packages/admin/src/router.tsx:1561
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "פריט זה השתנה במקום אחר. שמרו בכל זאת או טענו מחדש כדי לקבל את הגרסה החדשה יותר."
 
-#: packages/admin/src/router.tsx:2522
+#: packages/admin/src/router.tsx:2538
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2523
+#: packages/admin/src/router.tsx:2539
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
@@ -15400,11 +15400,11 @@ msgstr "לפריט זה אין URL עד לפרסומו. הדביקו URL במק�
 msgid "This entry is open somewhere else"
 msgstr "פריט זה פתוח במקום אחר"
 
-#: packages/admin/src/components/ContentEditor.tsx:2735
+#: packages/admin/src/components/ContentEditor.tsx:2755
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "פריט זה לקריאה בלבד משום שהסכמה שלו משתמשת בסוגי שדות שגרסה זו של EmDash אינה תומכת בהם."
 
-#: packages/admin/src/components/ContentEditor.tsx:2203
+#: packages/admin/src/components/ContentEditor.tsx:2223
 msgid "This entry is still loading."
 msgstr ""
 
@@ -15412,7 +15412,7 @@ msgstr ""
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "הפריט היה אמור להתפרסם {lateness} אך לא פורסם. ייתכן שהפרסום המתוזמן אינו פועל."
 
-#: packages/admin/src/router.tsx:2572
+#: packages/admin/src/router.tsx:2588
 msgid "This entry was moved to Trash or deleted"
 msgstr ""
 
@@ -15424,8 +15424,8 @@ msgstr ""
 msgid "This export is large"
 msgstr "הייצוא הזה גדול"
 
-#: packages/admin/src/components/ContentEditor.tsx:3517
-#: packages/admin/src/components/ContentEditor.tsx:3525
+#: packages/admin/src/components/ContentEditor.tsx:3553
+#: packages/admin/src/components/ContentEditor.tsx:3561
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "לא ניתן לערוך שדה זה באמצעות גרסה זו של EmDash."
@@ -15451,7 +15451,7 @@ msgstr "שדה זה אינו מקבל קובצי {mimeType}."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "השדה הזה מצפה לרשימה. הערך השמור יישאר ללא שינוי עד שתחליפו אותו ברשימה ריקה, מה שימחק אותו. העתיקו ממנו קודם כל מה שאתם צריכים."
 
-#: packages/admin/src/components/ContentEditor.tsx:5042
+#: packages/admin/src/components/ContentEditor.tsx:5080
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "שדה זה נדרש"
@@ -15735,7 +15735,7 @@ msgstr ""
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "פעולה זו תמחק את אזור הווידג׳טים ואת כל הווידג׳טים שבו. לא ניתן לבטל פעולה זו."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1390
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1394
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "פעולה זו תעביר את הפריט לפח. תוכלו לשחזר אותו מאוחר יותר מהפח."
 
@@ -15883,7 +15883,7 @@ msgstr "עקבו אחר השימוש במדיה בכל התוכן שלכם."
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:3221
+#: packages/admin/src/router.tsx:3239
 msgid "Transfer"
 msgstr "העברה"
 
@@ -15912,7 +15912,7 @@ msgstr "בתרגום..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:870
-#: packages/admin/src/router.tsx:2082
+#: packages/admin/src/router.tsx:2098
 msgid "Translation created"
 msgstr "התרגום נוצר"
 
@@ -16126,8 +16126,8 @@ msgstr "שפת TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "לא ניתן להגיע לחנות התוספים"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1410
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1427
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1431
 msgid "Unassigned"
 msgstr "לא משויך"
 
@@ -16204,7 +16204,7 @@ msgstr ""
 msgid "Unpublish {itemLabel}"
 msgstr "ביטול פרסום {itemLabel}"
 
-#: packages/admin/src/router.tsx:1966
+#: packages/admin/src/router.tsx:1982
 msgid "Unpublished"
 msgstr "לא פורסם"
 
@@ -16226,8 +16226,8 @@ msgstr "שיוך שלא נפתר"
 msgid "visualEditing.unsaved"
 msgstr "לא נשמר"
 
-#: packages/admin/src/components/ContentEditor.tsx:3013
-#: packages/admin/src/components/ContentEditor.tsx:3022
+#: packages/admin/src/components/ContentEditor.tsx:3045
+#: packages/admin/src/components/ContentEditor.tsx:3054
 msgid "Unsaved changes"
 msgstr ""
 
@@ -16235,11 +16235,11 @@ msgstr ""
 msgid "Unsaved content may leave your site"
 msgstr "תוכן שלא נשמר עלול לצאת מהאתר"
 
-#: packages/admin/src/router.tsx:2051
+#: packages/admin/src/router.tsx:2067
 msgid "Unscheduled"
 msgstr "לא מתוזמן"
 
-#: packages/admin/src/components/BlocksField.tsx:1268
+#: packages/admin/src/components/BlocksField.tsx:1355
 #: packages/admin/src/components/ContentTypeEditor.tsx:994
 msgid "Unsupported"
 msgstr "לא נתמך"
@@ -16254,13 +16254,13 @@ msgstr "סוג רכיב וידג׳ט שאינו נתמך: {0}"
 msgid "Until {0}"
 msgstr "עד {0}"
 
-#: packages/admin/src/components/BlockListField.tsx:386
+#: packages/admin/src/components/BlockListField.tsx:401
 #: packages/admin/src/components/Dashboard.tsx:598
 #: packages/admin/src/components/MediaUsedIn.tsx:320
 msgid "Untitled"
 msgstr "ללא כותרת"
 
-#: packages/admin/src/components/ContentEditor.tsx:4868
+#: packages/admin/src/components/ContentEditor.tsx:4906
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "קובץ ללא שם"
@@ -16333,7 +16333,7 @@ msgid "Update to v{0}"
 msgstr "עדכון לגרסה v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1107
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
 #: packages/admin/src/components/ContentTypeEditor.tsx:679
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
@@ -16503,7 +16503,7 @@ msgstr ""
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1137
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1141
 #: packages/admin/src/lib/editor-sections.ts:32
 msgid "URL & language"
 msgstr "URL ושפה"
@@ -16641,7 +16641,7 @@ msgstr "משמש כתמונת Open Graph חלופית כשלעמוד אין תמ
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "משמש כמזהה. אותיות קטנות, מספרים וקווים תחתיים בלבד."
 
-#: packages/admin/src/components/ContentEditor.tsx:3954
+#: packages/admin/src/components/ContentEditor.tsx:3990
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "משמש כחזות הראשית של פוסט זה בעמודי רשימה ובראש הפוסט"
 
@@ -16703,7 +16703,7 @@ msgstr ""
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:584
 #: packages/admin/src/components/users/UserList.tsx:64
-#: packages/admin/src/router.tsx:3494
+#: packages/admin/src/router.tsx:3512
 msgid "Users"
 msgstr "משתמשים"
 
@@ -16778,7 +16778,7 @@ msgstr "גרסה"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:1658
+#: packages/admin/src/components/BlocksField.tsx:1746
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -17015,7 +17015,7 @@ msgstr "מה ייובא"
 msgid "What will happen when you import"
 msgstr "מה יקרה בעת ייבוא"
 
-#: packages/admin/src/components/ContentEditor.tsx:2749
+#: packages/admin/src/components/ContentEditor.tsx:2769
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "מה שהקלדתם עדיין כאן. השמירה תחליף את הגרסה החדשה יותר."
 
@@ -17052,7 +17052,7 @@ msgstr "אילו סוגי תוכן יכולים להשתמש בטקסונומי�
 msgid "Whole number"
 msgstr "מספר שלם"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1195
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1199
 msgid "Why are bylines shown in this order?"
 msgstr "מדוע קרדיטים מוצגים בסדר זה?"
 
@@ -17060,15 +17060,15 @@ msgstr "מדוע קרדיטים מוצגים בסדר זה?"
 msgid "Why can't this be changed?"
 msgstr "מדוע לא ניתן לשנות זאת?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1155
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1159
 msgid "Why English is used"
 msgstr "מדוע נעשה שימוש באנגלית"
 
-#: packages/admin/src/components/SeoPanel.tsx:268
+#: packages/admin/src/components/SeoPanel.tsx:269
 msgid "Why is this important for duplicate pages?"
 msgstr "מדוע זה חשוב לעמודים כפולים?"
 
-#: packages/admin/src/components/SeoPanel.tsx:242
+#: packages/admin/src/components/SeoPanel.tsx:243
 msgid "Why is this important for search result summaries?"
 msgstr "מדוע זה חשוב לתקצירי תוצאות חיפוש?"
 
@@ -17076,7 +17076,7 @@ msgstr "מדוע זה חשוב לתקצירי תוצאות חיפוש?"
 msgid "Why is this important for search result titles?"
 msgstr "מדוע זה חשוב לכותרות תוצאות חיפוש?"
 
-#: packages/admin/src/components/SeoPanel.tsx:288
+#: packages/admin/src/components/SeoPanel.tsx:289
 msgid "Why is this important for search visibility?"
 msgstr "מדוע זה חשוב לנראות בחיפוש?"
 
@@ -17132,7 +17132,7 @@ msgstr "הווידג׳ט עודכן"
 #: packages/admin/src/components/Sidebar.tsx:535
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1209
-#: packages/admin/src/router.tsx:3460
+#: packages/admin/src/router.tsx:3478
 msgid "Widgets"
 msgstr "וידג׳טים"
 
@@ -17305,7 +17305,7 @@ msgstr "נדרשות הרשאות מנהל/ת כדי להעביר את האתר 
 msgid "You need admin permissions to view this page."
 msgstr ""
 
-#: packages/admin/src/router.tsx:3098
+#: packages/admin/src/router.tsx:3116
 msgid "You need Editor permissions to moderate comments."
 msgstr "נדרשות הרשאות עורך/ת כדי לנהל תגובות."
 
@@ -17386,7 +17386,7 @@ msgstr "החשבון שלכם נוצר בהצלחה."
 msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
 msgstr "הדפדפן שלכם אינו תומך במפתחות גישה. השתמשו בדפדפן מודרני כמו Chrome, Safari, Firefox או Edge."
 
-#: packages/admin/src/components/ContentEditor.tsx:2724
+#: packages/admin/src/components/ContentEditor.tsx:2744
 msgid "Your change to {refusedFieldLabel} wasn’t saved"
 msgstr ""
 
@@ -17487,11 +17487,11 @@ msgstr "השם שלכם (אופציונלי)"
 msgid "Your Role"
 msgstr "התפקיד שלכם"
 
-#: packages/admin/src/router.tsx:2538
+#: packages/admin/src/router.tsx:2554
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr ""
 
-#: packages/admin/src/router.tsx:2539
+#: packages/admin/src/router.tsx:2555
 msgid "Your role can't edit this entry."
 msgstr ""
 

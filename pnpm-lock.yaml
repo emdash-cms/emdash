@@ -2436,24 +2436,9 @@ importers:
 
   packages/marketplace:
     dependencies:
-      '@emdash-cms/auth':
-        specifier: workspace:*
-        version: link:../auth
-      '@emdash-cms/plugin-types':
-        specifier: workspace:*
-        version: link:../plugin-types
       hono:
         specifier: 'catalog:'
         version: 4.12.27
-      jose:
-        specifier: ^6.1.3
-        version: 6.1.3
-      modern-tar:
-        specifier: ^0.7.5
-        version: 0.7.5
-      zod:
-        specifier: ^3.25.67
-        version: 3.25.76
     devDependencies:
       '@types/node':
         specifier: 'catalog:'

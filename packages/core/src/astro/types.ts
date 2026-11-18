@@ -719,7 +719,11 @@ export interface EmDashHandlers {
 	getRuntimePluginSettingsSchema: (pluginId: string) => Record<string, unknown> | null;
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
-	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;
+	setPluginStatus: (
+		pluginId: string,
+		status: "active" | "inactive",
+		generation?: bigint,
+	) => Promise<void>;
 
 	// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
 	collectPageMetadata: (
@@ -730,10 +734,9 @@ export interface EmDashHandlers {
 	) => Promise<import("../plugins/types.js").PageFragmentContribution[]>;
 
 	/**
-	 * Lazy search index health check. Search routes call this before
-	 * querying so a crash-corrupted index gets repaired on first use
-	 * rather than stalling cold start. Optional because it's only
-	 * meaningful when an FTS5-capable runtime is wired in.
+	 * Lazy missing- or empty-index repair. Search routes call this before querying
+	 * without performing full row-count verification. Optional because
+	 * it's only meaningful when an FTS5-capable runtime is wired in.
 	 */
 	ensureSearchHealthy?: () => Promise<void>;
 }

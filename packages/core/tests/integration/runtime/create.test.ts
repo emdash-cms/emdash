@@ -539,7 +539,7 @@ describe("EmDashRuntime.create — cold boot", () => {
 			const pluginStateStatements: string[] = [];
 			const prepare = sqlite.prepare.bind(sqlite);
 			sqlite.prepare = ((statement: string) => {
-				if (statement.includes('"_plugin_state"')) pluginStateStatements.push(statement);
+				if (statement.includes("_plugin_state")) pluginStateStatements.push(statement);
 				return prepare(statement);
 			}) as typeof sqlite.prepare;
 
@@ -571,7 +571,9 @@ describe("EmDashRuntime.create — cold boot", () => {
 			try {
 				expect(download.mock.calls.map(([key]) => key)).toEqual(expect.arrayContaining(manifests));
 				expect(download).toHaveBeenCalledTimes(manifests.length);
-				expect(pluginStateStatements.filter((s) => s.startsWith("select"))).toHaveLength(1);
+				expect(
+					pluginStateStatements.filter((s) => s.trimStart().toLowerCase().startsWith("select")),
+				).toHaveLength(1);
 			} finally {
 				await runtime.stopCron();
 				await setupDb.destroy();
