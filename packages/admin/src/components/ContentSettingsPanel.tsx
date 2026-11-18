@@ -997,7 +997,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 			data-settings-field="slug"
 			value={slug}
 			onChange={(event) => onSlugChange(event.target.value)}
-			placeholder="my-post-slug"
+			placeholder={t`my-post-slug`}
 		/>
 	);
 
