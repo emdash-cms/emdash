@@ -36,17 +36,25 @@ export interface EditorialNotificationEmail {
 	link: string;
 }
 
+/** Cuts `text` to `max` characters, counting code points so a pair is never split. */
+function shorten(text: string, max: number): string {
+	let count = 0;
+	let end = 0;
+	for (const character of text) {
+		if (count === max) return `${text.slice(0, end)}…`;
+		count += 1;
+		end += character.length;
+	}
+	return text;
+}
+
 export function buildEditorialNotificationEmail(data: EditorialNotificationEmail): EmailMessage {
 	const subject = (
 		data.mentioned
 			? `${data.authorName} mentioned you on "${data.entryTitle}"`
 			: `${data.authorName} commented on "${data.entryTitle}"`
 	).replace(CRLF_RE, " ");
-	const characters = Array.from(data.excerpt);
-	const excerpt =
-		characters.length > MAX_EXCERPT_LENGTH
-			? `${characters.slice(0, MAX_EXCERPT_LENGTH).join("")}…`
-			: data.excerpt;
+	const excerpt = shorten(data.excerpt, MAX_EXCERPT_LENGTH);
 	const action = data.mentioned ? "mentioned you in a comment on" : "commented on";
 
 	const text = [
