@@ -422,7 +422,7 @@ async function loadComment(
 	db: Kysely<Database>,
 	threadId: string,
 	commentId: string,
-): Promise<{ authorId: string | null } | Failure> {
+): Promise<{ authorId: string | null; body: string } | Failure> {
 	const comment = await new EditorialThreadRepository(db).findComment(commentId);
 	if (!comment || comment.threadId !== threadId || comment.deletedAt !== null) {
 		return fail(ErrorCode.NOT_FOUND, "Comment not found");
@@ -437,9 +437,11 @@ export function handleEditorialCommentUpdate(
 	threadId: string,
 	commentId: string,
 	input: { body: string },
+	onMentioned?: EditorialCommentCreatedHook,
 ): Promise<ApiResult<EditorialThreadView>> {
-	return run("edit the comment", () =>
-		withTransaction(db, async (trx) => {
+	return run("edit the comment", async () => {
+		let addedMentions: string[] = [];
+		const result = await withTransaction(db, async (trx) => {
 			const entry = await loadEntry(trx, ref);
 			if (isFailure(entry)) return entry;
 			const thread = await loadThread(trx, entry, threadId);
@@ -458,9 +460,15 @@ export function handleEditorialCommentUpdate(
 				body: input.body,
 				now: now(),
 			});
+			const before = new Set(extractMentions(comment.body));
+			addedMentions = extractMentions(input.body).filter((id) => !before.has(id));
 			return threadView(trx, actor, entry, threadId);
-		}),
-	);
+		});
+		if (result.success && addedMentions.length > 0) {
+			onMentioned?.({ threadId, commentId, addedMentions });
+		}
+		return result;
+	});
 }
 
 export function handleEditorialCommentDelete(

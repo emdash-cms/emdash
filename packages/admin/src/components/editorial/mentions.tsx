@@ -7,10 +7,12 @@ import {
 	type EditorialEntry,
 	type EditorialPerson,
 } from "../../lib/api/editorial-threads.js";
+import { useDebouncedValue } from "../../lib/hooks.js";
 import { cn } from "../../lib/utils.js";
 
 const MENTION_TOKEN = /<@([^<>\s]{1,64})>/g;
 const REGEX_SPECIAL = /[.*+?^${}()|[\]\\]/g;
+const SEARCH_DEBOUNCE_MS = 200;
 const MENTION_TRIGGER = /(?:^|\s)@([^\s@]{0,30})$/;
 
 export function mentionLabel(person: Pick<EditorialPerson, "id" | "name">): string {
@@ -99,9 +101,11 @@ export function useMentionPicker({
 	const trigger = findTrigger(draft.text, caret);
 	const open = trigger !== null && trigger.from !== dismissedAt && entry !== null;
 
+	const query = useDebouncedValue(trigger?.query ?? "", SEARCH_DEBOUNCE_MS);
+
 	const { data: people = [] } = useQuery({
-		queryKey: ["editorial-mentionable", entry?.collection, entry?.id, trigger?.query ?? ""],
-		queryFn: () => fetchEditorialMentionable(entry!, trigger?.query ?? ""),
+		queryKey: ["editorial-mentionable", entry?.collection, entry?.id, query],
+		queryFn: () => fetchEditorialMentionable(entry!, query),
 		enabled: open,
 		staleTime: 30_000,
 		placeholderData: (previous) => previous,
