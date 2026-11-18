@@ -85,6 +85,9 @@ function outsideValuesWritten(input: UpdateContentInput): OutsideValue[] {
 	return outside;
 }
 
+type DraftStagePrecondition = Pick<ContentItem, "version" | "liveRevisionId" | "draftRevisionId"> &
+	Partial<Pick<ContentItem, "updatedAt">>;
+
 function nullableColumnMatch(column: string, value: string | null): ReturnType<typeof sql> {
 	validateIdentifier(column, "content column");
 	return value === null ? sql`${sql.ref(column)} IS NULL` : sql`${sql.ref(column)} = ${value}`;
@@ -3047,7 +3050,7 @@ export class ContentRepository {
 		type: string,
 		id: string,
 		revisionId: string,
-		expected: Pick<ContentItem, "version" | "updatedAt" | "liveRevisionId" | "draftRevisionId">,
+		expected: DraftStagePrecondition,
 	): Promise<boolean> {
 		return (await this.stageDraftRevision(type, id, revisionId, expected)) !== null;
 	}
@@ -3055,15 +3058,20 @@ export class ContentRepository {
 	/**
 	 * `replaceDraftRevision`, returning the `version` and `updatedAt` the entry has after the
 	 * update, or null when the entry no longer matches `expected`. Scheduling moves `updatedAt`
-	 * without bumping `version`, so `expected.updatedAt` is matched too.
+	 * without bumping `version`, so pass `expected.updatedAt` to also reject a schedule or
+	 * unschedule since the entry was read.
 	 */
 	async stageDraftRevision(
 		type: string,
 		id: string,
 		revisionId: string,
-		expected: Pick<ContentItem, "version" | "updatedAt" | "liveRevisionId" | "draftRevisionId">,
+		expected: DraftStagePrecondition,
 	): Promise<Pick<ContentItem, "version" | "updatedAt"> | null> {
 		const tableName = getTableName(type);
+		const updatedAtMatch =
+			expected.updatedAt === undefined
+				? sql``
+				: sql`AND ${nullableColumnMatch("updated_at", expected.updatedAt)}`;
 		const result = await sql<{ version: number; updated_at: string }>`
 			UPDATE ${sql.ref(tableName)}
 			SET draft_revision_id = ${revisionId},
@@ -3071,7 +3079,7 @@ export class ContentRepository {
 			WHERE id = ${id}
 			AND deleted_at IS NULL
 			AND version = ${expected.version}
-			AND ${nullableColumnMatch("updated_at", expected.updatedAt ?? null)}
+			${updatedAtMatch}
 			AND ${nullableColumnMatch("live_revision_id", expected.liveRevisionId)}
 			AND ${nullableColumnMatch("draft_revision_id", expected.draftRevisionId)}
 			AND EXISTS (

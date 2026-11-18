@@ -14,6 +14,7 @@ import {
 	handleContentUpdate,
 } from "../../../src/api/handlers/content.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { Database } from "../../../src/database/types.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
@@ -158,6 +159,31 @@ describe("handleContentUpdate _rev against an interleaved write", () => {
 		expect(saved.success).toBe(true);
 		const after = await runtime.handleContentGet("posts", id);
 		expect(after.data!.item.data.title).toBe("Edited");
+	});
+
+	it("stages a draft for a caller that passes no updatedAt", async () => {
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Draft" },
+			slug: "draft",
+		});
+		expect(created.success).toBe(true);
+		const id = created.data!.item.id;
+		const repo = new ContentRepository(db);
+		const entry = await repo.findById("posts", id);
+		const revision = await new RevisionRepository(db).create({
+			collection: "posts",
+			entryId: id,
+			data: { title: "Replacement" },
+		});
+
+		const replaced = await repo.replaceDraftRevision("posts", id, revision.id, {
+			version: entry!.version,
+			liveRevisionId: entry!.liveRevisionId,
+			draftRevisionId: entry!.draftRevisionId,
+		});
+
+		expect(replaced).toBe(true);
+		expect((await repo.findById("posts", id))!.draftRevisionId).toBe(revision.id);
 	});
 
 	it("returns CONFLICT instead of overwriting columns on a collection without revisions", async () => {
