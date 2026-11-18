@@ -370,6 +370,18 @@ export interface EmDashConfig {
 	mcp?: boolean;
 
 	/**
+	 * Real-time co-editing of entries in collections with revisions.
+	 *
+	 * Runs on `@astrojs/node`, outside `node:cluster` workers, and on
+	 * `@astrojs/cloudflare` with the `EMDASH_ROOMS` Durable Object binding.
+	 * Elsewhere the editor uses single-editor mode with edit locks. Changing
+	 * it needs a rebuild.
+	 *
+	 * @default false
+	 */
+	coEditing?: boolean;
+
+	/**
 	 * Plugin marketplace URL
 	 *
 	 * Existing marketplace-installed plugins use this URL for updates.

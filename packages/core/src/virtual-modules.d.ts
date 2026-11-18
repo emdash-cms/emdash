@@ -30,6 +30,7 @@ declare module "virtual:emdash/config" {
 		astroCspEnabled?: boolean;
 		trailingSlash?: "always" | "never" | "ignore";
 		robotsTxtOverridden?: boolean;
+		sessionCookieName?: string;
 		/** `routePattern` of the image endpoint EmDash installed; absent when it installed none. */
 		imageEndpointRoute?: string;
 	}
@@ -216,6 +217,16 @@ declare module "virtual:emdash/scheduler" {
 	 * Trigger drives scheduled work instead.
 	 */
 	export const createScheduler: CreateSchedulerFn | null;
+}
+
+declare module "virtual:emdash/rooms" {
+	import type { CreateRoomHostFn } from "./emdash-runtime.js";
+	/**
+	 * Factory for the room host with co-editing on: in-process on
+	 * `@astrojs/node`, Durable Objects on `@astrojs/cloudflare`. `null`
+	 * otherwise, which gives every join single-editor mode.
+	 */
+	export const createRoomHost: CreateRoomHostFn | null;
 }
 
 declare module "virtual:emdash/admin-loader" {

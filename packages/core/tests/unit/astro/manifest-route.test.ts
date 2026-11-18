@@ -43,6 +43,7 @@ interface ManifestEnvelope {
 		version?: string;
 		timezone?: string;
 		staging?: boolean;
+		coEditing?: boolean;
 	};
 }
 
@@ -88,6 +89,29 @@ describe("manifest route admin branding", () => {
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as ManifestEnvelope;
 		expect(body.data.admin).toBeUndefined();
+	});
+
+	it("reports whether this host runs co-editing rooms", async () => {
+		const coEditing = async (rooms: unknown) => {
+			const locals = {
+				emdash: {
+					config: {},
+					rooms,
+					getManifest: async () => ({
+						version: "test",
+						hash: "test",
+						collections: {},
+						plugins: {},
+						taxonomies: [],
+					}),
+				},
+			};
+			const response = await getManifest({ locals } as unknown as APIContext);
+			return ((await response.json()) as ManifestEnvelope).data.coEditing;
+		};
+
+		expect(await coEditing({ issueToken: () => null })).toBe(true);
+		expect(await coEditing(null)).toBe(false);
 	});
 
 	it("returns admin branding even when getManifest() resolves to a built manifest", async () => {

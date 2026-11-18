@@ -14,6 +14,7 @@ import {
 	revisionAuthorColor,
 	revisionAuthorColors,
 	revisionDate,
+	revisionNamed,
 	useRevisionFormat,
 	type AuthorColor,
 } from "./revision-format.js";
@@ -224,7 +225,7 @@ function VersionRow({
 	const format = useRevisionFormat();
 	const date = revisionDate(item.createdAt);
 	const when = format.when(date);
-	const author = format.author(item.author);
+	const author = format.people(revisionNamed(item));
 	const isCurrent = view?.currentRevisionId === item.id;
 	const isPublished = view?.liveRevisionId === item.id;
 	const isSelected = view?.viewingId === item.id;

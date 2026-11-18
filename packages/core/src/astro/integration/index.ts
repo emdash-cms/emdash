@@ -811,6 +811,11 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// port isn't known yet here. Nothing useful to print for build.
 			},
 			"astro:config:done": async ({ config: finalConfig, logger }) => {
+				const cookie = finalConfig.session ? finalConfig.session.cookie : undefined;
+				serializableConfig.sessionCookieName =
+					typeof cookie === "string"
+						? cookie || "astro-session"
+						: (cookie?.name ?? "astro-session");
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
 				const adapterWarning = adapterVersionMismatchWarning(finalConfig.root);

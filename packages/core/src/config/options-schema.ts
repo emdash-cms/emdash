@@ -47,6 +47,7 @@ const configShape = {
 		),
 	),
 	mcp: z.boolean(),
+	coEditing: z.boolean(),
 	marketplace: z.string(),
 	registry: z.unknown(),
 	updateCheck: z.union(

@@ -110,6 +110,8 @@ export type ApiResult<T, E extends string = string> =
 	| {
 			success: false;
 			error: { code: E; message: string; details?: Record<string, unknown> };
+			/** The HTTP status, where the error code alone doesn't decide it. */
+			status?: number;
 	  };
 
 /**

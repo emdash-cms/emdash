@@ -1,6 +1,6 @@
 {
   "name": "emdash",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Astro-native CMS with WordPress migration support",
   "type": "module",
   "main": "dist/index.mjs",
@@ -225,6 +225,26 @@
       "types": "./dist/plugins/host.d.mts",
       "default": "./dist/plugins/host.mjs"
     },
+    "./internal/co-editing": {
+      "types": "./dist/rooms/index.d.mts",
+      "default": "./dist/rooms/index.mjs"
+    },
+    "./internal/co-editing/notifications": {
+      "types": "./dist/rooms/notifications.d.mts",
+      "default": "./dist/rooms/notifications.mjs"
+    },
+    "./internal/co-editing/site": {
+      "types": "./dist/rooms/site.d.mts",
+      "default": "./dist/rooms/site.mjs"
+    },
+    "./internal/co-editing/room": {
+      "types": "./dist/rooms/room.d.mts",
+      "default": "./dist/rooms/room.mjs"
+    },
+    "./internal/co-editing/node": {
+      "types": "./dist/rooms/node/index.d.mts",
+      "default": "./dist/rooms/node/index.mjs"
+    },
     "./plugins/secret-redactor": {
       "types": "./dist/plugins/secret-redactor.d.mts",
       "default": "./dist/plugins/secret-redactor.mjs"
@@ -313,6 +333,7 @@
     "@tiptap/react": "catalog:",
     "@tiptap/starter-kit": "catalog:",
     "@tiptap/suggestion": "catalog:",
+    "@tiptap/y-tiptap": "catalog:",
     "@unpic/placeholder": "^0.1.2",
     "arctic": "^3.7.0",
     "astro-portabletext": "^0.11.0",
@@ -326,6 +347,7 @@
     "jpeg-js": "^0.4.4",
     "jsonc-parser": "catalog:",
     "kysely": "catalog:",
+    "lib0": "catalog:",
     "marked": "^17.0.3",
     "mime": "^4.1.0",
     "modern-tar": "^0.7.5",
@@ -336,6 +358,9 @@
     "smol-toml": "^1.6.0",
     "ulidx": "^2.4.1",
     "upng-js": "^2.1.0",
+    "ws": "catalog:",
+    "y-protocols": "catalog:",
+    "yjs": "catalog:",
     "zod": "catalog:",
     "@atcute/client": "catalog:"
   },
@@ -369,9 +394,11 @@
     "@types/react-dom": "catalog:",
     "@types/sanitize-html": "^2.16.0",
     "@types/sax": "^1.2.7",
+    "@types/ws": "catalog:",
     "@vitest/ui": "catalog:",
     "astro": "catalog:",
     "image-size": "catalog:",
+    "jsdom": "^26.1.0",
     "publint": "catalog:",
     "tsdown": "catalog:",
     "typescript": "catalog:",

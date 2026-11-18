@@ -8,8 +8,34 @@
  * reaching back into the admin.
  */
 export function openPreviewWindow(url: string, collection: string, id: string): void {
-	const preview = window.open(url, `emdash-preview-${collection}-${id}`);
+	const preview = window.open(url, previewWindowName(collection, id));
 	if (!preview) return;
 	preview.opener = null;
 	preview.focus();
+}
+
+/**
+ * Opens the entry's preview tab, or finds it if it's open, without loading anything yet: a tab
+ * opened later than the click that asked for it would be blocked as a popup. `created` is false
+ * for a tab that was already open, including one showing another site, whose location can't be
+ * read.
+ */
+export function openBlankPreviewWindow(
+	collection: string,
+	id: string,
+): { preview: Window; created: boolean } | null {
+	const preview = window.open("", previewWindowName(collection, id));
+	if (!preview) return null;
+	let created: boolean;
+	try {
+		created = preview.location.href === "about:blank";
+	} catch {
+		created = false;
+	}
+	if (created) preview.opener = null;
+	return { preview, created };
+}
+
+function previewWindowName(collection: string, id: string): string {
+	return `emdash-preview-${collection}-${id}`;
 }
