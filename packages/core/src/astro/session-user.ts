@@ -9,6 +9,8 @@ import { after } from "../after.js";
  */
 export const SESSION_GET_TIMEOUT_MS = 3_000;
 
+type SessionUser = App.SessionData["user"];
+
 /**
  * Resolve the Astro session user without risking an isolate-wide hang.
  *
@@ -34,12 +36,14 @@ export const SESSION_GET_TIMEOUT_MS = 3_000;
  * first read on a session-bearing request), the auth middleware, and the
  * preview-snapshot route (which bypasses the auth middleware).
  */
-export async function resolveSessionUser<T>(
-	session: { get(key: "user"): Promise<T> } | undefined,
+export async function resolveSessionUser(
+	session: { get(key: "user"): Promise<SessionUser | undefined> } | undefined,
 	timeoutMs = SESSION_GET_TIMEOUT_MS,
-): Promise<T | undefined> {
+): Promise<SessionUser | undefined> {
 	if (!session) return undefined;
-	const read: Promise<T | undefined> = Promise.resolve(session.get("user")).catch(() => undefined);
+	const read: Promise<SessionUser | undefined> = Promise.resolve(session.get("user")).catch(
+		() => undefined,
+	);
 	// Keep the worker alive past response/cancellation so the read completes and
 	// the shared promise settles — this is what prevents the isolate poisoning.
 	after(() =>

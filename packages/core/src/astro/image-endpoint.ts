@@ -88,9 +88,11 @@ export const GET: APIRoute = async (ctx) => {
 	const service = await getConfiguredImageService();
 	if (!("transform" in service)) return genericGET(ctx);
 
+	// Astro adds the adapter's assetQueryParams; the public astro:assets type omits it.
+	const config: typeof imageConfig & { assetQueryParams?: URLSearchParams } = imageConfig;
 	const isStockService = imageConfig.service?.entrypoint === "astro/assets/services/sharp";
 	if (isStockService) {
-		const canonical = canonicalTransformSearch(url, imageConfig.assetQueryParams);
+		const canonical = canonicalTransformSearch(url, config.assetQueryParams);
 		if (canonical !== null) return canonicalTransformRedirect(url, canonical);
 	}
 
@@ -116,7 +118,7 @@ export const GET: APIRoute = async (ctx) => {
 			return response;
 		}
 
-		const transform = await service.parseURL(url, imageConfig);
+		const transform = await service.parseURL(url, imageConfig, ctx.logger);
 		if (!transform) {
 			if (isNotModified(ctx.request, source.size, source.lastModified)) {
 				return notModifiedResponse(source.contentType, source.size, source.lastModified);
@@ -138,7 +140,12 @@ export const GET: APIRoute = async (ctx) => {
 		}
 
 		const inputBuffer = new Uint8Array(await new Response(source.body).arrayBuffer());
-		const { data, format } = await service.transform(inputBuffer, transform, imageConfig);
+		const { data, format } = await service.transform(
+			inputBuffer,
+			transform,
+			imageConfig,
+			ctx.logger,
+		);
 
 		if (
 			isStockService &&
@@ -147,7 +154,7 @@ export const GET: APIRoute = async (ctx) => {
 		) {
 			cacheMediaResponse(ctx.cache, key);
 		}
-		return new Response(data, {
+		return new Response(new Uint8Array(data), {
 			status: 200,
 			headers: {
 				"Content-Type": FORMAT_MIME[format] ?? source.contentType,

@@ -1,1 +1,0 @@
-{ "verdict": "fail", "minRiskScore": 50, "categories": ["data-exfiltration", "obfuscation"] }

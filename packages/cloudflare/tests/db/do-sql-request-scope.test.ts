@@ -29,6 +29,7 @@ describe("DO SQL request scoping", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mocks.query.mockResolvedValue({ rows: [] });
+		mocks.batchQuery.mockResolvedValue([]);
 	});
 
 	it("creates a primary-forced scope for a write when replica sessions are disabled", async () => {

@@ -8,6 +8,7 @@ const transform = vi.fn();
 let configuredService: typeof sharpService | undefined;
 const imageConfig = vi.hoisted(() => ({
 	dangerouslyProcessSVG: true,
+	assetQueryParams: undefined as URLSearchParams | undefined,
 	service: { entrypoint: "astro/assets/services/sharp", config: {} },
 }));
 const virtualConfig = vi.hoisted(() => ({}) as { routeCacheProvider?: string });
@@ -49,6 +50,7 @@ function buildContext(
 	request: Request,
 	storage: { download: ReturnType<typeof vi.fn> },
 	cache: Pick<APIContext["cache"], "enabled" | "set"> = routeCache(),
+	logger = { warn: vi.fn() },
 ): Parameters<typeof GET>[0] {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for the endpoint
 	return {
@@ -56,6 +58,7 @@ function buildContext(
 		url: new URL(request.url),
 		locals: { emdash: { storage } },
 		cache,
+		logger,
 	} as unknown as Parameters<typeof GET>[0];
 }
 
@@ -77,6 +80,7 @@ describe("GET /_image over EmDash media", () => {
 	beforeEach(() => {
 		transform.mockReset();
 		configuredService = undefined;
+		imageConfig.assetQueryParams = undefined;
 		imageConfig.service.entrypoint = "astro/assets/services/sharp";
 		delete virtualConfig.routeCacheProvider;
 	});
@@ -268,6 +272,20 @@ describe("GET /_image over EmDash media", () => {
 		expect(cache.set).not.toHaveBeenCalled();
 	});
 
+	it("preserves adapter asset parameters without redirecting a canonical image URL", async () => {
+		imageConfig.assetQueryParams = new URLSearchParams({ dpl: "abc" });
+		transform.mockResolvedValue({ data: new Uint8Array([4, 5, 6]), format: "webp" });
+		const request = new Request(
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fkey.png&w=150&dpl=abc",
+		);
+
+		const response = await GET(buildContext(request, { download: pngDownload() }));
+
+		expect(response.status).toBe(200);
+		expect(response.headers.has("Location")).toBe(false);
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([4, 5, 6]));
+	});
+
 	it("leaves non-EmDash images to Astro's endpoint without redirecting", async () => {
 		const request = new Request("http://localhost/_image?w=150&href=%2F_astro%2Flogo.png&v=2");
 
@@ -409,4 +427,43 @@ describe("GET /_image over EmDash media", () => {
 			expect(cache.set).not.toHaveBeenCalled();
 		},
 	);
+
+	it("serves the original when the image service cannot optimize it", async () => {
+		const body = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(new Uint8Array([1, 2, 3]));
+				controller.close();
+			},
+		});
+		const download = vi.fn().mockResolvedValue({
+			body,
+			contentType: "image/png",
+			size: 3,
+			lastModified: new Date("2026-01-15T12:00:00.000Z"),
+		});
+		// Astro's sharp service warns through the logger it is given and passes the
+		// input through when it cannot process the format.
+		transform.mockImplementationOnce(
+			async (
+				input: Uint8Array,
+				_transform: unknown,
+				_config: unknown,
+				logger: { warn(message: string): void },
+			) => {
+				logger.warn("could not optimize");
+				return { data: input, format: "png" };
+			},
+		);
+		const logger = { warn: vi.fn() };
+		const request = new Request(
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fkey.png&w=150",
+		);
+
+		const response = await GET(buildContext(request, { download }, routeCache(), logger));
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Content-Type")).toBe("image/png");
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+		expect(logger.warn).toHaveBeenCalledWith("could not optimize");
+	});
 });
