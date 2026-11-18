@@ -123,14 +123,12 @@ export function resolveEditorExtensionSections(
 				panel,
 			}),
 		),
-		...resolveSandboxedEditorPanels(plugins, collection).map(
-			(panel): EditorExtensionSection => ({
-				kind: "sandboxed",
-				id: `sandbox-plugin:${panel.pluginId}:${panel.extension.id}`,
-				pluginId: panel.pluginId,
-				panel,
-			}),
-		),
+		...resolveSandboxedEditorPanels(plugins, collection).map((panel): EditorExtensionSection => ({
+			kind: "sandboxed",
+			id: `sandbox-plugin:${panel.pluginId}:${panel.extension.id}`,
+			pluginId: panel.pluginId,
+			panel,
+		})),
 	].toSorted(byDeclaredOrder);
 }
 
@@ -179,14 +177,14 @@ export function listEditorSections(
 			if (!extensions.has(section.id)) extensions.set(section.id, section);
 		}
 	}
-	const plugins = [...extensions.values()].toSorted(byDeclaredOrder).map(
-		(section): EditorSectionEntry => ({
+	const plugins = [...extensions.values()]
+		.toSorted(byDeclaredOrder)
+		.map((section): EditorSectionEntry => ({
 			kind: "plugin",
 			id: section.id,
 			label: section.panel.extension.title,
 			meta: manifest.plugins[section.pluginId]?.name ?? section.pluginId,
-		}),
-	);
+		}));
 
 	return resolveEditor([...builtIns, ...plugins], EMPTY_LIST_LAYOUT);
 }

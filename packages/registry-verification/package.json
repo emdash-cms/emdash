@@ -50,10 +50,10 @@
 	"devDependencies": {
 		"@arethetypeswrong/cli": "catalog:",
 		"@cloudflare/vitest-plugin": "catalog:",
-		"@sigstore/bundle": "5.0.0",
+		"@sigstore/bundle": "5.0.1",
 		"@sigstore/core": "4.0.1",
-		"@sigstore/protobuf-specs": "0.5.1",
-		"@sigstore/verify": "4.1.0",
+		"@sigstore/protobuf-specs": "0.5.2",
+		"@sigstore/verify": "4.1.3",
 		"publint": "catalog:",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",

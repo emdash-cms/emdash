@@ -858,9 +858,10 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 							variant="underline"
 							value={activeSection}
 							onValueChange={(v) => setSelectedSection(v as SectionKey)}
-							tabs={sections.map(
-								(s): TabsItem => ({ value: s.key, label: t(SECTION_LABELS[s.key]) }),
-							)}
+							tabs={sections.map((s): TabsItem => ({
+								value: s.key,
+								label: t(SECTION_LABELS[s.key]),
+							}))}
 						/>
 					) : (
 						<h2 className="text-sm font-semibold text-kumo-subtle">

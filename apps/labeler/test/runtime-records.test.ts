@@ -8,26 +8,24 @@ const PUBLIC_MULTIKEY = "zDnaepsL7AXenJkVYdkh5KuKsSU7Ykh7kyXaLLU7auN9FWSiZ";
 
 describe("production AT Protocol record verifier", () => {
 	it("resolves the publisher authority and verifies the exact URI and CID proof", async () => {
-		const resolveDid = vi.fn(
-			async (): Promise<DidDocument> => ({
-				id: PUBLISHER_DID,
-				verificationMethod: [
-					{
-						id: `${PUBLISHER_DID}#atproto`,
-						type: "Multikey",
-						controller: PUBLISHER_DID,
-						publicKeyMultibase: PUBLIC_MULTIKEY,
-					},
-				],
-				service: [
-					{
-						id: "#atproto_pds",
-						type: "AtprotoPersonalDataServer",
-						serviceEndpoint: "https://pds.example",
-					},
-				],
-			}),
-		);
+		const resolveDid = vi.fn(async (): Promise<DidDocument> => ({
+			id: PUBLISHER_DID,
+			verificationMethod: [
+				{
+					id: `${PUBLISHER_DID}#atproto`,
+					type: "Multikey",
+					controller: PUBLISHER_DID,
+					publicKeyMultibase: PUBLIC_MULTIKEY,
+				},
+			],
+			service: [
+				{
+					id: "#atproto_pds",
+					type: "AtprotoPersonalDataServer",
+					serviceEndpoint: "https://pds.example",
+				},
+			],
+		}));
 		const fetchRecordProof = vi.fn(async () => ({ cid: PROFILE_CID, record: PROFILE_RECORD }));
 		const verifier = createAtprotoExactRecordVerifier({ resolveDid, fetchRecordProof });
 

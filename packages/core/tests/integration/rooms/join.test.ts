@@ -30,9 +30,8 @@ const USERS = [EDITOR, AUTHOR, CONTRIBUTOR, SUBSCRIBER];
 function fakeRooms(...results: Issued[]) {
 	const queue = results.length > 0 ? [...results] : [{ token: "token-1" }];
 	return {
-		issueToken: vi.fn(
-			async (_roomId: string, _claims: TokenClaims): Promise<Issued> =>
-				queue.length > 1 ? queue.shift()! : queue[0]!,
+		issueToken: vi.fn(async (_roomId: string, _claims: TokenClaims): Promise<Issued> =>
+			queue.length > 1 ? queue.shift()! : queue[0]!,
 		),
 		isOpen: vi.fn(async () => false),
 		save: vi.fn(async () => null),
