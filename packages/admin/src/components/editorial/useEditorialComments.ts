@@ -56,6 +56,7 @@ export function useEditorialComments({
 	rev,
 	isDirty,
 	open,
+	canEdit,
 	initialThreadId,
 }: {
 	entry: EditorialEntry | null;
@@ -63,6 +64,8 @@ export function useEditorialComments({
 	rev: string | undefined;
 	isDirty: boolean;
 	open: boolean;
+	/** Whether the user may edit the entry, which moving its threads' anchors needs. */
+	canEdit: boolean;
 	initialThreadId?: string;
 }) {
 	const { t, i18n } = useLingui();
@@ -213,7 +216,9 @@ export function useEditorialComments({
 
 	const lastSyncedRef = React.useRef<string | null>(null);
 	React.useEffect(() => {
-		if (!entry || !editor || editor.isDestroyed || isDirty || !rev || !query.data) return;
+		if (!canEdit || !entry || !editor || editor.isDestroyed || isDirty || !rev || !query.data) {
+			return;
+		}
 		const located = new Map(
 			getEditorialHighlights(editor.state).map((highlight) => [highlight.threadId, highlight]),
 		);
@@ -248,7 +253,7 @@ export function useEditorialComments({
 			// A conflict means the entry changed again; the next load resolves the anchors afresh.
 			() => undefined,
 		);
-	}, [entry, editor, rev, isDirty, query.data, highlights, invalidate]);
+	}, [canEdit, entry, editor, rev, isDirty, query.data, highlights, invalidate]);
 
 	/** Starts a comment on the editor's selection, or on the whole entry without one. */
 	const startComment = React.useCallback(() => {
