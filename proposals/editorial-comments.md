@@ -41,7 +41,7 @@ X-EmDash-Request: 1
 Content-Type: application/json
 
 {
-	"version": 14,
+	"_rev": "MTQ6MjAyNi0xMS0wNlQwOToxMjo0MC4xMTha",
 	"anchor": {
 		"type": "text",
 		"field": "body",
@@ -64,7 +64,7 @@ X-EmDash-Request: 1
 Content-Type: application/json
 
 {
-	"version": 15,
+	"_rev": "MTU6MjAyNi0xMS0wNlQwOTozMTowNS40MDJa",
 	"anchors": [
 		{
 			"threadId": "01JA8Z6Q2W4V9R7T3M5K1N0PXC",
@@ -221,22 +221,24 @@ Each route starts with `export const prerender = false`, validates bodies with `
 | Method and path                             | Purpose                                                                                  |
 | ------------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `GET …/threads?status=open\|resolved\|all`  | List threads with their comments; `{ items, nextCursor? }`, default 50, max 100          |
-| `POST …/threads`                            | Create a thread and its first comment from `{ version, anchor, body }`                   |
+| `POST …/threads`                            | Create a thread and its first comment from `{ _rev?, anchor, body }`                     |
 | `PATCH …/threads/{threadId}`                | Set `{ status }`                                                                         |
 | `DELETE …/threads/{threadId}`               | Delete a thread and its comments                                                         |
 | `POST …/threads/{threadId}/comments`        | Reply with `{ body }`; a reply to a resolved thread reopens it                           |
 | `PATCH …/threads/{threadId}/comments/{id}`  | Edit `{ body }`                                                                          |
 | `DELETE …/threads/{threadId}/comments/{id}` | Clear the body and set `deleted_at`; deleting a thread's only comment deletes the thread |
-| `PATCH …/threads/anchors`                   | Update `{ version, anchors: [{ threadId, anchor, anchorState }] }` in one request        |
+| `PATCH …/threads/anchors`                   | Update `{ _rev, anchors: [{ threadId, anchor, anchorState }] }` in one request           |
 | `GET …/threads/mentionable?q=`              | Up to 10 users holding `editorial:comment`: `id`, display name, avatar URL               |
 
 `GET …/threads` returns threads and comments from one query. Deleted comments are returned with an empty body so clients can show a placeholder in thread order. Author fields resolve to `null` for deleted users.
 
-`POST …/threads` and `PATCH …/threads/anchors` carry the entry's optimistic-concurrency `version`, which every content save advances, including draft saves. The server compares it with the entry's current version and returns `CONFLICT` on a mismatch, so a client cannot store anchors computed against stale content. On `CONFLICT`, the client reloads the entry and resolves the anchors again.
+`PATCH …/threads/anchors` must carry the entry's `_rev`, the optimistic-concurrency token other content endpoints use, which every content save changes, including draft saves. The server returns `CONFLICT` when the entry no longer has that `_rev` at the moment the anchors are written, and stores none of them, so offsets computed against stale content never replace stored anchors. On `CONFLICT`, the client reloads the entry and resolves the anchors again. `_rev` is optional on `POST …/threads`, so a thread can be started on content that has not been saved yet; when it is sent, a stale `_rev` returns `CONFLICT` there too.
+
+An anchor update must name a field the collection still has, in a form that field can hold, except that a thread may be marked `orphaned` on the field its stored anchor names after that field is removed or changes type.
 
 The mentionable endpoint is per entry so that a future collection-scoped permission model can limit it to users with access to that entry. It never returns email addresses.
 
-Writes to threads on an entry in the trash return `CONFLICT`. Reads remain available.
+Writes to threads on an entry in the trash return `CONFLICT`, except deletes: people can still delete their own comments and threads, and editors anyone's, so they can remove what they wrote while the entry sits in the trash. Reads remain available.
 
 ### Entry lifecycle
 
@@ -311,7 +313,7 @@ Each implementation slice adds a changeset for `emdash` and `@emdash-cms/admin` 
 
 ## Failure handling
 
-- **Anchor update fails or conflicts.** The stored anchor stays at its previous value. The next client to load the entry resolves it again from the quoted text and retries the update with the current version.
+- **Anchor update fails or conflicts.** The stored anchor stays at its previous value. The next client to load the entry resolves it again from the quoted text and retries the update with the current `_rev`.
 - **Quoted text removed outside an open editor.** The thread becomes orphaned and is listed under **Detached** with its original quote. If the text reappears, for example after a revision restore, the next resolution re-attaches it.
 - **Email failure.** The handler logs the error with an `[editorial]` prefix. Notifications are not retried and do not affect the comment.
 - **Polling failure.** The panel keeps the last successful data and shows that it could not refresh.
@@ -321,7 +323,7 @@ Each implementation slice adds a changeset for `emdash` and `@emdash-cms/admin` 
 ## Verification
 
 - **Unit tests** for `@emdash-cms/admin/editorial-anchors`: unchanged position, text inserted before the anchor, block moved, block key changed with the quote intact, quote deleted, duplicate quotes ranked by context and distance, surrogate pairs and combining characters, right-to-left text, and ProseMirror position conversion including hard breaks.
-- **Integration tests** with `describeEachDialect`: thread and comment CRUD; the permission matrix for each role; resolution by creator, entry owner, and editor; mention validation; IDOR attempts using a thread from another entry; `CONFLICT` on stale `version`; writes to trashed entries; cascade on permanent deletion; null authors after user deletion.
+- **Integration tests** with `describeEachDialect`: thread and comment CRUD; the permission matrix for each role; resolution by creator, entry owner, and editor; mention validation; IDOR attempts using a thread from another entry; `CONFLICT` on a stale `_rev`, including an entry saved between the check and the write; writes to trashed entries; cascade on permanent deletion; null authors after user deletion.
 - **Query counts:** `pnpm query-counts` shows no change for logged-out routes.
 - **Playwright:** create a text comment, edit text before it, save, reload, and confirm the highlight covers the same text; comment as a second user while the first holds the lock; resolve and reopen; follow a deep link; repeat the panel checks in Arabic.
 - **Visual editing:** confirm the badge and popover in edit mode, and confirm that logged-out HTML is byte-identical to the current output.
