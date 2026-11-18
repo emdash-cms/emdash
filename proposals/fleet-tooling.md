@@ -14,7 +14,7 @@ created: 2026-11-10
 
 # Run many sites from one place with emdash fleet
 
-> **Draft.** The fleet prototype and the isolate-per-site check have run, and their results are folded into this text. One [acceptance gate](#acceptance-gates) is still open: a run on a real account. Acceptance also waits on linking every gate's results from the design pull request.
+> One [acceptance gate](#acceptance-gates) is still open: the author's run on a real account. Acceptance also waits on linking every gate's results from the design pull request.
 
 ## Summary
 
