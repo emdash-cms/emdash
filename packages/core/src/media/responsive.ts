@@ -9,6 +9,12 @@
  * resolves inside an Astro project, not in this precompiled package).
  */
 
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
+
+import { getConfiguredOrigin, type SiteUrlConfig } from "../api/public-url.js";
+import { matchInternalMediaKey } from "./image-endpoint.js";
+import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 import type { EmbedOptions } from "./types.js";
 
 /** Standard responsive breakpoints. Matches CDN-provider srcset generation. */
@@ -89,6 +95,54 @@ export function toAbsoluteMediaUrl(src: string, origin: string | undefined): str
 	} catch {
 		return src;
 	}
+}
+
+/**
+ * The origin EmDash media URLs are optimized on: the configured public URL, or
+ * the request's origin when the page is rendered on demand.
+ *
+ * Anonymous requests get `locals.emdash` without `config`, so the build-time
+ * configuration is the fallback for `siteUrl`.
+ */
+export function mediaOrigin(astro: {
+	url: URL;
+	isPrerendered: boolean;
+	locals: { emdash?: { config?: SiteUrlConfig } };
+}): string | undefined {
+	const configured = getConfiguredOrigin(astro.locals.emdash?.config ?? virtualConfig ?? undefined);
+	if (configured) {
+		try {
+			return new URL(configured).origin;
+		} catch {
+			return undefined;
+		}
+	}
+	return astro.isPrerendered ? undefined : astro.url.origin;
+}
+
+/**
+ * The absolute URL to hand to Astro's image service for `src`, or `null` when
+ * the image must render unoptimized.
+ *
+ * EmDash media URLs are only optimized on `origin`: the image endpoint reads
+ * them from this site's storage, so another site's media URL would resolve to
+ * the wrong file. Without an `origin` (a prerendered page on a site without a
+ * configured public URL), the build has no server to load them from.
+ */
+export function optimizableMediaUrl(src: string, origin: string | undefined): string | null {
+	const absolute = toAbsoluteMediaUrl(src, origin);
+	if (!ABSOLUTE_HTTP_URL.test(absolute)) return null;
+	let url: URL;
+	try {
+		url = new URL(absolute);
+	} catch {
+		return null;
+	}
+	if (!url.pathname.startsWith(INTERNAL_MEDIA_PREFIX)) return absolute;
+	if (!origin || url.origin !== new URL(origin).origin) return null;
+	// Keys the image endpoint won't read (e.g. an extension with spaces from the
+	// original filename) are still served by the file route as a plain `<img>`.
+	return matchInternalMediaKey(absolute) ? absolute : null;
 }
 
 /**

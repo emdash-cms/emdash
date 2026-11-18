@@ -211,11 +211,53 @@ export function isSafeTransformKey(key: string): boolean {
  * The component absolutizes same-origin media (Astro only optimizes absolute,
  * remote-allowed URLs), so `href` is typically `https://site/_emdash/...` but
  * may be relative. We match on the **pathname** only and never fetch `href` —
- * the key is read from our own storage — so the host is irrelevant and can't be
- * an SSRF vector. A dummy base resolves both absolute and relative forms and
- * strips any query/fragment.
+ * the key is read from our own storage. Hrefs that don't match are checked by
+ * {@link canDelegateImageHref} before the stock endpoint may fetch them. A
+ * dummy base resolves both absolute and relative forms and strips any
+ * query/fragment.
  */
 export function matchInternalMediaKey(href: string | null | undefined): string | null {
+	const pathname = internalMediaPathname(href);
+	if (pathname === null) return null;
+	const key = pathname.slice(INTERNAL_MEDIA_PREFIX.length);
+	if (!key || !isSafeTransformKey(key)) return null;
+	return key;
+}
+
+/**
+ * Whether the stock endpoint may load `href`, given the request's `origin`.
+ *
+ * `image.remotePatterns` allows the internal media route on every host, so the
+ * stock endpoint would fetch such an `href` from whatever host it names, and
+ * the request's own origin comes from a client-supplied `Host` header. EmDash
+ * media is only ever served from storage, so the internal media route is never
+ * delegated; other images are left to the stock endpoint's own checks. This
+ * checks `href` only: a redirect from an allowed host to a media path on
+ * another host is still followed by the stock endpoint.
+ */
+export function canDelegateImageHref(href: string | null | undefined, origin: string): boolean {
+	if (!href) return true;
+	const target = parseUrl(href, origin);
+	if (!target) return false;
+	// Astro matches `remotePatterns` against `href` parsed on its own, but fetches
+	// it resolved against the request origin. These differ for forms such as
+	// `http:host/path` on an https origin, so both readings are checked.
+	return !isInternalMediaUrl(target) && !isInternalMediaUrl(parseUrl(href));
+}
+
+function parseUrl(href: string, base?: string): URL | null {
+	try {
+		return new URL(href, base);
+	} catch {
+		return null;
+	}
+}
+
+function isInternalMediaUrl(url: URL | null): boolean {
+	return url?.pathname.startsWith(INTERNAL_MEDIA_PREFIX) ?? false;
+}
+
+function internalMediaPathname(href: string | null | undefined): string | null {
 	if (!href) return null;
 	let pathname: string;
 	try {
@@ -223,10 +265,7 @@ export function matchInternalMediaKey(href: string | null | undefined): string |
 	} catch {
 		return null;
 	}
-	if (!pathname.startsWith(INTERNAL_MEDIA_PREFIX)) return null;
-	const key = pathname.slice(INTERNAL_MEDIA_PREFIX.length);
-	if (!key || !isSafeTransformKey(key)) return null;
-	return key;
+	return pathname.startsWith(INTERNAL_MEDIA_PREFIX) ? pathname : null;
 }
 
 /** Type guard for {@link ImageTransformFormat}. */

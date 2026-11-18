@@ -16,6 +16,7 @@ import { getConfiguredImageService, imageConfig } from "astro:assets";
 
 import {
 	getTransformFingerprint,
+	canDelegateImageHref,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
@@ -33,6 +34,14 @@ const FORMAT_MIME: Record<string, string> = {
 	jpg: "image/jpeg",
 	gif: "image/gif",
 };
+
+const MISSING_SHARP_KEY = Symbol.for("emdash:image-endpoint:missing-sharp");
+/** Validator suffix for originals served in place of a rendition. */
+const ORIGINAL_FALLBACK_SUFFIX = "original";
+
+function sharpMissing(): boolean {
+	return (globalThis as Record<symbol, unknown>)[MISSING_SHARP_KEY] === true;
+}
 
 function isNotFound(error: unknown): boolean {
 	return (
@@ -72,12 +81,17 @@ function notModifiedResponse(
 
 export const GET: APIRoute = async (ctx) => {
 	const url = new URL(ctx.request.url);
-	const key = matchInternalMediaKey(url.searchParams.get("href"));
+	const href = url.searchParams.get("href");
+	const key = matchInternalMediaKey(href);
 	const storage = ctx.locals.emdash?.storage;
 
-	// Not EmDash media, or storage unavailable: let the stock endpoint handle it
-	// (bundled assets, allowed remote, `publicUrl` media).
-	if (!key || !storage) return genericGET(ctx);
+	if (!key || !storage) {
+		if (!canDelegateImageHref(href, url.origin)) {
+			return new Response("Not Found", { status: 404 });
+		}
+		// Not EmDash media: bundled assets, allowed remote, `publicUrl` media.
+		return genericGET(ctx);
+	}
 
 	const service = await getConfiguredImageService();
 	if (!("transform" in service)) return genericGET(ctx);
@@ -120,13 +134,44 @@ export const GET: APIRoute = async (ctx) => {
 			return response;
 		}
 
+		const serveFallbackOriginal = (body: ReadableStream<Uint8Array> | Uint8Array): Response => {
+			const headers = {
+				...originalMediaHeaders(source.contentType, source.size, source.lastModified),
+				...validatorHeaders(source.size, source.lastModified, ORIGINAL_FALLBACK_SUFFIX),
+			};
+			return new Response(ctx.request.method === "HEAD" ? null : body, { status: 200, headers });
+		};
+
+		if (sharpMissing()) {
+			if (isNotModified(ctx.request, source.size, source.lastModified, ORIGINAL_FALLBACK_SUFFIX)) {
+				return notModifiedResponse(
+					source.contentType,
+					source.size,
+					source.lastModified,
+					ORIGINAL_FALLBACK_SUFFIX,
+				);
+			}
+			if (ctx.request.method === "HEAD") return serveFallbackOriginal(new Uint8Array());
+			unusedBody = undefined;
+			return serveFallbackOriginal(source.body);
+		}
+
 		const fingerprint = getTransformFingerprint(url.searchParams);
 		if (isNotModified(ctx.request, source.size, source.lastModified, fingerprint)) {
 			return notModifiedResponse(source.contentType, source.size, source.lastModified, fingerprint);
 		}
 
 		const inputBuffer = new Uint8Array(await new Response(source.body).arrayBuffer());
-		const { data, format } = await service.transform(inputBuffer, transform, imageConfig);
+		let output: { data: Uint8Array; format: string };
+		try {
+			output = await service.transform(inputBuffer, transform, imageConfig);
+		} catch (error) {
+			if (!(error instanceof Error && error.name === "MissingSharp")) throw error;
+			(globalThis as Record<symbol, unknown>)[MISSING_SHARP_KEY] = true;
+			console.error("[emdash] sharp is not installed, serving original images:", error);
+			return serveFallbackOriginal(inputBuffer);
+		}
+		const { data, format } = output;
 
 		return new Response(data, {
 			status: 200,

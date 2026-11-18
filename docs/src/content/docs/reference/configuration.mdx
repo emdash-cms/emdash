@@ -109,7 +109,7 @@ See [Storage Options](/deployment/storage/) for details.
 
 **Optional.** Controls whether EmDash integrates stored media with Astro's image optimization. The default is `true`.
 
-When enabled, EmDash wraps Astro's image endpoint so `<Image>` and `getImage()` can read source bytes directly from the configured storage adapter. This also works when the original media URL is behind Cloudflare Access. Requests to the wrapped endpoint skip EmDash's runtime startup, so on them `locals.emdash` holds only `storage`, plus `db` for a signed-in user. `locals.user` is set as on other public routes. Set `images: false` when another image service handles the media or when every image should render without EmDash's endpoint wrapper.
+When enabled, EmDash wraps Astro's image endpoint so `<Image>` and `getImage()` can read source bytes directly from the configured storage adapter. On pages rendered on demand, locally stored media is optimized without `siteUrl` or a build-time `EMDASH_SITE_URL`. Prerendered pages still need one of them when `astro build` runs. This also works when the original media URL is behind Cloudflare Access. On Node without `sharp` installed, the endpoint serves the original file instead of a resized one. Requests to the wrapped endpoint skip EmDash's runtime startup, so on them `locals.emdash` holds only `storage`, plus `db` for a signed-in user. `locals.user` is set as on other public routes. Set `images: false` when another image service handles the media or when every image should render without EmDash's endpoint wrapper.
 
 ```js
 emdash({
@@ -492,8 +492,6 @@ emdash({
 ```
 
 When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
-
-Image optimization reads these environment variables at **build time**, because Astro records the allowed image origins in `image.remotePatterns` when `astro build` runs. If `EMDASH_SITE_URL` or `SITE_URL` is set only in the runtime environment, as on hosts that inject variables when the app starts, locally stored media is served unoptimized. Set the variable in the build environment as well, or set `siteUrl` in config.
 
 Setup fails with `SITE_URL_REQUIRED` on a non-loopback host when neither source is set. This prevents the first unauthenticated setup request from choosing the origin used in later authentication emails. A production build deployed to Cloudflare Workers is the exception: Cloudflare only routes requests for hostnames bound to the Worker, so setup records `https://` and the hostname it runs on. The same build served by `wrangler dev`, `astro preview`, or self-hosted workerd on a reachable address gets no such guarantee; set `siteUrl` or `EMDASH_SITE_URL` there first.
 
