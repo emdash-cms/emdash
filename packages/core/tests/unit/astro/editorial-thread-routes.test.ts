@@ -3,6 +3,7 @@ import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { PATCH as PATCH_ANCHORS } from "../../../src/astro/routes/api/content/[collection]/[id]/threads/anchors.js";
 import {
 	GET,
 	POST,
@@ -90,5 +91,27 @@ describe("editorial thread routes", () => {
 		});
 
 		expect(response.status).toBe(400);
+	});
+
+	it("refuses recomputed anchors sent without the entry's _rev", async () => {
+		await call(POST, Role.EDITOR, {
+			method: "POST",
+			body: { anchor: { type: "field", field: "title" }, body: "Punchier?" },
+		});
+		const listed = (await (await call(GET, Role.EDITOR, { method: "GET" })).json()) as {
+			data: { items: { id: string }[] };
+		};
+		const threadId = listed.data.items[0]!.id;
+
+		const response = await call(PATCH_ANCHORS, Role.EDITOR, {
+			method: "PATCH",
+			body: { anchors: [{ threadId, anchor: { type: "entry" }, anchorState: "attached" }] },
+		});
+
+		expect(response.status).toBe(400);
+		const after = (await (await call(GET, Role.EDITOR, { method: "GET" })).json()) as {
+			data: { items: { anchor: unknown }[] };
+		};
+		expect(after.data.items[0]!.anchor).toEqual({ type: "field", field: "title" });
 	});
 });

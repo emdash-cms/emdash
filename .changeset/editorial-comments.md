@@ -16,8 +16,8 @@ Two permissions are new in `@emdash-cms/auth`. Every editorial route also needs 
 - `editorial:comment` (Contributor and above): read threads, start them, and reply.
 - `editorial:manage` (Editor and above): resolve, reopen and delete any thread, and delete anyone's comment.
 
-A thread's creator and the entry's author may also resolve and reopen it. A creator may delete their own thread until someone else replies, and only a comment's author may edit it. Storing recomputed anchors needs edit access to the entry.
+A thread's creator may also resolve and reopen it, and so may the entry's author when they hold `content:edit_own`. A creator may delete their own thread until someone else replies, and only a comment's author may edit it. Storing recomputed anchors needs edit access to the entry and its current `_rev`.
 
 #### Upgrading
 
-A migration adds two tables, `_emdash_editorial_threads` and `_emdash_editorial_comments`. Threads stay while an entry is in the trash, and are deleted with the entry or its collection. Site transfer leaves them out.
+A migration adds two tables, `_emdash_editorial_threads` and `_emdash_editorial_comments`. Threads stay while an entry is in the trash, where their comments and threads can still be deleted but not added, edited, resolved or moved, and are deleted with the entry or its collection. Site transfer leaves them out.

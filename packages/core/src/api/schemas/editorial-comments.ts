@@ -49,9 +49,14 @@ const commentBody = z
 	.max(EDITORIAL_COMMENT_MAX_LENGTH)
 	.meta({ description: "Plain text. Mention a user with `<@USER_ID>`." });
 
-const rev = z.string().max(512).optional().meta({
+const optionalRev = z.string().max(512).optional().meta({
 	description:
 		"The entry's `_rev` the client worked from. When sent and no longer current, the request fails with 409 CONFLICT.",
+});
+
+const requiredRev = z.string().min(1).max(512).meta({
+	description:
+		"The entry's `_rev` the anchors were computed against. When it is no longer current, the request fails with 409 CONFLICT and no anchor changes.",
 });
 
 export const editorialThreadListQuery = cursorPaginationQuery.extend({
@@ -59,7 +64,7 @@ export const editorialThreadListQuery = cursorPaginationQuery.extend({
 });
 
 export const editorialThreadCreateBody = z
-	.object({ _rev: rev, anchor: editorialAnchorSchema, body: commentBody })
+	.object({ _rev: optionalRev, anchor: editorialAnchorSchema, body: commentBody })
 	.meta({ id: "EditorialThreadCreateBody" });
 
 export const editorialThreadUpdateBody = z
@@ -72,7 +77,7 @@ export const editorialCommentBody = z
 
 export const editorialAnchorsUpdateBody = z
 	.object({
-		_rev: rev,
+		_rev: requiredRev,
 		anchors: z
 			.array(
 				z.object({
