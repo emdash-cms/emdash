@@ -168,16 +168,22 @@ function canDeleteThread(
 	return true;
 }
 
-/** Every mentioned user must exist and be allowed to take part in editorial threads. */
-async function checkMentions(db: Kysely<Database>, body: string): Promise<Failure | null> {
-	const ids = extractMentions(body);
-	if (ids.length === 0) return null;
-	if (ids.length > EDITORIAL_MENTION_LIMIT) {
+/**
+ * The body must stay within the mention limit, and each of `ids` must exist
+ * and be allowed to take part in editorial threads.
+ */
+async function checkMentions(
+	db: Kysely<Database>,
+	body: string,
+	ids: string[] = extractMentions(body),
+): Promise<Failure | null> {
+	if (extractMentions(body).length > EDITORIAL_MENTION_LIMIT) {
 		return fail(
 			ErrorCode.VALIDATION_ERROR,
 			`A comment can mention at most ${EDITORIAL_MENTION_LIMIT} people`,
 		);
 	}
+	if (ids.length === 0) return null;
 	const users = await findEditorialUsers(db, ids);
 	const invalid = ids.find((id) => !users.get(id)?.canComment);
 	if (invalid) {
@@ -451,7 +457,10 @@ export function handleEditorialCommentUpdate(
 			if (comment.authorId !== actor.id) {
 				return fail(ErrorCode.FORBIDDEN, "Only its author can edit a comment");
 			}
-			const refused = (await checkWritable(trx, entry)) ?? (await checkMentions(trx, input.body));
+			const before = new Set(extractMentions(comment.body));
+			const added = extractMentions(input.body).filter((id) => !before.has(id));
+			const refused =
+				(await checkWritable(trx, entry)) ?? (await checkMentions(trx, input.body, added));
 			if (refused) return refused;
 
 			await new EditorialThreadRepository(trx).editComment({
@@ -460,8 +469,7 @@ export function handleEditorialCommentUpdate(
 				body: input.body,
 				now: now(),
 			});
-			const before = new Set(extractMentions(comment.body));
-			addedMentions = extractMentions(input.body).filter((id) => !before.has(id));
+			addedMentions = added;
 			return threadView(trx, actor, entry, threadId);
 		});
 		if (result.success && addedMentions.length > 0) {

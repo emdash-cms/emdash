@@ -134,6 +134,41 @@ describeEachDialect("editorial mentions and notifications", (dialect) => {
 		expect(edit).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
 	});
 
+	it("keeps an edit's existing mentions of users who can no longer take part", async () => {
+		const thread = expectData(
+			await handleEditorialThreadCreate(db, ADA, entry, {
+				anchor: ANCHOR,
+				body: `Ask <@${GRACE.id}> and <@${LIN.id}>. Draft`,
+			}),
+		);
+		await db.updateTable("users").set({ disabled: 1 }).where("id", "=", GRACE.id).execute();
+		await db.updateTable("users").set({ role: Role.SUBSCRIBER }).where("id", "=", LIN.id).execute();
+
+		const edited = expectData(
+			await handleEditorialCommentUpdate(db, ADA, entry, thread.id, thread.comments[0]!.id, {
+				body: `Ask <@${GRACE.id}> and <@${LIN.id}>. Final`,
+			}),
+		);
+		expect(edited.comments[0]!.body).toBe(`Ask <@${GRACE.id}> and <@${LIN.id}>. Final`);
+
+		await db.deleteFrom("users").where("id", "=", GRACE.id).execute();
+		expectData(
+			await handleEditorialCommentUpdate(db, ADA, entry, thread.id, thread.comments[0]!.id, {
+				body: `Ask <@${GRACE.id}> and <@${LIN.id}>. Final, really`,
+			}),
+		);
+
+		const added = await handleEditorialCommentUpdate(
+			db,
+			ADA,
+			entry,
+			thread.id,
+			thread.comments[0]!.id,
+			{ body: `Ask <@${GRACE.id}> and <@${LIN.id}>. cc <@${SUBSCRIBER}>` },
+		);
+		expect(added).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+	});
+
 	it("returns mentioned users with their current names", async () => {
 		await handleEditorialThreadCreate(db, ADA, entry, {
 			anchor: ANCHOR,
