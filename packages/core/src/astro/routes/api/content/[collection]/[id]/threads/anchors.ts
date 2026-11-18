@@ -25,6 +25,7 @@ export const PATCH: APIRoute = async ({ params, request, locals, url }) => {
 	return unwrapResult(
 		await handleEditorialAnchorsUpdate(
 			emdash.db,
+			user!,
 			{
 				collection: params.collection!,
 				id: params.id!,

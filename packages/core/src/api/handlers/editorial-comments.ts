@@ -10,7 +10,7 @@ import {
 	type EditorialThread,
 	type EditorialThreadHead,
 } from "../../database/repositories/editorial-threads.js";
-import type { ContentItem } from "../../database/repositories/types.js";
+import { InvalidCursorError, type ContentItem } from "../../database/repositories/types.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { entryEditAccess } from "../authorize.js";
@@ -191,6 +191,7 @@ async function run<T>(
 	try {
 		return await fn();
 	} catch (error) {
+		if (error instanceof InvalidCursorError) return fail(ErrorCode.INVALID_CURSOR, error.message);
 		console.error(`[editorial-comments] ${label} failed:`, error);
 		return fail(ErrorCode.EDITORIAL_COMMENT_ERROR, `Failed to ${label}`);
 	}
@@ -302,7 +303,11 @@ export function handleEditorialThreadDelete(
 				return fail(ErrorCode.FORBIDDEN, "You can't delete this thread");
 			}
 
-			await threads.deleteThread(threadId);
+			if (isManager(actor)) {
+				await threads.deleteThread(threadId);
+			} else if (!(await threads.deleteThreadIfOnlyAuthor(threadId, actor.id))) {
+				return fail(ErrorCode.FORBIDDEN, "You can't delete this thread");
+			}
 			return { success: true, data: { deleted: true, threadId } };
 		}),
 	);
@@ -416,11 +421,11 @@ export function handleEditorialCommentDelete(
 
 /**
  * Stores anchors the editor recomputed after the entry's content changed.
- * Anyone who can comment may send them, since any editor's client may be the
- * one that noticed the change.
+ * Only someone who may edit the entry may send them.
  */
 export function handleEditorialAnchorsUpdate(
 	db: Kysely<Database>,
+	actor: EditorialActor,
 	ref: EditorialEntryRef,
 	input: { _rev?: string; anchors: EditorialAnchorUpdate[] },
 ): Promise<ApiResult<{ updated: number }>> {
@@ -428,6 +433,16 @@ export function handleEditorialAnchorsUpdate(
 		withTransaction(db, async (trx) => {
 			const entry = await loadEntry(trx, ref);
 			if (isFailure(entry)) return entry;
+			const access = entryEditAccess(actor, {
+				authorId: entry.item.authorId ?? "",
+				status: entry.item.status,
+			});
+			if (!access) {
+				return fail(
+					ErrorCode.FORBIDDEN,
+					"Only someone who may edit the entry may move its comments",
+				);
+			}
 			const refused = await checkWritable(trx, entry, input._rev);
 			if (refused) return refused;
 			for (const update of input.anchors) {

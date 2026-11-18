@@ -212,6 +212,56 @@ describeEachDialect("editorial comment handlers", (dialect) => {
 		expect(reply).toMatchObject({ success: false, error: { code: "CONFLICT" } });
 	});
 
+	it("lets people delete their comments and threads on a trashed entry", async () => {
+		const solo = await startThread();
+		const replied = await startThread();
+		const reply = expectData(
+			await handleEditorialCommentCreate(db, OWNER, entry, replied.id, { body: "Done" }),
+		);
+		await handleContentDelete(db, "post", entry.id);
+
+		const threadResult = await handleEditorialThreadDelete(db, REVIEWER, entry, solo.id);
+		const commentResult = await handleEditorialCommentDelete(
+			db,
+			OWNER,
+			entry,
+			replied.id,
+			reply.comments[1]!.id,
+		);
+
+		expect(threadResult).toMatchObject({ success: true, data: { deleted: true } });
+		expect(commentResult).toMatchObject({ success: true, data: { threadDeleted: false } });
+	});
+
+	it("refuses a malformed cursor as a bad request", async () => {
+		await startThread();
+
+		const result = await handleEditorialThreadList(db, REVIEWER, entry, {
+			status: "open",
+			limit: 50,
+			cursor: "garbage",
+		});
+
+		expect(result).toMatchObject({ success: false, error: { code: "INVALID_CURSOR" } });
+	});
+
+	it("pages through threads with the returned cursor", async () => {
+		const ids = [(await startThread()).id, (await startThread()).id, (await startThread()).id];
+
+		const seen: string[] = [];
+		let cursor: string | undefined;
+		do {
+			const page = expectData(
+				// oxlint-disable-next-line no-await-in-loop -- each page needs the previous cursor
+				await handleEditorialThreadList(db, REVIEWER, entry, { status: "open", limit: 2, cursor }),
+			);
+			seen.push(...page.items.map((t) => t.id));
+			cursor = page.nextCursor;
+		} while (cursor && seen.length <= ids.length);
+
+		expect(seen).toEqual(ids);
+	});
+
 	it("hides a thread from routes for another entry", async () => {
 		const { id, comments } = await startThread(REVIEWER, otherEntry);
 		const commentId = comments[0]!.id;
@@ -345,7 +395,7 @@ describeEachDialect("editorial comment handlers", (dialect) => {
 		const theirs = await startThread(REVIEWER, otherEntry);
 		const moved: EditorialAnchor = { ...TEXT_ANCHOR, start: 10, end: 15 };
 
-		const result = await handleEditorialAnchorsUpdate(db, entry, {
+		const result = await handleEditorialAnchorsUpdate(db, OWNER, entry, {
 			_rev: await currentRev(),
 			anchors: [
 				{ threadId: mine.id, anchor: moved, anchorState: "attached" },
@@ -364,12 +414,31 @@ describeEachDialect("editorial comment handlers", (dialect) => {
 		expect(other!.anchor).toEqual(TEXT_ANCHOR);
 	});
 
+	it("takes recomputed anchors only from someone who may edit the entry", async () => {
+		const { id } = await startThread();
+		const update = async (actor: EditorialActor) =>
+			handleEditorialAnchorsUpdate(db, actor, entry, {
+				_rev: await currentRev(),
+				anchors: [{ threadId: id, anchor: TEXT_ANCHOR, anchorState: "orphaned" }],
+			});
+
+		expect(await update(REVIEWER)).toMatchObject({
+			success: false,
+			error: { code: "FORBIDDEN" },
+		});
+		const [thread] = expectData(
+			await handleEditorialThreadList(db, REVIEWER, entry, { status: "open", limit: 50 }),
+		).items;
+		expect(thread!.anchorState).toBe("attached");
+		expect(await update(EDITOR)).toMatchObject({ success: true, data: { updated: 1 } });
+	});
+
 	it("refuses recomputed anchors made from a stale entry", async () => {
 		const { id } = await startThread();
 		const rev = await currentRev();
 		await new ContentRepository(db).update("post", entry.id, { data: { title: "Changed" } });
 
-		const result = await handleEditorialAnchorsUpdate(db, entry, {
+		const result = await handleEditorialAnchorsUpdate(db, OWNER, entry, {
 			_rev: rev,
 			anchors: [{ threadId: id, anchor: TEXT_ANCHOR, anchorState: "orphaned" }],
 		});

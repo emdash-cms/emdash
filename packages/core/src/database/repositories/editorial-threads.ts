@@ -505,6 +505,37 @@ export class EditorialThreadRepository {
 		await this.db.deleteFrom("_emdash_editorial_threads").where("id", "=", threadId).execute();
 	}
 
+	/**
+	 * Deletes the thread only while every live comment on it is by `authorId`.
+	 * Checking in the delete itself keeps a reply that lands meanwhile.
+	 * Returns whether the thread was deleted.
+	 */
+	async deleteThreadIfOnlyAuthor(threadId: string, authorId: string): Promise<boolean> {
+		const deleted = await this.db
+			.deleteFrom("_emdash_editorial_threads")
+			.where("id", "=", threadId)
+			.where(({ exists, not, selectFrom }) =>
+				not(
+					exists(
+						selectFrom("_emdash_editorial_comments")
+							.select("id")
+							.where("thread_id", "=", threadId)
+							.where("deleted_at", "is", null)
+							.where((inner) =>
+								inner.or([inner("author_id", "is", null), inner("author_id", "!=", authorId)]),
+							),
+					),
+				),
+			)
+			.executeTakeFirst();
+		if (Number(deleted.numDeletedRows ?? 0) === 0) return false;
+		await this.db
+			.deleteFrom("_emdash_editorial_comments")
+			.where("thread_id", "=", threadId)
+			.execute();
+		return true;
+	}
+
 	async deleteForEntry(collection: string, entryId: string): Promise<void> {
 		await this.deleteWhere(collection, entryId);
 	}

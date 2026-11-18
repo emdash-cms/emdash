@@ -273,6 +273,22 @@ describeEachDialect("editorial threads", (dialect) => {
 		expect((await threads.listForEntry("post", entryId, { limit: 50 })).items).toEqual([]);
 	});
 
+	it("deletes a thread for its author only while nobody else has a live comment on it", async () => {
+		const solo = await createThread();
+		const replied = await createThread();
+		await threads.addComment({
+			threadId: replied.threadId,
+			authorId: LINUS,
+			body: "Wait",
+			now: now(),
+		});
+
+		expect(await threads.deleteThreadIfOnlyAuthor(solo.threadId, ADA)).toBe(true);
+		expect(await threads.findThread(solo.threadId)).toBeNull();
+		expect(await threads.deleteThreadIfOnlyAuthor(replied.threadId, ADA)).toBe(false);
+		expect((await threads.getThread(replied.threadId))?.comments).toHaveLength(2);
+	});
+
 	it("deletes the thread when its last live comment is deleted", async () => {
 		const { threadId, commentId } = await createThread();
 
