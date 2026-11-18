@@ -9,7 +9,7 @@
  * The handlers instance is passed per-request via authInfo on the transport.
  */
 
-import { locateQuote } from "@emdash-cms/admin/editorial-anchors";
+import { locateQuote } from "@emdash-cms/admin/internal/editorial-anchors";
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
 import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
