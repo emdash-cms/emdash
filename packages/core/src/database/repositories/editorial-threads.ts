@@ -90,9 +90,19 @@ interface ThreadRow {
 /**
  * Threads and comments are ordered by `(created_at, id)`. Monotonic IDs keep
  * rows that one process writes in the same millisecond in the order it wrote
- * them. Rows from different processes or isolates have no such order.
+ * them. Rows from different processes or isolates have no such order. The
+ * factory lives on `globalThis` because Vite can load this module more than
+ * once, and each copy would start its own sequence.
  */
-const ulid = monotonicFactory();
+const ULID_KEY = Symbol.for("emdash:editorial-thread-ulid");
+
+function ulid(): string {
+	const store = globalThis as typeof globalThis & {
+		[ULID_KEY]?: ReturnType<typeof monotonicFactory>;
+	};
+	store[ULID_KEY] ??= monotonicFactory();
+	return store[ULID_KEY]();
+}
 
 function parseAnchor(raw: string): EditorialAnchor {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- anchors are validated before they are stored
@@ -360,6 +370,7 @@ export class EditorialThreadRepository {
 		now: string;
 	}): Promise<string> {
 		const id = ulid();
+		await this.lockThread(input.threadId);
 		await this.db
 			.insertInto("_emdash_editorial_comments")
 			.values({
@@ -381,13 +392,15 @@ export class EditorialThreadRepository {
 	}
 
 	async editComment(input: { commentId: string; threadId: string; body: string; now: string }) {
-		await this.db
+		await this.lockThread(input.threadId);
+		const edited = await this.db
 			.updateTable("_emdash_editorial_comments")
 			.set({ body: input.body, edited_at: input.now })
 			.where("id", "=", input.commentId)
+			.where("thread_id", "=", input.threadId)
 			.where("deleted_at", "is", null)
-			.execute();
-		await this.touch(input.threadId, input.now);
+			.executeTakeFirst();
+		if (Number(edited.numUpdatedRows) > 0) await this.touch(input.threadId, input.now);
 	}
 
 	/**
@@ -400,12 +413,15 @@ export class EditorialThreadRepository {
 		threadId: string;
 		now: string;
 	}): Promise<boolean> {
-		await this.db
+		await this.lockThread(input.threadId);
+		const tombstoned = await this.db
 			.updateTable("_emdash_editorial_comments")
 			.set({ body: "", deleted_at: input.now })
 			.where("id", "=", input.commentId)
+			.where("thread_id", "=", input.threadId)
 			.where("deleted_at", "is", null)
-			.execute();
+			.executeTakeFirst();
+		if (Number(tombstoned.numUpdatedRows) === 0) return false;
 		// Checking for live comments in the delete itself keeps a reply that lands
 		// after the update from going with the thread.
 		const deleted = await this.db
@@ -514,6 +530,19 @@ export class EditorialThreadRepository {
 			.where("collection", "=", collection);
 		if (entryId !== undefined) threads = threads.where("entry_id", "=", entryId);
 		await threads.execute();
+	}
+
+	/**
+	 * Takes the thread row's write lock, so concurrent transactions changing
+	 * one thread's comments run one after another and each sees the comments
+	 * the last one committed. SQLite already allows one writer at a time.
+	 */
+	private async lockThread(threadId: string): Promise<void> {
+		await this.db
+			.updateTable("_emdash_editorial_threads")
+			.set((eb) => ({ updated_at: eb.ref("updated_at") }))
+			.where("id", "=", threadId)
+			.execute();
 	}
 
 	private async touch(threadId: string, now: string): Promise<void> {

@@ -232,6 +232,31 @@ describeEachDialect("editorial threads", (dialect) => {
 		expect((await threads.findComment(commentId))?.deletedAt).toBe(firstDeletion);
 	});
 
+	it("changes a comment only through its own thread", async () => {
+		const { threadId, commentId } = await createThread();
+		const other = await createThread(otherEntryId);
+		const before = await threads.findThread(other.threadId);
+
+		await threads.editComment({
+			commentId,
+			threadId: other.threadId,
+			body: "Hijacked",
+			now: now(),
+		});
+		const threadDeleted = await threads.deleteComment({
+			commentId,
+			threadId: other.threadId,
+			now: now(),
+		});
+
+		expect(threadDeleted).toBe(false);
+		expect((await threads.findComment(commentId))?.deletedAt).toBeNull();
+		const [thread] = (await threads.listForEntry("post", entryId, { limit: 50 })).items;
+		expect(thread?.id).toBe(threadId);
+		expect(thread?.comments[0]?.body).toBe("Source?");
+		expect((await threads.findThread(other.threadId))?.updatedAt).toBe(before?.updatedAt);
+	});
+
 	it("leaves no thread behind when its first comment can't be stored", async () => {
 		await expect(
 			threads.createThread({
@@ -257,6 +282,50 @@ describeEachDialect("editorial threads", (dialect) => {
 		expect(await threads.findThread(threadId)).toBeNull();
 		expect(await threads.findComment(commentId)).toBeNull();
 	});
+
+	it.runIf(dialect === "postgres")(
+		"deletes the thread when its last two comments are deleted at once",
+		async () => {
+			const { threadId, commentId: first } = await createThread();
+			const second = await threads.addComment({
+				threadId,
+				authorId: LINUS,
+				body: "Here.",
+				now: now(),
+			});
+
+			let releaseFirst!: () => void;
+			const firstHeld = new Promise<void>((resolve) => {
+				releaseFirst = resolve;
+			});
+			let firstDeleted!: () => void;
+			const firstStarted = new Promise<void>((resolve) => {
+				firstDeleted = resolve;
+			});
+			const firstDelete = db.transaction().execute(async (trx) => {
+				await new EditorialThreadRepository(trx).deleteComment({
+					commentId: first,
+					threadId,
+					now: now(),
+				});
+				firstDeleted();
+				await firstHeld;
+			});
+			await firstStarted;
+			const secondDelete = db.transaction().execute((trx) =>
+				new EditorialThreadRepository(trx).deleteComment({
+					commentId: second,
+					threadId,
+					now: now(),
+				}),
+			);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			releaseFirst();
+			await Promise.all([firstDelete, secondDelete]);
+
+			expect(await threads.findThread(threadId)).toBeNull();
+		},
+	);
 
 	it("shows comments from a deleted user without an author", async () => {
 		const { threadId } = await createThread();
