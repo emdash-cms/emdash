@@ -5580,6 +5580,32 @@ describe("editorial comments", () => {
 			);
 		});
 
+		it("leaves Enter and the arrow keys to an input method while it composes", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A, SAM_B]);
+			const { screen, composer } = await openComposer();
+			const options = screen
+				.getByRole("listbox", { name: "People to mention" })
+				.getByRole("option");
+			await userEvent.keyboard("@sa");
+			await expect.element(options.first()).toHaveAttribute("aria-selected", "true");
+
+			for (const key of ["ArrowDown", "Enter"]) {
+				const composing = new KeyboardEvent("keydown", {
+					key,
+					isComposing: true,
+					bubbles: true,
+					cancelable: true,
+				});
+				composer.element().dispatchEvent(composing);
+				expect(composing.defaultPrevented).toBe(false);
+			}
+			await expect.element(composer).toHaveValue("@sa");
+			await expect.element(options.first()).toHaveAttribute("aria-selected", "true");
+
+			await userEvent.keyboard("{Enter}");
+			await expect.element(composer).toHaveValue("@Sam Lee ");
+		});
+
 		it("reopens suggestions after a dismissed @ is deleted and typed again", async () => {
 			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
 			const { composer } = await openComposer();

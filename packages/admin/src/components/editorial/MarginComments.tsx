@@ -615,6 +615,8 @@ function CommentComposer({
 					picker.syncCaret(event);
 				}}
 				onKeyDown={(event) => {
+					// Keys that confirm or move through an IME candidate belong to the input method.
+					if (event.nativeEvent.isComposing || event.keyCode === 229) return;
 					if (picker.handleKeyDown(event)) return;
 					if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !empty && !pending) {
 						event.preventDefault();
