@@ -824,7 +824,7 @@ const contentPaths = {
 			description:
 				"Saves anchors the editor recomputed after the entry's content changed, and " +
 				"marks threads whose text is gone as `orphaned`. Threads on other entries are " +
-				"ignored. Fails with 409 when `_rev` is stale.",
+				"ignored. Needs edit access to the entry. Fails with 409 when `_rev` is stale.",
 			tags: ["Editorial comments"],
 			requestParams: { path: entryPathParams, query: localeQuery },
 			requestBody: { content: { [JSON_CONTENT]: { schema: editorialAnchorsUpdateBody } } },
