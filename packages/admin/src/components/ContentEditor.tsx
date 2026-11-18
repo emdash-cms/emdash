@@ -1218,6 +1218,12 @@ export function ContentEditor({
 	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
 	const canComment = !isNew && !!item && (currentUser?.role ?? 0) >= EDITORIAL_COMMENT_MIN_ROLE;
 	const [commentsOpen, setCommentsOpen] = React.useState(Boolean(initialThreadId));
+	const threadLink = initialThreadId ? `${editorIdentity}:${initialThreadId}` : null;
+	const [shownThreadLink, setShownThreadLink] = React.useState(threadLink);
+	if (shownThreadLink !== threadLink) {
+		setShownThreadLink(threadLink);
+		if (threadLink) setCommentsOpen(true);
+	}
 	const roomForMarginAndSettings = useMediaQuery(MARGIN_AND_SETTINGS_QUERY);
 	const closeComments = React.useCallback(() => setCommentsOpen(false), []);
 

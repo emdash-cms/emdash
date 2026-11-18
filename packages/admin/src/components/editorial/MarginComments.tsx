@@ -23,6 +23,7 @@ import { ConfirmDialog } from "../ConfirmDialog.js";
 import {
 	editorialCommentsKey,
 	getEditorialHighlights,
+	locateAnchor,
 } from "../editor/EditorialCommentsExtension.js";
 import { isEditorAnchor, type EditorialCommentsState } from "./useEditorialComments.js";
 
@@ -539,7 +540,7 @@ function CommentComposer({
 				className="max-h-60 resize-none field-sizing-content"
 				onChange={(event) => onChange(event.target.value)}
 				onKeyDown={(event) => {
-					if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !empty) {
+					if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !empty && !pending) {
 						event.preventDefault();
 						onSubmit();
 					}
@@ -607,7 +608,10 @@ function ThreadCard({
 			? comments.editors.get(thread.anchor.field)
 			: undefined;
 		if (!editor || editor.isDestroyed) return;
-		const highlight = getEditorialHighlights(editor.state).find((h) => h.threadId === thread.id);
+		// A resolved thread gets its highlight only once it is active, so look for its text directly.
+		const highlight =
+			getEditorialHighlights(editor.state).find((h) => h.threadId === thread.id) ??
+			locateAnchor(editor.state.doc, thread.anchor);
 		if (!highlight) return;
 		const dom = editor.view.nodeDOM(highlight.from);
 		const target =

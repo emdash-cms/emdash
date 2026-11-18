@@ -6,6 +6,7 @@ import type { Editor } from "@tiptap/react";
 import * as React from "react";
 
 import { sameAnchor, type EditorialAnchor } from "../../editorial-anchors.js";
+import { ApiResponseError } from "../../lib/api/client.js";
 import {
 	createEditorialThread,
 	deleteEditorialComment,
@@ -20,6 +21,7 @@ import {
 	type EditorialThread,
 	type EditorialThreadStatus,
 } from "../../lib/api/editorial-threads.js";
+import { generateKey } from "../../portable-text/keys.js";
 import {
 	anchorForRange,
 	anchorForSelection,
@@ -45,10 +47,6 @@ export interface EditorialFieldHighlight extends EditorialHighlight {
 }
 
 type EditorAnchor = Extract<EditorialAnchor, { type: "text" | "block" }>;
-
-function generateKey(): string {
-	return Math.random().toString(36).substring(2, 11);
-}
 
 export function editorialThreadsQueryKey(entry: EditorialEntry) {
 	return ["editorial-threads", entry.collection, entry.id, { locale: entry.locale }] as const;
@@ -118,11 +116,16 @@ export function useEditorialComments({
 
 	const entryKey = entryKeyOf(entry);
 	const [stateEntryKey, setStateEntryKey] = React.useState(entryKey);
+	const [stateThreadLink, setStateThreadLink] = React.useState(initialThreadId);
 	if (stateEntryKey !== entryKey) {
 		setStateEntryKey(entryKey);
+		setStateThreadLink(initialThreadId);
 		setDraft(null);
 		setActiveThreadId(initialThreadId ?? null);
 		setNotice(null);
+	} else if (stateThreadLink !== initialThreadId) {
+		setStateThreadLink(initialThreadId);
+		if (initialThreadId) setActiveThreadId(initialThreadId);
 	}
 	const entryKeyRef = React.useRef(entryKey);
 	React.useLayoutEffect(() => {
@@ -191,7 +194,9 @@ export function useEditorialComments({
 	const createThread = useMutation({
 		onMutate: scope,
 		mutationFn: (input: { anchor: EditorialAnchor; body: string }) =>
-			createEditorialThread(entry!, { ...input, _rev: isDirty ? undefined : rev }),
+			// A read-only editor may show an entry someone has saved since, so its anchor
+			// goes without `_rev` and its quote and context place it.
+			createEditorialThread(entry!, { ...input, _rev: canEdit && !isDirty ? rev : undefined }),
 		onSuccess: (thread, _input, mutation) => {
 			replaceThread(mutation.target, thread);
 			if (!isCurrent(mutation)) return;
@@ -377,10 +382,16 @@ export function useEditorialComments({
 				}
 				return invalidate(entry);
 			},
-			// A conflict means the entry changed again; the next load resolves the anchors afresh.
-			() => undefined,
+			(error: unknown) => {
+				if (!(error instanceof ApiResponseError) || error.code !== "CONFLICT") return;
+				// The entry changed since it loaded; once it reloads, its anchors are worked out again.
+				void queryClient.invalidateQueries({
+					queryKey: ["content", entry.collection, entry.id],
+				});
+				void invalidate(entry);
+			},
 		);
-	}, [canEdit, entry, editors, rev, isDirty, query.data, highlights, invalidate]);
+	}, [canEdit, entry, editors, rev, isDirty, query.data, highlights, invalidate, queryClient]);
 
 	/** The field whose editor last had focus or a new selection, for the margin's Comment button. */
 	const lastFieldRef = React.useRef<string | null>(null);
