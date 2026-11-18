@@ -144,21 +144,26 @@ async function renderEntry({
 	threads?: EditorialThread[];
 }) {
 	vi.mocked(fetchEditorialThreads).mockResolvedValue(threads);
-	const screen = await render(
+	const item = makeItem(data);
+	const onSave = vi.fn();
+	const element = (extra: Partial<ContentEditorProps>) => (
 		<ContentEditor
 			collection="posts"
 			collectionLabel="Post"
 			fields={{ title: { kind: "string", label: "Title" }, ...fields }}
 			isNew={false}
-			item={makeItem(data)}
-			onSave={vi.fn()}
+			item={item}
+			onSave={onSave}
 			currentUser={{ id: "u-1", role: 50 }}
 			{...props}
-		/>,
-		{ wrapper: Toasty },
+			{...extra}
+		/>
 	);
+	const screen = await render(element({}), { wrapper: Toasty });
 	await vi.waitFor(() => expect(document.querySelector(".ProseMirror")).not.toBeNull());
-	return screen;
+	/** Shows the same editor with other props, as navigating within the admin does. */
+	const navigate = (extra: Partial<ContentEditorProps>) => screen.rerender(element(extra));
+	return Object.assign(screen, { navigate });
 }
 
 /** The Tiptap editor behind a Portable Text field, which Tiptap keeps on its element. */
@@ -444,5 +449,115 @@ describe("editorial comments on blocks", () => {
 
 		const margin = screen.getByRole("complementary", { name: "Comments" });
 		await expect.element(margin.getByRole("textbox", { name: "Reply" })).toBeVisible();
+	});
+});
+
+describe("editorial comment links", () => {
+	const fields = { content: { kind: "portableText", label: "Content" } } as const;
+	const data = { content: [paragraph("b1", "The quick brown fox")] };
+
+	it("opens the margin on a thread linked after the entry is already shown", async () => {
+		const screen = await renderEntry({
+			fields,
+			data,
+			threads: [textThread("thread-1", "content", "quick", "The ")],
+		});
+		expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
+
+		await screen.navigate({ initialThreadId: "thread-1" });
+
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		await expect.element(margin.getByRole("textbox", { name: "Reply" })).toBeVisible();
+	});
+});
+
+describe("editorial comment composer", () => {
+	const fields = { content: { kind: "portableText", label: "Content" } } as const;
+	const data = { content: [paragraph("b1", "The quick brown fox")] };
+
+	it("sends a comment once when the shortcut is pressed again while it saves", async () => {
+		vi.mocked(createEditorialThread).mockReturnValue(new Promise(() => undefined));
+		const screen = await renderEntry({ fields, data });
+		const { editor, dom } = editorFor("Content");
+
+		dom.focus();
+		selectText(editor, "quick");
+		await userEvent.keyboard(COMMENT_SHORTCUT);
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		await margin.getByRole("textbox", { name: "Comment" }).fill("Faster?");
+		await userEvent.keyboard("{Control>}{Enter}{/Control}");
+		await vi.waitFor(() => expect(vi.mocked(createEditorialThread)).toHaveBeenCalledTimes(1));
+		await userEvent.keyboard("{Control>}{Enter}{/Control}");
+
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(vi.mocked(createEditorialThread)).toHaveBeenCalledTimes(1);
+	});
+
+	it("scrolls to a resolved thread's text when its card is opened", async () => {
+		const screen = await renderEntry({
+			fields,
+			data,
+			threads: [textThread("thread-kept", "content", "quick", "The ", { status: "resolved" })],
+		});
+		const { dom } = editorFor("Content");
+		await screen.getByRole("button", { name: "Show comments" }).click();
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		await margin.getByRole("button", { name: "Show resolved" }).click();
+		const scrolled: Element[] = [];
+		const scrollIntoView = vi
+			.spyOn(Element.prototype, "scrollIntoView")
+			.mockImplementation(function (this: Element) {
+				scrolled.push(this);
+			});
+		try {
+			const card = await vi.waitFor(() => {
+				const found = margin
+					.element()
+					.querySelector<HTMLElement>('[data-editorial-thread-card="thread-kept"]');
+				expect(found).not.toBeNull();
+				return found!;
+			});
+			card.click();
+
+			await vi.waitFor(() => expect(scrolled.some((element) => dom.contains(element))).toBe(true));
+		} finally {
+			scrollIntoView.mockRestore();
+		}
+	});
+});
+
+describe("editorial block comments without edit access", () => {
+	const fields = { content: { kind: "portableText", label: "Content" } } as const;
+	const data = {
+		content: [
+			paragraph("b1", "Before the divider"),
+			{ _type: "break", _key: "hr1", style: "lineBreak" },
+			paragraph("b2", "After the divider"),
+		],
+	};
+
+	it("offers Comment on a block selected in a read-only editor", async () => {
+		const screen = await renderEntry({ fields, data, readOnly: true });
+		const { dom } = editorFor("Content");
+
+		await userEvent.click(dom.querySelector("hr")!);
+		const toolbar = await waitForSelectionToolbar("Selection actions");
+		expect(toolbar.querySelectorAll("button")).toHaveLength(1);
+		toolbar.querySelector<HTMLElement>('[aria-label="Comment"]')!.click();
+
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		await expect.element(margin.getByRole("textbox", { name: "Comment" })).toHaveFocus();
+		await margin.getByRole("textbox", { name: "Comment" }).fill("Drop this?");
+		vi.mocked(createEditorialThread).mockImplementation(async (_entry, input) => ({
+			...textThread("thread-new", "content", "x", ""),
+			anchor: input.anchor,
+		}));
+		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+		await vi.waitFor(() =>
+			expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({ anchor: { type: "block", field: "content", blockKey: "hr1" } }),
+			),
+		);
 	});
 });

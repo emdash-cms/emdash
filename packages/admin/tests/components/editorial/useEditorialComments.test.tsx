@@ -17,6 +17,7 @@ import {
 	editorialThreadsQueryKey,
 	useEditorialComments,
 } from "../../../src/components/editorial/useEditorialComments";
+import { ApiResponseError } from "../../../src/lib/api/client";
 import {
 	createEditorialThread,
 	fetchEditorialThreads,
@@ -309,6 +310,63 @@ describe("useEditorialComments anchor sync", () => {
 	});
 });
 
+describe("useEditorialComments after the entry changes elsewhere", () => {
+	const conflict = () => new ApiResponseError(409, "CONFLICT", "The entry has changed");
+
+	it("reloads the entry when its anchors were stored against an old revision, then stores them again", async () => {
+		const stored = Promise.withResolvers<void>();
+		vi.mocked(updateEditorialAnchors).mockImplementationOnce(async () => {
+			await stored.promise;
+			throw conflict();
+		});
+		const contentKey = ["content", "posts", "item-1", { locale: undefined }];
+		const { update, queryClient } = await renderComments(true);
+		queryClient.setQueryData(contentKey, { id: "item-1" });
+		stored.resolve();
+
+		await vi.waitFor(() => expect(queryClient.getQueryState(contentKey)?.isInvalidated).toBe(true));
+		await update({ rev: "rev-2" });
+
+		await vi.waitFor(() =>
+			expect(vi.mocked(updateEditorialAnchors)).toHaveBeenLastCalledWith(
+				entry,
+				expect.objectContaining({ _rev: "rev-2" }),
+			),
+		);
+	});
+
+	it("saves a read-only comment made after someone else saved the entry", async () => {
+		vi.mocked(createEditorialThread).mockImplementation(async (_entry, input) => {
+			if (input._rev !== undefined) throw conflict();
+			return { ...brownThread, id: "thread-new" };
+		});
+		const { result } = await renderLoaded(false, brownThread);
+
+		await act(async () =>
+			result.current.actions.createThread.mutate({ anchor: brownThread.anchor, body: "Source?" }),
+		);
+
+		await vi.waitFor(() => expect(result.current.activeThreadId).toBe("thread-new"));
+		expect(result.current.notice).toBeNull();
+	});
+
+	it("sends the loaded revision with a comment from someone editing the entry", async () => {
+		vi.mocked(createEditorialThread).mockResolvedValue({ ...brownThread, id: "thread-new" });
+		const { result } = await renderLoaded(true, brownThread);
+
+		await act(async () =>
+			result.current.actions.createThread.mutate({ anchor: brownThread.anchor, body: "Source?" }),
+		);
+
+		await vi.waitFor(() =>
+			expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+				entry,
+				expect.objectContaining({ _rev: "rev-1" }),
+			),
+		);
+	});
+});
+
 describe("useEditorialComments resolution", () => {
 	it("counts a resolved thread's anchor as found without highlighting it", async () => {
 		const resolved: EditorialThread = { ...brownThread, status: "resolved" };
@@ -350,6 +408,14 @@ describe("useEditorialComments across entries", () => {
 
 		expect(result.current.draft).toBeNull();
 		expect(result.current.activeThreadId).toBe("thread-9");
+	});
+
+	it("opens a thread linked on the entry already shown", async () => {
+		const { result, update } = await renderLoaded(true, brownThread);
+
+		await update({ initialThreadId: "thread-2" });
+
+		expect(result.current.activeThreadId).toBe("thread-2");
 	});
 
 	it("files a comment saved after leaving under its own entry", async () => {

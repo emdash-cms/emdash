@@ -202,6 +202,7 @@ import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
 import {
 	createEditorialCommentsExtension,
+	isCommentableBlock,
 	type EditorialCommentsBridge,
 } from "./editor/EditorialCommentsExtension.js";
 import {
@@ -3868,6 +3869,14 @@ function EditorBubbleMenu({
 					const hasMenuFocus =
 						element.contains(activeElement) ||
 						Boolean(activeElement?.closest(`[${BUBBLE_POPUP_ATTR}]`));
+					if (!activeEditor.isEditable && selection instanceof NodeSelection) {
+						// Without the block menu, a read-only editor offers Comment on a selected block here.
+						return (
+							onCommentRef.current !== undefined &&
+							isCommentableBlock(selection.node, selection.$from.parent) &&
+							(view.hasFocus() || hasMenuFocus)
+						);
+					}
 					return (
 						(activeEditor.isEditable || onCommentRef.current !== undefined) &&
 						(selection instanceof TextSelection || selection instanceof AllSelection) &&
