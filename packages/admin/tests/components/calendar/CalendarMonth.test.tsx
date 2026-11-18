@@ -236,6 +236,22 @@ describe("CalendarMonth", () => {
 		).toBeTruthy();
 	});
 
+	it("spreads a phone's month across its width in round, touch-sized days", async () => {
+		const screen = await render(<div style={{ width: 360 }}>{month({ compact: true })}</div>);
+		const grid = screen.getByRole("grid").element().getBoundingClientRect();
+		const headings = Array.from(
+			screen.getByRole("grid").element().querySelectorAll("thead th"),
+			(th) => th.getBoundingClientRect(),
+		);
+		expect(headings[0]!.left).toBeCloseTo(grid.left, 0);
+		expect(headings[6]!.right).toBeCloseTo(grid.right, 0);
+
+		const day = screen.getByRole("button", { name: /October 20th, 2026/ }).element();
+		const { width, height } = day.getBoundingClientRect();
+		expect([width, height]).toEqual([40, 40]);
+		expect(Number.parseFloat(getComputedStyle(day).borderTopLeftRadius)).toBeGreaterThanOrEqual(20);
+	});
+
 	it("lists the entries of the day picked on a phone", async () => {
 		const screen = await renderMonth({ compact: true });
 
