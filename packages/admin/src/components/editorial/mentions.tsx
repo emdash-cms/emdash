@@ -155,6 +155,13 @@ export function useMentionPicker({
 }) {
 	const listboxId = React.useId();
 	const [caret, setCaret] = React.useState(0);
+	const pendingCaret = React.useRef<number | null>(null);
+
+	React.useLayoutEffect(() => {
+		if (pendingCaret.current === null) return;
+		textareaRef.current?.setSelectionRange(pendingCaret.current, pendingCaret.current);
+		pendingCaret.current = null;
+	});
 	const [activeIndex, setActiveIndex] = React.useState(0);
 	const [dismissedAt, setDismissedAt] = React.useState<number | null>(null);
 	const trigger = findTrigger(draft.text, caret);
@@ -194,7 +201,7 @@ export function useMentionPicker({
 		});
 		const end = trigger.from + inserted.length;
 		setCaret(end);
-		requestAnimationFrame(() => textareaRef.current?.setSelectionRange(end, end));
+		pendingCaret.current = end;
 	};
 
 	const syncCaret = (event: React.SyntheticEvent<HTMLTextAreaElement>) =>

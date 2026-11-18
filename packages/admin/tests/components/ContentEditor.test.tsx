@@ -5537,28 +5537,45 @@ describe("editorial comments", () => {
 		it("keeps each picked person, even when two share a name, and leaves typed names alone", async () => {
 			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A, SAM_B]);
 			vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
-			const { screen, margin, composer } = await openComposer();
+			const { screen, margin } = await openComposer();
 			const options = screen
 				.getByRole("listbox", { name: "People to mention" })
 				.getByRole("option");
 
 			await userEvent.keyboard("@sa");
 			await expect.element(options.first()).toBeVisible();
-			await userEvent.keyboard("{Enter}");
-			await expect.element(composer).toHaveValue("@Sam Lee ");
-			await userEvent.keyboard("and @sa");
+			await userEvent.keyboard("{Enter}and @sa");
 			await expect.element(options.last()).toBeVisible();
 			await userEvent.keyboard("{ArrowDown}");
 			await expect.element(options.last()).toHaveAttribute("aria-selected", "true");
-			await userEvent.keyboard("{Enter}");
-			await expect.element(composer).toHaveValue("@Sam Lee and @Sam Lee ");
-			await userEvent.keyboard("cc @Sam Lee");
+			await userEvent.keyboard("{Enter}cc @Sam Lee");
 			await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
 
 			await vi.waitFor(() =>
 				expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
 					expect.anything(),
 					expect.objectContaining({ body: "<@u-sam-a> and <@u-sam-b> cc @Sam Lee" }),
+				),
+			);
+		});
+
+		it("puts text typed straight after a pick after the mention", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
+			vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
+			const { screen, margin, composer } = await openComposer();
+
+			await userEvent.keyboard("@sa");
+			await expect
+				.element(screen.getByRole("listbox", { name: "People to mention" }).getByRole("option"))
+				.toBeVisible();
+			await userEvent.keyboard("{Enter}can you check?");
+
+			await expect.element(composer).toHaveValue("@Sam Lee can you check?");
+			await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+			await vi.waitFor(() =>
+				expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+					expect.anything(),
+					expect.objectContaining({ body: "<@u-sam-a> can you check?" }),
 				),
 			);
 		});
