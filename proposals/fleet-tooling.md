@@ -14,7 +14,7 @@ created: 2026-11-10
 
 # Run many sites from one place with emdash fleet
 
-> **Draft.** The fleet prototype and the isolate-per-site check have run, and their results are folded into this text. Two [acceptance gates](#acceptance-gates) are still open: tests for two setup-secret paths and a run on a real account. Acceptance also waits on linking every gate's results from the design pull request.
+> **Draft.** The fleet prototype and the isolate-per-site check have run, and their results are folded into this text. One [acceptance gate](#acceptance-gates) is still open: a run on a real account. Acceptance also waits on linking every gate's results from the design pull request.
 
 ## Summary
 
@@ -345,12 +345,12 @@ This RFC moves to `accepted` only when these results are linked from the design 
   - `status` over three local `wrangler dev` sites, with and without tokens, and with one site stopped (exit code 1). **Met.**
   - `deploy` waves that stop at an injected migration failure and leave the other sites on their old version, and a fingerprint mismatch that stops one site before anything runs. **Met.**
   - `provision` for the `shared` layout with the local provider, run again after a failure at each step, creating each resource once, and `reconcile` finishing a half-done site. **Met.** The Cloudflare provider was checked at the HTTP boundary and with `--dry-run` only. The **seed** and **import** steps weren't built.
-  - The setup secret: every path in the table refuses without the token, setup succeeds with it, and a site without the secret behaves as today. **Met for the setup wizard, the site step and both passkey steps** (4 of 5 tests fail with the check turned off). The OAuth and AT Protocol first sign-in are guarded but not yet tested, so this item stays open.
+  - The setup secret: every path in the table refuses without the token, setup succeeds with it, and a site without the secret behaves as today. **Met.** The setup wizard, the site step and both passkey steps were tested on 2026-11-10 (4 of 5 tests fail with the check turned off). The OAuth and AT Protocol paths were tested on 2026-11-11 at `7b6dc19e45`: each of the 11 new tests fails when the check is turned off or made to always refuse. The prototype still answers a refused OAuth first sign-in with the generic "Self-signup is not allowed" message; the message described under [Setup secret](#setup-secret-core) is part of the implementation.
   - `update` waves against a stub of #4577's request route, including a site that never reports the new version. **Met.**
   - A list of every place where the design needed a decision it doesn't state, each resolved in this text. **Met:** 23 points, all resolved above or in the appendices. `deploy` and `provision` don't need migration state over HTTP, because both hold the Cloudflare token and read the database through `emdash migrate`.
   - The query-count snapshot didn't change.
 - **Isolate per site:** a local check of one parent Worker that loads each site as a Worker Loader child with its own database, with one verdict and the measured cold start and memory per site. **Met:** works with named gaps; see [Alternatives](#an-isolate-per-site-behind-one-worker). It doesn't change the fleet design.
-- **Platform facts:** the limits and token permissions in Appendix D re-read in the Cloudflare docs. **Met** (read 2026-11-10 and 2026-11-11). Whether user Workers in a dispatch namespace support Cron Triggers and the Workers Cache isn't stated in the docs; it affects only [Alternatives](#workers-for-platforms) and stays an open question.
+- **Platform facts:** the limits and token permissions in Appendix D re-read in the Cloudflare docs. **Met** (read 2026-11-10 and 2026-11-11). Cloudflare has since confirmed that user Workers in a dispatch namespace can't have Cron Triggers. Whether the Workers Cache works for them isn't stated in the docs; it affects only [Alternatives](#workers-for-platforms) and stays an open question.
 - **A real-account run** of `provision` and `remove` for the `shared` layout on a throwaway Cloudflare account, by the author. Open.
 
 The `repo` layout isn't prototyped before acceptance, because it needs #4577's workflow. Its gate is the manual run in the implementation slice that ships it.
@@ -394,7 +394,7 @@ It would remove the Worker and the Cron Trigger per site that cap a fleet at 250
 
 ### Workers for Platforms
 
-A dispatch namespace removes the per-account Worker limit. Scheduled publishing depends on a Cron Trigger per site, and the Workers for Platforms docs don't say whether a user Worker in a dispatch namespace can have its own Cron Trigger, or whether the Workers Cache works for it. They do say that `caches.default` is disabled for namespaced scripts and that user Workers can't use gradual deployments. If a user Worker can't have its own Cron Trigger, the dispatch Worker's cron would have to run each site's scheduled work. EmDash has no production route for that today (`/_emdash/api/dev/scheduled-tasks` answers only in development), so that path would need a core change. The provider interface leaves room for a Workers for Platforms provider once a test on a real account settles the open points.
+A dispatch namespace removes the per-account Worker limit, but a user Worker in it can't have its own Cron Trigger. Cloudflare confirmed this in [cloudflare/workers-sdk#13840](https://github.com/cloudflare/workers-sdk/issues/13840), and since Wrangler 4.159.0 a deploy with `--dispatch-namespace` warns that it ignores cron triggers instead of dropping them silently. Scheduled publishing depends on a Cron Trigger per site, so the dispatch Worker's Cron Trigger would have to call each site instead. EmDash has no production route for that today (`/_emdash/api/dev/scheduled-tasks` answers only in development), so a Workers for Platforms provider needs a core change: an authenticated production route for scheduled work, with a secret per site. The docs also say that `caches.default` is disabled for namespaced scripts and that user Workers can't use gradual deployments, and they don't say whether the Workers Cache works for a user Worker. The provider interface leaves room for a Workers for Platforms provider that ships with that route.
 
 ### A shared database with a tenant column
 
@@ -428,7 +428,7 @@ A registry Worker with a web dashboard matches what agencies know from WordPress
 - **A build ID in the health route:** `/_emdash/api/health` reports the EmDash version only, so a `deploy` on an unchanged version can't be confirmed from the running site. Should health also report a build or deployment ID? That would be a second core change, so this RFC leaves it out.
 - **Waiting in `update`:** should there be a mode that sends requests in waves without waiting for the new version, for fleets where every update pull request is reviewed by hand?
 - **Beyond one account:** should one `fleet.yaml` span several Cloudflare accounts, or should an operator keep one file per account?
-- **Workers for Platforms:** can a user Worker in a dispatch namespace have its own Cron Trigger, and does it count against the 250 per account? Does the Workers Cache work for it? Only a test on a real account answers this, and only the Alternatives depend on it.
+- **Workers for Platforms:** does the Workers Cache work for a user Worker in a dispatch namespace? Only a test on a real account answers this, and only the Alternatives depend on it.
 
 ## Appendix A: Interfaces
 
