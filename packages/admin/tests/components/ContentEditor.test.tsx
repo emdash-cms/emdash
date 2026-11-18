@@ -28,6 +28,8 @@ import type {
 } from "../../src/lib/api";
 import {
 	createEditorialThread,
+	deleteEditorialThread,
+	editEditorialComment,
 	fetchEditorialThreads,
 	type EditorialThread,
 } from "../../src/lib/api/editorial-threads.js";
@@ -82,7 +84,12 @@ vi.mock("../../src/components/PortableTextEditor", async (importOriginal) => ({
 		React.useEffect(() => {
 			if (onEditorReady) {
 				const id = mountIdRef.current || portableTextMountCount + 1;
-				const stubEditor = { __mockId: id, commands: { focus: () => true } } as unknown;
+				const stubEditor = {
+					__mockId: id,
+					commands: { focus: () => true },
+					on: () => undefined,
+					off: () => undefined,
+				} as unknown;
 				onEditorReadyCalls.push({ mockId: id });
 				onEditorReady(stubEditor);
 				return () => {
@@ -231,6 +238,8 @@ vi.mock("../../src/lib/api/editorial-threads.js", async () => {
 		...actual,
 		fetchEditorialThreads: vi.fn(async () => []),
 		createEditorialThread: vi.fn(),
+		deleteEditorialThread: vi.fn(),
+		editEditorialComment: vi.fn(),
 	};
 });
 
@@ -5421,6 +5430,36 @@ describe("editorial comments", () => {
 			expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
 		});
 
+		it("closes comments for a block's panel on a narrow screen", async () => {
+			vi.mocked(fetchEditorialThreads).mockResolvedValue([]);
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				currentUser: { id: "u-1", role: 50 },
+				fields: {
+					title: { kind: "string", label: "Title" },
+					content: { kind: "portableText", label: "Content" },
+				},
+			});
+			await screen.getByRole("button", { name: "Show comments" }).click();
+			await expect.element(screen.getByRole("complementary", { name: "Comments" })).toBeVisible();
+
+			const openBlockPanel = portableTextProps.current?.onBlockSidebarOpen as (
+				panel: unknown,
+			) => void;
+			openBlockPanel({
+				type: "image",
+				attrs: { src: "https://example.com/image.png", alt: "Example" },
+				onUpdate: vi.fn(),
+				onReplace: vi.fn(),
+				onDelete: vi.fn(),
+				onClose: vi.fn(),
+			});
+
+			await expect.element(screen.getByText("Image settings")).toBeVisible();
+			expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
+		});
+
 		it("keeps both open on a wide screen", async () => {
 			await page.viewport(1800, 900);
 			const screen = await renderWithThreads([fieldThread("body")]);
@@ -5452,6 +5491,65 @@ describe("editorial comments", () => {
 				}),
 			),
 		);
+	});
+
+	describe("managing a thread", () => {
+		function ownThread(): EditorialThread {
+			const thread = fieldThread("body");
+			return {
+				...thread,
+				comments: thread.comments.map((comment) => ({
+					...comment,
+					author: { id: "u-1", name: "Alex Kim", avatarUrl: null },
+					can: { edit: true, delete: true },
+				})),
+				can: { resolve: true, delete: true },
+			};
+		}
+
+		async function openThreadMenu(screen: Awaited<ReturnType<typeof renderWithThreads>>) {
+			await screen.getByRole("button", { name: "1 comment thread on Body" }).click();
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await margin.getByRole("button", { name: "Comment actions" }).click();
+			return margin;
+		}
+
+		it("asks before deleting a thread", async () => {
+			vi.mocked(deleteEditorialThread).mockResolvedValue({ threadId: "thread-body" });
+			const screen = await renderWithThreads([ownThread()]);
+			const margin = await openThreadMenu(screen);
+
+			await screen.getByRole("menuitem", { name: "Delete thread" }).click();
+			const dialog = screen.getByRole("alertdialog", { name: "Delete thread" });
+			await expect.element(dialog).toBeVisible();
+			expect(vi.mocked(deleteEditorialThread)).not.toHaveBeenCalled();
+
+			// Direct DOM click to bypass Base UI's inert overlay
+			dialog.getByRole("button", { name: "Delete", exact: true }).element().click();
+
+			await vi.waitFor(() =>
+				expect(vi.mocked(deleteEditorialThread)).toHaveBeenCalledWith(
+					expect.objectContaining({ id: "item-1" }),
+					"thread-body",
+				),
+			);
+			await expect.element(margin.getByText("Could this be shorter?")).not.toBeInTheDocument();
+			expect(screen.getByRole("alertdialog").query()).toBeNull();
+		});
+
+		it("keeps an edit open when it fails to save", async () => {
+			vi.mocked(editEditorialComment).mockRejectedValue(new Error("Server unavailable"));
+			const screen = await renderWithThreads([ownThread()]);
+			const margin = await openThreadMenu(screen);
+
+			await screen.getByRole("menuitem", { name: "Edit" }).click();
+			const composer = margin.getByRole("textbox", { name: "Edit comment" });
+			await composer.fill("Could this be much shorter?");
+			await margin.getByRole("button", { name: "Save", exact: true }).click();
+
+			await expect.element(margin.getByText("Comment not saved")).toBeVisible();
+			await expect.element(composer).toHaveValue("Could this be much shorter?");
+		});
 	});
 
 	it("marks only fields with open threads", async () => {

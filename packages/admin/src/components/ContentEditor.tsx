@@ -1190,10 +1190,15 @@ export function ContentEditor({
 	// the panel data. When non-null the sidebar shows the block panel instead of the
 	// default content settings sections.
 	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
+	const canComment = !isNew && !!item && (currentUser?.role ?? 0) >= EDITORIAL_COMMENT_MIN_ROLE;
+	const [commentsOpen, setCommentsOpen] = React.useState(Boolean(initialThreadId));
+	const roomForMarginAndSettings = useMediaQuery(MARGIN_AND_SETTINGS_QUERY);
+	const closeComments = React.useCallback(() => setCommentsOpen(false), []);
 
-	const handleBlockSidebarOpen = React.useCallback((panel: BlockSidebarPanel) => {
+	const handleBlockSidebarOpen = useStableCallback((panel: BlockSidebarPanel) => {
 		setBlockSidebarPanel(panel);
-	}, []);
+		if (!roomForMarginAndSettings) setCommentsOpen(false);
+	});
 
 	const handleBlockSidebarClose = React.useCallback(() => {
 		setBlockSidebarPanel((previous) => {
@@ -1201,10 +1206,6 @@ export function ContentEditor({
 			return null;
 		});
 	}, []);
-	const canComment = !isNew && !!item && (currentUser?.role ?? 0) >= EDITORIAL_COMMENT_MIN_ROLE;
-	const [commentsOpen, setCommentsOpen] = React.useState(Boolean(initialThreadId));
-	const roomForMarginAndSettings = useMediaQuery(MARGIN_AND_SETTINGS_QUERY);
-	const closeComments = React.useCallback(() => setCommentsOpen(false), []);
 	const settingsPanel = useSettingsPanel({
 		panelId: settingsPanelId,
 		side: panelSide,
@@ -3187,7 +3188,7 @@ export function ContentEditor({
 														<div
 															key={name}
 															data-editorial-field={name}
-															className={showFieldComments ? "group relative" : undefined}
+															className={showFieldComments ? "group/field relative" : undefined}
 														>
 															{showFieldComments && (
 																<FieldCommentsButton

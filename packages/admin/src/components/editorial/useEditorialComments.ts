@@ -94,16 +94,13 @@ export function useEditorialComments({
 		return queryClient.invalidateQueries({ queryKey: editorialThreadsQueryKey(entry) });
 	}, [entry, queryClient]);
 
-	const reportError = React.useCallback(
-		(error: unknown) => {
-			setNotice({
-				title: t`Comment not saved`,
-				description: error instanceof Error ? error.message : undefined,
-				variant: "error",
-			});
-		},
-		[t],
-	);
+	const reportError = (title: string) => (error: unknown) => {
+		setNotice({
+			title,
+			description: error instanceof Error ? error.message : undefined,
+			variant: "error",
+		});
+	};
 
 	const replaceThread = React.useCallback(
 		(thread: EditorialThread) => {
@@ -135,14 +132,14 @@ export function useEditorialComments({
 			setDraft(null);
 			setActiveThreadId(thread.id);
 		},
-		onError: reportError,
+		onError: reportError(t`Comment not saved`),
 	});
 
 	const reply = useMutation({
 		mutationFn: (input: { threadId: string; body: string }) =>
 			replyToEditorialThread(entry!, input.threadId, input.body),
 		onSuccess: replaceThread,
-		onError: reportError,
+		onError: reportError(t`Comment not saved`),
 	});
 
 	const setStatus = useMutation({
@@ -152,7 +149,7 @@ export function useEditorialComments({
 			replaceThread(thread);
 			if (thread.status === "resolved") setActiveThreadId(null);
 		},
-		onError: reportError,
+		onError: reportError(t`Thread not updated`),
 	});
 
 	const deleteThread = useMutation({
@@ -161,14 +158,13 @@ export function useEditorialComments({
 			dropThread(threadId);
 			setActiveThreadId(null);
 		},
-		onError: reportError,
 	});
 
 	const editComment = useMutation({
 		mutationFn: (input: { threadId: string; commentId: string; body: string }) =>
 			editEditorialComment(entry!, input.threadId, input.commentId, input.body),
 		onSuccess: replaceThread,
-		onError: reportError,
+		onError: reportError(t`Comment not saved`),
 	});
 
 	const deleteComment = useMutation({
@@ -178,7 +174,7 @@ export function useEditorialComments({
 			if (result.thread) replaceThread(result.thread);
 			else dropThread(input.threadId);
 		},
-		onError: reportError,
+		onError: reportError(t`Comment not deleted`),
 	});
 
 	const [highlights, setHighlights] = React.useState<EditorialHighlight[]>([]);
@@ -228,7 +224,9 @@ export function useEditorialComments({
 			const { anchor } = thread;
 			if (anchor.type !== "text" && anchor.type !== "block") continue;
 			if (anchor.field !== EDITORIAL_DOCUMENT_FIELD) continue;
-			const highlight = located.get(thread.id);
+			// A highlight dropped by an edit that was later undone is no longer mapped,
+			// though its text is back, so look for the anchor again before orphaning it.
+			const highlight = located.get(thread.id) ?? locateAnchor(editor.state.doc, anchor);
 			if (!highlight) {
 				if (thread.anchorState === "attached") {
 					updates.push({ threadId: thread.id, anchor, anchorState: "orphaned" });
