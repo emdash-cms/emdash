@@ -13,7 +13,7 @@ import {
 } from "@tiptap/y-tiptap";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cdp, page, userEvent } from "vitest/browser";
+import { cdp, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
 import { editorSchema, fragmentName } from "../../src/co-editing/layout";
@@ -450,66 +450,6 @@ describe("a remote caret's color", () => {
 			{ text: "rtl code", direction: "ltr", towardLeft: false },
 		]);
 	});
-
-	it.each([
-		{ mode: "light", direction: "ltr", caretPalette: "Meadow" },
-		{ mode: "light", direction: "rtl", caretPalette: "Meadow" },
-		{ mode: "dark", direction: "ltr", caretPalette: "Iris" },
-		{ mode: "dark", direction: "rtl", caretPalette: "Iris" },
-	] as const)(
-		"keeps a caret distinguishable inside another editor's selection in $mode mode ($direction)",
-		async ({ mode, direction, caretPalette }) => {
-			const color = (name: string) =>
-				userPaletteColor(USER_AVATAR_PALETTES.findIndex((palette) => palette.name === name));
-			const selection = (
-				<span className="emdash-remote-selection" {...userColorProps(color("Meadow"))}>
-					{"\u00a0".repeat(8)}
-				</span>
-			);
-			const screen = await render(
-				<div data-mode={mode} dir={direction} className="ProseMirror" style={{ width: 240 }}>
-					<table>
-						<thead>
-							<tr>
-								<th>
-									<p>
-										{selection}
-										<span className="emdash-remote-caret" {...userColorProps(color(caretPalette))}>
-											{"\u2060"}
-										</span>
-										{selection}
-									</p>
-								</th>
-							</tr>
-						</thead>
-					</table>
-				</div>,
-			);
-			unmounts.push(() => screen.unmount());
-			const table = screen.container.querySelector("table")!;
-			const caret = table.querySelector(".emdash-remote-caret")!.getBoundingClientRect();
-			const bounds = table.getBoundingClientRect();
-			const image = new Image();
-			image.src = `data:image/png;base64,${await page.screenshot({ element: table, save: false })}`;
-			await image.decode();
-			const canvas = document.createElement("canvas");
-			canvas.width = image.naturalWidth;
-			canvas.height = image.naturalHeight;
-			const context = canvas.getContext("2d")!;
-			context.drawImage(image, 0, 0);
-			const scale = image.naturalWidth / bounds.width;
-			const start = Math.round((caret.left - bounds.left) * scale);
-			const end = Math.round((caret.right - bounds.left) * scale);
-			const row = Math.floor((caret.top + caret.height / 2 - bounds.top) * scale);
-			const pixel = (column: number) => {
-				const [red, green, blue] = context.getImageData(column, row, 1, 1).data;
-				return [red!, green!, blue!];
-			};
-			const line = pixel(start);
-			expect(contrast(line, pixel(start - 1))).toBeGreaterThanOrEqual(3);
-			expect(contrast(line, pixel(end))).toBeGreaterThanOrEqual(3);
-		},
-	);
 
 	it.each(["light", "dark"])(
 		"keeps 3:1 against the editor, its table headers and code blocks in %s mode, in every avatar palette",

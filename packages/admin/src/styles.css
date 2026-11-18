@@ -1236,7 +1236,6 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 	position: relative;
 	margin-inline: -1px;
 	border-inline-start: 2px solid light-dark(var(--emdash-author), var(--emdash-author-dark-line));
-	box-shadow: 0 0 0 1px var(--color-kumo-base);
 	pointer-events: none;
 }
 
