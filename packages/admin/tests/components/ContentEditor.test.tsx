@@ -5538,7 +5538,9 @@ describe("editorial comments", () => {
 			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A, SAM_B]);
 			vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
 			const { screen, margin, composer } = await openComposer();
-			const options = screen.getByRole("listbox", { name: "People to mention" }).getByRole("option");
+			const options = screen
+				.getByRole("listbox", { name: "People to mention" })
+				.getByRole("option");
 
 			await userEvent.keyboard("@sa");
 			await expect.element(options.first()).toBeVisible();
