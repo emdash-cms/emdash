@@ -11775,6 +11775,11 @@ msgstr "לפרסם כעת?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "פרסום, ביטול פרסום, תזמון וביטול תזמון של תוכן"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "פורסם"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1016
@@ -11786,11 +11791,6 @@ msgstr "פרסום, ביטול פרסום, תזמון וביטול תזמון ש
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:168
 #: packages/admin/src/router.tsx:1957
 msgid "Published"
-msgstr "פורסם"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "פורסם"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
