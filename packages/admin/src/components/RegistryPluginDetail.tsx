@@ -23,7 +23,6 @@ import { msg } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { Warning } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { ApiResponseError, fetchManifest } from "../lib/api/client.js";
@@ -57,7 +56,7 @@ import {
 import { renderMarkdown } from "../lib/markdown.js";
 import { registryIdentity } from "../lib/registry-identity.js";
 import { formatDate } from "../lib/utils.js";
-import { ArrowPrev } from "./ArrowIcons.js";
+import { useBreadcrumbLabel } from "./AdminBreadcrumbs.js";
 import { CapabilityConsentDialog } from "./CapabilityConsentDialog.js";
 import { getMutationError } from "./DialogError.js";
 import { PublisherIdentity } from "./PublisherHandle.js";
@@ -455,13 +454,18 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		},
 	});
 
-	if (
+	const isLoadingView =
 		(packageQueryEnabled && (isLoadingPkg || !isPackageFetchedAfterMount)) ||
-		(releasesQueryEnabled && !areReleasesFetchedAfterMount)
-	) {
+		(releasesQueryEnabled && !areReleasesFetchedAfterMount);
+	const isUnavailableView = listingUnavailable || packageQueryError || releasesQueryError;
+	let breadcrumbLabel: string | undefined = t`Plugin Details`;
+	if (isLoadingView) breadcrumbLabel = undefined;
+	else if (pkg && !isUnavailableView) breadcrumbLabel = displayName ?? slug;
+	useBreadcrumbLabel(breadcrumbLabel);
+
+	if (isLoadingView) {
 		return (
 			<div className="space-y-6">
-				<BackLink />
 				<div className="animate-pulse space-y-4">
 					<div className="flex items-center gap-4">
 						<div className="h-16 w-16 rounded-xl bg-kumo-subtle" />
@@ -477,10 +481,9 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 		);
 	}
 
-	if (listingUnavailable || packageQueryError || releasesQueryError) {
+	if (isUnavailableView) {
 		return (
 			<div className="space-y-6">
-				<BackLink />
 				<div
 					className="rounded-md border border-kumo-border bg-kumo-subtle p-4 text-kumo-default"
 					role="status"
@@ -497,7 +500,6 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 	if (!pkg) {
 		return (
 			<div className="space-y-6">
-				<BackLink />
 				<div
 					className="rounded-md border border-kumo-error bg-kumo-error/10 p-4 text-kumo-error"
 					role="alert"
@@ -510,8 +512,6 @@ export function RegistryPluginDetail({ pluginId, config }: RegistryPluginDetailP
 
 	return (
 		<div className="space-y-6">
-			<BackLink />
-
 			{/* Banner */}
 			{bannerSrc ? (
 				<img
@@ -912,19 +912,6 @@ const SECTION_LABELS: Record<SectionKey, MessageDescriptor> = {
 	changelog: msg`Changelog`,
 	security: msg`Security`,
 };
-
-function BackLink() {
-	const { t } = useLingui();
-	return (
-		<Link
-			to="/plugins/registry"
-			className="inline-flex items-center gap-1 text-sm text-kumo-subtle hover:text-kumo-default"
-		>
-			<ArrowPrev className="h-4 w-4" />
-			{t`Back to plugins`}
-		</Link>
-	);
-}
 
 const PRE_RELEASE_VERSION_RE = /^\d+\.\d+\.\d+-/;
 

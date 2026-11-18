@@ -29,6 +29,7 @@ import {
 import * as React from "react";
 
 import type { OutsideValue } from "./co-editing/types.js";
+import { useBreadcrumbLabel } from "./components/AdminBreadcrumbs.js";
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import type { BylineFormValues } from "./components/BylineFormDialog.js";
@@ -3164,7 +3165,10 @@ const mediaUsageSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/media-usage",
 	component: MediaUsageSettings,
-	staticData: { pageTitle: msg`Media Usage` },
+	staticData: {
+		pageTitle: msg`Media Usage`,
+		breadcrumb: { parent: "/settings", label: msg`Media usage tracking` },
+	},
 });
 
 // Security settings route
@@ -3172,7 +3176,10 @@ const securitySettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/security",
 	component: SecuritySettingsWrapper,
-	staticData: { pageTitle: msg`Security Settings` },
+	staticData: {
+		pageTitle: msg`Security Settings`,
+		breadcrumb: { parent: "/settings", label: msg`Security` },
+	},
 	validateSearch: (search: Record<string, unknown>): { addPasskey?: boolean } =>
 		search.addPasskey === true || search.addPasskey === 1 || search.addPasskey === "1"
 			? { addPasskey: true }
@@ -3193,7 +3200,10 @@ const allowedDomainsSettingsRoute = createRoute({
 			<AllowedDomainsSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Allowed Domains` },
+	staticData: {
+		pageTitle: msg`Allowed Domains`,
+		breadcrumb: { parent: "/settings", label: msg`Self-Signup Domains` },
+	},
 });
 
 // API tokens settings route
@@ -3205,7 +3215,7 @@ const apiTokenSettingsRoute = createRoute({
 			<ApiTokenSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`API Tokens` },
+	staticData: { pageTitle: msg`API Tokens`, breadcrumb: { parent: "/settings" } },
 });
 
 // Email settings route
@@ -3217,7 +3227,10 @@ const emailSettingsRoute = createRoute({
 			<EmailSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Email Settings` },
+	staticData: {
+		pageTitle: msg`Email Settings`,
+		breadcrumb: { parent: "/settings", label: msg`Email` },
+	},
 });
 
 // Backup settings route
@@ -3229,14 +3242,14 @@ const backupSettingsRoute = createRoute({
 			<BackupSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Backups` },
+	staticData: { pageTitle: msg`Backups`, breadcrumb: { parent: "/settings" } },
 });
 
 const transferSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/transfer",
 	component: TransferSettingsPage,
-	staticData: { pageTitle: msg`Transfer` },
+	staticData: { pageTitle: msg`Transfer`, breadcrumb: { parent: "/settings" } },
 	validateSearch: (search: Record<string, unknown>): { start?: "import" } =>
 		search.start === "import" ? { start: "import" } : {},
 });
@@ -3250,6 +3263,7 @@ const sidebarsSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/sidebars",
 	component: SidebarsSettingsPage,
+	staticData: { breadcrumb: { parent: "/settings", label: msg`Sidebars` } },
 	validateSearch: (search: Record<string, unknown>): { tab?: "editor" } =>
 		search.tab === "editor" ? { tab: "editor" } : {},
 });
@@ -3268,7 +3282,10 @@ const generalSettingsRoute = createRoute({
 			<GeneralSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`General Settings` },
+	staticData: {
+		pageTitle: msg`General Settings`,
+		breadcrumb: { parent: "/settings", label: msg`General` },
+	},
 });
 
 // Social settings route
@@ -3280,7 +3297,10 @@ const socialSettingsRoute = createRoute({
 			<SocialSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Social Settings` },
+	staticData: {
+		pageTitle: msg`Social Settings`,
+		breadcrumb: { parent: "/settings", label: msg`Social Links` },
+	},
 });
 
 // SEO settings route
@@ -3292,7 +3312,10 @@ const seoSettingsRoute = createRoute({
 			<SeoSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`SEO Settings` },
+	staticData: {
+		pageTitle: msg`SEO Settings`,
+		breadcrumb: { parent: "/settings", label: msg`SEO` },
+	},
 });
 
 // Plugin manager route
@@ -3315,7 +3338,7 @@ const registryBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/registry",
 	component: RegistryBrowsePage,
-	staticData: { pageTitle: msg`Plugin Registry` },
+	staticData: { pageTitle: msg`Plugin Registry`, breadcrumb: { label: msg`Registry` } },
 });
 
 function RegistryBrowsePage() {
@@ -3373,7 +3396,10 @@ const registryDetailRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/registry/$publisher/$slug",
 	component: RegistryDetailPage,
-	staticData: { pageTitle: msg`Plugin Details` },
+	staticData: {
+		pageTitle: msg`Plugin Details`,
+		breadcrumb: { parent: "/plugins/registry", dynamic: true },
+	},
 });
 
 function RegistryDetailPage() {
@@ -3448,7 +3474,7 @@ const menuEditorRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/menus/$name",
 	component: MenuEditor,
-	staticData: { pageTitle: msg`Edit menu` },
+	staticData: { pageTitle: msg`Edit menu`, breadcrumb: { parent: "/menus", dynamic: true } },
 	validateSearch: (search: Record<string, unknown>) => {
 		return {
 			locale: typeof search.locale === "string" ? search.locale : undefined,
@@ -3497,7 +3523,10 @@ const sectionEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/sections/$slug",
 	component: SectionEditor,
-	staticData: { pageTitle: msg`Edit section` },
+	staticData: {
+		pageTitle: msg`Edit section`,
+		breadcrumb: { parent: "/sections", dynamic: true },
+	},
 });
 
 // Users route
@@ -3647,7 +3676,7 @@ const contentTypesNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/new",
 	component: ContentTypesNewPage,
-	staticData: { pageTitle: msg`New content type` },
+	staticData: { pageTitle: msg`New content type`, breadcrumb: { parent: "/content-types" } },
 });
 
 function ContentTypesNewPage() {
@@ -3683,7 +3712,7 @@ const relationsListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/relations",
 	component: RelationsListPage,
-	staticData: { pageTitle: msg`Relations` },
+	staticData: { pageTitle: msg`Relations`, breadcrumb: { parent: "/content-types" } },
 });
 
 function RelationsListPage() {
@@ -3744,7 +3773,10 @@ const contentTypesEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/$slug",
 	component: ContentTypesEditPage,
-	staticData: { pageTitle: msg`Edit content type` },
+	staticData: {
+		pageTitle: msg`Edit content type`,
+		breadcrumb: { parent: "/content-types", dynamic: true },
+	},
 });
 
 function ContentTypesEditPage() {
@@ -3761,6 +3793,7 @@ function ContentTypesEditPage() {
 		queryKey: ["schema", "collections", slug],
 		queryFn: () => fetchCollection(slug),
 	});
+	useBreadcrumbLabel(collection?.label ?? (isLoading ? undefined : t`Edit content type`));
 
 	const updateMutation = useMutation({
 		mutationFn: async (input: UpdateCollectionInput) => {
@@ -3928,7 +3961,10 @@ const pluginSettingsRoute = createRoute({
 			<PluginSettingsPage />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Plugin Settings` },
+	staticData: {
+		pageTitle: msg`Plugin Settings`,
+		breadcrumb: { parent: "/plugins-manager", dynamic: true },
+	},
 });
 
 function PluginSettingsPage() {
