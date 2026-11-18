@@ -8026,7 +8026,7 @@ msgstr "検索エンジンから非表示"
 
 #: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Hide settings"
-msgstr ""
+msgstr "設定を非表示"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:294
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:301
@@ -13958,7 +13958,7 @@ msgstr "投稿数を表示"
 
 #: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Show settings"
-msgstr ""
+msgstr "設定を表示"
 
 #: packages/admin/src/components/Widgets.tsx:145
 msgid "Show thumbnails"
