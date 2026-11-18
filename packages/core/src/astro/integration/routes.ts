@@ -112,6 +112,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/visual-editing/comments",
+		entrypoint: resolveRoute("visual-editing-comments.astro"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/visual-editing/content/[collection]/[id]/publish",
 		entrypoint: resolveRoute("api/visual-editing/content/[collection]/[id]/publish.ts"),
 	});

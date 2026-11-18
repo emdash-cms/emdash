@@ -1,0 +1,33 @@
+---
+/**
+ * Hosts the visual editing toolbar's comment popover as an island, so the
+ * site's Astro build bundles it like the inline editor. The toolbar fetches
+ * this page the first time an editor opens a comment badge and imports the
+ * island's module; the page itself is never shown.
+ */
+import { requireEditorialPerm } from "#api/authorize.js";
+
+import { EditorialCommentsHost } from "../../components/EditorialCommentsPopover";
+
+export const prerender = false;
+
+Astro.response.headers.set("Cache-Control", "private, no-store");
+
+const denied = requireEditorialPerm(Astro.locals.user);
+if (denied) {
+	denied.headers.set("Cache-Control", "private, no-store");
+	return denied;
+}
+---
+
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<meta name="robots" content="noindex" />
+		<title>EmDash</title>
+	</head>
+	<body>
+		<EditorialCommentsHost client:only="react" />
+	</body>
+</html>
