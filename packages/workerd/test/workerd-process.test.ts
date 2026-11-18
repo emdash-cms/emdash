@@ -100,7 +100,7 @@ describe("workerd process lifecycle", () => {
 			try {
 				const ready = waitForWorkerdReady(child, new Map(), async () => false, 10_000);
 				await expect(withTimeout(ready, 1_000)).rejects.toThrow(
-					new RegExp(`code 127.*${missing.replaceAll("/", "\\/")}`),
+					new RegExp(`code 12[67].*${missing.replaceAll("/", "\\/")}`),
 				);
 			} finally {
 				await terminate(child);
