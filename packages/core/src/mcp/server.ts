@@ -4045,6 +4045,10 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			const ref = { collection: args.collection, id: args.id, locale: args.locale };
 
+			if (args.quote === undefined && (args.prefix !== undefined || args.suffix !== undefined)) {
+				return respondError("VALIDATION_ERROR", "`prefix` and `suffix` need a `quote`");
+			}
+
 			let anchor: EditorialAnchor = { type: "entry" };
 			let rev: string | undefined;
 			if (args.quote !== undefined) {
@@ -4145,9 +4149,9 @@ export function createMcpServer(
 		{
 			title: "Resolve Editorial Thread",
 			description:
-				"Resolve an editorial comment thread, or reopen it with status 'open'. Editors may " +
-				"resolve any thread; others may resolve threads they started or threads on " +
-				"entries they own.",
+				"Resolve an editorial comment thread, or reopen it with status 'open'. Editors can " +
+				"resolve any thread. Other users can resolve threads they started, and Authors " +
+				"can resolve threads on entries they own. Replying to a resolved thread reopens it.",
 			inputSchema: z.object({
 				...editorialEntryShape,
 				threadId: z.string().min(1).describe("Thread ID from editorial_thread_list"),
