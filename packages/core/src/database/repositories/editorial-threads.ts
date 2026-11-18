@@ -508,9 +508,10 @@ export class EditorialThreadRepository {
 	/**
 	 * Deletes the thread only while every live comment on it is by `authorId`.
 	 * Checking in the delete itself keeps a reply that lands meanwhile.
-	 * Returns whether the thread was deleted.
+	 * Returns whether the thread was deleted. Call it inside `withTransaction`.
 	 */
 	async deleteThreadIfOnlyAuthor(threadId: string, authorId: string): Promise<boolean> {
+		await this.lockThread(threadId);
 		const deleted = await this.db
 			.deleteFrom("_emdash_editorial_threads")
 			.where("id", "=", threadId)

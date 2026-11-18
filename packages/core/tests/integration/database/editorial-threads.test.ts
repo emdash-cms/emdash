@@ -343,6 +343,49 @@ describeEachDialect("editorial threads", (dialect) => {
 		},
 	);
 
+	it.runIf(dialect === "postgres")(
+		"keeps a reply that commits while its thread's creator deletes the thread",
+		async () => {
+			const { threadId } = await createThread();
+
+			let releaseReply!: () => void;
+			const replyHeld = new Promise<void>((resolve) => {
+				releaseReply = resolve;
+			});
+			let replyInserted!: () => void;
+			const replyStarted = new Promise<void>((resolve) => {
+				replyInserted = resolve;
+			});
+			let replyId = "";
+			const reply = db.transaction().execute(async (trx) => {
+				replyId = await new EditorialThreadRepository(trx).addComment({
+					threadId,
+					authorId: LINUS,
+					body: "Wait, I have a source.",
+					now: now(),
+				});
+				replyInserted();
+				await replyHeld;
+			});
+			await replyStarted;
+			const creatorDelete = db
+				.transaction()
+				.execute((trx) =>
+					new EditorialThreadRepository(trx).deleteThreadIfOnlyAuthor(threadId, ADA),
+				);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			releaseReply();
+			const [, deleted] = await Promise.all([reply, creatorDelete]);
+
+			expect(deleted).toBe(false);
+			expect(await threads.findThread(threadId)).not.toBeNull();
+			expect(await threads.findComment(replyId)).toMatchObject({
+				authorId: LINUS,
+				deletedAt: null,
+			});
+		},
+	);
+
 	it("shows comments from a deleted user without an author", async () => {
 		const { threadId } = await createThread();
 		await threads.addComment({ threadId, authorId: LINUS, body: "Bye", now: now() });
