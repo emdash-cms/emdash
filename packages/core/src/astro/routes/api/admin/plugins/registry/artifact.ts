@@ -114,7 +114,10 @@ function timedFetch(totalDeadline: number): typeof fetch {
  * boundary, but `artifacts` is an aggregator pass-through typed `unknown`, so
  * the entry's shape is not guaranteed.
  */
-type DeclaredArtifact = ReleaseArtifactReference & { requiresAuth: boolean };
+type DeclaredArtifact = Omit<ReleaseArtifactReference, "blob"> & {
+	blob?: Extract<NonNullable<ReleaseArtifactReference["blob"]>, { ref: unknown }>;
+	requiresAuth: boolean;
+};
 
 interface ResolvedArtifact {
 	artifact: DeclaredArtifact;
@@ -413,8 +416,7 @@ async function resolveArtifact(
 
 	const descriptor = resolveDeclaredArtifact(releaseView.release.artifacts, kind, index);
 	if (!descriptor || descriptor.requiresAuth || releaseView.release.auth !== undefined) return null;
-	const blobCid =
-		descriptor.blob && "ref" in descriptor.blob ? descriptor.blob.ref.$link : undefined;
+	const blobCid = descriptor.blob?.ref.$link;
 	let imageCacheUrl: URL | undefined;
 	if (blobCid) {
 		const expected = multihashFromBlobCid(blobCid);
@@ -483,8 +485,7 @@ async function fetchRawArtifact(
 	| { success: false; code: string }
 > {
 	const urls: URL[] = [];
-	const { blob } = resolved.artifact;
-	const blobCid = blob && "ref" in blob ? blob.ref.$link : undefined;
+	const blobCid = resolved.artifact.blob?.ref.$link;
 	let lastCode = "FETCH_FAILED";
 	let checksumMismatch: { bytes: Uint8Array<ArrayBuffer>; headers: Headers } | undefined;
 	if (blobCid) {
