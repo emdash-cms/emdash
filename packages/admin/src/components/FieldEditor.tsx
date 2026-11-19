@@ -1467,25 +1467,27 @@ export function FieldEditor({
 														className="rounded-lg border border-kumo-line p-3"
 													>
 														<div className="flex items-center gap-2">
-															<Checkbox
-																label={blockType.label}
-																checked={selected}
-																disabled={retired && !selected}
-																onCheckedChange={(checked) => {
-																	setField(
-																		"allowedTypes",
-																		checked
-																			? [...formState.allowedTypes, blockType.slug]
-																			: formState.allowedTypes.filter(
-																					(candidateSlug) => candidateSlug !== blockType.slug,
-																				),
-																	);
-																}}
-															/>
-															<code dir="ltr" className="text-xs text-kumo-subtle">
-																{blockType.slug}
-															</code>
-															{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
+															<div className="flex min-w-0 items-baseline gap-2">
+																<Checkbox
+																	label={blockType.label}
+																	checked={selected}
+																	disabled={retired && !selected}
+																	onCheckedChange={(checked) => {
+																		setField(
+																			"allowedTypes",
+																			checked
+																				? [...formState.allowedTypes, blockType.slug]
+																				: formState.allowedTypes.filter(
+																						(candidateSlug) => candidateSlug !== blockType.slug,
+																					),
+																		);
+																	}}
+																/>
+																<code dir="ltr" className="text-xs text-kumo-subtle">
+																	{blockType.slug}
+																</code>
+																{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
+															</div>
 															{/* Kept on unticked cards too, so ticking one doesn't make it taller. */}
 															<div className={cn("ms-auto flex gap-1", !selected && "invisible")}>
 																<Button
@@ -1526,7 +1528,8 @@ export function FieldEditor({
 																</Button>
 															</div>
 														</div>
-														<div className="mt-2 flex flex-wrap gap-2">
+														{/* Past the checkbox, so it starts where the label's text starts. */}
+														<div className="mt-2 flex flex-wrap gap-2 ps-6">
 															{blockType.versions.map((version) => (
 																<span key={version.version} className="text-xs text-kumo-subtle">
 																	{version.active

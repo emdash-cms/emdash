@@ -99,4 +99,23 @@ describe("FieldEditor blocks configuration", () => {
 		await expect.element(screen.getByRole("button", { name: "Move Hero up" })).toBeVisible();
 		expect(card.getBoundingClientRect().height).toBe(unticked);
 	});
+
+	it("starts a block type's version line where its name starts", async () => {
+		const screen = await render(<FieldEditor open onOpenChange={vi.fn()} onSave={vi.fn()} />);
+		screen
+			.getByRole("button", { name: /^Blocks/ })
+			.element()
+			.click();
+		const startOfText = (element: Element) => {
+			const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT).nextNode()!;
+			const range = document.createRange();
+			range.selectNodeContents(text);
+			return range.getBoundingClientRect().left;
+		};
+
+		const name = screen.getByText("Hero", { exact: true });
+		await expect.element(name).toBeVisible();
+		const version = screen.getByText("v1").element();
+		expect(startOfText(version)).toBeCloseTo(startOfText(name.element()), 0);
+	});
 });
