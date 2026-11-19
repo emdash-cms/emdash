@@ -542,4 +542,4 @@ When an administrator disables the plugin, EmDash removes its pages, widgets, pa
 
 ## Package the entrypoint
 
-Export the admin module separately from the server runtime so Astro can bundle it for the browser with the host's React, Kumo, and Lingui instances. [Distributing native plugins](/plugins/creating-native-plugins/distributing/) provides the complete package layout, exports, peer dependencies, and build commands.
+Export the admin module separately from the server runtime so Astro can bundle it for the browser with the host's React, Kumo, and Lingui instances. The plugin must use the exact Kumo version that the installed `@emdash-cms/admin` uses; [Match the admin's Kumo version](/plugins/creating-native-plugins/distributing/#match-the-admins-kumo-version) explains how to pin it. [Distributing native plugins](/plugins/creating-native-plugins/distributing/) provides the complete package layout, exports, peer dependencies, and build commands.

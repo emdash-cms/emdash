@@ -1,12 +1,12 @@
 import type { RouteMeta } from "../plugins/routes.js";
-import type { HandlerResponse } from "./types.js";
+import type { PluginRouteResponse } from "./types.js";
 
 export type PublicPluginApiRouteHandler = (
 	pluginId: string,
 	method: string,
 	path: string,
 	request: Request,
-) => Promise<HandlerResponse>;
+) => Promise<PluginRouteResponse>;
 
 interface PublicPluginApiRouteRuntime {
 	getPluginRouteMeta(pluginId: string, path: string): RouteMeta | null;
@@ -15,7 +15,7 @@ interface PublicPluginApiRouteRuntime {
 		method: string,
 		path: string,
 		request: Request,
-	): Promise<HandlerResponse>;
+	): Promise<PluginRouteResponse>;
 }
 
 export function getPublicPluginRouteMeta(
@@ -27,7 +27,7 @@ export function getPublicPluginRouteMeta(
 	return meta?.public === true ? meta : null;
 }
 
-function pluginRouteNotFound(): HandlerResponse {
+function pluginRouteNotFound(): PluginRouteResponse {
 	return {
 		success: false,
 		error: {

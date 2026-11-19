@@ -8,15 +8,16 @@
 import type { APIRoute } from "astro";
 
 import { requireAnyPerm } from "#api/authorize.js";
-import { apiError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, unwrapResult } from "#api/error.js";
 import { handleApprovalDecide } from "#api/handlers/transfer.js";
 
 export const prerender = false;
 
 export const POST: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	if (!user) return apiError("UNAUTHORIZED", "Authentication required", 401);
 	const denied = requireAnyPerm(user, ["transfer:export", "transfer:import"]);

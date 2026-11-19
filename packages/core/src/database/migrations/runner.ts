@@ -105,6 +105,7 @@ import * as m094 from "./094_media_usage_file_url_reindex.js";
 import * as m095 from "./095_plugin_storage_unique_scope.js";
 import * as m096 from "./096_revision_kind_and_editors.js";
 import * as m097 from "./097_room_storage.js";
+import * as m098 from "./098_user_last_login.js";
 import { CONTENT_SIZED_MIGRATIONS } from "./content-sized.js";
 
 const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
@@ -204,6 +205,7 @@ const MIGRATIONS: Readonly<Record<string, Migration>> = Object.freeze({
 	"095_plugin_storage_unique_scope": m095,
 	"096_revision_kind_and_editors": m096,
 	"097_room_storage": m097,
+	"098_user_last_login": m098,
 });
 
 /** Ordered names from the statically registered migration set. */

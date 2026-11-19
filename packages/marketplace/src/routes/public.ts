@@ -10,21 +10,6 @@ import {
 
 export const publicRoutes = new Hono<{ Bindings: Env }>();
 
-// ── GET /auth/discovery — Auth config for CLI ───────────────────
-
-publicRoutes.get("/auth/discovery", (c) => {
-	return c.json({
-		github: {
-			clientId: c.env.GITHUB_CLIENT_ID,
-			deviceAuthorizationEndpoint: "https://github.com/login/device/code",
-			tokenEndpoint: "https://github.com/login/oauth/access_token",
-		},
-		marketplace: {
-			deviceTokenEndpoint: "/api/v1/auth/github/device",
-		},
-	});
-});
-
 // ── GET /plugins — Search/list plugins ──────────────────────────
 
 publicRoutes.get("/plugins", async (c) => {
@@ -229,64 +214,6 @@ publicRoutes.get("/plugins/:id/versions/:version/bundle", async (c) => {
 		});
 	} catch (err) {
 		console.error("Failed to download bundle:", err);
-		return c.json({ error: "Internal server error" }, 500);
-	}
-});
-
-// ── GET /plugins/:id/versions/:version/audit — Audit result ─────
-
-publicRoutes.get("/plugins/:id/versions/:version/audit", async (c) => {
-	const pluginId = c.req.param("id");
-	const version = c.req.param("version");
-
-	try {
-		const versionRow = await getPluginVersion(c.env.DB, pluginId, version);
-		if (!versionRow) return c.json({ error: "Version not found" }, 404);
-		if (versionRow.status !== "published" && versionRow.status !== "flagged") {
-			return c.json({ error: "Version not found" }, 404);
-		}
-
-		if (!versionRow.audit_id) {
-			return c.json({ error: "No audit result available" }, 404);
-		}
-
-		const audit = await c.env.DB.prepare("SELECT * FROM plugin_audits WHERE id = ?")
-			.bind(versionRow.audit_id)
-			.first();
-		if (!audit) return c.json({ error: "Audit result not found" }, 404);
-
-		return c.json(audit);
-	} catch (err) {
-		console.error("Failed to get audit:", err);
-		return c.json({ error: "Internal server error" }, 500);
-	}
-});
-
-// ── GET /plugins/:id/versions/:version/image-audit — Image audit ─
-
-publicRoutes.get("/plugins/:id/versions/:version/image-audit", async (c) => {
-	const pluginId = c.req.param("id");
-	const version = c.req.param("version");
-
-	try {
-		const versionRow = await getPluginVersion(c.env.DB, pluginId, version);
-		if (!versionRow) return c.json({ error: "Version not found" }, 404);
-		if (versionRow.status !== "published" && versionRow.status !== "flagged") {
-			return c.json({ error: "Version not found" }, 404);
-		}
-
-		if (!versionRow.image_audit_id) {
-			return c.json({ error: "No image audit result available" }, 404);
-		}
-
-		const audit = await c.env.DB.prepare("SELECT * FROM plugin_image_audits WHERE id = ?")
-			.bind(versionRow.image_audit_id)
-			.first();
-		if (!audit) return c.json({ error: "Image audit result not found" }, 404);
-
-		return c.json(audit);
-	} catch (err) {
-		console.error("Failed to get image audit:", err);
 		return c.json({ error: "Internal server error" }, 500);
 	}
 });

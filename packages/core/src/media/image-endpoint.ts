@@ -12,6 +12,8 @@
  * precompiled package and can be unit-tested directly.
  */
 
+import mime from "mime/lite";
+
 import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 
 /** Output formats the wrapped endpoint can produce on Cloudflare. */
@@ -66,6 +68,88 @@ export const IMMUTABLE_IMAGE_CACHE = "public, max-age=31536000, immutable";
 
 /** Cache policy for media keys that Replace original may overwrite. */
 export const MUTABLE_MEDIA_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+
+/** Route cache lifetime for media responses; replace and delete purge them sooner. */
+export const MEDIA_ROUTE_CACHE_MAX_AGE = 31_536_000;
+
+/** Route cache tag for the original file and every variant of a storage key. */
+export function mediaCacheTag(storageKey: string): string {
+	return `emdash:media:${storageKey}`;
+}
+
+/** Cloudflare drops tags longer than 1024 characters but still caches the response. */
+export function isCacheableMediaKey(storageKey: string): boolean {
+	return isSafeTransformKey(storageKey) && mediaCacheTag(storageKey).length <= 1024;
+}
+
+/**
+ * Whether media of this type and key can be in the route cache, so deleting its file needs a purge.
+ * Storage backends that infer the served type from the key's extension can serve an image even
+ * when the stored MIME type is not one.
+ */
+export function isRouteCachedMedia(storageKey: string, mimeType: string): boolean {
+	if (!isCacheableMediaKey(storageKey)) return false;
+	return mimeType.startsWith("image/") || (mime.getType(storageKey) ?? "").startsWith("image/");
+}
+
+/** Cache only plain local source URLs; preview queries still reach the transformer unchanged. */
+export function isCacheableMediaSource(href: string | null, requestUrl: URL): boolean {
+	const key = matchInternalMediaKey(href);
+	if (!key) return false;
+	const pathname = `${INTERNAL_MEDIA_PREFIX}${key}`;
+	return href === pathname || href === `${requestUrl.origin}${pathname}`;
+}
+
+/** Store the current response in the route cache only when its tag can be purged. */
+export function cacheMediaResponse(
+	cache: { enabled: boolean; set(options: { maxAge: number; tags: string[] }): void } | undefined,
+	storageKey: string,
+): void {
+	if (!cache?.enabled || !isCacheableMediaKey(storageKey)) return;
+	cache.set({ maxAge: MEDIA_ROUTE_CACHE_MAX_AGE, tags: [mediaCacheTag(storageKey)] });
+}
+
+/**
+ * Query parameters of an image endpoint URL, in the order Astro's `getURL`
+ * writes them. Stock-service endpoints redirect to this order without changing
+ * the source `href` value.
+ */
+const CANONICAL_TRANSFORM_PARAMS = ["href", "w", "h", "q", "f", "fit", "position", "background"];
+
+/**
+ * The canonical query for an image endpoint request, or `null` when the
+ * request already uses it. Known parameters keep their first value (the one
+ * the endpoint reads) in canonical order, followed by the parameters named in
+ * the adapter's `assetQueryParams` with the request's own values; everything
+ * else is dropped.
+ */
+export function canonicalTransformSearch(
+	url: URL,
+	assetQueryParams?: URLSearchParams,
+): string | null {
+	const params = url.searchParams;
+	const names = [...CANONICAL_TRANSFORM_PARAMS];
+	for (const name of assetQueryParams?.keys() ?? []) {
+		if (!names.includes(name)) names.push(name);
+	}
+	const canonical = new URLSearchParams();
+	for (const name of names) {
+		const value = params.get(name);
+		if (value !== null) canonical.append(name, value);
+	}
+	// Compared as serialized text: Workers Cache keys on the raw URL, so an
+	// equal query with different percent-encoding would be a separate entry.
+	const search = canonical.toString();
+	return search === url.search.slice(1) ? null : search;
+}
+
+/** `301` to the canonical form of an image endpoint URL. */
+export function canonicalTransformRedirect(url: URL, search: string): Response {
+	return new Response(null, {
+		status: 301,
+		headers: { Location: `${url.pathname}?${search}` },
+	});
+}
 
 /**
  * Format a Date as an HTTP-date (RFC 7231).

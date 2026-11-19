@@ -38,10 +38,6 @@ vi.mock("../../../src/lib/api/transfer.js", async () => {
 });
 vi.mock("../../../src/lib/api/current-user.js", () => ({ useCurrentUser: currentUserMock }));
 vi.mock("../../../src/lib/api/users.js", () => ({ fetchUsers: fetchUsersMock }));
-vi.mock("../../../src/components/settings/BackToSettingsLink.js", () => ({
-	BackToSettingsLink: () => <a href="/settings">Back to Settings</a>,
-}));
-
 const { TransferSettings } = await import("../../../src/components/settings/TransferSettings.js");
 
 function capabilities(portableDomain: Partial<TransferCapabilities["portableDomain"]> = {}) {

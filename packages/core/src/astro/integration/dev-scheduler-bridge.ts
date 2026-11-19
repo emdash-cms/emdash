@@ -1,4 +1,3 @@
-import type { Server } from "node:http";
 import { request as requestHttps } from "node:https";
 
 import type { AstroIntegrationLogger } from "astro";
@@ -6,7 +5,7 @@ import type { AstroIntegrationLogger } from "astro";
 const DEFAULT_INTERVAL_MS = 60_000;
 
 interface DevServer {
-	httpServer: Pick<Server, "once"> | null;
+	httpServer: { once(event: "listening" | "close", listener: () => void): unknown } | null;
 	resolvedUrls: { local: string[]; network: string[] } | null;
 }
 

@@ -6,8 +6,10 @@ import * as React from "react";
 
 import type { AdminManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
+import type { BreadcrumbRouteMeta } from "../lib/breadcrumb-trail.js";
 import { getLocaleDir } from "../locales/config.js";
 import { useLocale } from "../locales/useLocale.js";
+import { BreadcrumbProvider } from "./AdminBreadcrumbs.js";
 import { AdminCommandPalette } from "./AdminCommandPalette";
 import { AdminDocumentTitle } from "./AdminDocumentTitle.js";
 import { Header } from "./Header";
@@ -29,6 +31,8 @@ declare module "@tanstack/react-router" {
 		 */
 		fullBleed?: boolean;
 		pageTitle?: MessageDescriptor;
+		/** Places the route under a parent page in the header's breadcrumb trail. */
+		breadcrumb?: BreadcrumbRouteMeta;
 	}
 }
 
@@ -157,26 +161,28 @@ export function Shell({ children, manifest }: ShellProps) {
 				<SidebarNav manifest={manifest} />
 
 				{/* Main content area — scrolls independently so sidebar stays full height */}
-				<div className="flex flex-1 flex-col overflow-hidden">
-					<Header staging={manifest.staging} />
-					{manifest.registryConfigurationError && (
-						<div className="space-y-3 px-6 pt-6">
-							<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
-						</div>
-					)}
-					{/* Full-bleed clips because scrollIntoView() and focus() can still scroll
-				    an overflow-hidden box, pushing the page up under the header. A
-				    clipping box isn't a scroll container, so it also needs min-h-0. */}
-					<main
-						className={
-							fullBleed
-								? "min-h-0 flex-1 overflow-clip bg-kumo-elevated"
-								: "flex-1 overflow-y-auto bg-kumo-elevated p-6"
-						}
-					>
-						{children}
-					</main>
-				</div>
+				<BreadcrumbProvider pageKey={match?.pathname ?? "/"}>
+					<div className="flex flex-1 flex-col overflow-hidden">
+						<Header staging={manifest.staging} />
+						{manifest.registryConfigurationError && (
+							<div className="space-y-3 px-6 pt-6">
+								<RegistryConfigurationBanner error={manifest.registryConfigurationError} />
+							</div>
+						)}
+						{/* Full-bleed clips because scrollIntoView() and focus() can still scroll
+					    an overflow-hidden box, pushing the page up under the header. A
+					    clipping box isn't a scroll container, so it also needs min-h-0. */}
+						<main
+							className={
+								fullBleed
+									? "min-h-0 flex-1 overflow-clip bg-kumo-elevated"
+									: "flex-1 overflow-y-auto bg-kumo-elevated p-6"
+							}
+						>
+							{children}
+						</main>
+					</div>
+				</BreadcrumbProvider>
 
 				{/* Welcome modal for first-time users */}
 				{user && (
