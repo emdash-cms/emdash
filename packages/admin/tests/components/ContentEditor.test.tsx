@@ -5559,6 +5559,24 @@ describe("editorial comments", () => {
 			);
 		});
 
+		it("picks only someone matching what's typed while that search is pending", async () => {
+			const ALICE = { id: "u-alice", name: "Alice Park", avatarUrl: null };
+			const BOB = { id: "u-bob", name: "Bob Diaz", avatarUrl: null };
+			vi.mocked(fetchEditorialMentionable).mockImplementation((_entry, query) =>
+				query ? new Promise(() => undefined) : Promise.resolve([ALICE, BOB]),
+			);
+			const { screen, composer } = await openComposer();
+			const options = screen
+				.getByRole("listbox", { name: "People to mention" })
+				.getByRole("option");
+			await userEvent.keyboard("@");
+			await expect.element(options.first()).toHaveTextContent("Alice Park");
+
+			await userEvent.keyboard("bo{Enter}");
+
+			await expect.element(composer).toHaveValue("@Bob Diaz ");
+		});
+
 		it("puts text typed straight after a pick after the mention", async () => {
 			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
 			vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
