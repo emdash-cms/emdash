@@ -761,7 +761,7 @@ msgstr "{label} 的操作"
 msgid "{label} in {menuName}"
 msgstr "{menuName} 中的 {label}"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr "一律顯示 {label}"
 
@@ -776,8 +776,8 @@ msgstr "已將 {label} 移到第 {0} / {1} 個位置。"
 msgid "{label} moved to position {0}."
 msgstr "已將 {label} 移到第 {0} 個位置。"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr "已將 {label} 移至第 {position} 個位置，共 {count} 個。"
 
@@ -2112,7 +2112,7 @@ msgstr "已設定替代文字"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "或者，您可以從 WordPress 匯出 (工具 → 匯出)，再上傳檔案。"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr "一律顯示"
 
@@ -2984,7 +2984,7 @@ msgstr "取消重新命名"
 msgid "Cancel this import?"
 msgstr "要取消這次匯入嗎？"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr "已取消。{label} 已回到第 {position} 個位置，共 {count} 個。"
 
@@ -5254,7 +5254,7 @@ msgstr "不配對"
 msgid "Done"
 msgstr "完成"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr "向下方向鍵"
 
@@ -5384,7 +5384,7 @@ msgstr "將小工具拖曳至此處即可新增"
 msgid "Drag widgets into an area to add them"
 msgstr "將小工具拖曳至區域即可新增"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr "拖曳，或按 <0>Alt <1/></0> <2>Alt <3/></2>"
 
@@ -5412,11 +5412,11 @@ msgstr "放開以新增小工具"
 msgid "Drop your WordPress export file here"
 msgstr "將 WordPress 匯出檔案拖放到這裡"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr "已將 {label} 放至第 {position} 個位置，共 {count} 個。"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr "已放下 {label}。"
 
@@ -11318,7 +11318,7 @@ msgstr "Phosphor 圖示名稱，例如 calendar-blank 或 trophy"
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr "已抓起 {label}，目前在第 {position} 個位置，共 {count} 個。"
 
@@ -12398,7 +12398,7 @@ msgstr "調整順序"
 msgid "Reorder {0}"
 msgstr "調整 {0} 的順序"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr "調整 {label} 的順序"
 
@@ -13923,7 +13923,7 @@ msgstr "短文字"
 msgid "Show"
 msgstr "查看"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr "顯示 {label}"
 
@@ -14363,7 +14363,7 @@ msgstr "排序外掛"
 msgid "Sort themes"
 msgstr "排序佈景主題"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr "可排序項目"
 
@@ -15802,7 +15802,7 @@ msgstr "關閉"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "若要將網站移至另一個 EmDash 安裝環境，請使用<0>移轉</0>。"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr "按空白鍵或 Enter 拿起項目，使用上下方向鍵移動，再按空白鍵或 Enter 放下，或按 Escape 取消。按住 Alt 再按上下方向鍵，即可直接移動一個位置。"
 
@@ -16270,7 +16270,7 @@ msgstr "未命名小工具"
 msgid "Unused references were left out"
 msgstr "未使用的參照未納入"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr "向上方向鍵"
 

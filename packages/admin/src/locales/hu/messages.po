@@ -761,7 +761,7 @@ msgstr "Műveletek ennél az elemnél: {label}"
 msgid "{label} in {menuName}"
 msgstr "{label} a(z) {menuName} menüben"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr "Ez mindig látható – {label}"
 
@@ -776,8 +776,8 @@ msgstr "{label} áthelyezve a(z) {0}. helyre, összesen {1} elemből."
 msgid "{label} moved to position {0}."
 msgstr "{label} áthelyezve a(z) {0}. helyre."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr "{label} átkerült a(z) {position}. helyre összesen {count} helyből."
 
@@ -2112,7 +2112,7 @@ msgstr "Alternatív szöveg beállítva"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Másik lehetőségként exportálhatsz WordPressből (Eszközök → Exportálás), majd feltöltheted a fájlt."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr "Mindig látható"
 
@@ -2984,7 +2984,7 @@ msgstr "Átnevezés megszakítása"
 msgid "Cancel this import?"
 msgstr "Megszakítod ezt az importálást?"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr "Áthelyezés megszakítva. {label} visszakerült a(z) {position}. helyre összesen {count} helyből."
 
@@ -5254,7 +5254,7 @@ msgstr "Ne legyen hozzárendelve"
 msgid "Done"
 msgstr "Kész"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr "Lefelé nyíl"
 
@@ -5384,7 +5384,7 @@ msgstr "Húzd ide a widgeteket a hozzáadáshoz"
 msgid "Drag widgets into an area to add them"
 msgstr "Húzd a widgeteket egy területre a hozzáadáshoz"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr "Húzd át, vagy használd az <0>Alt <1/></0> vagy <2>Alt <3/></2> kombinációt"
 
@@ -5412,11 +5412,11 @@ msgstr "Engedd el a widget hozzáadásához"
 msgid "Drop your WordPress export file here"
 msgstr "Húzd ide a WordPress exportfájlt"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr "{label} letéve a(z) {position}. helyre összesen {count} helyből."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr "{label} letéve."
 
@@ -11318,7 +11318,7 @@ msgstr "Phosphor-ikon neve, pl. calendar-blank vagy trophy"
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr "{label} megfogva, a(z) {position}. helyen összesen {count} helyből."
 
@@ -12398,7 +12398,7 @@ msgstr "Átrendezés"
 msgid "Reorder {0}"
 msgstr "{0} átrendezése"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr "Sorrend módosítása ennél az elemnél: {label}"
 
@@ -13923,7 +13923,7 @@ msgstr "Rövid szöveg"
 msgid "Show"
 msgstr "Megjelenítés"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr "Megjelenítés – {label}"
 
@@ -14363,7 +14363,7 @@ msgstr "Pluginek rendezése"
 msgid "Sort themes"
 msgstr "Témák rendezése"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr "átrendezhető"
 
@@ -15802,7 +15802,7 @@ msgstr "bezár"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "A weboldal másik EmDash-telepítésbe helyezéséhez használd az <0>Átvitel</0> funkciót."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr "Az elem megfogásához nyomd meg a Szóköz vagy az Enter billentyűt. A fel és le nyilakkal mozgathatod. A letételhez nyomd meg a Szóköz vagy az Enter billentyűt, a megszakításhoz az Escape billentyűt. Az Alt és a fel vagy le nyíl együttes lenyomásával az elem rögtön egy hellyel feljebb vagy lejjebb kerül."
 
@@ -16270,7 +16270,7 @@ msgstr "Cím nélküli widget"
 msgid "Unused references were left out"
 msgstr "A nem használt hivatkozások kimaradtak"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr "Felfelé nyíl"
 

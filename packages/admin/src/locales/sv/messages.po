@@ -761,7 +761,7 @@ msgstr "Åtgärder för {label}"
 msgid "{label} in {menuName}"
 msgstr "{label} i {menuName}"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr "{label} visas alltid"
 
@@ -776,8 +776,8 @@ msgstr "{label} flyttades till position {0} av {1}."
 msgid "{label} moved to position {0}."
 msgstr "{label} flyttades till position {0}."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr "{label} flyttades till position {position} av {count}."
 
@@ -2112,7 +2112,7 @@ msgstr "Alt-text angiven"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Alternativt kan du exportera från WordPress (Verktyg → Exportera) och ladda upp filen."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr "Visas alltid"
 
@@ -2984,7 +2984,7 @@ msgstr "Avbryt namnändring"
 msgid "Cancel this import?"
 msgstr "Avbryt den här importen?"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr "Avbrutet. {label} är tillbaka på position {position} av {count}."
 
@@ -5254,7 +5254,7 @@ msgstr "Koppla inte"
 msgid "Done"
 msgstr "Klar"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr "Nedåtpil"
 
@@ -5384,7 +5384,7 @@ msgstr "Dra widgetar hit för att lägga till dem"
 msgid "Drag widgets into an area to add them"
 msgstr "Dra widgetar till ett område för att lägga till dem"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr "Dra eller tryck på <0>Alt <1/></0> <2>Alt <3/></2>"
 
@@ -5412,11 +5412,11 @@ msgstr "Släpp för att lägga till widget"
 msgid "Drop your WordPress export file here"
 msgstr "Släpp din WordPress-exportfil här"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr "{label} släpptes på position {position} av {count}."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr "{label} släpptes."
 
@@ -11318,7 +11318,7 @@ msgstr "Namn på en Phosphor-ikon, t.ex. calendar-blank eller trophy"
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr "{label} har plockats upp, position {position} av {count}."
 
@@ -12398,7 +12398,7 @@ msgstr "Ändra ordning"
 msgid "Reorder {0}"
 msgstr "Ändra ordning på {0}"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr "Ändra ordning på {label}"
 
@@ -13923,7 +13923,7 @@ msgstr "Kort text"
 msgid "Show"
 msgstr "Visa"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr "Visa {label}"
 
@@ -14363,7 +14363,7 @@ msgstr "Sortera tillägg"
 msgid "Sort themes"
 msgstr "Sortera teman"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr "sorterbar"
 
@@ -15802,7 +15802,7 @@ msgstr "för att stänga"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "Använd <0>Flytt</0> för att flytta en webbplats till en annan EmDash-installation."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr "Tryck på blanksteg eller Enter för att plocka upp ett objekt. Flytta det med uppåt- och nedåtpilen och tryck sedan på blanksteg eller Enter för att släppa det eller på Escape för att avbryta. Alt tillsammans med uppåt- eller nedåtpilen flyttar det ett steg direkt."
 
@@ -16270,7 +16270,7 @@ msgstr "Widget utan namn"
 msgid "Unused references were left out"
 msgstr "Oanvända referenser utelämnades"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr "Uppåtpil"
 

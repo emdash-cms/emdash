@@ -761,7 +761,7 @@ msgstr ""
 msgid "{label} in {menuName}"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr ""
 
@@ -776,8 +776,8 @@ msgstr ""
 msgid "{label} moved to position {0}."
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr ""
 
@@ -2112,7 +2112,7 @@ msgstr "Alternativní text je nastaven"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Případně můžete provést export z WordPressu (Nástroje → Export) a soubor nahrát."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr ""
 
@@ -2984,7 +2984,7 @@ msgstr "Zrušit přejmenování"
 msgid "Cancel this import?"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr ""
 
@@ -5254,7 +5254,7 @@ msgstr ""
 msgid "Done"
 msgstr "Hotovo"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr ""
 
@@ -5384,7 +5384,7 @@ msgstr "Widgety přidáte přetažením sem"
 msgid "Drag widgets into an area to add them"
 msgstr "Widgety přidáte přetažením do oblasti"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr ""
 
@@ -5412,11 +5412,11 @@ msgstr "Puštěním přidáte widget"
 msgid "Drop your WordPress export file here"
 msgstr "Sem přetáhněte exportovaný soubor z WordPressu"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr ""
 
@@ -11318,7 +11318,7 @@ msgstr ""
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr ""
 
@@ -12398,7 +12398,7 @@ msgstr ""
 msgid "Reorder {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr ""
 
@@ -13923,7 +13923,7 @@ msgstr "Krátký text"
 msgid "Show"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr ""
 
@@ -14363,7 +14363,7 @@ msgstr "Řadit pluginy"
 msgid "Sort themes"
 msgstr "Řadit šablony"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr ""
 
@@ -15802,7 +15802,7 @@ msgstr "zavřít"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr ""
 
@@ -16270,7 +16270,7 @@ msgstr "Widget bez názvu"
 msgid "Unused references were left out"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr ""
 

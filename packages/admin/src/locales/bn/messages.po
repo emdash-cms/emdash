@@ -761,7 +761,7 @@ msgstr ""
 msgid "{label} in {menuName}"
 msgstr "{menuName}-এ {label}"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr ""
 
@@ -776,8 +776,8 @@ msgstr "{label} {1}টির মধ্যে {0} নম্বর অবস্থ
 msgid "{label} moved to position {0}."
 msgstr "{label} {0} নম্বর অবস্থানে সরানো হয়েছে।"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr ""
 
@@ -2112,7 +2112,7 @@ msgstr "বিকল্প টেক্সট সেট করা হয়ে�
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "অথবা, আপনি WordPress থেকে এক্সপোর্ট (Tools → Export) করে ফাইলটি আপলোড করতে পারেন।"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr ""
 
@@ -2984,7 +2984,7 @@ msgstr "নাম পরিবর্তন বাতিল করুন"
 msgid "Cancel this import?"
 msgstr "এই ইমপোর্ট বাতিল করবেন?"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr ""
 
@@ -5254,7 +5254,7 @@ msgstr "ম্যাপ করবেন না"
 msgid "Done"
 msgstr "সম্পন্ন"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr ""
 
@@ -5384,7 +5384,7 @@ msgstr "উইজেট যোগ করতে এখানে টেনে আ�
 msgid "Drag widgets into an area to add them"
 msgstr "উইজেট যোগ করতে সেগুলো কোনো এরিয়ায় টেনে আনুন"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr ""
 
@@ -5412,11 +5412,11 @@ msgstr "উইজেট যোগ করতে ছাড়ুন"
 msgid "Drop your WordPress export file here"
 msgstr "আপনার WordPress এক্সপোর্ট ফাইল এখানে ছাড়ুন"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr ""
 
@@ -11318,7 +11318,7 @@ msgstr ""
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr ""
 
@@ -12398,7 +12398,7 @@ msgstr "ক্রম পরিবর্তন করুন"
 msgid "Reorder {0}"
 msgstr "{0}-এর ক্রম পরিবর্তন করুন"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr ""
 
@@ -13923,7 +13923,7 @@ msgstr "ছোট টেক্সট"
 msgid "Show"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr ""
 
@@ -14363,7 +14363,7 @@ msgstr "প্লাগইন সাজান"
 msgid "Sort themes"
 msgstr "থিম সাজান"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr ""
 
@@ -15802,7 +15802,7 @@ msgstr "বন্ধ করতে"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "সাইটটি অন্য একটি EmDash ইনস্টলেশনে সরাতে <0>ট্রান্সফার</0> ব্যবহার করুন।"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr ""
 
@@ -16270,7 +16270,7 @@ msgstr "শিরোনামহীন উইজেট"
 msgid "Unused references were left out"
 msgstr "অব্যবহৃত রেফারেন্সগুলো বাদ দেওয়া হয়েছে"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr ""
 

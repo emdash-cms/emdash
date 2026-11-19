@@ -761,7 +761,7 @@ msgstr ""
 msgid "{label} in {menuName}"
 msgstr "{label} u izborniku {menuName}"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr ""
 
@@ -776,8 +776,8 @@ msgstr "Stavka {label} premještena je na položaj {0} od {1}."
 msgid "{label} moved to position {0}."
 msgstr "Stavka {label} premještena je na položaj {0}."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr ""
 
@@ -2112,7 +2112,7 @@ msgstr "Alternativni tekst postavljen"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Umjesto toga, možete izvesti sadržaj iz WordPressa (Alati → Izvoz) i prenijeti datoteku."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr ""
 
@@ -2984,7 +2984,7 @@ msgstr "Otkaži preimenovanje"
 msgid "Cancel this import?"
 msgstr "Otkazati ovaj uvoz?"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr ""
 
@@ -5254,7 +5254,7 @@ msgstr "Ne pridružuj"
 msgid "Done"
 msgstr "Gotovo"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr ""
 
@@ -5384,7 +5384,7 @@ msgstr "Povucite widgete ovdje da biste ih dodali"
 msgid "Drag widgets into an area to add them"
 msgstr "Povucite widgete u područje da biste ih dodali"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr ""
 
@@ -5412,11 +5412,11 @@ msgstr "Ispustite za dodavanje widgeta"
 msgid "Drop your WordPress export file here"
 msgstr "Ispustite ovdje svoju WordPress izvoznu datoteku"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr ""
 
@@ -11318,7 +11318,7 @@ msgstr "Naziv Phosphor ikone, npr. calendar-blank ili trophy"
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr ""
 
@@ -12398,7 +12398,7 @@ msgstr "Promijeni redoslijed"
 msgid "Reorder {0}"
 msgstr "Promijeni redoslijed: {0}"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr ""
 
@@ -13923,7 +13923,7 @@ msgstr "Kratki tekst"
 msgid "Show"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr ""
 
@@ -14363,7 +14363,7 @@ msgstr "Poredaj dodatke"
 msgid "Sort themes"
 msgstr "Poredaj teme"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr ""
 
@@ -15802,7 +15802,7 @@ msgstr "za zatvaranje"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "Za premještanje web-stranice na drugu EmDash instalaciju upotrijebite <0>Prijenos</0>."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr ""
 
@@ -16270,7 +16270,7 @@ msgstr "Widget bez naslova"
 msgid "Unused references were left out"
 msgstr "Neiskorištene reference izostavljene su"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr ""
 

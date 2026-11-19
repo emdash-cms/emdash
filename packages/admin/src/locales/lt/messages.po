@@ -761,7 +761,7 @@ msgstr "„{label}“ veiksmai"
 msgid "{label} in {menuName}"
 msgstr "„{label}“ meniu „{menuName}“"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr "„{label}“ rodoma visada"
 
@@ -776,8 +776,8 @@ msgstr "„{label}“ perkelta į {0} vietą iš {1}."
 msgid "{label} moved to position {0}."
 msgstr "„{label}“ perkelta į {0} vietą."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr "„{label}“ perkelta į {position} vietą iš {count}."
 
@@ -2112,7 +2112,7 @@ msgstr "Alternatyvusis tekstas nustatytas"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Taip pat galite eksportuoti duomenis iš „WordPress“ (Įrankiai → Eksportuoti) ir įkelti failą."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr "Visada rodoma"
 
@@ -2984,7 +2984,7 @@ msgstr "Atšaukti pervardijimą"
 msgid "Cancel this import?"
 msgstr "Atšaukti šį importavimą?"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr "Atšaukta. „{label}“ vėl yra {position} vietoje iš {count}."
 
@@ -5254,7 +5254,7 @@ msgstr "Nesusieti"
 msgid "Done"
 msgstr "Atlikta"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr "Rodyklė žemyn"
 
@@ -5384,7 +5384,7 @@ msgstr "Nuvilkite valdiklius čia, kad juos pridėtumėte"
 msgid "Drag widgets into an area to add them"
 msgstr "Nuvilkite valdiklius į sritį, kad juos pridėtumėte"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr "Vilkite arba paspauskite <0>Alt <1/></0> <2>Alt <3/></2>"
 
@@ -5412,11 +5412,11 @@ msgstr "Atleiskite, kad pridėtumėte valdiklį"
 msgid "Drop your WordPress export file here"
 msgstr "Nuvilkite „WordPress“ eksporto failą čia"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr "„{label}“ perkelta į {position} vietą iš {count}."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr "„{label}“ padėta."
 
@@ -11318,7 +11318,7 @@ msgstr "„Phosphor“ piktogramos pavadinimas, pvz., calendar-blank arba trophy
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr "Paimta „{label}“, pozicija {position} iš {count}."
 
@@ -12398,7 +12398,7 @@ msgstr "Keisti eiliškumą"
 msgid "Reorder {0}"
 msgstr "Keisti „{0}“ vietą"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr "Keisti „{label}“ vietą"
 
@@ -13923,7 +13923,7 @@ msgstr "Trumpas tekstas"
 msgid "Show"
 msgstr "Rodyti"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr "Rodyti {label}"
 
@@ -14363,7 +14363,7 @@ msgstr "Rikiuoti įskiepius"
 msgid "Sort themes"
 msgstr "Rikiuoti temas"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr "galima rikiuoti"
 
@@ -15802,7 +15802,7 @@ msgstr "užverti"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "Norėdami perkelti svetainę į kitą „EmDash“ sistemą, pasirinkite <0>Perkėlimas</0>."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr "Norėdami paimti elementą, paspauskite tarpo arba įvesties klavišą. Perkelkite elementą rodyklėmis aukštyn ir žemyn. Padėkite jį tarpo arba įvesties klavišu, o norėdami atšaukti paspauskite Esc. Laikydami Alt ir spausdami rodyklę aukštyn arba žemyn, iškart perstumsite elementą per vieną vietą."
 
@@ -16270,7 +16270,7 @@ msgstr "Valdiklis be pavadinimo"
 msgid "Unused references were left out"
 msgstr "Nenaudojamos nuorodos neįtrauktos"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr "Rodyklė aukštyn"
 

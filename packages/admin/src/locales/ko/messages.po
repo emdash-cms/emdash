@@ -761,7 +761,7 @@ msgstr ""
 msgid "{label} in {menuName}"
 msgstr "{menuName}의 {label}"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr ""
 
@@ -776,8 +776,8 @@ msgstr "{label} 항목이 전체 {1}개 중 {0}번째 위치로 이동했습니�
 msgid "{label} moved to position {0}."
 msgstr "{label}이(가) {0}번째 위치로 이동했습니다."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr ""
 
@@ -2112,7 +2112,7 @@ msgstr "대체 텍스트 설정됨"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "또는 WordPress(도구 → 내보내기)에서 내보내고 파일을 업로드할 수 있습니다."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr ""
 
@@ -2984,7 +2984,7 @@ msgstr "이름 변경 취소"
 msgid "Cancel this import?"
 msgstr "이 가져오기를 취소하시겠습니까?"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr ""
 
@@ -5254,7 +5254,7 @@ msgstr "매핑하지 않음"
 msgid "Done"
 msgstr "완료"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr ""
 
@@ -5384,7 +5384,7 @@ msgstr "위젯을 여기로 드래그하여 추가하세요."
 msgid "Drag widgets into an area to add them"
 msgstr "위젯을 영역으로 드래그하여 추가하세요."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr ""
 
@@ -5412,11 +5412,11 @@ msgstr "놓아서 위젯을 추가하세요."
 msgid "Drop your WordPress export file here"
 msgstr "WordPress 내보내기 파일을 여기에 드롭하세요."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr ""
 
@@ -11318,7 +11318,7 @@ msgstr "Phosphor 아이콘 이름. 예: calendar-blank 또는 trophy"
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr ""
 
@@ -12398,7 +12398,7 @@ msgstr "순서 변경"
 msgid "Reorder {0}"
 msgstr "{0} 순서 변경"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr ""
 
@@ -13923,7 +13923,7 @@ msgstr "짧은 텍스트"
 msgid "Show"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr ""
 
@@ -14363,7 +14363,7 @@ msgstr "플러그인 정렬"
 msgid "Sort themes"
 msgstr "테마 정렬"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr ""
 
@@ -15802,7 +15802,7 @@ msgstr "닫기"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "사이트를 다른 EmDash 설치 환경으로 이전하려면 <0>이전</0>을 사용하세요."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr ""
 
@@ -16270,7 +16270,7 @@ msgstr "제목 없는 위젯"
 msgid "Unused references were left out"
 msgstr "사용되지 않는 참조가 제외되었습니다"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr ""
 

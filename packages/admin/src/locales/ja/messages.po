@@ -761,7 +761,7 @@ msgstr "{label}の操作"
 msgid "{label} in {menuName}"
 msgstr "{menuName}内の{label}"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr "{label}は常に表示されます"
 
@@ -776,8 +776,8 @@ msgstr "{label}を{1}件中{0}番目に移動しました。"
 msgid "{label} moved to position {0}."
 msgstr "{label}を{0}番目に移動しました。"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr "{label}を全{count}件中{position}番目に移動しました。"
 
@@ -2112,7 +2112,7 @@ msgstr "代替テキスト設定済み"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "または、WordPressからエクスポート（ツール → エクスポート）してファイルをアップロードすることもできます。"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr "常に表示"
 
@@ -2984,7 +2984,7 @@ msgstr "名前変更をキャンセル"
 msgid "Cancel this import?"
 msgstr "このインポートをキャンセルしますか？"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr "キャンセルしました。{label}は全{count}件中{position}番目に戻りました。"
 
@@ -5254,7 +5254,7 @@ msgstr "割り当てない"
 msgid "Done"
 msgstr "完了"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr "下矢印"
 
@@ -5384,7 +5384,7 @@ msgstr "ウィジェットをここにドラッグして追加"
 msgid "Drag widgets into an area to add them"
 msgstr "追加したいウィジェットをエリアへドラッグしてください"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr "ドラッグするか、<0>Alt <1/></0> <2>Alt <3/></2>を押します"
 
@@ -5412,11 +5412,11 @@ msgstr "ドロップしてウィジェットを追加"
 msgid "Drop your WordPress export file here"
 msgstr "WordPressのエクスポートファイルをここにドロップ"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr "{label}を全{count}件中{position}番目に配置しました。"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr "{label}を配置しました。"
 
@@ -11318,7 +11318,7 @@ msgstr "Phosphorのアイコン名（例：calendar-blank、trophy）"
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr "{label}をつかみました。全{count}件中{position}番目です。"
 
@@ -12398,7 +12398,7 @@ msgstr "並べ替え"
 msgid "Reorder {0}"
 msgstr "{0}を並べ替え"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr "{label}を並べ替え"
 
@@ -13923,7 +13923,7 @@ msgstr "短文テキスト"
 msgid "Show"
 msgstr "表示"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr "{label}を表示"
 
@@ -14363,7 +14363,7 @@ msgstr "プラグインを並べ替え"
 msgid "Sort themes"
 msgstr "テーマを並べ替え"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr "並べ替え可能"
 
@@ -15802,7 +15802,7 @@ msgstr "閉じる"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "サイトを別のEmDash環境に移行するには、<0>サイト移行</0>を使用してください。"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr "項目をつかむには、スペースキーまたはEnterキーを押します。上下の矢印キーで移動し、スペースキーまたはEnterキーで配置するか、Escキーでキャンセルします。Altキーと上下の矢印キーを押すと、すぐに1つ移動します。"
 
@@ -16270,7 +16270,7 @@ msgstr "無題のウィジェット"
 msgid "Unused references were left out"
 msgstr "使用されていない参照を除外しました"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr "上矢印"
 

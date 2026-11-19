@@ -761,7 +761,7 @@ msgstr "Azioni per {label}"
 msgid "{label} in {menuName}"
 msgstr "{label} in {menuName}"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr "{label} è sempre visibile"
 
@@ -776,8 +776,8 @@ msgstr "Spostamento completato: {label}, posizione {0} di {1}."
 msgid "{label} moved to position {0}."
 msgstr "Spostamento completato: {label}, posizione {0}."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr "{label} è ora in posizione {position} di {count}."
 
@@ -2112,7 +2112,7 @@ msgstr "Testo alternativo impostato"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "In alternativa, puoi esportare da WordPress (Strumenti → Esporta) e caricare il file."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr "Sempre visibile"
 
@@ -2984,7 +2984,7 @@ msgstr "Annulla rinomina"
 msgid "Cancel this import?"
 msgstr "Annullare questa importazione?"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr "Spostamento annullato. {label} è di nuovo in posizione {position} di {count}."
 
@@ -5254,7 +5254,7 @@ msgstr "Non associare"
 msgid "Done"
 msgstr "Fine"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr "Freccia giù"
 
@@ -5384,7 +5384,7 @@ msgstr "Trascina qui i widget per aggiungerli"
 msgid "Drag widgets into an area to add them"
 msgstr "Trascina i widget in un'area per aggiungerli"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr "Trascina oppure premi <0>Alt <1/></0> o <2>Alt <3/></2>"
 
@@ -5412,11 +5412,11 @@ msgstr "Rilascia per aggiungere il widget"
 msgid "Drop your WordPress export file here"
 msgstr "Rilascia qui il file di esportazione di WordPress"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr "Rilascio di {label} in posizione {position} di {count}."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr "Rilascio di {label}."
 
@@ -11318,7 +11318,7 @@ msgstr "Nome dell'icona Phosphor, ad esempio calendar-blank o trophy"
 msgid "PHP"
 msgstr "PHP"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr "Inizio trascinamento di {label}, posizione {position} di {count}."
 
@@ -12398,7 +12398,7 @@ msgstr "Riordina"
 msgid "Reorder {0}"
 msgstr "Riordina {0}"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr "Riordina {label}"
 
@@ -13923,7 +13923,7 @@ msgstr "Testo breve"
 msgid "Show"
 msgstr "Mostra"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr "Mostra {label}"
 
@@ -14363,7 +14363,7 @@ msgstr "Ordina plugin"
 msgid "Sort themes"
 msgstr "Ordina temi"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr "riordinabile"
 
@@ -15802,7 +15802,7 @@ msgstr "per chiudere"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr "Per spostare un sito su un'altra installazione di EmDash, usa <0>Trasferimento</0>."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr "Per iniziare a spostare un elemento, premi la barra spaziatrice o Invio. Usa i tasti freccia su e giù per spostarlo, poi premi la barra spaziatrice o Invio per rilasciarlo, oppure Esc per annullare. Premi Alt insieme alla freccia su o giù per spostarlo subito di una posizione."
 
@@ -16270,7 +16270,7 @@ msgstr "Widget senza titolo"
 msgid "Unused references were left out"
 msgstr "I riferimenti inutilizzati sono stati esclusi"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr "Freccia su"
 

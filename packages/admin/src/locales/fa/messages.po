@@ -763,7 +763,7 @@ msgstr ""
 msgid "{label} in {menuName}"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:153
+#: packages/admin/src/components/settings/LayoutList.tsx:152
 msgid "{label} is always shown"
 msgstr ""
 
@@ -778,8 +778,8 @@ msgstr ""
 msgid "{label} moved to position {0}."
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:436
-#: packages/admin/src/components/settings/LayoutList.tsx:468
+#: packages/admin/src/components/settings/LayoutList.tsx:439
+#: packages/admin/src/components/settings/LayoutList.tsx:471
 msgid "{label} moved to position {position} of {count}."
 msgstr ""
 
@@ -2114,7 +2114,7 @@ msgstr "متن جایگزین تنظیم شد"
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "همچنین می‌توانید از وردپرس برون‌ریزی کنید (ابزارها → برون‌ریزی) و فایل را بارگذاری کنید."
 
-#: packages/admin/src/components/settings/LayoutList.tsx:154
+#: packages/admin/src/components/settings/LayoutList.tsx:153
 msgid "Always shown"
 msgstr ""
 
@@ -2986,7 +2986,7 @@ msgstr "لغو تغییر نام"
 msgid "Cancel this import?"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:447
+#: packages/admin/src/components/settings/LayoutList.tsx:450
 msgid "Cancelled. {label} is back at position {position} of {count}."
 msgstr ""
 
@@ -5256,7 +5256,7 @@ msgstr ""
 msgid "Done"
 msgstr "انجام شد"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:289
+#: packages/admin/src/components/settings/LayoutList.tsx:287
 msgid "Down arrow"
 msgstr ""
 
@@ -5386,7 +5386,7 @@ msgstr ""
 msgid "Drag widgets into an area to add them"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:283
+#: packages/admin/src/components/settings/LayoutList.tsx:281
 msgid "Drag, or press <0>Alt <1/></0> <2>Alt <3/></2>"
 msgstr ""
 
@@ -5414,11 +5414,11 @@ msgstr ""
 msgid "Drop your WordPress export file here"
 msgstr "فایل برون‌ریزی وردپرس خود را اینجا رها کنید"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:442
+#: packages/admin/src/components/settings/LayoutList.tsx:445
 msgid "Dropped {label} at position {position} of {count}."
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:440
+#: packages/admin/src/components/settings/LayoutList.tsx:443
 msgid "Dropped {label}."
 msgstr ""
 
@@ -11314,7 +11314,7 @@ msgstr ""
 msgid "PHP"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:430
+#: packages/admin/src/components/settings/LayoutList.tsx:433
 msgid "Picked up {label}, position {position} of {count}."
 msgstr ""
 
@@ -12394,7 +12394,7 @@ msgstr ""
 msgid "Reorder {0}"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:311
+#: packages/admin/src/components/settings/LayoutList.tsx:309
 msgid "Reorder {label}"
 msgstr ""
 
@@ -13919,7 +13919,7 @@ msgstr "متن کوتاه"
 msgid "Show"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:165
+#: packages/admin/src/components/settings/LayoutList.tsx:163
 msgid "Show {label}"
 msgstr ""
 
@@ -14359,7 +14359,7 @@ msgstr "مرتب‌سازی افزونه‌ها"
 msgid "Sort themes"
 msgstr "مرتب‌سازی قالب‌ها"
 
-#: packages/admin/src/components/settings/LayoutList.tsx:259
+#: packages/admin/src/components/settings/LayoutList.tsx:257
 msgid "sortable"
 msgstr ""
 
@@ -15798,7 +15798,7 @@ msgstr "برای بستن"
 msgid "To move a site to another EmDash installation, use <0>Transfer</0>."
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:453
+#: packages/admin/src/components/settings/LayoutList.tsx:456
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr ""
 
@@ -16266,7 +16266,7 @@ msgstr ""
 msgid "Unused references were left out"
 msgstr ""
 
-#: packages/admin/src/components/settings/LayoutList.tsx:286
+#: packages/admin/src/components/settings/LayoutList.tsx:284
 msgid "Up arrow"
 msgstr ""
 
