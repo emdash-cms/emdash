@@ -14,6 +14,11 @@ import type {
 
 const URL_LIKE_RE = /^(?:[a-z][a-z0-9+.-]*:|\/\/)/i;
 
+interface ExtractionContext {
+	seen: Set<string>;
+	siteOrigin?: string;
+}
+
 interface MediaRef {
 	mediaId: string | null;
 	provider: string;
@@ -34,25 +39,26 @@ interface AddOccurrenceInput {
 export function extractMediaUsageOccurrences({
 	fields,
 	data,
+	siteOrigin,
 }: ExtractMediaUsageOccurrencesInput): ExtractedMediaUsageOccurrence[] {
 	const occurrences: ExtractedMediaUsageOccurrence[] = [];
-	const seen = new Set<string>();
+	const context: ExtractionContext = { seen: new Set<string>(), siteOrigin };
 
 	for (const field of fields) {
 		const value = data[field.slug];
 
 		if (field.type === "string" || field.type === "url") {
-			addLinkOccurrence(occurrences, seen, field.slug, field.slug, value);
+			addLinkOccurrence(occurrences, context, field.slug, field.slug, value);
 			continue;
 		}
 
 		if (field.type === "image") {
-			addImageOccurrences(occurrences, seen, field.slug, field.slug, value);
+			addImageOccurrences(occurrences, context, field.slug, field.slug, value);
 			continue;
 		}
 
 		if (field.type === "file") {
-			addOccurrence(occurrences, seen, {
+			addOccurrence(occurrences, context, {
 				fieldSlug: field.slug,
 				fieldPath: field.slug,
 				referenceType: "file_field",
@@ -63,17 +69,23 @@ export function extractMediaUsageOccurrences({
 		}
 
 		if (field.type === "repeater") {
-			extractRepeaterOccurrences(occurrences, seen, field.slug, value, field.validation?.subFields);
+			extractRepeaterOccurrences(
+				occurrences,
+				context,
+				field.slug,
+				value,
+				field.validation?.subFields,
+			);
 			continue;
 		}
 
 		if (field.type === "portableText") {
-			extractPortableTextOccurrences(occurrences, seen, field.slug, value);
+			extractPortableTextOccurrences(occurrences, context, field.slug, value);
 			continue;
 		}
 
 		if (field.type === "blocks") {
-			extractBlockOccurrences(occurrences, seen, field, value);
+			extractBlockOccurrences(occurrences, context, field, value);
 		}
 	}
 
@@ -82,7 +94,7 @@ export function extractMediaUsageOccurrences({
 
 function extractRepeaterOccurrences(
 	occurrences: ExtractedMediaUsageOccurrence[],
-	seen: Set<string>,
+	context: ExtractionContext,
 	fieldSlug: string,
 	value: unknown,
 	subFields: readonly MediaUsageExtractionSubField[] | undefined,
@@ -97,7 +109,7 @@ function extractRepeaterOccurrences(
 			if (subField.type === "string" || subField.type === "url") {
 				addLinkOccurrence(
 					occurrences,
-					seen,
+					context,
 					fieldSlug,
 					`${pathPrefix}[${itemIndex}].${subField.slug}`,
 					item[subField.slug],
@@ -108,7 +120,7 @@ function extractRepeaterOccurrences(
 
 			addImageOccurrences(
 				occurrences,
-				seen,
+				context,
 				fieldSlug,
 				`${pathPrefix}[${itemIndex}].${subField.slug}`,
 				item[subField.slug],
@@ -119,12 +131,12 @@ function extractRepeaterOccurrences(
 
 function addImageOccurrences(
 	occurrences: ExtractedMediaUsageOccurrence[],
-	seen: Set<string>,
+	context: ExtractionContext,
 	fieldSlug: string,
 	fieldPath: string,
 	value: unknown,
 ): void {
-	addOccurrence(occurrences, seen, {
+	addOccurrence(occurrences, context, {
 		fieldSlug,
 		fieldPath,
 		referenceType: "image_field",
@@ -132,7 +144,7 @@ function addImageOccurrences(
 		fallbackKind: "image",
 	});
 	if (isRecord(value) && value.darkVariant != null) {
-		addOccurrence(occurrences, seen, {
+		addOccurrence(occurrences, context, {
 			fieldSlug,
 			fieldPath: `${fieldPath}.darkVariant`,
 			referenceType: "image_field",
@@ -144,7 +156,7 @@ function addImageOccurrences(
 
 function extractPortableTextOccurrences(
 	occurrences: ExtractedMediaUsageOccurrence[],
-	seen: Set<string>,
+	context: ExtractionContext,
 	fieldSlug: string,
 	value: unknown,
 	pathPrefix = fieldSlug,
@@ -159,7 +171,7 @@ function extractPortableTextOccurrences(
 				if (!isRecord(mark)) continue;
 				addLinkOccurrence(
 					occurrences,
-					seen,
+					context,
 					fieldSlug,
 					`${pathPrefix}[${blockIndex}].markDefs[${markIndex}].href`,
 					mark.href,
@@ -173,11 +185,14 @@ function extractPortableTextOccurrences(
 				onopentag(_name, attribs) {
 					for (const name of ["href", "src"]) {
 						const url = attribs[name];
-						const key = typeof url === "string" ? storageKeyFromLocalMediaFileUrl(url) : null;
+						const key =
+							typeof url === "string"
+								? storageKeyFromLocalMediaFileUrl(url, context.siteOrigin)
+								: null;
 						if (key && !keys.has(key)) {
 							addLinkOccurrence(
 								occurrences,
-								seen,
+								context,
 								fieldSlug,
 								`${pathPrefix}[${blockIndex}].html`,
 								url,
@@ -193,7 +208,7 @@ function extractPortableTextOccurrences(
 		if (block._type === "image") {
 			addPortableTextAssetOccurrence(
 				occurrences,
-				seen,
+				context,
 				fieldSlug,
 				`${pathPrefix}[${blockIndex}]`,
 				block.asset,
@@ -206,7 +221,7 @@ function extractPortableTextOccurrences(
 		if (isPortableTextVideoBlock(block)) {
 			addPortableTextAssetOccurrence(
 				occurrences,
-				seen,
+				context,
 				fieldSlug,
 				`${pathPrefix}[${blockIndex}]`,
 				block.asset,
@@ -221,7 +236,7 @@ function extractPortableTextOccurrences(
 				if (!isRecord(image)) continue;
 				addPortableTextAssetOccurrence(
 					occurrences,
-					seen,
+					context,
 					fieldSlug,
 					`${pathPrefix}[${blockIndex}].images[${imageIndex}]`,
 					image.asset,
@@ -241,7 +256,7 @@ export class MediaUsageBlockResolutionError extends Error {
 
 function extractBlockOccurrences(
 	occurrences: ExtractedMediaUsageOccurrence[],
-	seen: Set<string>,
+	context: ExtractionContext,
 	field: ExtractMediaUsageOccurrencesInput["fields"][number],
 	value: unknown,
 ): void {
@@ -271,11 +286,11 @@ function extractBlockOccurrences(
 			const nestedValue = block[nestedField.slug];
 			const nestedPath = `${pathPrefix}.${nestedField.slug}`;
 			if (nestedField.type === "string" || nestedField.type === "url") {
-				addLinkOccurrence(occurrences, seen, field.slug, nestedPath, nestedValue);
+				addLinkOccurrence(occurrences, context, field.slug, nestedPath, nestedValue);
 			} else if (nestedField.type === "image") {
-				addImageOccurrences(occurrences, seen, field.slug, nestedPath, nestedValue);
+				addImageOccurrences(occurrences, context, field.slug, nestedPath, nestedValue);
 			} else if (nestedField.type === "file") {
-				addOccurrence(occurrences, seen, {
+				addOccurrence(occurrences, context, {
 					fieldSlug: field.slug,
 					fieldPath: nestedPath,
 					referenceType: "file_field",
@@ -283,11 +298,11 @@ function extractBlockOccurrences(
 					fallbackKind: null,
 				});
 			} else if (nestedField.type === "portableText") {
-				extractPortableTextOccurrences(occurrences, seen, field.slug, nestedValue, nestedPath);
+				extractPortableTextOccurrences(occurrences, context, field.slug, nestedValue, nestedPath);
 			} else if (nestedField.type === "repeater") {
 				extractRepeaterOccurrences(
 					occurrences,
-					seen,
+					context,
 					field.slug,
 					nestedValue,
 					nestedField.validation?.subFields,
@@ -300,7 +315,7 @@ function extractBlockOccurrences(
 
 function addPortableTextAssetOccurrence(
 	occurrences: ExtractedMediaUsageOccurrence[],
-	seen: Set<string>,
+	context: ExtractionContext,
 	fieldSlug: string,
 	pathPrefix: string,
 	asset: unknown,
@@ -314,7 +329,7 @@ function addPortableTextAssetOccurrence(
 	const mimeType = normalizeMimeValue(asset.mimeType);
 	const ref = readPortableTextAssetRef(asset, provider);
 	if (ref) {
-		addRefOccurrence(occurrences, seen, {
+		addRefOccurrence(occurrences, context, {
 			fieldSlug,
 			fieldPath: fieldPath(ref.key),
 			referenceType,
@@ -324,9 +339,9 @@ function addPortableTextAssetOccurrence(
 	}
 
 	if (provider !== "local") return;
-	const fileUrl = readPortableTextAssetFileUrl(asset);
+	const fileUrl = readPortableTextAssetFileUrl(asset, context.siteOrigin);
 	if (!fileUrl) return;
-	addRefOccurrence(occurrences, seen, {
+	addRefOccurrence(occurrences, context, {
 		fieldSlug,
 		fieldPath: fieldPath(fileUrl.key),
 		referenceType,
@@ -343,15 +358,16 @@ function addPortableTextAssetOccurrence(
 
 function addLinkOccurrence(
 	occurrences: ExtractedMediaUsageOccurrence[],
-	seen: Set<string>,
+	context: ExtractionContext,
 	fieldSlug: string,
 	fieldPath: string,
 	value: unknown,
 	occurrenceIndex = 0,
 ): void {
-	const storageKey = typeof value === "string" ? storageKeyFromLocalMediaFileUrl(value) : null;
+	const storageKey =
+		typeof value === "string" ? storageKeyFromLocalMediaFileUrl(value, context.siteOrigin) : null;
 	if (!storageKey) return;
-	addRefOccurrence(occurrences, seen, {
+	addRefOccurrence(occurrences, context, {
 		fieldSlug,
 		fieldPath,
 		occurrenceIndex,
@@ -369,13 +385,13 @@ function addLinkOccurrence(
 
 function addOccurrence(
 	occurrences: ExtractedMediaUsageOccurrence[],
-	seen: Set<string>,
+	context: ExtractionContext,
 	input: AddOccurrenceInput,
 ): void {
 	const ref = readMediaRef(input.value, input.fallbackKind);
 	if (!ref) return;
 
-	addRefOccurrence(occurrences, seen, {
+	addRefOccurrence(occurrences, context, {
 		fieldSlug: input.fieldSlug,
 		fieldPath: input.fieldPath,
 		referenceType: input.referenceType,
@@ -385,7 +401,7 @@ function addOccurrence(
 
 function addRefOccurrence(
 	occurrences: ExtractedMediaUsageOccurrence[],
-	seen: Set<string>,
+	context: ExtractionContext,
 	input: {
 		fieldSlug: string;
 		fieldPath: string;
@@ -419,8 +435,8 @@ function addRefOccurrence(
 		occurrence.mediaId ?? "",
 	].join("\0");
 
-	if (seen.has(key)) return;
-	seen.add(key);
+	if (context.seen.has(key)) return;
+	context.seen.add(key);
 	occurrences.push(occurrence);
 }
 
@@ -482,10 +498,12 @@ function readPortableTextAssetRef(
  */
 function readPortableTextAssetFileUrl(
 	asset: Record<string, unknown>,
+	siteOrigin?: string,
 ): { key: "_ref" | "url"; storageKey: string } | null {
 	for (const key of ["_ref", "url"] as const) {
 		const value = asset[key];
-		const storageKey = typeof value === "string" ? storageKeyFromLocalMediaFileUrl(value) : null;
+		const storageKey =
+			typeof value === "string" ? storageKeyFromLocalMediaFileUrl(value, siteOrigin) : null;
 		if (storageKey) return { key, storageKey };
 	}
 	return null;

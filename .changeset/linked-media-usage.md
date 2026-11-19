@@ -5,7 +5,7 @@
 
 Fixes media usage tracking missing files linked by their `/_emdash/api/media/file/` URL. **Used in** now includes Portable Text paragraph link marks, HTML block `href` and `src` attributes, and whole string or URL field values, including fields inside blocks and repeaters.
 
-Only root-relative media URLs are counted, not absolute URLs (even on the same site), external URLs, or URLs embedded in plain text. Deleting media still requires reviewing its references first; usage tracking does not prevent deletion.
+Counts both root-relative URLs and full same-site URLs copied from the Media Library. Full URLs must match the site origin resolved from configuration or environment, the Site URL setting, or the setup URL when neither is set. External URLs and URLs embedded in plain text are not counted. Deleting media still requires reviewing its references first; usage tracking does not prevent deletion.
 
 #### Upgrade action
 

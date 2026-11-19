@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { validateIdentifier } from "../../../src/database/validate.js";
 import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
 import {
@@ -128,6 +129,7 @@ describeEachDialect("content media usage repair", (dialect) => {
 	});
 
 	it("indexes rich text media named by its file URL", async () => {
+		await new OptionsRepository(ctx.db).set("site:url", "https://content.example.test");
 		await registry.createField("posts", { slug: "body", label: "Body", type: "portableText" });
 		await registry.createField("posts", { slug: "download", label: "Download", type: "string" });
 		await registry.createField("posts", { slug: "source", label: "Source", type: "url" });
@@ -164,21 +166,23 @@ describeEachDialect("content media usage repair", (dialect) => {
 		});
 		await sql`
 			UPDATE ec_posts
-			SET download = ${"/_emdash/api/media/file/01K0LINKEDPDF.pdf"},
-				source = ${"/_emdash/api/media/file/01K0EDITORVIDEO.mp4"},
+			SET download = ${"https://content.example.test/_emdash/api/media/file/01K0LINKEDPDF.pdf"},
+				source = ${"https://content.example.test/_emdash/api/media/file/01K0EDITORVIDEO.mp4"},
 				body = ${JSON.stringify([
 					{
 						_type: "image",
 						_key: "markdown",
 						alt: "Slash menu",
-						asset: { url: "/_emdash/api/media/file/01K0MARKDOWNIMAGE.png" },
+						asset: {
+							url: "https://content.example.test/_emdash/api/media/file/01K0MARKDOWNIMAGE.png",
+						},
 					},
 					{
 						_type: "video",
 						_key: "editor",
 						asset: {
-							_ref: "/_emdash/api/media/file/01K0EDITORVIDEO.mp4",
-							url: "/_emdash/api/media/file/01K0EDITORVIDEO.mp4",
+							_ref: "https://content.example.test/_emdash/api/media/file/01K0EDITORVIDEO.mp4",
+							url: "https://content.example.test/_emdash/api/media/file/01K0EDITORVIDEO.mp4",
 						},
 					},
 					{
@@ -189,7 +193,7 @@ describeEachDialect("content media usage repair", (dialect) => {
 					{
 						_type: "htmlBlock",
 						_key: "html-links",
-						html: '<a href="/_emdash/api/media/file/01K0HTMLPDF.pdf"><img src="/_emdash/api/media/file/01K0HTMLIMAGE.png"></a>',
+						html: '<a href="https://content.example.test/_emdash/api/media/file/01K0HTMLPDF.pdf"><img src="https://content.example.test/_emdash/api/media/file/01K0HTMLIMAGE.png"></a>',
 					},
 					{
 						_type: "block",
@@ -199,7 +203,7 @@ describeEachDialect("content media usage repair", (dialect) => {
 							{
 								_type: "link",
 								_key: "pdf-link",
-								href: "/_emdash/api/media/file/01K0LINKEDPDF.pdf",
+								href: "https://content.example.test/_emdash/api/media/file/01K0LINKEDPDF.pdf",
 							},
 						],
 					},

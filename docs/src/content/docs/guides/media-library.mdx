@@ -260,6 +260,14 @@ settings that select the file: **Logo**, **Favicon**, or **Default Social Image*
   do not change which file is counted
 - the site logo, favicon, and default social image
 
+Both root-relative media URLs and full same-site URLs from **Copy URL** are tracked. Full URLs must
+match the site's origin: `siteUrl` configuration or `EMDASH_SITE_URL`/`SITE_URL`, then the **Site URL**
+setting, then the URL recorded during setup if neither is set. A different host, port, or protocol is
+not treated as local. Set the current **Site URL** after moving a site, then repair usage to recount
+its links. Copying from an alternate admin origin does not make that origin local: full URLs on
+`allowedOrigins` or `EMDASH_ALLOWED_ORIGINS` are not counted unless they also match the site origin.
+Use the primary site address or a root-relative media URL for those links.
+
 Links in other Portable Text structures, such as file or button blocks, table cells, and nested
 column or cover content, are not tracked. Check those uses separately before deleting files.
 

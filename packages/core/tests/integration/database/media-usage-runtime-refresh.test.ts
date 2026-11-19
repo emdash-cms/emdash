@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { handleMediaUsageSummaries } from "../../../src/api/handlers/media-usage.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
@@ -92,6 +93,7 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 	});
 
 	it("resolves a Portable Text media link after runtime content create and save", async () => {
+		await new OptionsRepository(ctx.db).set("emdash:site_url", "https://site.example");
 		await new SchemaRegistry(ctx.db).createField("posts", {
 			slug: "body",
 			label: "Body",
@@ -102,7 +104,7 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 			mimeType: "application/pdf",
 			storageKey: "01KRUNTIMEPDF.pdf",
 		});
-		const mediaUrl = "/_emdash/api/media/file/01KRUNTIMEPDF.pdf";
+		const mediaUrl = "https://site.example/_emdash/api/media/file/01KRUNTIMEPDF.pdf";
 		const created = await runtime.handleContentCreate("posts", {
 			slug: "runtime-linked-file",
 			data: {

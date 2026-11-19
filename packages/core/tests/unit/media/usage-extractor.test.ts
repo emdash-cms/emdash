@@ -35,6 +35,29 @@ function linkOccurrence(
 }
 
 describe("extractMediaUsageOccurrences", () => {
+	it("counts same-origin absolute links across fields, marks, and HTML without merging distinct uses", () => {
+		const url = "https://site.example/_emdash/api/media/file/guide.pdf?download=1#page=2";
+		const occurrences = extractMediaUsageOccurrences({
+			siteOrigin: "https://site.example",
+			fields: [field("download", "url"), field("body", "portableText")],
+			data: {
+				download: url,
+				body: [
+					{ _type: "block", markDefs: [{ _type: "link", href: url }] },
+					{
+						_type: "htmlBlock",
+						html: `<a href="${url}">PDF</a><img src="/_emdash/api/media/file/guide.pdf"><img src="https://other.example/_emdash/api/media/file/other.png">`,
+					},
+				],
+			},
+		});
+		expect(occurrences).toEqual([
+			linkOccurrence("download", "download", "guide.pdf"),
+			linkOccurrence("body", "body[0].markDefs[0].href", "guide.pdf"),
+			linkOccurrence("body", "body[1].html", "guide.pdf"),
+		]);
+	});
+
 	it("uses block keys and retained version definitions for nested media", () => {
 		const now = new Date().toISOString();
 		const layout: MediaUsageExtractionField = {
