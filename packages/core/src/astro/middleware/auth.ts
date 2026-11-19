@@ -10,7 +10,7 @@
  * we know setup is complete and users exist.
  */
 
-import type { User, RoleLevel } from "@emdash-cms/auth";
+import { toRoleLevel, type User, type RoleLevel } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { defineMiddleware } from "astro:middleware";
 import { ulid } from "ulidx";
@@ -35,6 +35,7 @@ import {
 } from "../../api/handlers/api-tokens.js";
 import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
+import { startUserSession } from "../../auth/start-user-session.js";
 import type { AuthResult, ExternalAuthConfig } from "../../auth/types.js";
 import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
@@ -50,6 +51,8 @@ declare global {
 			/** Id of the API or OAuth token the request authenticated with. Undefined for session auth. */
 			tokenId?: string;
 			emdash?: EmDashHandlers;
+			/** Per-session playground database, set by the `@emdash-cms/cloudflare` playground middleware. */
+			__playgroundDb?: unknown;
 		}
 		interface SessionData {
 			user: { id: string };
@@ -395,11 +398,11 @@ async function handleEmDashAuth(
 				return next();
 			}
 
-			return handlePasskeyAuth(context, next, isApiRoute);
+			return handlePasskeyAuth(context, next, emdash, isApiRoute);
 		}
 
 		// External auth provider (Cloudflare Access, etc.)
-		return handleExternalAuth(context, next, authMode, isApiRoute);
+		return handleExternalAuth(context, next, emdash, authMode, isApiRoute);
 	}
 
 	// Passkey authentication (default)
@@ -407,7 +410,7 @@ async function handleEmDashAuth(
 		return next();
 	}
 
-	return handlePasskeyAuth(context, next, isApiRoute);
+	return handlePasskeyAuth(context, next, emdash, isApiRoute);
 }
 
 /**
@@ -454,11 +457,12 @@ async function handlePluginRouteAuth(
 
 	const authMode = getAuthMode(emdash?.config);
 	if (
+		emdash &&
 		authMode.type === "external" &&
 		!import.meta.env.DEV &&
 		!isPublicPluginApiRoute(url.pathname, emdash)
 	) {
-		return handleExternalAuth(context, next, authMode, true);
+		return handleExternalAuth(context, next, emdash, authMode, true);
 	}
 
 	try {
@@ -499,6 +503,12 @@ async function handlePublicRouteAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
 ): Promise<Response> {
+	if (
+		context.isPrerendered ||
+		context.cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") === undefined
+	)
+		return next();
+
 	const { locals, session } = context;
 	const { emdash } = locals;
 
@@ -524,11 +534,11 @@ async function handlePublicRouteAuth(
 async function handleExternalAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
+	emdash: EmDashHandlers,
 	authMode: ExternalAuthMode,
 	_isApiRoute: boolean,
 ): Promise<Response> {
 	const { locals, request } = context;
-	const { emdash } = locals;
 
 	let authResult: AuthResult;
 	try {
@@ -576,7 +586,7 @@ async function handleExternalAuth(
 				.executeTakeFirst();
 
 			const isFirstUser = Number(userCount?.count ?? 0) === 0;
-			const role = isFirstUser ? ROLE_ADMIN : authResult.role;
+			const role = isFirstUser ? ROLE_ADMIN : toRoleLevel(authResult.role);
 
 			// Create user
 			const now = new Date().toISOString();
@@ -610,7 +620,7 @@ async function handleExternalAuth(
 
 			// Sync role if enabled
 			if (externalConfig.syncRoles && user.role !== authResult.role) {
-				newRole = authResult.role;
+				newRole = toRoleLevel(authResult.role);
 				updates.role = newRole;
 			}
 
@@ -659,7 +669,7 @@ async function handleExternalAuth(
 		const { session } = context;
 		if (session) {
 			const sessionUser = await resolveSessionUser(session);
-			if (sessionUser?.id !== user.id) session.set("user", { id: user.id });
+			if (sessionUser?.id !== user.id) await startUserSession(emdash.db, session, user.id);
 		}
 	} catch (error) {
 		console.error("[external-auth] User lookup error:", error);
@@ -728,10 +738,10 @@ async function handleBearerAuth(
 async function handlePasskeyAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
+	emdash: EmDashHandlers,
 	isApiRoute: boolean,
 ): Promise<Response> {
 	const { url, locals, session } = context;
-	const { emdash } = locals;
 
 	try {
 		// Check session for user (session.get returns a Promise)

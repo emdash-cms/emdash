@@ -1,8 +1,8 @@
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { basename, dirname, isAbsolute, join, resolve } from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
 import { build, createServer } from "vite";
@@ -410,6 +410,58 @@ describe("createViteConfig inline Portable Text hydration deps", () => {
 		expect(include).toContain("emdash > lowlight");
 		expect(include).toContain("emdash > highlight.js");
 		expect(include).toContain("emdash > highlight.js/lib/core");
+	});
+});
+
+describe("createViteConfig co-editing client deps", () => {
+	const monorepoDemoRoot = new URL("../../../../../demos/simple/", import.meta.url);
+	const adminSource = fileURLToPath(new URL("../../../../admin/src/", import.meta.url));
+	const STATIC_IMPORT = /^\s*(?:import|export)\s+(type\s+)?(?:[^;]*?\sfrom\s+)?["']([^"']+)["']/gm;
+
+	/** The packages a module statically loads, directly or through the modules it loads. */
+	function packagesLoadedBy(entry: string): Set<string> {
+		const packages = new Set<string>();
+		const seen = new Set<string>();
+		const pending = [join(adminSource, entry)];
+		while (pending.length > 0) {
+			const file = pending.pop()!;
+			if (seen.has(file)) continue;
+			seen.add(file);
+			for (const match of readFileSync(file, "utf8").matchAll(STATIC_IMPORT)) {
+				const specifier = match[2]!;
+				if (match[1]) continue;
+				if (!specifier.startsWith(".")) {
+					packages.add(specifier);
+					continue;
+				}
+				const stem = resolve(dirname(file), specifier).replace(/\.js$/, "");
+				const path = [`${stem}.ts`, `${stem}.tsx`, join(stem, "index.ts")].find(existsSync);
+				if (path) pending.push(path);
+			}
+		}
+		return packages;
+	}
+
+	it("pre-bundles every package the co-editing chunk adds to the admin's", () => {
+		const config = createViteConfig(
+			{
+				serializableConfig: {},
+				resolvedConfig: { coEditing: true } as never,
+				pluginDescriptors: [],
+				astroConfig: { root: monorepoDemoRoot, adapter: { name: "@astrojs/node" } } as AstroConfig,
+			},
+			"dev",
+		);
+		const include = config.optimizeDeps?.include ?? [];
+		const admin = packagesLoadedBy("index.ts");
+		const chunk = [...packagesLoadedBy("lib/co-editing/replica/index.ts")].filter(
+			(name) => !admin.has(name),
+		);
+
+		expect(chunk.length).toBeGreaterThan(0);
+		expect(
+			chunk.filter((name) => !include.includes(`emdash > @emdash-cms/admin > ${name}`)),
+		).toEqual([]);
 	});
 });
 

@@ -121,15 +121,12 @@ export interface RadioElement {
 	initial_value?: string;
 }
 
-/**
- * Sub-field types allowed inside a RepeaterElement. Limited to the scalar
- * inputs the admin widget currently renders inline.
- */
 export type RepeaterSubField =
 	| TextInputElement
 	| NumberInputElement
 	| SelectElement
-	| ToggleElement;
+	| ToggleElement
+	| MediaPickerElement;
 
 /**
  * Array-of-objects field. Renders as a list of collapsible cards with inline

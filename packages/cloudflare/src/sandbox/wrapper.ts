@@ -297,7 +297,7 @@ function createContext(env, originHook, invocationId, runtimeBridge) {
 		updateMetadata: (id, patch) => bridge.mediaUpdateMetadata(id, patch),
 		upload: (filename, contentType, bytes) => bridge.mediaUpload(filename, contentType, bytes),
 		getUploadUrl: () => { throw new Error("getUploadUrl is not available in sandbox mode. Use media.upload(filename, contentType, bytes) instead."); },
-		delete: (id) => bridge.mediaDelete(id)
+		delete: (id) => runtime.mediaDelete(id, invocationId)
 	};
 	
 	// HTTP access - proxies to bridge (capability + host enforced by bridge)

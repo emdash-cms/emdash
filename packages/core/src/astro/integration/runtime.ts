@@ -370,6 +370,18 @@ export interface EmDashConfig {
 	mcp?: boolean;
 
 	/**
+	 * Real-time co-editing of entries in collections with revisions.
+	 *
+	 * Runs on `@astrojs/node`, outside `node:cluster` workers, and on
+	 * `@astrojs/cloudflare` with the `EMDASH_ROOMS` Durable Object binding.
+	 * Elsewhere the editor uses single-editor mode with edit locks. Changing
+	 * it needs a rebuild.
+	 *
+	 * @default false
+	 */
+	coEditing?: boolean;
+
+	/**
 	 * Plugin marketplace URL
 	 *
 	 * Existing marketplace-installed plugins use this URL for updates.
@@ -727,6 +739,14 @@ export interface EmDashConfig {
 	 * `env:astro` requirement can be evaluated against the real host version.
 	 */
 	astroVersion?: string;
+
+	/**
+	 * Whether the host site defines its own `src/pages/robots.txt` route, which
+	 * replaces the injected one and its `seo.robotsTxt` and
+	 * `seo.disallowAiTraining` output. Populated by the integration's
+	 * `astro:config:setup` hook (not authored by the user).
+	 */
+	robotsTxtOverridden?: boolean;
 }
 
 const STORED_CONFIG_KEY = Symbol.for("emdash:stored-config");

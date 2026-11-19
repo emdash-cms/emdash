@@ -1,0 +1,10 @@
+{
+	"extends": "./tsconfig.json",
+	"compilerOptions": {
+		"noEmit": true,
+		"rootDir": ".",
+		"jsx": "react-jsx"
+	},
+	"include": ["src/astro/**/*", "src/**/*.d.ts"],
+	"exclude": ["node_modules", "dist"]
+}

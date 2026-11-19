@@ -42,6 +42,7 @@ import type { Database } from "../../../src/database/types.js";
 import { __setObjectCacheBackendForTests, cachedQuery } from "../../../src/object-cache/index.js";
 import { generatePreviewToken } from "../../../src/preview/tokens.js";
 import { getEmDashEntry } from "../../../src/query.js";
+import { requestCached } from "../../../src/request-cache.js";
 import { getRequestContext, runWithContext } from "../../../src/request-context.js";
 import { createPostFixture } from "../../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
@@ -54,6 +55,7 @@ function buildContext(opts: {
 	playgroundDb?: Kysely<Database>;
 	emdashDb?: Kysely<Database>;
 	cache: { enabled?: boolean; set: (input: unknown) => void } | undefined;
+	isPrerendered?: boolean;
 }) {
 	const url = new URL(`https://example.com${opts.pathname ?? "/blog"}${opts.search ?? ""}`);
 	return {
@@ -71,6 +73,7 @@ function buildContext(opts: {
 			__playgroundDb: opts.playgroundDb,
 		},
 		cache: opts.cache,
+		isPrerendered: opts.isPrerendered ?? false,
 	} as unknown as Parameters<typeof onRequest>[0];
 }
 
@@ -84,6 +87,20 @@ afterEach(() => {
 });
 
 describe("route-cache request context", () => {
+	it("reuses warmed reads when a cache-fill render re-enters for a rewrite", async () => {
+		const context = buildContext({ cache: { enabled: true, set: vi.fn() } });
+		const read = vi.fn(async () => "layout data");
+		const response = await onRequest(context, async () => {
+			await requestCached("layout", read);
+			return onRequest(
+				buildContext({ pathname: "/404", cache: context.cache }),
+				async () => new Response(await requestCached("layout", read)),
+			);
+		});
+		expect(await response.text()).toBe("layout data");
+		expect(read).toHaveBeenCalledOnce();
+	});
+
 	it("marks anonymous production cache renders as route-cache fills", async () => {
 		const cache = { enabled: true, set: vi.fn() };
 		const context = buildContext({ cache });
@@ -235,6 +252,20 @@ describe("preview links", () => {
 	afterEach(async () => {
 		await teardownTestDatabase(db);
 	});
+
+	it.each(["Playground", "standard"] as const)(
+		"does not read the edit cookie for a prerendered %s page",
+		async (site) => {
+			const context = buildContext({
+				...(site === "Playground" ? { playgroundDb: db } : { emdashDb: db }),
+				cache: undefined,
+				isPrerendered: true,
+			});
+			await onRequest(context, async () => htmlResponse());
+
+			expect(context.cookies.get).not.toHaveBeenCalled();
+		},
+	);
 
 	async function renderWithToken(token: string, site: "Playground" | "standard" = "Playground") {
 		const cache = { set: vi.fn() };

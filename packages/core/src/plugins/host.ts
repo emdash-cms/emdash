@@ -1,4 +1,5 @@
 export { ContentRepository } from "../database/repositories/content.js";
+export { withTransaction } from "../database/transaction.js";
 export { OptionsRepository } from "../database/repositories/options.js";
 export { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
 export { resolvePluginEncryptionKeys } from "../config/secrets.js";
