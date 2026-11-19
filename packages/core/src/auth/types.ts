@@ -185,6 +185,29 @@ export interface AuthProviderAdminExports {
  */
 export interface ExternalAuthConfig {
 	/**
+	 * How authenticated external users are matched to EmDash users.
+	 *
+	 * "email" preserves the historical behavior (including first-user Admin).
+	 * "subject" matches an immutable verified provider subject via the existing
+	 * oauth_accounts table, never auto-links an email collision, grants only
+	 * the asserted role even to the first user, and synchronizes roles on every
+	 * protected request. Use subject mode for platform-managed customer sites.
+	 *
+	 * @default "email"
+	 */
+	identityMode?: "email" | "subject";
+
+	/**
+	 * Optional HTTPS login initiation URL when the external provider cannot
+	 * authenticate an admin-page browser request. Only top-level GET admin
+	 * pages redirect; APIs stay 401. This must be a fixed site-specific URL
+	 * from trusted server configuration, never a visitor-supplied return URL.
+	 *
+	 * @default undefined (return 401, preserving standalone behavior)
+	 */
+	loginUrl?: string;
+
+	/**
 	 * Automatically create EmDash users on first login
 	 * @default true
 	 */
@@ -199,7 +222,7 @@ export interface ExternalAuthConfig {
 	/**
 	 * Update user's role on each login based on current IdP groups
 	 * When false, role is only set on first provisioning
-	 * @default false
+	 * @default false for email mode; always true for subject mode
 	 */
 	syncRoles?: boolean;
 
