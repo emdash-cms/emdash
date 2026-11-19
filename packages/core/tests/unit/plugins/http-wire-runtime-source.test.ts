@@ -29,12 +29,13 @@ function runtimeHelpers(source = generatePluginHttpWireRuntimeSource()): Runtime
 	)();
 }
 
-async function bundledRuntimeSource(): Promise<string> {
+async function bundledRuntimeSource(keepNames = false): Promise<string> {
 	const entryId = "virtual:plugin-http-wire-entry";
 	const resolvedEntryId = `\0${entryId}`;
 	const httpWirePath = fileURLToPath(new URL("../../../src/plugins/http-wire.ts", import.meta.url));
 	const output = await build({
 		logLevel: "silent",
+		esbuild: { keepNames },
 		plugins: [
 			{
 				name: "plugin-http-wire-runtime-test",
@@ -103,6 +104,12 @@ describe("generated plugin HTTP wire runtime", () => {
 
 	it("survives production bundling, minification, and identifier collisions", async () => {
 		const { bufferPluginHttpRequest } = runtimeHelpers(await bundledRuntimeSource());
+		const buffered = await bufferPluginHttpRequest({ body: "payload" });
+		expect(await new Response(buffered.body).text()).toBe("payload");
+	});
+
+	it("does not capture bundler naming helpers when function names are preserved", async () => {
+		const { bufferPluginHttpRequest } = runtimeHelpers(await bundledRuntimeSource(true));
 		const buffered = await bufferPluginHttpRequest({ body: "payload" });
 		expect(await new Response(buffered.body).text()).toBe("payload");
 	});
