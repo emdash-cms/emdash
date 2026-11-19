@@ -565,7 +565,7 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 	}
 	if (cached?.promise) {
 		// Share the in-flight read only while its owner can still be alive,
-		// and never await it bare (a cancelled owner's promise never settles;
+		// and never await it bare (a cancelled owner's promise may hang or reject;
 		// see epochReadDeadline). Past the deadline, fall through and reclaim
 		// with a fresh read — the dead entry is overwritten below.
 		const age = now - (cached.promiseAt ?? 0);
@@ -597,8 +597,8 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 		isCoveredByMarker(namespace) &&
 		(changeMarker.at === 0 ||
 			(changeMarker.marker === null && now - changeMarker.at >= markerRecheckMs));
-	// A read past its deadline may never settle (see epochReadDeadline), so it
-	// no longer blocks a new one; getChangeMarker replaces it.
+	// A read past its deadline may belong to a cancelled request, so it no
+	// longer blocks a new one; getChangeMarker replaces it.
 	const markerReadPending =
 		changeMarker.promise !== undefined && now - (changeMarker.promiseAt ?? 0) < epochReadDeadline();
 	if (markerUnknown && !markerReadPending) {

@@ -36,9 +36,8 @@ const waitUntilReady: Promise<WaitUntilFn | null> = (async () => {
 
 	try {
 		// Injected or vendored adapters may not be known at config:setup.
-		// Keep this runtime-only so Node builds do not try to resolve it.
-		const moduleId = "cloudflare:workers";
-		const mod = (await import(/* @vite-ignore */ moduleId)) as { waitUntil?: WaitUntilFn };
+		// @ts-ignore - optional workerd built-in; unavailable on Node
+		const mod = (await import("cloudflare:workers")) as { waitUntil?: WaitUntilFn };
 		return mod.waitUntil ?? null;
 	} catch {
 		return null;
