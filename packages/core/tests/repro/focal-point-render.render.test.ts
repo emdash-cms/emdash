@@ -141,6 +141,20 @@ it.each([
 		/background-image: url\("data:image\/bmp;base64,[^"]+"\); background-size: cover;/,
 	);
 	expect(html).not.toMatch(/background: url\([^)]*\) cover/);
+	expect(html).toMatch(/<img[^>]*data-emdash-placeholder/);
+});
+
+it("marks only images that carry a placeholder", async () => {
+	const container = await AstroContainer.create();
+	const image = { id: "m", src: "https://example.com/a.jpg", blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj" };
+	const off = await container.renderToString(EmDashImage, { props: { image, placeholder: false }, locals });
+	const none = await container.renderToString(EmDashImage, {
+		props: { image: { id: "m", src: "https://example.com/a.jpg" } },
+		locals,
+	});
+
+	expect(off).not.toContain("data-emdash-placeholder");
+	expect(none).not.toContain("data-emdash-placeholder");
 });
 
 it("puts the gallery placeholder on the image, not behind its caption", async () => {

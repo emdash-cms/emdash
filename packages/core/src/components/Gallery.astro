@@ -167,6 +167,7 @@ const resolvedImages = await Promise.all(
 			srcset,
 			sizes,
 			astroImageSrc,
+			hasPlaceholder: Boolean(placeholderStyle),
 			style:
 				[placeholderStyle, objectPosition ? `object-position: ${objectPosition};` : ""]
 					.filter(Boolean)
@@ -189,6 +190,7 @@ const resolvedImages = await Promise.all(
 						layout="constrained"
 						sizes={cellSizes}
 						style={image.style}
+						data-emdash-placeholder={image.hasPlaceholder ? "" : undefined}
 					/>
 				) : (
 					<img
@@ -201,6 +203,7 @@ const resolvedImages = await Promise.all(
 						loading="lazy"
 						decoding="async"
 						style={image.style}
+						data-emdash-placeholder={image.hasPlaceholder ? "" : undefined}
 					/>
 				)}
 				{image.caption && <figcaption>{image.caption}</figcaption>}
@@ -208,6 +211,14 @@ const resolvedImages = await Promise.all(
 		))
 	}
 </div>
+
+<script>
+	import { clearImagePlaceholders } from "./image-placeholder.js";
+
+	clearImagePlaceholders();
+	// Sites with Astro's client router swap pages without reloading this module.
+	document.addEventListener("astro:page-load", () => clearImagePlaceholders());
+</script>
 
 <style>
 	.emdash-gallery {
