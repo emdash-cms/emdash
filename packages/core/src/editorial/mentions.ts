@@ -72,10 +72,11 @@ export async function searchMentionableUsers(
 		const pattern = `%${term.replace(LIKE_ESCAPE_RE, (ch) => `\\${ch}`)}%`;
 		select = select.where(sql<boolean>`lower(name) LIKE lower(${pattern}) ESCAPE '\\'`);
 	}
-	// Unnamed users can't match a typed name, and sort last on every dialect.
+	// Unnamed users, including blank names, can't match a typed name, and sort last on every dialect.
+	const displayName = sql`nullif(trim(name), '')`;
 	const rows = await select
-		.orderBy(sql`name IS NULL`)
-		.orderBy("name", "asc")
+		.orderBy(sql`${displayName} IS NULL`)
+		.orderBy(displayName)
 		.orderBy("id", "asc")
 		.limit(EDITORIAL_MENTIONABLE_LIMIT)
 		.execute();

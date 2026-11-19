@@ -204,20 +204,34 @@ describeEachDialect("editorial mentions and notifications", (dialect) => {
 	});
 
 	it("lists users without a name last, and only without a search term", async () => {
+		const unnamed = [
+			{ id: "a-blank", name: "" },
+			{ id: "a-nameless", name: null },
+			{ id: "a-spaces", name: "   " },
+		];
 		await db
 			.insertInto("users")
-			.values({
-				id: "a-nameless",
-				email: "nameless@example.com",
-				name: null,
-				role: Role.CONTRIBUTOR,
-				email_verified: 1,
-				disabled: 0,
-			})
+			.values(
+				unnamed.map(({ id, name }) => ({
+					id,
+					email: `${id}@example.com`,
+					name,
+					role: Role.CONTRIBUTOR,
+					email_verified: 1,
+					disabled: 0,
+				})),
+			)
 			.execute();
 
 		const all = expectData(await handleEditorialMentionable(db, entry, ""));
-		expect(all.items.map((user) => user.id)).toEqual([ADA.id, GRACE.id, LIN.id, "a-nameless"]);
+		expect(all.items.map((user) => user.id)).toEqual([
+			ADA.id,
+			GRACE.id,
+			LIN.id,
+			"a-blank",
+			"a-nameless",
+			"a-spaces",
+		]);
 		const searched = expectData(await handleEditorialMentionable(db, entry, "a"));
 		expect(searched.items.map((user) => user.id)).not.toContain("a-nameless");
 	});
