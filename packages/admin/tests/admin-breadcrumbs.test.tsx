@@ -363,6 +363,40 @@ describe("admin breadcrumbs", () => {
 			);
 		});
 
+		it("forgets a folder's scroll position when Media is left before the library loads", async () => {
+			const tall = document.createElement("style");
+			tall.textContent = "main { padding-bottom: 2000px !important; }";
+			document.head.append(tall);
+			try {
+				const { router } = await openAdmin(`/media?folder=${FOLDER.id}`);
+				await vi.waitFor(() => expect(readTrail()).toHaveLength(2));
+				const main = document.querySelector("main")!;
+				main.scrollTop = 300;
+				expect(main.scrollTop).toBe(300);
+
+				const rootList = deferred();
+				on("/_emdash/api/media", async () => {
+					await rootList.promise;
+					return json({ data: { items: [], totalCount: 0 } });
+				});
+				await trailNav().getByRole("link", { name: "Media", exact: true }).click();
+				await vi.waitFor(() => expect(window.location.search).toBe(""));
+				await router.navigate({ to: "/menus" });
+				await expect.element(page.getByRole("heading", { name: "Menus", level: 1 })).toBeVisible();
+				rootList.resolve();
+				main.scrollTop = 0;
+
+				await router.navigate({ to: "/media" });
+				await expect
+					.element(page.getByRole("heading", { name: "Media Library", level: 1 }))
+					.toBeVisible();
+				await new Promise((done) => setTimeout(done, 200));
+				expect(main.scrollTop).toBe(0);
+			} finally {
+				tall.remove();
+			}
+		});
+
 		it("moves focus to the library heading when the browser goes back to the library", async () => {
 			await openAdmin("/media");
 			await page.getByRole("link", { name: `Open folder ${FOLDER.name}` }).click();

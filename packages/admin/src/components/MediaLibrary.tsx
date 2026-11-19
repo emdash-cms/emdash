@@ -135,7 +135,6 @@ export interface MediaLibraryProps {
 
 const MEDIA_DRAG_OVERLAY_MAX_WIDTH = 384;
 const MEDIA_DRAG_OVERLAY_HEIGHT = 36;
-let pendingMediaLibraryScrollTop: number | null = null;
 
 interface MediaDragData {
 	kind: "local-media";
@@ -465,15 +464,16 @@ export function MediaLibrary({
 	const previousFolderIdRef = React.useRef<string | undefined | null>(
 		focusHeadingOnMount ? null : folderId,
 	);
+	const pendingScrollTopRef = React.useRef<number | null>(null);
 	React.useLayoutEffect(() => {
 		if (previousFolderIdRef.current === folderId) return;
 		previousFolderIdRef.current = folderId;
-		pendingMediaLibraryScrollTop = scrollTopBeforeNavigationRef.current;
+		pendingScrollTopRef.current = scrollTopBeforeNavigationRef.current;
 		mediaHeadingRef.current?.focus({ preventScroll: true });
 	}, [folderId]);
 	React.useEffect(() => {
 		if (
-			pendingMediaLibraryScrollTop === null ||
+			pendingScrollTopRef.current === null ||
 			currentLoading ||
 			foldersLoading ||
 			currentFolderLoading
@@ -483,10 +483,10 @@ export function MediaLibrary({
 		const firstFrame = window.requestAnimationFrame(() => {
 			secondFrame = window.requestAnimationFrame(() => {
 				const scrollContainer = document.querySelector<HTMLElement>("main");
-				if (scrollContainer && pendingMediaLibraryScrollTop !== null) {
-					scrollContainer.scrollTop = pendingMediaLibraryScrollTop;
+				if (scrollContainer && pendingScrollTopRef.current !== null) {
+					scrollContainer.scrollTop = pendingScrollTopRef.current;
 				}
-				pendingMediaLibraryScrollTop = null;
+				pendingScrollTopRef.current = null;
 			});
 		});
 		return () => {
