@@ -7,7 +7,7 @@ authors:
 champion: Zach Bimson (@bimsonz)
 sponsor: null
 discussions:
-  - https://github.com/emdash-cms/emdash/discussions/XXX
+  - https://github.com/emdash-cms/emdash/discussions/4983
 created: 2026-11-19
 ---
 
