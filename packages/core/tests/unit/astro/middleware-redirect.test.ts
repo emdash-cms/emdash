@@ -1131,6 +1131,45 @@ describe("redirect middleware — file-extension exact rules", () => {
 		expect(getDbMock).toHaveBeenCalledTimes(1);
 	});
 
+	it.each([
+		{ isPattern: false, storesResponse: true, expectedStatus: 301 },
+		{ isPattern: true, storesResponse: true, expectedStatus: 200 },
+		{ isPattern: false, storesResponse: false, expectedStatus: 200 },
+	])(
+		"checks new file rules before storing a response: %j",
+		async ({ isPattern, storesResponse, expectedStatus }) => {
+			await publishRedirectArtifacts(db);
+			await run("/feed.xml", async () => new Response("warm"));
+			await waitForDeferredTasks();
+
+			const repo = new RedirectRepository(db);
+			await repo.create({
+				source: isPattern ? "/[...path]" : "/feed.xml",
+				destination: "/rss.xml",
+				type: 301,
+				isPattern,
+			});
+			await publishRedirectArtifacts(db);
+
+			const cache = storingRouteCache();
+			const downstream = new Response("feed");
+			const next = vi.fn(async () => {
+				if (storesResponse) cache.set({ maxAge: 60 });
+				return downstream;
+			});
+			const { response } = await run("/feed.xml", next, cache);
+			expect(next).toHaveBeenCalledTimes(1);
+			expect(response.status).toBe(expectedStatus);
+			if (expectedStatus === 301) {
+				expect(response.headers.get("Location")).toBe("/rss.xml");
+				expect(cache.set).toHaveBeenCalledWith(false);
+			} else {
+				expect(response).toBe(downstream);
+				expect(cache.set).not.toHaveBeenCalledWith(false);
+			}
+		},
+	);
+
 	it("verifies a warmed exact file rule before serving a cached response", async () => {
 		const repo = new RedirectRepository(db);
 		const rule = await repo.create({ source: "/old/stale.pdf", destination: "/before", type: 301 });

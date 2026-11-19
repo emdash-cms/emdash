@@ -231,10 +231,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			if (redirected) return redirected;
 		}
 
-		if (isFilePath) return next();
-
-		// No redirect matched -- proceed and check for 404.
 		const response = await next();
+		if (isFilePath && !routeCacheStores(routeCache)) return response;
 
 		// Post-response work must not re-run the route either. Swallow errors here
 		// and return the response the route already produced.
@@ -243,7 +241,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// purges content tags, not the missed path, so a cached 404 would outlive
 			// the fix. Astro has no cache handle for URLs that match no route, but a
 			// page answering a content miss with Astro.rewrite("/404") has one.
-			if (response.status === 404) {
+			if (!isFilePath && response.status === 404) {
 				routeCache?.set(false);
 			}
 
@@ -254,7 +252,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					currentSettingsVersion = null;
 					checkSettings();
 				}
-				const late = current === cached ? null : matchRedirect(current, pathname);
+				const late = current === cached ? null : matchRedirect(current, pathname, !isFilePath);
 				const redirected = late && redirectResponse(context, repo, late);
 				if (redirected) {
 					routeCache?.set(false);
@@ -265,6 +263,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					return redirected;
 				}
 			}
+
+			if (isFilePath) return response;
 
 			try {
 				await finalizeSettings();
