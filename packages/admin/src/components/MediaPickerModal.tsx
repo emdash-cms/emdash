@@ -1020,7 +1020,7 @@ export function MediaPickerModal({
 				className={`flex w-full min-h-0 min-w-0 max-w-[calc(100vw-2rem)] flex-col overflow-hidden p-0 ${assetOpen ? "" : "h-[min(48rem,calc(100dvh-1rem))]"}`}
 				style={{
 					width: "min(94vw, 68rem)",
-					maxHeight: assetOpen ? "min(88dvh, 43.5rem)" : undefined,
+					maxHeight: assetOpen ? "min(88dvh, 43.5rem)" : "none",
 				}}
 			>
 				{assetOpen ? (

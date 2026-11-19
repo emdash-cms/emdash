@@ -1,7 +1,7 @@
 import { Toasty } from "@cloudflare/kumo";
 import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
-import { QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider, QueryObserver } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { fireEvent } from "@testing-library/react";
 import * as React from "react";
@@ -353,6 +353,111 @@ describe("ContentEditPage publish and autosave ordering", () => {
 
 		await vi.advanceTimersByTimeAsync(2500);
 		expect(contentMutations(server.requests)).toHaveLength(2);
+	});
+
+	it.each([
+		["refreshes content-derived views after a successful publish", true],
+		["keeps views cached after a failed publish", false],
+	])("%s", async (_name, succeeds) => {
+		let generation = 1;
+		const publish = deferredResponse();
+		server = createMockServer({ onPublish: () => publish.promise });
+		let queryClient: ReturnType<typeof createTestQueryClient> | undefined;
+		const contentViews = [
+			["dashboard-stats"],
+			["content", "posts", { page: 1 }],
+			["content", "posts", "trash", { page: 1 }],
+			["calendar", { from: "2026-01-01", to: "2026-01-31" }],
+			["translations", "posts", "other-post"],
+			["content-picker", "posts", ""],
+			["link-content-search", "post"],
+			["command-palette-search", "post"],
+		] as const;
+		const usersKey = ["users", "sentinel"] as const;
+		const screen = await renderEditPage("Publish changes", (client) => {
+			queryClient = client;
+			for (const queryKey of contentViews) {
+				client.setQueryDefaults(queryKey, {
+					queryFn: async () => generation,
+					staleTime: Infinity,
+					gcTime: Infinity,
+				});
+				client.setQueryData(queryKey, 1);
+			}
+			client.setQueryDefaults(usersKey, {
+				queryFn: async () => generation,
+				staleTime: Infinity,
+				gcTime: Infinity,
+			});
+			client.setQueryData(usersKey, 1);
+		});
+
+		(await getPublishAction(screen)).element().click();
+		await vi.waitFor(() => {
+			expect(
+				server!.requests.filter(({ method, url }) => method === "POST" && url.includes("/publish")),
+			).toHaveLength(1);
+		});
+
+		// The publish flush saves first. Warm the views again so this tests the
+		// publish result independently of that successful save's invalidation.
+		for (const queryKey of contentViews) {
+			await queryClient!.fetchQuery({ queryKey });
+		}
+		generation = 2;
+		publish.resolve(
+			succeeds
+				? contentResponse(makeItem({ _rev: "rev-published", liveRevisionId: "revision-draft" }))
+				: errorResponse("CONTENT_PUBLISH_ERROR", "Publish failed", 500),
+		);
+		await expect
+			.element(
+				screen
+					.getByText(succeeds ? "Content is now live" : "Publish failed", { exact: true })
+					.first(),
+			)
+			.toBeVisible();
+
+		for (const queryKey of contentViews) {
+			const value = await queryClient!.fetchQuery({ queryKey });
+			expect(value, JSON.stringify(queryKey)).toBe(succeeds ? 2 : 1);
+		}
+		expect(await queryClient!.fetchQuery({ queryKey: usersKey })).toBe(1);
+	});
+
+	it("marks content views stale after autosave without refetching active translations", async () => {
+		server = createMockServer();
+		let queryClient: ReturnType<typeof createTestQueryClient> | undefined;
+		const translationsKey = ["translations", "posts", "other-post"];
+		const readTranslations = vi.fn(async () => 2);
+		const screen = await renderEditPage("Publish changes", (client) => {
+			queryClient = client;
+			client.setQueryDefaults(translationsKey, {
+				queryFn: readTranslations,
+				staleTime: Infinity,
+				gcTime: Infinity,
+			});
+			client.setQueryData(translationsKey, 1);
+		});
+		const observer = new QueryObserver(queryClient!, { queryKey: translationsKey });
+		const unsubscribe = observer.subscribe(() => {});
+		try {
+			await screen.getByRole("textbox", { name: "Title" }).fill("Autosaved title");
+			await advanceUntil(() => {
+				expect(
+					queryClient!.getQueryData<ContentItem>([
+						"content",
+						"posts",
+						"post_1",
+						{ locale: undefined },
+					])?.data.title,
+				).toBe("Autosaved title");
+			});
+			expect(readTranslations).not.toHaveBeenCalled();
+			expect(await queryClient!.fetchQuery({ queryKey: translationsKey })).toBe(2);
+		} finally {
+			unsubscribe();
+		}
 	});
 
 	it("queues the publish flush behind an in-flight autosave", async () => {

@@ -57,7 +57,7 @@ The following `package.json` builds the server entry and publishes all three ent
 		"prepublishOnly": "pnpm typecheck && pnpm build"
 	},
 	"peerDependencies": {
-		"@cloudflare/kumo": "*",
+		"@cloudflare/kumo": "2.19.0",
 		"@emdash-cms/admin": "*",
 		"@lingui/core": "*",
 		"@lingui/react": "*",
@@ -76,7 +76,7 @@ The following `package.json` builds the server entry and publishes all three ent
 }
 ```
 
-Remove `./admin`, `src/admin`, and the admin-only peer dependencies when the plugin has no trusted React UI. Remove `./astro`, `src/astro`, and the `astro` peer when it has no Portable Text renderer. Add a peer dependency for every host-owned library imported by an exported source entrypoint; this prevents a second React, Kumo, Lingui, or React Query instance from entering the admin bundle.
+Remove `./admin`, `src/admin`, and the admin-only peer dependencies when the plugin has no trusted React UI. Remove `./astro`, `src/astro`, and the `astro` peer when it has no Portable Text renderer. Add a peer dependency for every host-owned library imported by an exported source entrypoint; this prevents a second React, Kumo, Lingui, or React Query instance from entering the admin bundle. Declare `@cloudflare/kumo` with one exact version and no range, as described in [Match the admin's Kumo version](#match-the-admins-kumo-version).
 
 The entrypoints have different consumers:
 
@@ -112,6 +112,20 @@ export function createPlugin() {
 ```
 
 Keep the npm package version, descriptor version, and `definePlugin()` version synchronized. The version shown to a site administrator comes from the plugin definition, not automatically from `package.json`.
+
+## Match the admin's Kumo version
+
+The admin ships a prebuilt stylesheet generated from the exact Kumo version that `@emdash-cms/admin` depends on. A plugin whose `./admin` entrypoint imports `@cloudflare/kumo` must use that same version. With a different version, the site installs a second copy of Kumo whose components can use classes missing from the admin's stylesheet, so the plugin's controls can render unstyled or invisible.
+
+Set the `@cloudflare/kumo` peer dependency to the admin's Kumo version, as the `package.json` example above does. Each `emdash` release depends on the `@emdash-cms/admin` release with the same version number. The following command prints the Kumo version of the latest admin release; replace `latest` with the `emdash` version the plugin targets:
+
+```bash
+npm view @emdash-cms/admin@latest dependencies.@cloudflare/kumo
+```
+
+When an `emdash` release moves the admin to a different Kumo version, publish a plugin release pinned to the new version, and tell operators in its release notes to update the plugin and `emdash` together. A site that updates only one of them installs two Kumo versions, and a site that installs `@cloudflare/kumo` itself must use the same version. Run `pnpm why @cloudflare/kumo` in the site to list each installed Kumo version and the packages that require it.
+
+[Upgrade to Kumo 2.19](#upgrade-to-kumo-219) lists the component changes that can affect plugin admin code when moving from Kumo 2.15.
 
 ## Plugin identity and version
 
@@ -255,3 +269,56 @@ Native packages cannot be published to the EmDash registry. Registry plugins use
 <Aside type="note">
 	A package may publish a sandboxed plugin and a separate native rendering companion. Keep the split explicit in both READMEs: installing the registry plugin does not install or trust the npm companion automatically.
 </Aside>
+
+## Upgrade to Kumo 2.19
+
+To support an `emdash` release whose admin uses Kumo 2.19.0, set the plugin's `@cloudflare/kumo` peer dependency to `2.19.0` and open every plugin admin surface in a site running that release. The plugin may work without further changes. If a test fails or a control looks different, check the changes below. The [Kumo changelog](https://github.com/cloudflare/kumo/blob/main/packages/kumo/CHANGELOG.md) lists every change from 2.16.0 to 2.19.0.
+
+### Changed: `Radio.Group` markup
+
+In Kumo 2.15, `Radio.Group` rendered an unnamed `role="radiogroup"` element around a `<fieldset>` named by its legend.
+
+`Radio.Group` renders one `<fieldset role="radiogroup">`, named by its `legend` or `Radio.Legend`.
+
+#### What should I do?
+
+Update tests that find a radio group by its legend to query the `radiogroup` role. The following Testing Library or Playwright query shows the change:
+
+```tsx del={1} ins={2}
+getByRole("group", { name: "Recording mode" });
+getByRole("radiogroup", { name: "Recording mode" });
+```
+
+### Changed: `DatePicker` styling
+
+In Kumo 2.15, `DatePicker` was styled by `.rdp-*` rules and `--rdp-*` variables in Kumo's stylesheet.
+
+Kumo styles each `DatePicker` part with classes that it passes through `classNames`, and its stylesheet has no `.rdp-*` rules or `--rdp-*` variables apart from the month-change animations. A `classNames` key you pass, other than `root`, replaces all of Kumo's classes for that part. `className` adds classes to the picker's root element.
+
+#### What should I do?
+
+Remove `--rdp-*` variable overrides and `classNames` entries that adjusted Kumo's `.rdp-*` styles, such as `day_button` or `month_grid`, and pass layout classes through `className`. The following example removes an override that centered the day buttons, which Kumo centers itself:
+
+```tsx del={5}
+<DatePicker
+	mode="single"
+	selected={date}
+	onChange={setDate}
+	classNames={{ day_button: "rdp-day_button !mx-auto" }}
+/>
+```
+
+### Changed: `Dialog` maximum height
+
+In Kumo 2.15, a `max-h-*` class on a `Dialog` set its maximum height at every window width.
+
+`Dialog` keeps its content within the window's height and scrolls taller content. On windows at least 640px wide, that limit takes precedence over a `max-h-*` class on the dialog.
+
+#### What should I do?
+
+Set the dialog's own maximum height with the `style` prop. An inline `maxHeight` replaces Kumo's window limit at every width, so include a viewport unit when the value could be taller than the window:
+
+```tsx del={1} ins={2}
+<Dialog className="flex max-h-[min(88dvh,46rem)] flex-col">
+<Dialog className="flex flex-col" style={{ maxHeight: "min(88dvh, 46rem)" }}>
+```

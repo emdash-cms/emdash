@@ -9,7 +9,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { requireDb, unwrapResult } from "#api/error.js";
+import { apiError, unwrapResult } from "#api/error.js";
 import {
 	handleSchemaCollectionGet,
 	handleSchemaCollectionUpdate,
@@ -24,8 +24,9 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	const { emdash, user } = locals;
 	const slug = params.slug!;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "schema:read");
 	if (denied) return denied;
@@ -43,8 +44,9 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const slug = params.slug!;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "schema:manage");
 	if (denied) return denied;
@@ -62,8 +64,9 @@ export const DELETE: APIRoute = async ({ params, url, locals }) => {
 	const slug = params.slug!;
 	const force = url.searchParams.get("force") === "true";
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "schema:manage");
 	if (denied) return denied;

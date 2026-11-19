@@ -26,12 +26,14 @@ import { MUTABLE_MEDIA_CACHE_CONTROL } from "../../../src/media/image-endpoint.j
 function buildContext(
 	request: Request,
 	storage: { download: ReturnType<typeof vi.fn> },
+	logger = { warn: vi.fn() },
 ): Parameters<typeof GET>[0] {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for the endpoint
 	return {
 		request,
 		url: new URL(request.url),
 		locals: { emdash: { storage } },
+		logger,
 	} as unknown as Parameters<typeof GET>[0];
 }
 
@@ -128,5 +130,44 @@ describe("GET /_image over EmDash media", () => {
 
 		expect(response.status).toBe(304);
 		expect(response.headers.get("ETag")).toBe(etag);
+	});
+
+	it("serves the original when the image service cannot optimize it", async () => {
+		const body = new ReadableStream<Uint8Array>({
+			start(controller) {
+				controller.enqueue(new Uint8Array([1, 2, 3]));
+				controller.close();
+			},
+		});
+		const download = vi.fn().mockResolvedValue({
+			body,
+			contentType: "image/png",
+			size: 3,
+			lastModified: new Date("2026-01-15T12:00:00.000Z"),
+		});
+		// Astro's sharp service warns through the logger it is given and passes the
+		// input through when it cannot process the format.
+		transform.mockImplementationOnce(
+			async (
+				input: Uint8Array,
+				_transform: unknown,
+				_config: unknown,
+				logger: { warn(message: string): void },
+			) => {
+				logger.warn("could not optimize");
+				return { data: input, format: "png" };
+			},
+		);
+		const logger = { warn: vi.fn() };
+		const request = new Request(
+			"http://localhost/_image?href=/_emdash/api/media/file/key.png&w=150",
+		);
+
+		const response = await GET(buildContext(request, { download }, logger));
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Content-Type")).toBe("image/png");
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+		expect(logger.warn).toHaveBeenCalledWith("could not optimize");
 	});
 });
