@@ -699,6 +699,7 @@ export function createViteConfig(
 							"emdash > mime/lite",
 							"emdash > modern-tar",
 							"emdash > sanitize-html",
+							"emdash > htmlparser2",
 							"emdash > @tiptap/core",
 							"emdash > ulidx",
 							"emdash > upng-js",

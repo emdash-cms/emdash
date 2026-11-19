@@ -255,13 +255,22 @@ settings that select the file: **Logo**, **Favicon**, or **Default Social Image*
 - image, gallery, and video blocks in Portable Text fields, including blocks that refer to the file by
   its `/_emdash/api/media/file/` URL instead of its media ID, as Markdown images written through MCP
   or the CLI do
-- links to a local file's `/_emdash/api/media/file/` URL in Portable Text link marks, `href` or
+- links to a local file's `/_emdash/api/media/file/` URL in Portable Text paragraph link marks, `href` or
   `src` attributes in HTML blocks, and whole string or URL field values; query strings and fragments
   do not change which file is counted
 - the site logo, favicon, and default social image
 
+Links in other Portable Text structures, such as file or button blocks, table cells, and nested
+column or cover content, are not tracked. Check those uses separately before deleting files.
+
 When usage coverage is complete and the file has none of these references, the list shows **No
 tracked references found**. Until coverage is complete, an empty list shows **No usage to show yet**.
+
+If tracking was enabled before media URL links were supported, existing entries need a
+[`media repair-usage` repair](/reference/cli/#media-repair-usage) or a re-save to index those links.
+Until then, coverage can still report complete and a linked file can show **No tracked references
+found**. Follow the [media URL link upgrade instructions](/deployment/updating/#fixed-media-url-link-usage)
+before relying on the list when reviewing files for deletion.
 
 Media usage tracking must be active before the content results can be complete. Site settings are
 listed whether or not tracking is active. An administrator turns tracking on once for the site:
