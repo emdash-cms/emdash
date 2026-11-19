@@ -3853,7 +3853,6 @@ function FieldRenderer({
 					description={hint}
 					error={boundsError(hint, tooLong)}
 					dir="auto"
-					placeholder={t`Enter text...`}
 				/>
 			);
 		}
