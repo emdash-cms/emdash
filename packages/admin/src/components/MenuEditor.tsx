@@ -37,13 +37,12 @@ import {
 import { fetchManifest } from "../lib/api/client.js";
 import { guardUnsavedInput, revealErrors, useSingleFlight } from "../lib/dialog-form.js";
 import { isSafeHref } from "../lib/url.js";
-import { ArrowPrev } from "./ArrowIcons.js";
+import { useBreadcrumbLabel } from "./AdminBreadcrumbs.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { ContentPickerModal } from "./ContentPickerModal";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { HelpLabel } from "./FieldHelpLabel.js";
 import { useI18nConfig } from "./LocaleSwitcher.js";
-import { RouterLinkButton } from "./RouterLinkButton.js";
 import { TranslationsPanel } from "./TranslationsPanel.js";
 
 /** A menu item with its nesting depth, in parent-then-children display order. */
@@ -184,6 +183,7 @@ export function MenuEditor() {
 		queryFn: () => fetchMenu(name, { locale: routeLocale }),
 		staleTime: Infinity,
 	});
+	useBreadcrumbLabel(menu?.label ?? (isLoading ? undefined : t`Edit menu`));
 
 	// The locale we lock mutations to: explicit URL param wins; else fall back
 	// to whatever the loaded menu row says (handles entry from the old /menus/$name
@@ -508,16 +508,6 @@ export function MenuEditor() {
 	return (
 		<div className="space-y-6">
 			<header className="space-y-3">
-				<RouterLinkButton
-					to="/menus"
-					variant="ghost"
-					size="sm"
-					className="h-7 px-1.5 text-sm"
-					icon={<ArrowPrev className="size-3.5" aria-hidden="true" />}
-					aria-label={t`Back to menus`}
-				>
-					{t`Back`}
-				</RouterLinkButton>
 				<div className="flex flex-wrap items-center justify-between gap-4">
 					<div className="min-w-0">
 						<div className="flex min-w-0 items-start gap-1.5">

@@ -257,7 +257,8 @@ export function BulkTagDialog({
 		>
 			<Dialog
 				size="xl"
-				className="flex h-[calc(100dvh-2rem)] max-h-[28rem] w-[calc(100vw-2rem)] min-w-0 max-w-3xl flex-col overflow-hidden p-0 sm:w-[calc(100vw-2rem)]"
+				className="flex h-[calc(100dvh-2rem)] w-[calc(100vw-2rem)] min-w-0 max-w-3xl flex-col overflow-hidden p-0 sm:w-[calc(100vw-2rem)]"
+				style={{ maxHeight: "28rem" }}
 			>
 				<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
 					<div className="min-w-0">

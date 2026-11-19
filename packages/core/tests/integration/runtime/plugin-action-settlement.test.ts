@@ -381,6 +381,84 @@ describe("sandboxed plugin action settlement", () => {
 		expect(afterPublish).toHaveBeenCalledOnce();
 	});
 
+	it("purges a deleted media file through the invocation's cache invalidator", async () => {
+		const invocationId = randomUUID();
+		const invocationInvalidate = vi.fn().mockResolvedValue(undefined);
+		const siteInvalidate = vi.fn().mockResolvedValue(undefined);
+		runtime.setPluginContentCacheInvalidator(siteInvalidate);
+
+		contentActions.begin?.(pluginId, invocationId, invocationInvalidate);
+		await contentActions.invalidateMedia?.(pluginId, "photo.png", invocationId);
+		// The bridge call runs in another entrypoint, so the host purges at flush.
+		expect(invocationInvalidate).not.toHaveBeenCalled();
+		await contentActions.flush(pluginId, invocationId, true);
+		await flushDeferred();
+
+		expect(invocationInvalidate).toHaveBeenCalledWith(["emdash:media:photo.png"]);
+		expect(siteInvalidate).not.toHaveBeenCalled();
+	});
+
+	it("purges a media file deleted after a timed-out invocation once it settles", async () => {
+		const invocationId = randomUUID();
+		const invocationInvalidate = vi.fn().mockResolvedValue(undefined);
+
+		contentActions.begin?.(pluginId, invocationId, invocationInvalidate);
+		await contentActions.flush(pluginId, invocationId, false);
+		await contentActions.invalidateMedia?.(pluginId, "photo.png", invocationId);
+		expect(invocationInvalidate).not.toHaveBeenCalled();
+		await contentActions.flush(pluginId, invocationId, true);
+		await flushDeferred();
+
+		expect(invocationInvalidate).toHaveBeenCalledOnce();
+		expect(invocationInvalidate).toHaveBeenCalledWith(["emdash:media:photo.png"]);
+	});
+
+	it("purges a media file queued on a timed-out invocation that never settles", async () => {
+		vi.useFakeTimers();
+		const invocationId = randomUUID();
+		const invocationInvalidate = vi.fn().mockResolvedValue(undefined);
+
+		contentActions.begin?.(pluginId, invocationId, invocationInvalidate);
+		await contentActions.flush(pluginId, invocationId, false);
+		await contentActions.invalidateMedia?.(pluginId, "photo.png", invocationId);
+		await vi.advanceTimersByTimeAsync(60_000);
+		await flushDeferred();
+
+		expect(invocationInvalidate).toHaveBeenCalledOnce();
+		expect(invocationInvalidate).toHaveBeenCalledWith(["emdash:media:photo.png"]);
+	});
+
+	it("purges immediately for an invocation that has already settled", async () => {
+		const invocationId = randomUUID();
+		const invocationInvalidate = vi.fn().mockResolvedValue(undefined);
+		const siteInvalidate = vi.fn().mockResolvedValue(undefined);
+		runtime.setPluginContentCacheInvalidator(siteInvalidate);
+
+		contentActions.begin?.(pluginId, invocationId, invocationInvalidate);
+		await contentActions.flush(pluginId, invocationId, true);
+		await contentActions.invalidateMedia?.(pluginId, "photo.png", invocationId);
+
+		expect(siteInvalidate).toHaveBeenCalledWith(["emdash:media:photo.png"]);
+		expect(invocationInvalidate).not.toHaveBeenCalled();
+	});
+
+	it("purges a media file deleted outside a route and survives a failed purge", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		try {
+			const invalidate = vi.fn().mockRejectedValue(new Error("purge unavailable"));
+			runtime.setPluginContentCacheInvalidator(invalidate);
+
+			await expect(
+				contentActions.invalidateMedia?.(pluginId, "photo.png"),
+			).resolves.toBeUndefined();
+
+			expect(invalidate).toHaveBeenCalledWith(["emdash:media:photo.png"]);
+			expect(log).toHaveBeenCalled();
+		} finally {
+			log.mockRestore();
+		}
+	});
+
 	it("invalidates publication from a cron hook", async () => {
 		const item = await draft();
 		cronTargetId = item.id;

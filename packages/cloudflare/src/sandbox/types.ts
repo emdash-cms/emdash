@@ -444,7 +444,7 @@ export interface PluginBridgeBinding {
 		contentType: string,
 		bytes: ArrayBuffer,
 	): Promise<{ mediaId: string; storageKey: string; url: string }>;
-	mediaDelete(id: string): Promise<boolean>;
+	mediaDelete(id: string, invocationId?: string): Promise<boolean>;
 	// Network
 	httpFetch(url: string, init?: RequestInit): Promise<PluginHttpResponseWire>;
 	// Email

@@ -448,7 +448,20 @@ Media operations cover listing, upload, metadata updates, image replacement, fol
 
 ### List and inspect media
 
-`GET /media` supports cursor or numbered-page pagination, MIME-type and filename filters, folders, and optional usage summaries. Omit `folderId` to include every folder, or pass `folderId=unfiled` to return only the Main library. Set `includeUsage=1` on a list or single-item read to include usage information; any other value is invalid.
+`GET /media` supports cursor or numbered-page pagination, MIME-type and search filters, folders, and optional usage summaries. Omit `folderId` to include every folder, or pass `folderId=unfiled` to return only the Main library. Set `includeUsage=1` on a list or single-item read to include usage information; any other value is invalid.
+
+Pass `q` for a case-insensitive literal substring search across filenames, storage keys, and media IDs. A result can match a key or ID even when its filename does not contain the term. `%`, `_`, and backslash are literal characters, not wildcards. The term is trimmed and must contain between 1 and 200 characters.
+
+For a `q` containing `/`, search removes the query string and fragment, then uses the last path segment. Relative and full media file URLs are accepted. A path ending in `/` leaves no term and applies no search filter; omit `q` when no search is needed. Other filters still apply.
+
+The following request searches for the storage key in a copied media URL. `--data-urlencode` keeps the pasted URL's query string and fragment inside `q`:
+
+```bash
+curl --get \
+	--header "Authorization: Bearer $EMDASH_TOKEN" \
+	--data-urlencode 'q=https://example.com/_emdash/api/media/file/01M66PYKARAMWV7H63E8S28HYA.01M66PYM1K0Y37FSW9F9XXMP3F.jpg?download=1#preview' \
+	https://example.com/_emdash/api/media
+```
 
 `usage.count` counts distinct active content rows or locales whose current indexed source references the media item, plus each site setting that selects it (`logo`, `favicon`, `seo.defaultOgImage`). Repeated references in one entry count once, and trashed entries do not count. The number is visible only to callers who may read drafts; other authorized media readers receive `count: null` because the count could reveal draft content.
 

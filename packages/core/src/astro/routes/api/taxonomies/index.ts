@@ -8,7 +8,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleTaxonomyCreate, handleTaxonomyList } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createTaxonomyDefBody, localeFilterQuery } from "#api/schemas.js";
@@ -23,8 +23,9 @@ export const prerender = false;
 export const GET: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "taxonomies:read");
 	if (denied) return denied;
@@ -46,8 +47,9 @@ export const GET: APIRoute = async ({ request, locals }) => {
 export const POST: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "taxonomies:manage");
 	if (denied) return denied;
