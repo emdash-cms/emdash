@@ -1486,44 +1486,45 @@ export function FieldEditor({
 																{blockType.slug}
 															</code>
 															{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
-															{selected && (
-																<div className="ms-auto flex gap-1">
-																	<Button
-																		variant="ghost"
-																		shape="square"
-																		size="sm"
-																		disabled={selectedIndex === 0}
-																		onClick={() => {
-																			const next = [...formState.allowedTypes];
-																			[next[selectedIndex - 1], next[selectedIndex]] = [
-																				next[selectedIndex]!,
-																				next[selectedIndex - 1]!,
-																			];
-																			setField("allowedTypes", next);
-																		}}
-																		aria-label={t`Move ${blockType.label} up`}
-																	>
-																		<ArrowUp className="h-4 w-4" />
-																	</Button>
-																	<Button
-																		variant="ghost"
-																		shape="square"
-																		size="sm"
-																		disabled={selectedIndex === formState.allowedTypes.length - 1}
-																		onClick={() => {
-																			const next = [...formState.allowedTypes];
-																			[next[selectedIndex], next[selectedIndex + 1]] = [
-																				next[selectedIndex + 1]!,
-																				next[selectedIndex]!,
-																			];
-																			setField("allowedTypes", next);
-																		}}
-																		aria-label={t`Move ${blockType.label} down`}
-																	>
-																		<ArrowDown className="h-4 w-4" />
-																	</Button>
-																</div>
-															)}
+															{/* Kept on unticked cards too, so ticking one doesn't make it taller. */}
+															<div className={cn("ms-auto flex gap-1", !selected && "invisible")}>
+																<Button
+																	variant="ghost"
+																	shape="square"
+																	size="sm"
+																	disabled={!selected || selectedIndex === 0}
+																	onClick={() => {
+																		const next = [...formState.allowedTypes];
+																		[next[selectedIndex - 1], next[selectedIndex]] = [
+																			next[selectedIndex]!,
+																			next[selectedIndex - 1]!,
+																		];
+																		setField("allowedTypes", next);
+																	}}
+																	aria-label={t`Move ${blockType.label} up`}
+																>
+																	<ArrowUp className="h-4 w-4" />
+																</Button>
+																<Button
+																	variant="ghost"
+																	shape="square"
+																	size="sm"
+																	disabled={
+																		!selected || selectedIndex === formState.allowedTypes.length - 1
+																	}
+																	onClick={() => {
+																		const next = [...formState.allowedTypes];
+																		[next[selectedIndex], next[selectedIndex + 1]] = [
+																			next[selectedIndex + 1]!,
+																			next[selectedIndex]!,
+																		];
+																		setField("allowedTypes", next);
+																	}}
+																	aria-label={t`Move ${blockType.label} down`}
+																>
+																	<ArrowDown className="h-4 w-4" />
+																</Button>
+															</div>
 														</div>
 														<div className="mt-2 flex flex-wrap gap-2">
 															{blockType.versions.map((version) => (
