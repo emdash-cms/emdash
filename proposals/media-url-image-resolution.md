@@ -35,11 +35,11 @@ When `<Image>` receives a string `image` or `darkVariant` that is an EmDash medi
 
 Example: a block renders `<Image image={node.logo} darkVariant={node.logo_dark} />` with two picked PNGs.
 
-| | Today | With this plan |
-| --- | --- | --- |
+|               | Today                         | With this plan                          |
+| ------------- | ----------------------------- | --------------------------------------- |
 | Light `<img>` | `src` = original PNG, no size | `/_image` webp `srcset`, size, blurhash |
-| Dark `<img>` | Same as light | Its own `srcset`, size, blurhash |
-| Queries | 0 | 1 |
+| Dark `<img>`  | Same as light                 | Its own `srcset`, size, blurhash        |
+| Queries       | 0                             | 1                                       |
 
 ## Goals
 
