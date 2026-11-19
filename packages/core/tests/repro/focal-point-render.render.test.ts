@@ -146,8 +146,15 @@ it.each([
 
 it("marks only images that carry a placeholder", async () => {
 	const container = await AstroContainer.create();
-	const image = { id: "m", src: "https://example.com/a.jpg", blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj" };
-	const off = await container.renderToString(EmDashImage, { props: { image, placeholder: false }, locals });
+	const image = {
+		id: "m",
+		src: "https://example.com/a.jpg",
+		blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+	};
+	const off = await container.renderToString(EmDashImage, {
+		props: { image, placeholder: false },
+		locals,
+	});
 	const none = await container.renderToString(EmDashImage, {
 		props: { image: { id: "m", src: "https://example.com/a.jpg" } },
 		locals,
