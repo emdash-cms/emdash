@@ -4,18 +4,34 @@ import type { Locator } from "@playwright/test";
 
 import { test, expect } from "../fixtures";
 
+test.use({ reducedMotion: "reduce" });
+
+async function filterMedia(picker: Locator, prefix: string) {
+	const results = picker.getByRole("region", { name: /^(Media results|نتائج الوسائط)$/ });
+	await expect(results).toBeVisible();
+	await expect(results).not.toHaveAttribute("aria-busy", "true", { timeout: 30_000 });
+	await picker.getByRole("searchbox").fill(prefix);
+	await expect(picker.getByRole("status").filter({ hasText: /\b97\s*$/ })).toBeVisible({
+		timeout: 30_000,
+	});
+	await expect(picker.locator("[data-media-items] > *")).toHaveCount(12);
+	await expect(results).not.toHaveAttribute("aria-busy", "true");
+}
+
 async function checkResults(picker: Locator, grid: boolean, minimumHeightRatio = 0.4) {
 	const viewport = picker.locator("[data-media-results-viewport]");
-	const box = (await viewport.boundingBox())!;
 	const items = picker.locator("[data-media-items] > *");
-	const first = (await items.first().boundingBox())!;
-	expect(box.height).toBeGreaterThan((await picker.boundingBox())!.height * minimumHeightRatio);
-	expect(first.y).toBeGreaterThanOrEqual(box.y);
-	expect(first.y + first.height).toBeLessThanOrEqual(box.y + box.height);
-	if (grid) {
-		const second = (await items.nth(1).boundingBox())!;
-		expect(second.y).toBe(first.y);
-	}
+	await expect(async () => {
+		const box = (await viewport.boundingBox())!;
+		const first = (await items.first().boundingBox())!;
+		expect(box.height).toBeGreaterThan((await picker.boundingBox())!.height * minimumHeightRatio);
+		expect(first.y).toBeGreaterThanOrEqual(box.y);
+		expect(first.y + first.height).toBeLessThanOrEqual(box.y + box.height);
+		if (grid) {
+			const second = (await items.nth(1).boundingBox())!;
+			expect(second.y).toBe(first.y);
+		}
+	}).toPass({ timeout: 10_000 });
 	await viewport.evaluate((element) => {
 		element.scrollTop = element.scrollHeight;
 	});
@@ -33,19 +49,21 @@ async function checkToolbar(picker: Locator) {
 }
 
 async function checkSources(picker: Locator) {
-	const sources = (await picker.locator("[data-source-tabs]").boundingBox())!;
-	const upload = (await picker
-		.getByRole("button", { name: /Upload files|رفع الملفات/ })
-		.boundingBox())!;
-	const dialog = (await picker.boundingBox())!;
-	for (const box of [sources, upload]) {
-		expect(box.x).toBeGreaterThanOrEqual(dialog.x);
-		expect(box.x + box.width).toBeLessThanOrEqual(dialog.x + dialog.width);
-	}
-	if (Math.abs(sources.y - upload.y) > 4) {
-		expect(Math.abs(sources.width - upload.width)).toBeLessThan(4);
-		expect(Math.abs(sources.x - upload.x)).toBeLessThan(4);
-	}
+	await expect(async () => {
+		const sources = (await picker.locator("[data-source-tabs]").boundingBox())!;
+		const upload = (await picker
+			.getByRole("button", { name: /Upload files|رفع الملفات/ })
+			.boundingBox())!;
+		const dialog = (await picker.boundingBox())!;
+		for (const box of [sources, upload]) {
+			expect(box.x).toBeGreaterThanOrEqual(dialog.x);
+			expect(box.x + box.width).toBeLessThanOrEqual(dialog.x + dialog.width);
+		}
+		if (Math.abs(sources.y - upload.y) > 4) {
+			expect(Math.abs(sources.width - upload.width)).toBeLessThan(4);
+			expect(Math.abs(sources.x - upload.x)).toBeLessThan(4);
+		}
+	}).toPass({ timeout: 10_000 });
 }
 
 test("phone media picker keeps results scrollable and source controls evenly arranged", async ({
@@ -55,7 +73,7 @@ test("phone media picker keeps results scrollable and source controls evenly arr
 }) => {
 	test.setTimeout(120_000);
 	const bytes = readFileSync("e2e/fixtures/assets/test-image.png");
-	const prefix = `phone-picker-${crypto.randomUUID()}`;
+	const prefix = `phone-picker-${crypto.randomUUID().slice(0, 8)}`;
 	const ids: string[] = [];
 	const headers = {
 		Authorization: `Bearer ${serverInfo.token}`,
@@ -86,10 +104,7 @@ test("phone media picker keeps results scrollable and source controls evenly arr
 		await page.setViewportSize({ width: 390, height: 758 });
 		await page.getByRole("button", { name: /browse for Featured Image/i }).click();
 		const picker = page.getByRole("dialog", { name: "Select Featured Image" });
-		await picker.getByRole("searchbox", { name: "Search media" }).fill(prefix);
-		await expect(picker.getByRole("status").filter({ hasText: "Showing 1" })).toContainText(
-			"of 97",
-		);
+		await filterMedia(picker, prefix);
 		expect((await picker.boundingBox())!.height).toBeGreaterThan(758 * 0.9);
 		await checkSources(picker);
 		await checkToolbar(picker);
@@ -100,10 +115,7 @@ test("phone media picker keeps results scrollable and source controls evenly arr
 		await picker.getByRole("tab", { name: "From URL" }).click();
 		await expect(picker.getByRole("textbox", { name: "Image URL" })).toBeInViewport();
 		await picker.getByRole("tab", { name: "Library", exact: true }).click();
-		await picker.getByRole("searchbox", { name: "Search media" }).fill(prefix);
-		await expect(picker.getByRole("status").filter({ hasText: "Showing 1" })).toContainText(
-			"of 97",
-		);
+		await filterMedia(picker, prefix);
 		const chooser = page.waitForEvent("filechooser");
 		await picker.getByRole("button", { name: "Upload files" }).click();
 		expect((await chooser).isMultiple()).toBe(false);
@@ -140,7 +152,7 @@ test("phone media picker keeps results scrollable and source controls evenly arr
 			.click();
 		await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
 		const arabicPicker = page.getByRole("dialog");
-		await expect(arabicPicker.locator("[data-media-items] > *").first()).toBeVisible();
+		await filterMedia(arabicPicker, prefix);
 		await checkSources(arabicPicker);
 		await checkResults(arabicPicker, true);
 	} finally {
