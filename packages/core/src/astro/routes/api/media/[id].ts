@@ -78,7 +78,12 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		const media = getResult.data.item;
 
 		// Ownership check: authors can edit own, editors+ can edit any
-		const ownerDenied = requireOwnerPerm(user, media.authorId, "media:edit_own", "media:edit_any");
+		const ownerDenied = requireOwnerPerm(
+			user,
+			media.authorId ?? "",
+			"media:edit_own",
+			"media:edit_any",
+		);
 		if (ownerDenied) return ownerDenied;
 
 		const body = await parseBody(request, mediaUpdateBody);
@@ -133,7 +138,7 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 		// Ownership check: authors can delete own, editors+ can delete any
 		const ownerDenied = requireOwnerPerm(
 			user,
-			media.authorId,
+			media.authorId ?? "",
 			"media:delete_own",
 			"media:delete_any",
 		);

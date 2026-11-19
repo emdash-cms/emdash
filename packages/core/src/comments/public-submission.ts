@@ -53,7 +53,7 @@ export async function submitPublicComment(
 	collection: string,
 	contentId: string,
 	request: Request,
-	user?: UserInfo,
+	user?: Pick<UserInfo, "id" | "name" | "email">,
 	cache?: Pick<APIContext["cache"], "enabled" | "invalidate">,
 ): Promise<Response> {
 	try {

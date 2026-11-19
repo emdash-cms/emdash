@@ -191,12 +191,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# mục)} other {(# mục)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4587
+#: packages/admin/src/components/ContentEditor.tsx:4625
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} trên # ký tự, tối thiểu {min}} other {{counted} trên # ký tự, tối thiểu {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4592
+#: packages/admin/src/components/ContentEditor.tsx:4630
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} trên # ký tự} other {{counted} trên # ký tự}}"
 
@@ -218,7 +218,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# bình luận đã nhập} other {# bình luận đã nhập}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:3075
+#: packages/admin/src/router.tsx:3093
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {Đã cập nhật # bình luận} other {Đã cập nhật # bình luận}}"
 
@@ -243,7 +243,7 @@ msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {# mục} other {# mục}}"
 
 #. placeholder {0}: count ?? issues.length
-#: packages/admin/src/components/BlocksField.tsx:557
+#: packages/admin/src/components/BlocksField.tsx:567
 msgid "{0, plural, one {# field needs attention} other {# fields need attention}}"
 msgstr "{0, plural, one {# trường cần chú ý} other {# trường cần chú ý}}"
 
@@ -415,7 +415,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {Thêm # video} other {Thêm # video}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:4597
+#: packages/admin/src/components/ContentEditor.tsx:4635
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Ít nhất # ký tự} other {Ít nhất # ký tự}}"
 
@@ -595,7 +595,7 @@ msgid "{0} preview"
 msgstr "Xem trước {0}"
 
 #. placeholder {0}: byline.displayName
-#: packages/admin/src/components/BylineCreditsEditor.tsx:528
+#: packages/admin/src/components/BylineCreditsEditor.tsx:529
 msgid "{0} removed from this post."
 msgstr "Đã xoá {0} khỏi bài viết này."
 
@@ -622,7 +622,7 @@ msgid "{0} updated to v{installedVersion}"
 msgstr "Đã cập nhật {0} lên v{installedVersion}"
 
 #. placeholder {0}: draft.description.length
-#: packages/admin/src/components/SeoPanel.tsx:261
+#: packages/admin/src/components/SeoPanel.tsx:262
 msgid "{0}/160 characters"
 msgstr "{0}/160 ký tự"
 
@@ -675,7 +675,7 @@ msgstr "{count, plural, one {# mục} other {# mục}}"
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# tệp} other {# tệp}}"
 
-#: packages/admin/src/components/BlockListField.tsx:165
+#: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
 #: packages/admin/src/components/WordPressImport.tsx:2401
 msgid "{count, plural, one {# item} other {# items}}"
@@ -743,17 +743,17 @@ msgstr "{label} — chưa có bản dịch"
 msgid "{label} — view translation"
 msgstr "{label} — xem bản dịch"
 
-#: packages/admin/src/components/BlocksField.tsx:1648
+#: packages/admin/src/components/BlocksField.tsx:1736
 msgid "{label} · version {versionNumber}"
 msgstr "{label} · phiên bản {versionNumber}"
 
-#: packages/admin/src/components/BlockListField.tsx:1113
-#: packages/admin/src/components/BlockListField.tsx:1156
+#: packages/admin/src/components/BlockListField.tsx:1128
+#: packages/admin/src/components/BlockListField.tsx:1171
 msgid "{label} {position}"
 msgstr "{label} {position}"
 
-#: packages/admin/src/components/BlockListField.tsx:1022
-#: packages/admin/src/components/BlocksField.tsx:1599
+#: packages/admin/src/components/BlockListField.tsx:1037
+#: packages/admin/src/components/BlocksField.tsx:1687
 msgid "{label} actions"
 msgstr "Thao tác {label}"
 
@@ -789,7 +789,7 @@ msgstr "Tuỳ chọn {label}"
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
-#: packages/admin/src/components/BlocksField.tsx:2283
+#: packages/admin/src/components/BlocksField.tsx:2371
 msgid "{label}: {value}"
 msgstr "{label}: {value}"
 
@@ -797,7 +797,7 @@ msgstr "{label}: {value}"
 msgid "{lateness} late"
 msgstr "Trễ {lateness}"
 
-#: packages/admin/src/components/BlocksField.tsx:1238
+#: packages/admin/src/components/BlocksField.tsx:1325
 msgid "{list} +{more}"
 msgstr "{list} +{more}"
 
@@ -829,7 +829,7 @@ msgstr "{maximum, plural, one {Giữ tối đa # mục} other {Giữ tối đa #
 msgid "{maximum, plural, one {Use at most # character} other {Use at most # characters}}"
 msgstr "{maximum, plural, one {Dùng tối đa # ký tự} other {Dùng tối đa # ký tự}}"
 
-#: packages/admin/src/components/BlocksField.tsx:495
+#: packages/admin/src/components/BlocksField.tsx:505
 msgid "{maxItems, plural, one {This field holds up to # block.} other {This field holds up to # blocks.}}"
 msgstr "{maxItems, plural, one {Trường này chứa tối đa # khối.} other {Trường này chứa tối đa # khối.}}"
 
@@ -853,13 +853,13 @@ msgstr "{minimum, plural, one {Dùng ít nhất # ký tự} other {Dùng ít nh�
 msgid "{more, plural, one {Show # more person} other {Show # more people}}"
 msgstr ""
 
-#: packages/admin/src/components/BlockListField.tsx:662
-#: packages/admin/src/components/BlocksField.tsx:1044
+#: packages/admin/src/components/BlockListField.tsx:677
+#: packages/admin/src/components/BlocksField.tsx:1129
 msgid "{moved} is already first"
 msgstr "{moved} đã ở vị trí đầu"
 
-#: packages/admin/src/components/BlockListField.tsx:662
-#: packages/admin/src/components/BlocksField.tsx:1045
+#: packages/admin/src/components/BlockListField.tsx:677
+#: packages/admin/src/components/BlocksField.tsx:1130
 msgid "{moved} is already last"
 msgstr "{moved} đã ở vị trí cuối"
 
@@ -1071,11 +1071,11 @@ msgstr "{title} đã được xuất bản."
 msgid "{title} now goes live {when}."
 msgstr "{title} sẽ được xuất bản {when}."
 
-#: packages/admin/src/components/BlocksField.tsx:945
+#: packages/admin/src/components/BlocksField.tsx:1023
 msgid "{toFix, plural, one {# to fix. Go to the problem} other {# to fix. Go to the next problem}}"
 msgstr "{toFix, plural, one {# vấn đề cần sửa. Đến vấn đề đó} other {# vấn đề cần sửa. Đến vấn đề tiếp theo}}"
 
-#: packages/admin/src/components/BlocksField.tsx:951
+#: packages/admin/src/components/BlocksField.tsx:1029
 msgid "{toFix, plural, one {# to fix} other {# to fix}}"
 msgstr "{toFix, plural, one {# cần sửa} other {# cần sửa}}"
 
@@ -1163,7 +1163,7 @@ msgstr "<0>{name}</0> đang sửa mục này. Hãy mở ở chế độ chỉ đ
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "<0>{name}</0> hiện đang sửa mục này, nên các thay đổi của bạn sẽ không còn được lưu. Lấy lại quyền sửa để tiếp tục."
 
-#: packages/admin/src/components/BlocksField.tsx:1408
+#: packages/admin/src/components/BlocksField.tsx:1496
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
 msgid "<0>Alt-click</0> to add above"
 msgstr "<0>Alt + bấm</0> để thêm phía trên"
@@ -1172,12 +1172,12 @@ msgstr "<0>Alt + bấm</0> để thêm phía trên"
 msgid "<0>Click</0> to add below"
 msgstr "<0>Bấm</0> để thêm bên dưới"
 
-#: packages/admin/src/components/BlocksField.tsx:1454
+#: packages/admin/src/components/BlocksField.tsx:1542
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
 msgid "<0>Click</0> to open menu"
 msgstr "<0>Bấm</0> để mở menu"
 
-#: packages/admin/src/components/BlocksField.tsx:1450
+#: packages/admin/src/components/BlocksField.tsx:1538
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
 msgid "<0>Drag</0> to move"
 msgstr "<0>Kéo</0> để di chuyển"
@@ -1337,7 +1337,7 @@ msgstr "Thiếu một tệp trong gói dữ liệu"
 msgid "A publication time has not been selected"
 msgstr "Chưa chọn thời gian xuất bản"
 
-#: packages/admin/src/components/ContentEditor.tsx:2197
+#: packages/admin/src/components/ContentEditor.tsx:2217
 msgid "A publishing action is already in progress"
 msgstr "Một tác vụ xuất bản đang được thực hiện"
 
@@ -1436,7 +1436,7 @@ msgstr "Nhận lời mời"
 msgid "Access denied"
 msgstr "Không có quyền truy cập"
 
-#: packages/admin/src/router.tsx:3097
+#: packages/admin/src/router.tsx:3115
 msgid "Access Denied"
 msgstr "Không có quyền truy cập"
 
@@ -1465,7 +1465,7 @@ msgstr "Thông tin tài khoản"
 msgid "ACF Fields"
 msgstr "Trường ACF"
 
-#: packages/admin/src/components/BlockListField.tsx:736
+#: packages/admin/src/components/BlockListField.tsx:751
 #: packages/admin/src/components/comments/CommentInbox.tsx:365
 #: packages/admin/src/components/ContentList.tsx:782
 #: packages/admin/src/components/ContentList.tsx:924
@@ -1549,7 +1549,7 @@ msgstr "Thêm {singularLower} vào 1 bài viết"
 msgid "Add {singularLower} to posts"
 msgstr "Thêm {singularLower} vào các bài viết"
 
-#: packages/admin/src/components/BlocksField.tsx:2222
+#: packages/admin/src/components/BlocksField.tsx:2310
 msgid "Add a caption"
 msgstr "Thêm chú thích"
 
@@ -1570,11 +1570,11 @@ msgstr "Thêm khoá truy cập cho {0}"
 msgid "Add a person or team to credit on your content."
 msgstr "Thêm cá nhân hoặc nhóm để ghi nhận tác quyền trong nội dung."
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:467
+#: packages/admin/src/components/BylineCreditsEditor.tsx:468
 msgid "Add another byline"
 msgstr "Thêm tác giả khác"
 
-#: packages/admin/src/components/BlocksField.tsx:1069
+#: packages/admin/src/components/BlocksField.tsx:1154
 msgid "Add at least {minItems} blocks."
 msgstr "Hãy thêm ít nhất {minItems} khối."
 
@@ -1588,21 +1588,21 @@ msgstr "Thêm ít nhất một lựa chọn."
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Hãy thêm ít nhất một trường con để xác định cấu trúc của nhóm lặp."
 
-#: packages/admin/src/components/BlocksField.tsx:908
+#: packages/admin/src/components/BlocksField.tsx:986
 #: packages/admin/src/components/BlockTypePicker.tsx:80
 msgid "Add block"
 msgstr "Thêm khối"
 
-#: packages/admin/src/components/BlocksField.tsx:1629
+#: packages/admin/src/components/BlocksField.tsx:1717
 msgid "Add block above"
 msgstr "Thêm khối phía trên"
 
-#: packages/admin/src/components/BlocksField.tsx:1406
-#: packages/admin/src/components/BlocksField.tsx:1630
+#: packages/admin/src/components/BlocksField.tsx:1494
+#: packages/admin/src/components/BlocksField.tsx:1718
 msgid "Add block below"
 msgstr "Thêm khối bên dưới"
 
-#: packages/admin/src/components/BlocksField.tsx:1425
+#: packages/admin/src/components/BlocksField.tsx:1513
 msgid "Add block below {label}"
 msgstr "Thêm khối bên dưới {label}"
 
@@ -1679,7 +1679,7 @@ msgstr "Thêm ảnh"
 msgid "Add images to gallery"
 msgstr "Thêm ảnh vào thư viện ảnh"
 
-#: packages/admin/src/components/BlockListField.tsx:885
+#: packages/admin/src/components/BlockListField.tsx:900
 #: packages/admin/src/components/PortableTextEditor.tsx:1633
 msgid "Add item"
 msgstr "Thêm mục"
@@ -1688,15 +1688,15 @@ msgstr "Thêm mục"
 msgid "Add Item"
 msgstr "Thêm mục"
 
-#: packages/admin/src/components/BlockListField.tsx:1046
+#: packages/admin/src/components/BlockListField.tsx:1061
 msgid "Add item above"
 msgstr "Thêm mục phía trên"
 
-#: packages/admin/src/components/BlockListField.tsx:1047
+#: packages/admin/src/components/BlockListField.tsx:1062
 msgid "Add item below"
 msgstr "Thêm mục bên dưới"
 
-#: packages/admin/src/components/BlockListField.tsx:882
+#: packages/admin/src/components/BlockListField.tsx:897
 msgid "Add item to {label}"
 msgstr "Thêm mục vào {label}"
 
@@ -1724,7 +1724,7 @@ msgstr "Thêm mới"
 msgid "Add new folder"
 msgstr "Thêm thư mục mới"
 
-#: packages/admin/src/components/SeoPanel.tsx:287
+#: packages/admin/src/components/SeoPanel.tsx:288
 msgid "Add noindex meta tag"
 msgstr "Thêm thẻ meta noindex"
 
@@ -1736,8 +1736,8 @@ msgstr "Thêm một hoặc nhiều nút liên kết"
 msgid "Add Passkey"
 msgstr "Thêm khoá truy cập"
 
-#: packages/admin/src/components/ContentEditor.tsx:4501
-#: packages/admin/src/components/ContentEditor.tsx:4501
+#: packages/admin/src/components/ContentEditor.tsx:4539
+#: packages/admin/src/components/ContentEditor.tsx:4539
 msgid "Add reference"
 msgstr "Thêm tham chiếu"
 
@@ -1901,12 +1901,12 @@ msgstr "Thanh điều hướng quản trị"
 msgid "Administrator"
 msgstr "Quản lý"
 
-#: packages/admin/src/components/BlocksField.tsx:2344
+#: packages/admin/src/components/BlocksField.tsx:2432
 #: packages/admin/src/components/PortableTextEditor.tsx:501
 msgid "Advanced"
 msgstr "Nâng cao"
 
-#: packages/admin/src/components/BlocksField.tsx:2327
+#: packages/admin/src/components/BlocksField.tsx:2415
 msgid "Advanced: {blockLabel}"
 msgstr "Nâng cao: {blockLabel}"
 
@@ -2048,7 +2048,7 @@ msgid "Allowed block types"
 msgstr "Các loại khối được phép"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:3178
+#: packages/admin/src/router.tsx:3196
 msgid "Allowed Domains"
 msgstr "Tên miền được phép"
 
@@ -2168,15 +2168,15 @@ msgstr "Một loại khoá kỹ thuật số được mã hoá dùng để mở 
 #: packages/admin/src/router.tsx:1207
 #: packages/admin/src/router.tsx:1373
 #: packages/admin/src/router.tsx:1441
-#: packages/admin/src/router.tsx:1779
-#: packages/admin/src/router.tsx:1947
-#: packages/admin/src/router.tsx:1972
-#: packages/admin/src/router.tsx:2059
-#: packages/admin/src/router.tsx:2091
-#: packages/admin/src/router.tsx:3047
-#: packages/admin/src/router.tsx:3083
-#: packages/admin/src/router.tsx:3590
-#: packages/admin/src/router.tsx:3780
+#: packages/admin/src/router.tsx:1795
+#: packages/admin/src/router.tsx:1963
+#: packages/admin/src/router.tsx:1988
+#: packages/admin/src/router.tsx:2075
+#: packages/admin/src/router.tsx:2107
+#: packages/admin/src/router.tsx:3065
+#: packages/admin/src/router.tsx:3101
+#: packages/admin/src/router.tsx:3608
+#: packages/admin/src/router.tsx:3798
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Đã xảy ra lỗi"
@@ -2279,7 +2279,7 @@ msgstr ""
 #: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:3190
+#: packages/admin/src/router.tsx:3208
 msgid "API Tokens"
 msgstr "Token API"
 
@@ -2410,11 +2410,11 @@ msgstr "Các trợ lý ảo kết nối qua MCP cần được quản trị viê
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:4620
+#: packages/admin/src/components/ContentEditor.tsx:4658
 msgid "At least {min}"
 msgstr "Tối thiểu {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4617
+#: packages/admin/src/components/ContentEditor.tsx:4655
 msgid "At most {max}"
 msgstr "Tối đa {max}"
 
@@ -2461,7 +2461,7 @@ msgid "Authentication was cancelled or timed out. Please try again."
 msgstr "Xác thực đã bị huỷ hoặc hết thời gian chờ. Vui lòng thử lại."
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:80
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1418
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1422
 #: packages/admin/src/components/RelationForm.tsx:395
 #: packages/admin/src/components/users/roleDefinitions.ts:30
 #: packages/admin/src/components/WelcomeModal.tsx:28
@@ -2531,7 +2531,7 @@ msgstr "Tự tạo từ tên (bạn có thể sửa)"
 msgid "Auto-generated from the title. You can change it."
 msgstr "Tự động tạo từ tiêu đề. Bạn có thể đổi."
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:550
+#: packages/admin/src/components/BylineCreditsEditor.tsx:551
 msgid "Automatic"
 msgstr "Tự động"
 
@@ -2545,11 +2545,11 @@ msgstr "Sao lưu tự động"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Sao lưu tự động cần có nơi lưu trữ (R2, S3 hoặc lưu trữ cục bộ). Hãy cấu hình lưu trữ trong cấu hình EmDash để bật."
 
-#: packages/admin/src/router.tsx:1914
+#: packages/admin/src/router.tsx:1930
 msgid "Autosave failed"
 msgstr "Tự động lưu thất bại"
 
-#: packages/admin/src/components/ContentEditor.tsx:247
+#: packages/admin/src/components/ContentEditor.tsx:249
 msgid "Autosave paused"
 msgstr "Đã tạm dừng lưu tự động"
 
@@ -2594,7 +2594,7 @@ msgstr "Quay lại"
 msgid "Back"
 msgstr "Quay lại"
 
-#: packages/admin/src/components/ContentEditor.tsx:2513
+#: packages/admin/src/components/ContentEditor.tsx:2533
 msgid "Back to {collectionLabel} list"
 msgstr "Quay lại danh sách {collectionLabel}"
 
@@ -2675,7 +2675,7 @@ msgstr "Đã lưu cài đặt sao lưu"
 
 #: packages/admin/src/components/Settings.tsx:126
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:3214
+#: packages/admin/src/router.tsx:3232
 msgid "Backups"
 msgstr "Sao lưu"
 
@@ -2703,7 +2703,7 @@ msgstr "Trước khi gửi:"
 msgid "Before you continue:"
 msgstr "Trước khi bạn tiếp tục:"
 
-#: packages/admin/src/components/ContentEditor.tsx:4614
+#: packages/admin/src/components/ContentEditor.tsx:4652
 msgid "Between {min} and {max}"
 msgstr "Từ {min} đến {max}"
 
@@ -2774,7 +2774,7 @@ msgstr "Cơ chế chống bot đã chặn kết nối"
 msgid "Both reference fields bound to this relation share these limits, so the two sides cannot disagree about the same links."
 msgstr "Cả hai trường tham chiếu thuộc quan hệ này đều dùng chung các giới hạn trên, đảm bảo dữ liệu liên kết ở hai bên luôn đồng nhất."
 
-#: packages/admin/src/components/SeoPanel.tsx:241
+#: packages/admin/src/components/SeoPanel.tsx:242
 msgid "Brief summary shown below the title in search results"
 msgstr "Tóm tắt ngắn hiện dưới tiêu đề trong kết quả tìm kiếm"
 
@@ -2873,7 +2873,7 @@ msgid "Byline schema"
 msgstr "Thông tin tác giả"
 
 #: packages/admin/src/components/Sidebar.tsx:583
-#: packages/admin/src/router.tsx:3527
+#: packages/admin/src/router.tsx:3545
 msgid "Byline Schema"
 msgstr "Thông tin tác giả"
 
@@ -2883,12 +2883,12 @@ msgstr "Đã cập nhật tác giả"
 
 #: packages/admin/src/components/BylineFilter.tsx:145
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:385
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1191
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1195
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:549
 #: packages/admin/src/lib/editor-sections.ts:34
-#: packages/admin/src/router.tsx:3516
+#: packages/admin/src/router.tsx:3534
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "Tác giả"
@@ -3017,8 +3017,8 @@ msgstr "Đang huỷ…"
 msgid "Cannot delete theme sections"
 msgstr "Không thể xoá mẫu của giao diện"
 
-#: packages/admin/src/components/SeoPanel.tsx:271
-#: packages/admin/src/components/SeoPanel.tsx:276
+#: packages/admin/src/components/SeoPanel.tsx:272
+#: packages/admin/src/components/SeoPanel.tsx:277
 msgid "Canonical URL"
 msgstr "URL chuẩn"
 
@@ -3200,11 +3200,11 @@ msgstr "Đã đổi:"
 msgid "Changelog"
 msgstr "Nhật ký thay đổi"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:626
+#: packages/admin/src/components/BylineCreditsEditor.tsx:629
 msgid "Changes apply everywhere this byline appears."
 msgstr "Thay đổi áp dụng ở mọi nơi tác giả này xuất hiện."
 
-#: packages/admin/src/router.tsx:1990
+#: packages/admin/src/router.tsx:2006
 msgid "Changes discarded"
 msgstr "Đã bỏ các thay đổi"
 
@@ -3388,8 +3388,8 @@ msgstr "Chọn tuỳ chọn khác"
 msgid "Choose at least one block type."
 msgstr "Chọn ít nhất một loại khối."
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:567
-#: packages/admin/src/components/BylineCreditsEditor.tsx:582
+#: packages/admin/src/components/BylineCreditsEditor.tsx:569
+#: packages/admin/src/components/BylineCreditsEditor.tsx:585
 msgid "Choose bylines"
 msgstr "Chọn tác giả"
 
@@ -3462,7 +3462,7 @@ msgstr "Chọn ngôn ngữ trang quản trị bạn muốn"
 msgid "Choose…"
 msgstr "Chọn…"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:556
+#: packages/admin/src/components/BylineCreditsEditor.tsx:557
 msgid "Choosing a byline replaces this automatic credit."
 msgstr "Gán tác giả thủ công sẽ thay thế phần ghi nhận tự động này."
 
@@ -3575,7 +3575,7 @@ msgstr "Đóng cài đặt ảnh"
 msgid "Close panel"
 msgstr "Đóng bảng"
 
-#: packages/admin/src/components/ContentEditor.tsx:3323
+#: packages/admin/src/components/ContentEditor.tsx:3355
 msgid "Close settings"
 msgstr "Đóng cài đặt"
 
@@ -3599,7 +3599,7 @@ msgstr "Khối mã"
 msgid "Code block actions"
 msgstr "Thao tác khối mã"
 
-#: packages/admin/src/components/BlocksField.tsx:984
+#: packages/admin/src/components/BlocksField.tsx:1062
 msgid "Collapse all"
 msgstr "Thu gọn tất cả"
 
@@ -3629,7 +3629,7 @@ msgstr "Bộ sưu tập “{0}” đã được tạo trên trang web này"
 
 #: packages/admin/src/router.tsx:848
 #: packages/admin/src/router.tsx:1051
-#: packages/admin/src/router.tsx:2510
+#: packages/admin/src/router.tsx:2526
 msgid "Collection \"{collection}\" not found"
 msgstr "Không tìm thấy bộ sưu tập \"{collection}\""
 
@@ -3712,7 +3712,7 @@ msgstr "Phản ứng bình luận"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:513
-#: packages/admin/src/router.tsx:2972
+#: packages/admin/src/router.tsx:2990
 msgid "Comments"
 msgstr "Bình luận"
 
@@ -3842,7 +3842,7 @@ msgstr "Lỗi nội dung ({0})"
 msgid "Content found:"
 msgstr "Nội dung tìm thấy:"
 
-#: packages/admin/src/router.tsx:2040
+#: packages/admin/src/router.tsx:2056
 msgid "Content has been scheduled for publishing"
 msgstr "Nội dung đã được đặt lịch xuất bản"
 
@@ -3850,11 +3850,11 @@ msgstr "Nội dung đã được đặt lịch xuất bản"
 msgid "Content ID:"
 msgstr "ID nội dung:"
 
-#: packages/admin/src/router.tsx:1941
+#: packages/admin/src/router.tsx:1957
 msgid "Content is now live"
 msgstr "Nội dung đã được xuất bản"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1151
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1155
 msgid "Content language"
 msgstr "Ngôn ngữ nội dung"
 
@@ -3875,11 +3875,11 @@ msgstr "Nội dung tham chiếu đến thư viện sai cách"
 msgid "Content refers to media that is not in the package"
 msgstr "Nội dung tham chiếu đến tệp thư viện không có trong gói"
 
-#: packages/admin/src/router.tsx:1966
+#: packages/admin/src/router.tsx:1982
 msgid "Content removed from public view"
 msgstr "Nội dung đã được gỡ khỏi chế độ xem công khai"
 
-#: packages/admin/src/router.tsx:2052
+#: packages/admin/src/router.tsx:2068
 msgid "Content reverted to draft"
 msgstr "Nội dung đã trở về bản nháp"
 
@@ -3902,7 +3902,7 @@ msgstr "Loại nội dung"
 #: packages/admin/src/components/AdminCommandPalette.tsx:202
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:579
-#: packages/admin/src/router.tsx:3535
+#: packages/admin/src/router.tsx:3553
 msgid "Content Types"
 msgstr "Loại nội dung"
 
@@ -4125,7 +4125,7 @@ msgstr "Không thể nhận diện WordPress"
 msgid "Couldn’t join. Try again."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4478
+#: packages/admin/src/components/ContentEditor.tsx:4516
 msgid "Couldn't load all references."
 msgstr "Không thể tải toàn bộ tham chiếu."
 
@@ -4288,7 +4288,7 @@ msgstr "Tạo hồ sơ cho người được ghi tên trong nội dung của b�
 msgid "Create an account"
 msgstr "Tạo tài khoản"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:625
+#: packages/admin/src/components/BylineCreditsEditor.tsx:628
 msgid "Create and add"
 msgstr "Tạo và thêm"
 
@@ -4431,7 +4431,7 @@ msgid "Create, update, delete content"
 msgstr "Tạo, cập nhật, xoá nội dung"
 
 #: packages/admin/src/components/ContentList.tsx:1025
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1100
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1104
 #: packages/admin/src/components/ContentTypeEditor.tsx:678
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:379
 #: packages/admin/src/components/users/UserDetail.tsx:223
@@ -4449,11 +4449,11 @@ msgid "Created {0}"
 msgstr "Đã tạo {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:2083
+#: packages/admin/src/router.tsx:2099
 msgid "Created {0} translation"
 msgstr "Đã tạo bản dịch {0}"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1080
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1084
 msgid "Created and updated"
 msgstr "Ngày tạo và cập nhật"
 
@@ -4563,7 +4563,7 @@ msgstr "Mẫu tuỳ chỉnh"
 msgid "Custom Taxonomies"
 msgstr "Phân loại tuỳ chỉnh"
 
-#: packages/admin/src/components/ContentEditor.tsx:2988
+#: packages/admin/src/components/ContentEditor.tsx:3010
 #: packages/admin/src/components/Sidebar.tsx:796
 msgid "Customize sidebar"
 msgstr "Tuỳ chỉnh thanh bên"
@@ -4677,7 +4677,7 @@ msgstr "Xác định cấu trúc nội dung của bạn"
 msgid "Defined in code"
 msgstr "Khai báo trong mã"
 
-#: packages/admin/src/components/BlocksField.tsx:1099
+#: packages/admin/src/components/BlocksField.tsx:1184
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4757,7 +4757,7 @@ msgstr "Xoá khu vực tiện ích {0}"
 msgid "Delete {0}?"
 msgstr "Xoá {0}?"
 
-#: packages/admin/src/components/BlocksField.tsx:1097
+#: packages/admin/src/components/BlocksField.tsx:1182
 msgid "Delete {confirmName}?"
 msgstr "Xoá {confirmName}?"
 
@@ -4906,8 +4906,8 @@ msgstr "Xoá tiện ích?"
 msgid "Deleted"
 msgstr "Đã xoá"
 
-#: packages/admin/src/components/BlocksField.tsx:824
-#: packages/admin/src/components/BlocksField.tsx:850
+#: packages/admin/src/components/BlocksField.tsx:902
+#: packages/admin/src/components/BlocksField.tsx:928
 msgid "Deleted {name}"
 msgstr "Đã xoá {name}"
 
@@ -4922,7 +4922,7 @@ msgstr "Xoá \"{0}\" sẽ xoá toàn bộ phân loại con ở tất cả ngôn 
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "Việc xoá \"{0}\" cũng sẽ xoá {1, plural, one {# giá trị đã lưu} other {# giá trị đã lưu}} trên mọi tác giả. Không thể hoàn tác."
 
-#: packages/admin/src/components/BlocksField.tsx:1100
+#: packages/admin/src/components/BlocksField.tsx:1185
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1796
@@ -5162,7 +5162,7 @@ msgstr "Bỏ qua mục đã hoàn tất {0}"
 msgid "Dismiss import suggestion"
 msgstr "Bỏ qua gợi ý nhập"
 
-#: packages/admin/src/components/ContentEditor.tsx:3278
+#: packages/admin/src/components/ContentEditor.tsx:3310
 msgid "Dismiss save error"
 msgstr "Bỏ qua lỗi lưu"
 
@@ -5259,7 +5259,7 @@ msgid "Don’t map"
 msgstr "Không ghép"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:505
-#: packages/admin/src/components/BylineCreditsEditor.tsx:774
+#: packages/admin/src/components/BylineCreditsEditor.tsx:777
 #: packages/admin/src/components/ContentList.tsx:1224
 #: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
@@ -5443,11 +5443,11 @@ msgstr "Tạo bản sao"
 msgid "Duplicate redirects were left out"
 msgstr "Đã bỏ qua các chuyển hướng trùng lặp"
 
-#: packages/admin/src/components/BlockListField.tsx:438
+#: packages/admin/src/components/BlockListField.tsx:453
 msgid "Duplicated {copied}"
 msgstr "Đã tạo bản sao {copied}"
 
-#: packages/admin/src/components/BlocksField.tsx:766
+#: packages/admin/src/components/BlocksField.tsx:844
 msgid "Duplicated {name}"
 msgstr "Đã tạo bản sao {name}"
 
@@ -5523,12 +5523,12 @@ msgstr "Sửa {0}"
 msgid "Edit {0} field"
 msgstr "Sửa trường {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2307
-#: packages/admin/src/components/ContentEditor.tsx:2315
+#: packages/admin/src/components/ContentEditor.tsx:2327
+#: packages/admin/src/components/ContentEditor.tsx:2335
 msgid "Edit {itemLabel}"
 msgstr "Sửa {itemLabel}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2314
+#: packages/admin/src/components/ContentEditor.tsx:2334
 msgid "Edit {itemLabel}: {tabEntryTitle}"
 msgstr "Sửa {itemLabel}: {tabEntryTitle}"
 
@@ -5548,7 +5548,7 @@ msgstr "Sửa {label}"
 msgid "Edit asset"
 msgstr "Sửa tệp"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:735
+#: packages/admin/src/components/BylineCreditsEditor.tsx:738
 #: packages/admin/src/components/BylineFormDialog.tsx:387
 msgid "Edit byline"
 msgstr "Sửa tác giả"
@@ -5567,7 +5567,7 @@ msgstr "Sửa chú thích"
 msgid "Edit content"
 msgstr "Sửa nội dung"
 
-#: packages/admin/src/router.tsx:3729
+#: packages/admin/src/router.tsx:3747
 msgid "Edit content type"
 msgstr "Sửa loại nội dung"
 
@@ -5618,7 +5618,7 @@ msgstr "Khoá khi sửa"
 msgid "Edit media alt text, captions, and focal points"
 msgstr "Sửa văn bản thay thế, chú thích và điểm lấy nét của tệp trong thư viện"
 
-#: packages/admin/src/router.tsx:3433
+#: packages/admin/src/router.tsx:3451
 msgid "Edit menu"
 msgstr "Sửa menu"
 
@@ -5644,11 +5644,11 @@ msgstr "Sửa chuyển hướng"
 msgid "Edit redirect {0}"
 msgstr "Sửa chuyển hướng {0}"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:727
+#: packages/admin/src/components/BylineCreditsEditor.tsx:730
 msgid "Edit role"
 msgstr "Sửa vai trò"
 
-#: packages/admin/src/router.tsx:3482
+#: packages/admin/src/router.tsx:3500
 msgid "Edit section"
 msgstr "Sửa mẫu"
 
@@ -5805,7 +5805,7 @@ msgstr "Nhà cung cấp email đang hoạt động"
 
 #: packages/admin/src/components/Settings.tsx:116
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:3202
+#: packages/admin/src/router.tsx:3220
 msgid "Email Settings"
 msgstr "Cài đặt email"
 
@@ -5893,7 +5893,7 @@ msgstr "EmDash đang quét nội dung hiện có."
 msgid "EmDash never receives your PIN, password, or biometric information."
 msgstr "EmDash không bao giờ nhận hay lưu trữ mã PIN, mật khẩu hoặc thông tin sinh trắc học của bạn."
 
-#: packages/admin/src/router.tsx:2552
+#: packages/admin/src/router.tsx:2568
 msgid "EmDash or this entry’s fields changed since you opened it."
 msgstr ""
 
@@ -5961,7 +5961,7 @@ msgstr "Bật theo dõi để lập chỉ mục nội dung hiện có và cập 
 msgid "Enabled"
 msgstr "Đã bật"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1154
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1158
 msgid "English is used because no content language is configured. Content language is stored with the entry and is separate from your admin language."
 msgstr "Hệ thống đang dùng tiếng Anh do chưa cấu hình ngôn ngữ nội dung. Ngôn ngữ này được lưu cùng với bài viết và tách biệt với ngôn ngữ giao diện quản trị của bạn."
 
@@ -6103,7 +6103,7 @@ msgid "Enter a valid time"
 msgstr "Nhập thời gian hợp lệ"
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:4668
+#: packages/admin/src/components/ContentEditor.tsx:4706
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Nhập URL hợp lệ (ví dụ: https://example.com)"
 
@@ -6136,7 +6136,7 @@ msgstr "Nhập thông tin xác thực thủ công"
 msgid "Enter email"
 msgstr "Nhập email"
 
-#: packages/admin/src/components/ContentEditor.tsx:3820
+#: packages/admin/src/components/ContentEditor.tsx:3856
 msgid "Enter markdown content..."
 msgstr "Nhập nội dung markdown..."
 
@@ -6201,7 +6201,7 @@ msgstr "mục nguồn"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:4063
+#: packages/admin/src/router.tsx:4081
 msgid "Error"
 msgstr "Lỗi"
 
@@ -6282,7 +6282,7 @@ msgstr "Nội dung hiện có đã được lập chỉ mục. Các thay đổi 
 msgid "Exists"
 msgstr "Đã tồn tại"
 
-#: packages/admin/src/components/BlocksField.tsx:984
+#: packages/admin/src/components/BlocksField.tsx:1062
 msgid "Expand all"
 msgstr "Mở rộng tất cả"
 
@@ -6537,7 +6537,7 @@ msgid "Failed to create term translation"
 msgstr "Không thể tạo bản dịch của thuật ngữ"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:874
-#: packages/admin/src/router.tsx:2088
+#: packages/admin/src/router.tsx:2104
 msgid "Failed to create translation"
 msgstr "Không thể tạo bản dịch"
 
@@ -6937,7 +6937,7 @@ msgstr "Không thể tải trạng thái cập nhật"
 #: packages/admin/src/lib/api/current-user.ts:30
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:2993
+#: packages/admin/src/router.tsx:3011
 msgid "Failed to fetch user"
 msgstr "Không thể tải tài khoản"
 
@@ -7126,7 +7126,7 @@ msgid "Failed to lock the entry"
 msgstr "Không thể khoá mục này"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:3082
+#: packages/admin/src/router.tsx:3100
 msgid "Failed to perform bulk action"
 msgstr "Không thể thực hiện thao tác hàng loạt"
 
@@ -7144,8 +7144,8 @@ msgid "Failed to probe URL"
 msgstr "Không thể kiểm tra URL"
 
 #: packages/admin/src/router.tsx:783
-#: packages/admin/src/router.tsx:1946
-#: packages/admin/src/router.tsx:2296
+#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:2312
 msgid "Failed to publish"
 msgstr "Không thể xuất bản"
 
@@ -7157,7 +7157,7 @@ msgstr "Không thể xuất bản nội dung"
 msgid "Failed to read byline field usage"
 msgstr "Không thể tải thông tin sử dụng trường tác giả"
 
-#: packages/admin/src/router.tsx:3589
+#: packages/admin/src/router.tsx:3607
 msgid "Failed to register {slug}"
 msgstr "Không thể đăng ký {slug}"
 
@@ -7234,11 +7234,11 @@ msgstr "Không thể thu hồi token API"
 msgid "Failed to rewrite URLs"
 msgstr "Không thể ghi lại các URL"
 
-#: packages/admin/src/components/ContentEditor.tsx:3018
-#: packages/admin/src/components/ContentEditor.tsx:3270
+#: packages/admin/src/components/ContentEditor.tsx:3050
+#: packages/admin/src/components/ContentEditor.tsx:3302
 #: packages/admin/src/router.tsx:979
-#: packages/admin/src/router.tsx:1774
-#: packages/admin/src/router.tsx:3779
+#: packages/admin/src/router.tsx:1790
+#: packages/admin/src/router.tsx:3797
 msgid "Failed to save"
 msgstr "Không thể lưu"
 
@@ -7314,8 +7314,8 @@ msgstr "Không thể bắt đầu nhập"
 msgid "Failed to uninstall plugin"
 msgstr "Không thể gỡ cài đặt plugin"
 
-#: packages/admin/src/router.tsx:1971
-#: packages/admin/src/router.tsx:2343
+#: packages/admin/src/router.tsx:1987
+#: packages/admin/src/router.tsx:2359
 msgid "Failed to unpublish"
 msgstr "Không thể huỷ xuất bản"
 
@@ -7323,8 +7323,8 @@ msgstr "Không thể huỷ xuất bản"
 msgid "Failed to unpublish content"
 msgstr "Không thể huỷ xuất bản nội dung"
 
-#: packages/admin/src/router.tsx:2058
-#: packages/admin/src/router.tsx:2437
+#: packages/admin/src/router.tsx:2074
+#: packages/admin/src/router.tsx:2453
 msgid "Failed to unschedule"
 msgstr "Không thể huỷ đặt lịch"
 
@@ -7423,7 +7423,7 @@ msgstr "Không thể cập nhật mẫu"
 msgid "Failed to update settings"
 msgstr "Không thể cập nhật cài đặt"
 
-#: packages/admin/src/router.tsx:3046
+#: packages/admin/src/router.tsx:3064
 msgid "Failed to update status"
 msgstr "Không thể cập nhật trạng thái"
 
@@ -7660,19 +7660,19 @@ msgstr "Phiên bản đầu tiên"
 msgid "First-time commenters only"
 msgstr "Chỉ duyệt người bình luận lần đầu"
 
-#: packages/admin/src/components/ContentEditor.tsx:251
+#: packages/admin/src/components/ContentEditor.tsx:253
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr "Hãy sửa {field} trong khối {block} để tiếp tục lưu."
 
-#: packages/admin/src/components/ContentEditor.tsx:2289
+#: packages/admin/src/components/ContentEditor.tsx:2309
 msgid "Fix invalid fields before changing the publication date"
 msgstr "Hãy sửa các trường không hợp lệ trước khi đổi ngày xuất bản"
 
-#: packages/admin/src/components/ContentEditor.tsx:2213
+#: packages/admin/src/components/ContentEditor.tsx:2233
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Hãy sửa các trường không hợp lệ trước khi thay đổi việc đặt lịch"
 
-#: packages/admin/src/components/ContentEditor.tsx:250
+#: packages/admin/src/components/ContentEditor.tsx:252
 msgid "Fix the {block} block to resume saving."
 msgstr "Hãy sửa khối {block} để tiếp tục lưu."
 
@@ -7697,7 +7697,7 @@ msgstr "Thư mục"
 msgid "Folder deleted"
 msgstr "Đã xoá thư mục"
 
-#: packages/admin/src/router.tsx:2715
+#: packages/admin/src/router.tsx:2733
 msgid "Folder no longer exists"
 msgstr "Thư mục không còn tồn tại"
 
@@ -7770,7 +7770,7 @@ msgstr "Từ gói (trống)"
 msgid "From the package: “{packageValue}”"
 msgstr "Từ gói: “{packageValue}”"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:553
+#: packages/admin/src/components/BylineCreditsEditor.tsx:554
 msgid "From the post owner"
 msgstr "Từ chủ sở hữu bài viết"
 
@@ -7808,7 +7808,7 @@ msgid "General"
 msgstr "Tổng quan"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:3253
+#: packages/admin/src/router.tsx:3271
 msgid "General Settings"
 msgstr "Cài đặt tổng quan"
 
@@ -7840,7 +7840,7 @@ msgstr "Hãy đặt tên cho khoá truy cập này để dễ nhận ra về sau
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:2200
+#: packages/admin/src/components/ContentEditor.tsx:2220
 msgid "Go back to editing first."
 msgstr "Hãy quay lại chỉnh sửa trước."
 
@@ -7853,7 +7853,7 @@ msgid "Go live {countdown}"
 msgstr "Xuất bản {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2500
-#: packages/admin/src/router.tsx:4083
+#: packages/admin/src/router.tsx:4101
 msgid "Go to Dashboard"
 msgstr "Chuyển đến trang quản trị"
 
@@ -7861,7 +7861,7 @@ msgstr "Chuyển đến trang quản trị"
 msgid "Go to sign-in"
 msgstr "Đến trang đăng nhập"
 
-#: packages/admin/src/components/BlocksField.tsx:938
+#: packages/admin/src/components/BlocksField.tsx:1016
 msgid "Go to the next problem"
 msgstr "Đến vấn đề tiếp theo"
 
@@ -7920,7 +7920,7 @@ msgstr "Chỉ khách"
 msgid "Handle unavailable"
 msgstr "Tên định danh không khả dụng"
 
-#: packages/admin/src/components/BlockListField.tsx:174
+#: packages/admin/src/components/BlockListField.tsx:176
 msgid "Has fields to fix"
 msgstr "Có trường cần sửa"
 
@@ -8019,12 +8019,12 @@ msgstr "Ẩn các mục trước đó"
 msgid "Hide from navigation"
 msgstr "Ẩn khỏi điều hướng"
 
-#: packages/admin/src/components/SeoPanel.tsx:290
-#: packages/admin/src/components/SeoPanel.tsx:293
+#: packages/admin/src/components/SeoPanel.tsx:291
+#: packages/admin/src/components/SeoPanel.tsx:294
 msgid "Hide from search engines"
 msgstr "Ẩn khỏi công cụ tìm kiếm"
 
-#: packages/admin/src/components/SettingsPanelToggle.tsx:207
+#: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Hide settings"
 msgstr ""
 
@@ -8055,7 +8055,7 @@ msgstr "Lượt truy cập"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Giữ mục khi có người đang sửa và từ chối người khác ghi vào"
 
-#: packages/admin/src/components/ContentEditor.tsx:4054
+#: packages/admin/src/components/ContentEditor.tsx:4090
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Trường này đang lưu ID của mục. Hãy thiết lập bộ sưu tập đích trong phần Loại nội dung để có thể chọn trực tiếp từ danh mục."
 
@@ -8351,7 +8351,7 @@ msgid "Import failed"
 msgstr "Nhập thất bại"
 
 #: packages/admin/src/components/WordPressImport.tsx:738
-#: packages/admin/src/router.tsx:3418
+#: packages/admin/src/router.tsx:3436
 msgid "Import from WordPress"
 msgstr "Nhập từ WordPress"
 
@@ -8446,7 +8446,7 @@ msgstr "Trong thùng rác"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "Trong phần Cài đặt Windows (Windows Settings), hãy mở mục Tài khoản (Accounts), sau đó chọn Tuỳ chọn đăng nhập (Sign-in options) và thiết lập mã PIN. Việc sử dụng vân tay và nhận diện khuôn mặt là tuỳ chọn."
 
-#: packages/admin/src/components/BlocksField.tsx:1266
+#: packages/admin/src/components/BlocksField.tsx:1353
 msgid "Inactive version"
 msgstr "Phiên bản không hoạt động"
 
@@ -8643,7 +8643,7 @@ msgstr "TÊN ĐỊNH DANH KHÔNG HỢP LỆ"
 msgid "Invalid invite link"
 msgstr "Liên kết mời không hợp lệ"
 
-#: packages/admin/src/components/ContentEditor.tsx:4761
+#: packages/admin/src/components/ContentEditor.tsx:4799
 msgid "Invalid JSON"
 msgstr "JSON không hợp lệ"
 
@@ -8701,7 +8701,7 @@ msgstr "Chỉ gọi các công cụ MCP đang bật của plugin này"
 msgid "Isolated frame"
 msgstr "Khung biệt lập"
 
-#: packages/admin/src/components/ContentEditor.tsx:2725
+#: packages/admin/src/components/ContentEditor.tsx:2745
 msgid "It has formatting this editor can’t keep."
 msgstr ""
 
@@ -8713,7 +8713,7 @@ msgstr "Khoá truy cập được lưu trữ bởi trình xác thực hoặc tr�
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "Tiến trình này đã được khởi chạy từ một phiên làm việc khác, do đó cấu hình nhập không thể thay đổi được nữa. Tiến độ xử lý sẽ được hiển thị tại đây."
 
-#: packages/admin/src/router.tsx:2573
+#: packages/admin/src/router.tsx:2589
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
 msgstr ""
 
@@ -8723,7 +8723,7 @@ msgid "Italic"
 msgstr "Nghiêng"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/BlockListField.tsx:386
+#: packages/admin/src/components/BlockListField.tsx:401
 #: packages/admin/src/components/PortableTextEditor.tsx:1795
 #: packages/admin/src/components/RepeaterField.tsx:252
 msgid "Item {0}"
@@ -8788,7 +8788,7 @@ msgstr ""
 msgid "Joining..."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3004
+#: packages/admin/src/components/ContentEditor.tsx:3036
 #: packages/admin/src/components/SaveButton.tsx:54
 msgid "Joining…"
 msgstr ""
@@ -9007,7 +9007,7 @@ msgstr "Giấy phép"
 msgid "Limit"
 msgstr "Giới hạn"
 
-#: packages/admin/src/components/BlocksField.tsx:2238
+#: packages/admin/src/components/BlocksField.tsx:2326
 #: packages/admin/src/components/PortableTextEditor.tsx:5386
 msgid "Link"
 msgstr "Liên kết"
@@ -9163,8 +9163,8 @@ msgid "Load preview"
 msgstr "Tải bản xem trước"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/components/ContentEditor.tsx:2768
-#: packages/admin/src/router.tsx:4038
+#: packages/admin/src/components/ContentEditor.tsx:2788
+#: packages/admin/src/router.tsx:4056
 msgid "Loading"
 msgstr "Đang tải"
 
@@ -9193,8 +9193,8 @@ msgstr "Đang tải bộ sưu tập..."
 msgid "Loading comments..."
 msgstr "Đang tải bình luận..."
 
-#: packages/admin/src/router.tsx:4040
-#: packages/admin/src/router.tsx:4052
+#: packages/admin/src/router.tsx:4058
+#: packages/admin/src/router.tsx:4070
 msgid "Loading configuration..."
 msgstr "Đang tải cấu hình..."
 
@@ -9252,7 +9252,7 @@ msgstr "Đang tải plugin..."
 msgid "Loading redirects..."
 msgstr "Đang tải chuyển hướng..."
 
-#: packages/admin/src/components/ContentEditor.tsx:4486
+#: packages/admin/src/components/ContentEditor.tsx:4524
 msgid "Loading references..."
 msgstr "Đang tải các tham chiếu..."
 
@@ -9427,7 +9427,7 @@ msgstr "Quản lý"
 msgid "Manage {0} for {1}"
 msgstr "Quản lý {0} cho {1}"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:599
+#: packages/admin/src/components/BylineCreditsEditor.tsx:602
 msgid "Manage bylines in {entryLocale}"
 msgstr "Quản lý tác giả trong {entryLocale}"
 
@@ -9503,11 +9503,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Cửa hàng"
 
-#: packages/admin/src/router.tsx:3406
+#: packages/admin/src/router.tsx:3424
 msgid "Marketplace browsing is no longer available."
 msgstr "Không thể truy cập cửa hàng do đã ngừng hỗ trợ."
 
-#: packages/admin/src/router.tsx:3379
+#: packages/admin/src/router.tsx:3397
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Cửa hàng hiện không còn khả dụng. Quản lý các plugin đã cài đặt từ mục Plugin."
 
@@ -9559,7 +9559,7 @@ msgstr "MDX"
 #: packages/admin/src/components/WordPressImport.tsx:799
 #: packages/admin/src/components/WordPressImport.tsx:1197
 #: packages/admin/src/components/WordPressImport.tsx:1390
-#: packages/admin/src/router.tsx:2674
+#: packages/admin/src/router.tsx:2692
 msgid "Media"
 msgstr "Thư viện"
 
@@ -9622,7 +9622,7 @@ msgstr "Đọc thư viện"
 msgid "Media results"
 msgstr "Kết quả thư viện"
 
-#: packages/admin/src/router.tsx:3149
+#: packages/admin/src/router.tsx:3167
 msgid "Media Usage"
 msgstr "Nơi dùng tệp trong thư viện"
 
@@ -9718,7 +9718,7 @@ msgstr "Đã đổi tên menu"
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:521
 #: packages/admin/src/components/WordPressImport.tsx:1201
-#: packages/admin/src/router.tsx:3426
+#: packages/admin/src/router.tsx:3444
 msgid "Menus"
 msgstr "Menu"
 
@@ -9735,8 +9735,8 @@ msgstr "Quản lý menu"
 msgid "Merge selected cells"
 msgstr "Gộp các ô đã chọn"
 
-#: packages/admin/src/components/SeoPanel.tsx:245
-#: packages/admin/src/components/SeoPanel.tsx:249
+#: packages/admin/src/components/SeoPanel.tsx:246
+#: packages/admin/src/components/SeoPanel.tsx:250
 msgid "Meta Description"
 msgstr "Mô tả cho công cụ tìm kiếm"
 
@@ -9819,7 +9819,7 @@ msgstr "Lưu trữ theo tháng/năm"
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: section.title
 #. placeholder {0}: taxonomyDef.label
-#: packages/admin/src/components/BylineCreditsEditor.tsx:716
+#: packages/admin/src/components/BylineCreditsEditor.tsx:719
 #: packages/admin/src/components/Sections.tsx:524
 #: packages/admin/src/components/TaxonomyManager.tsx:1268
 msgid "More actions for {0}"
@@ -9869,7 +9869,7 @@ msgstr "Bỏ \"{title}\" vào thùng rác? Bạn có thể khôi phục sau."
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4453
+#: packages/admin/src/components/ContentEditor.tsx:4491
 #: packages/admin/src/components/FieldEditor.tsx:1521
 msgid "Move {0} down"
 msgstr "Di chuyển {0} xuống"
@@ -9886,7 +9886,7 @@ msgstr "Chuyển {0} ra sau"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4442
+#: packages/admin/src/components/ContentEditor.tsx:4480
 #: packages/admin/src/components/FieldEditor.tsx:1504
 msgid "Move {0} up"
 msgstr "Di chuyển {0} lên"
@@ -9926,14 +9926,14 @@ msgstr "Bỏ vào thùng rác"
 
 #: packages/admin/src/components/ContentList.tsx:694
 #: packages/admin/src/components/ContentList.tsx:1633
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1385
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1391
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1389
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1395
 msgid "Move to Trash"
 msgstr "Bỏ vào thùng rác"
 
 #: packages/admin/src/components/ContentList.tsx:678
 #: packages/admin/src/components/ContentList.tsx:1631
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1389
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1393
 msgid "Move to Trash?"
 msgstr "Bỏ vào thùng rác?"
 
@@ -9954,11 +9954,11 @@ msgstr "Đã di chuyển “{snippet}”"
 msgid "Moved {filename} to position {0}."
 msgstr "Đã chuyển {filename} đến vị trí {0}."
 
-#: packages/admin/src/components/BlockListField.tsx:426
+#: packages/admin/src/components/BlockListField.tsx:441
 msgid "Moved {moved} to position {position} of {total}"
 msgstr "Đã di chuyển {moved} đến vị trí {position} trên {total}"
 
-#: packages/admin/src/components/BlocksField.tsx:777
+#: packages/admin/src/components/BlocksField.tsx:855
 #: packages/admin/src/components/useDragAnnouncements.ts:72
 msgid "Moved {name} to position {position} of {total}"
 msgstr "Đã di chuyển {name} đến vị trí {position} trên {total}"
@@ -10048,7 +10048,7 @@ msgid "Moving from another EmDash site?"
 msgstr "Bạn đang chuyển từ một trang web EmDash khác?"
 
 #: packages/admin/src/components/ContentList.tsx:1634
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1392
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1396
 msgid "Moving to trash..."
 msgstr "Đang bỏ vào thùng rác..."
 
@@ -10123,7 +10123,7 @@ msgstr "Cần xử lý"
 msgid "Never"
 msgstr "Không bao giờ"
 
-#: packages/admin/src/router.tsx:2083
+#: packages/admin/src/router.tsx:2099
 msgid "new"
 msgstr "mới"
 
@@ -10131,8 +10131,8 @@ msgstr "mới"
 msgid "NEW"
 msgstr "MỚI"
 
-#: packages/admin/src/components/ContentEditor.tsx:2307
-#: packages/admin/src/components/ContentEditor.tsx:2312
+#: packages/admin/src/components/ContentEditor.tsx:2327
+#: packages/admin/src/components/ContentEditor.tsx:2332
 msgid "New {itemLabel}"
 msgstr "{itemLabel} mới"
 
@@ -10158,7 +10158,7 @@ msgstr "Bộ sưu tập mới"
 msgid "New content"
 msgstr "Nội dung mới"
 
-#: packages/admin/src/router.tsx:3632
+#: packages/admin/src/router.tsx:3650
 msgid "New content type"
 msgstr "Loại nội dung mới"
 
@@ -10312,7 +10312,7 @@ msgstr "Chưa có bình luận nào được duyệt."
 msgid "No block types defined"
 msgstr "Chưa có loại khối nào"
 
-#: packages/admin/src/components/BlocksField.tsx:1062
+#: packages/admin/src/components/BlocksField.tsx:1147
 msgid "No blocks yet"
 msgstr "Chưa có khối nào"
 
@@ -10332,7 +10332,7 @@ msgstr "Chưa gán tác giả"
 msgid "No byline fields yet."
 msgstr "Chưa có trường tác giả nào."
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:591
+#: packages/admin/src/components/BylineCreditsEditor.tsx:594
 msgid "No bylines available in {entryLocale}. Create a variant from the Bylines page before crediting one on this entry."
 msgstr "Chưa có tác giả nào cho {entryLocale}. Vui lòng tạo một biến thể ngôn ngữ từ trang Tác giả trước khi gán cho mục này."
 
@@ -10480,7 +10480,7 @@ msgstr "Không có bản phát hành nào cài đặt được"
 msgid "No invite token provided"
 msgstr "Không tìm thấy mã mời"
 
-#: packages/admin/src/components/BlockListField.tsx:870
+#: packages/admin/src/components/BlockListField.tsx:885
 #: packages/admin/src/components/PortableTextEditor.tsx:1718
 #: packages/admin/src/components/RepeaterField.tsx:172
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
@@ -10620,7 +10620,7 @@ msgstr "Không có chuyển hướng nào khớp với các bộ lọc này"
 msgid "No redirects yet"
 msgstr "Chưa có chuyển hướng nào"
 
-#: packages/admin/src/components/ContentEditor.tsx:4396
+#: packages/admin/src/components/ContentEditor.tsx:4434
 msgid "No references selected."
 msgstr "Chưa chọn tham chiếu nào."
 
@@ -10735,13 +10735,13 @@ msgstr "Không khớp"
 msgid "Not recorded in this version"
 msgstr "Không được ghi trong phiên bản này"
 
-#: packages/admin/src/components/ContentEditor.tsx:3008
+#: packages/admin/src/components/ContentEditor.tsx:3040
 #: packages/admin/src/components/SaveButton.tsx:56
 #: packages/admin/src/components/SaveButton.tsx:57
 msgid "Not saved"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:3020
+#: packages/admin/src/components/ContentEditor.tsx:3052
 msgid "Not saved yet"
 msgstr "Chưa lưu"
 
@@ -10809,7 +10809,7 @@ msgstr "Uỷ quyền OAuth cần HTTPS. Vui lòng dùng thông tin xác thực t
 msgid "Off"
 msgstr "Tắt"
 
-#: packages/admin/src/components/ContentEditor.tsx:3006
+#: packages/admin/src/components/ContentEditor.tsx:3038
 #: packages/admin/src/components/SaveButton.tsx:55
 msgid "Offline"
 msgstr ""
@@ -10881,7 +10881,7 @@ msgid "Open"
 msgstr "Mở"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4431
+#: packages/admin/src/components/ContentEditor.tsx:4469
 msgid "Open {0} in a new tab"
 msgstr "Mở {0} trong tab mới"
 
@@ -11071,7 +11071,7 @@ msgstr "Quá hạn · {lateness}"
 msgid "Overrides the page title in search engine results"
 msgstr "Thay tiêu đề trang trong kết quả của công cụ tìm kiếm"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1173
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1177
 #: packages/admin/src/lib/editor-sections.ts:33
 msgid "Ownership"
 msgstr "Quyền sở hữu"
@@ -11090,11 +11090,11 @@ msgstr "Mã băm của gói"
 msgid "Package downloaded"
 msgstr "Đã tải gói xuống"
 
-#: packages/admin/src/router.tsx:3950
+#: packages/admin/src/router.tsx:3968
 msgid "Page not found"
 msgstr "Không tìm thấy trang"
 
-#: packages/admin/src/router.tsx:4078
+#: packages/admin/src/router.tsx:4096
 msgid "Page Not Found"
 msgstr "Không tìm thấy trang"
 
@@ -11297,7 +11297,7 @@ msgstr ""
 msgid "People in this entry"
 msgstr ""
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:544
+#: packages/admin/src/components/BylineCreditsEditor.tsx:545
 msgid "People shown publicly on this post."
 msgstr "Những người hiển thị công khai trên bài viết này."
 
@@ -11382,7 +11382,7 @@ msgid "Please enter a valid URL"
 msgstr "Vui lòng nhập URL hợp lệ"
 
 #: packages/admin/src/components/WordPressImport.tsx:1234
-#: packages/admin/src/router.tsx:3926
+#: packages/admin/src/router.tsx:3944
 msgid "Plugin"
 msgstr "Plugin"
 
@@ -11407,7 +11407,7 @@ msgstr "Thao tác plugin không thành công"
 msgid "Plugin actions"
 msgstr "Thao tác plugin"
 
-#: packages/admin/src/components/ContentEditor.tsx:2716
+#: packages/admin/src/components/ContentEditor.tsx:2736
 msgid "Plugin changes were not applied"
 msgstr "Thay đổi từ plugin chưa được áp dụng"
 
@@ -11419,8 +11419,8 @@ msgstr "Cột plugin không khả dụng"
 msgid "Plugin details"
 msgstr "Chi tiết plugin"
 
-#: packages/admin/src/router.tsx:3351
-#: packages/admin/src/router.tsx:3358
+#: packages/admin/src/router.tsx:3369
+#: packages/admin/src/router.tsx:3376
 msgid "Plugin Details"
 msgstr "Chi tiết plugin"
 
@@ -11445,7 +11445,7 @@ msgstr "Lỗi plugin ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "Cài đặt plugin cần có sự đồng ý rõ ràng"
 
-#: packages/admin/src/router.tsx:3343
+#: packages/admin/src/router.tsx:3361
 msgid "Plugin Marketplace"
 msgstr "Cửa hàng plugin"
 
@@ -11485,7 +11485,7 @@ msgid "Plugin Permissions"
 msgstr "Quyền của plugin"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:3300
+#: packages/admin/src/router.tsx:3318
 msgid "Plugin Registry"
 msgstr "Kho plugin"
 
@@ -11494,8 +11494,8 @@ msgstr "Kho plugin"
 msgid "Plugin registry configuration error"
 msgstr "Lỗi cấu hình kho plugin"
 
-#: packages/admin/src/router.tsx:3336
-#: packages/admin/src/router.tsx:3370
+#: packages/admin/src/router.tsx:3354
+#: packages/admin/src/router.tsx:3388
 msgid "Plugin registry is not configured."
 msgstr "Kho plugin chưa được cấu hình."
 
@@ -11504,7 +11504,7 @@ msgstr "Kho plugin chưa được cấu hình."
 msgid "Plugin responded with {0}: {text}"
 msgstr "Plugin phản hồi {0}: {text}"
 
-#: packages/admin/src/router.tsx:3913
+#: packages/admin/src/router.tsx:3931
 msgid "Plugin Settings"
 msgstr "Cài đặt plugin"
 
@@ -11537,7 +11537,7 @@ msgstr "Lỗi tiện ích plugin"
 #: packages/admin/src/components/PluginManager.tsx:201
 #: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/Sidebar.tsx:587
-#: packages/admin/src/router.tsx:3285
+#: packages/admin/src/router.tsx:3303
 msgid "Plugins"
 msgstr "Plugin"
 
@@ -11549,7 +11549,7 @@ msgstr "Trỏ tên miền về trang web này. Trên Cloudflare, mở Worker c�
 msgid "Point-in-Time Restore"
 msgstr "Khôi phục theo thời điểm"
 
-#: packages/admin/src/components/SeoPanel.tsx:267
+#: packages/admin/src/components/SeoPanel.tsx:268
 msgid "Points search engines to the original version of this page, if it's duplicated from another URL"
 msgstr "Trỏ công cụ tìm kiếm tới phiên bản gốc của trang này, nếu trang được sao chép từ URL khác"
 
@@ -11729,9 +11729,9 @@ msgstr "Nhà cung cấp:"
 msgid "Public routes"
 msgstr "Định tuyến (route) công khai"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1043
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1048
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1059
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1047
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1052
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1063
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:693
 msgid "Publication date"
 msgstr "Ngày xuất bản"
@@ -11743,7 +11743,7 @@ msgstr "Xuất bản"
 
 #: packages/admin/src/components/ContentList.tsx:611
 #: packages/admin/src/components/ContentSettingsPanel.tsx:563
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1012
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1013
 #: packages/admin/src/lib/editor-sections.ts:31
 msgid "Publish"
 msgstr "Xuất bản"
@@ -11788,7 +11788,7 @@ msgstr "Đã xuất bản"
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:270
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:168
-#: packages/admin/src/router.tsx:1941
+#: packages/admin/src/router.tsx:1957
 msgid "Published"
 msgstr "Đã xuất bản"
 
@@ -11833,7 +11833,7 @@ msgstr "Chính sách phát hành phiên bản"
 msgid "Publishing"
 msgstr "Xuất bản"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1016
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1017
 msgid "Publishing summary"
 msgstr "Tóm tắt xuất bản"
 
@@ -11941,7 +11941,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Đọc dữ liệu phân loại và các mục phân loại"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:96
-#: packages/admin/src/router.tsx:2535
+#: packages/admin/src/router.tsx:2551
 msgid "Read-only"
 msgstr "Chỉ đọc"
 
@@ -12032,7 +12032,7 @@ msgstr "Đang chuyển đến trang đăng nhập..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:528
-#: packages/admin/src/router.tsx:3468
+#: packages/admin/src/router.tsx:3486
 msgid "Redirects"
 msgstr "Chuyển hướng"
 
@@ -12111,7 +12111,7 @@ msgstr "Kho"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3668
+#: packages/admin/src/router.tsx:3686
 msgid "Relations"
 msgstr "Quan hệ"
 
@@ -12135,7 +12135,7 @@ msgid "Release notes"
 msgstr "Ghi chú phát hành"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:109
-#: packages/admin/src/router.tsx:2560
+#: packages/admin/src/router.tsx:2576
 msgid "Reload"
 msgstr ""
 
@@ -12147,7 +12147,7 @@ msgstr "Hãy tải lại trang sau khi cập nhật EmDash rồi thử lại."
 msgid "Reload page"
 msgstr "Tải lại trang"
 
-#: packages/admin/src/router.tsx:2551
+#: packages/admin/src/router.tsx:2567
 msgid "Reloading the admin"
 msgstr ""
 
@@ -12161,8 +12161,8 @@ msgid "visualEditing.removeImage"
 msgstr "Xoá"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:109
-#: packages/admin/src/components/ContentEditor.tsx:4954
-#: packages/admin/src/components/ContentEditor.tsx:5020
+#: packages/admin/src/components/ContentEditor.tsx:4992
+#: packages/admin/src/components/ContentEditor.tsx:5058
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:358
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:822
@@ -12183,7 +12183,7 @@ msgstr "Xoá"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:4466
+#: packages/admin/src/components/ContentEditor.tsx:4504
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -12201,8 +12201,8 @@ msgid "Remove {entry}"
 msgstr "Xoá {entry}"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:4952
-#: packages/admin/src/components/ContentEditor.tsx:5018
+#: packages/admin/src/components/ContentEditor.tsx:4990
+#: packages/admin/src/components/ContentEditor.tsx:5056
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -12225,7 +12225,7 @@ msgstr "Xoá tên miền"
 msgid "Remove Domain?"
 msgstr "Xoá tên miền?"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:745
+#: packages/admin/src/components/BylineCreditsEditor.tsx:748
 msgid "Remove from post"
 msgstr "Xoá khỏi bài viết"
 
@@ -12400,8 +12400,8 @@ msgstr "Sắp xếp lại"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:1467
-#: packages/admin/src/components/BylineCreditsEditor.tsx:690
+#: packages/admin/src/components/BlocksField.tsx:1555
+#: packages/admin/src/components/BylineCreditsEditor.tsx:693
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
 msgstr "Sắp xếp lại {0}"
@@ -12425,9 +12425,9 @@ msgstr "Thay thế"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:99
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:198
-#: packages/admin/src/components/ContentEditor.tsx:4909
-#: packages/admin/src/components/ContentEditor.tsx:4944
-#: packages/admin/src/components/ContentEditor.tsx:5010
+#: packages/admin/src/components/ContentEditor.tsx:4947
+#: packages/admin/src/components/ContentEditor.tsx:4982
+#: packages/admin/src/components/ContentEditor.tsx:5048
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12449,7 +12449,7 @@ msgstr "Thay thế"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:97
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:4908
+#: packages/admin/src/components/ContentEditor.tsx:4946
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12487,7 +12487,7 @@ msgstr "Thay ảnh gốc?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Chỉ thay được ảnh gốc khi chọn tỷ lệ khung hình Gốc."
 
-#: packages/admin/src/components/ContentEditor.tsx:4501
+#: packages/admin/src/components/ContentEditor.tsx:4539
 msgid "Replace reference"
 msgstr "Thay tham chiếu"
 
@@ -12646,7 +12646,7 @@ msgstr "Đổi kích thước vùng cắt từ góc trên bên trái. Dùng các
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Đổi kích thước vùng cắt từ góc trên bên phải. Dùng các phím mũi tên để đổi kích thước."
 
-#: packages/admin/src/components/ContentEditor.tsx:3098
+#: packages/admin/src/components/ContentEditor.tsx:3130
 msgid "Resize settings panel"
 msgstr "Đổi kích thước bảng cài đặt"
 
@@ -12697,13 +12697,13 @@ msgstr "Đang khôi phục…"
 msgid "Results"
 msgstr "Kết quả"
 
-#: packages/admin/src/components/BlocksField.tsx:1267
+#: packages/admin/src/components/BlocksField.tsx:1354
 #: packages/admin/src/components/FieldEditor.tsx:1488
 msgid "Retired"
 msgstr "Đã ngừng dùng"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:4480
+#: packages/admin/src/components/ContentEditor.tsx:4518
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12720,7 +12720,7 @@ msgstr "Đã ngừng dùng"
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:92
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:276
-#: packages/admin/src/router.tsx:4066
+#: packages/admin/src/router.tsx:4084
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12771,7 +12771,7 @@ msgstr "Đang thử lại…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Các khối nội dung dùng lại được, có thể chèn vào bất kỳ nội dung nào"
 
-#: packages/admin/src/router.tsx:1991
+#: packages/admin/src/router.tsx:2007
 msgid "Reverted to published version"
 msgstr "Đã quay về phiên bản đã xuất bản"
 
@@ -12894,12 +12894,12 @@ msgstr "Vai trò"
 msgid "Role {role}"
 msgstr "Vai trò {role}"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:760
+#: packages/admin/src/components/BylineCreditsEditor.tsx:763
 msgid "Role on this post (optional)"
 msgstr "Vai trò trong bài viết này (tuỳ chọn)"
 
 #. placeholder {0}: byline.displayName
-#: packages/admin/src/components/BylineCreditsEditor.tsx:514
+#: packages/admin/src/components/BylineCreditsEditor.tsx:515
 msgid "Role updated for {0}."
 msgstr "Đã cập nhật vai trò của {0}."
 
@@ -12987,7 +12987,7 @@ msgstr "Lưu (Enter)"
 msgid "Save alt text"
 msgstr "Lưu văn bản thay thế"
 
-#: packages/admin/src/components/ContentEditor.tsx:2752
+#: packages/admin/src/components/ContentEditor.tsx:2772
 msgid "Save anyway"
 msgstr "Vẫn lưu"
 
@@ -13012,7 +13012,7 @@ msgstr "Lưu nội dung dưới dạng nháp trước khi xuất bản"
 msgid "Save date"
 msgstr "Lưu ngày"
 
-#: packages/admin/src/components/ContentEditor.tsx:2920
+#: packages/admin/src/components/ContentEditor.tsx:2942
 #: packages/admin/src/components/ContentSettingsPanel.tsx:731
 msgid "Save draft"
 msgstr "Lưu nháp"
@@ -13053,8 +13053,8 @@ msgstr "Lưu cài đặt"
 msgid "visualEditing.saved"
 msgstr "Đã lưu"
 
-#: packages/admin/src/components/ContentEditor.tsx:3014
-#: packages/admin/src/components/ContentEditor.tsx:3023
+#: packages/admin/src/components/ContentEditor.tsx:3046
+#: packages/admin/src/components/ContentEditor.tsx:3055
 #: packages/admin/src/components/SaveButton.tsx:53
 msgid "Saved"
 msgstr "Đã lưu"
@@ -13077,8 +13077,8 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr "Khi lưu, bài được tạo ở dạng nháp và chưa hiện trên trang web. Bạn có thể xuất bản sau lần lưu đầu tiên."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:3011
-#: packages/admin/src/components/ContentEditor.tsx:3016
+#: packages/admin/src/components/ContentEditor.tsx:3043
+#: packages/admin/src/components/ContentEditor.tsx:3048
 #: packages/admin/src/components/FieldEditor.tsx:1826
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
@@ -13145,7 +13145,7 @@ msgstr "Đã huỷ đặt lịch"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:420
 #: packages/admin/src/components/ContentList.tsx:1018
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:2039
+#: packages/admin/src/router.tsx:2055
 msgid "Scheduled"
 msgstr "Đã đặt lịch"
 
@@ -13469,7 +13469,7 @@ msgstr "Tiêu đề mẫu"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:542
-#: packages/admin/src/router.tsx:3475
+#: packages/admin/src/router.tsx:3493
 msgid "Sections"
 msgstr "Mẫu"
 
@@ -13526,7 +13526,7 @@ msgstr "Lỗi bảo mật. Hãy đảm bảo bạn đang dùng kết nối an to
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:3157
+#: packages/admin/src/router.tsx:3175
 msgid "Security Settings"
 msgstr "Cài đặt bảo mật"
 
@@ -13543,9 +13543,9 @@ msgid "Select"
 msgstr "Chọn"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:4908
-#: packages/admin/src/components/ContentEditor.tsx:4969
-#: packages/admin/src/components/ContentEditor.tsx:5030
+#: packages/admin/src/components/ContentEditor.tsx:4946
+#: packages/admin/src/components/ContentEditor.tsx:5007
+#: packages/admin/src/components/ContentEditor.tsx:5068
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13594,7 +13594,7 @@ msgstr "Chọn tất cả trên trang này"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr "Chọn và cấu hình nhà cung cấp dịch vụ gửi toàn bộ email đi từ hệ thống."
 
-#: packages/admin/src/components/ContentEditor.tsx:4504
+#: packages/admin/src/components/ContentEditor.tsx:4542
 msgid "Select at least one entry."
 msgstr "Chọn ít nhất một mục."
 
@@ -13627,8 +13627,8 @@ msgstr "Chọn favicon"
 msgid "Select Favicon"
 msgstr "Chọn favicon"
 
-#: packages/admin/src/components/ContentEditor.tsx:4971
-#: packages/admin/src/components/ContentEditor.tsx:5036
+#: packages/admin/src/components/ContentEditor.tsx:5009
+#: packages/admin/src/components/ContentEditor.tsx:5074
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Chọn tệp"
@@ -13779,7 +13779,7 @@ msgstr "Tên người gửi (không bắt buộc)"
 msgid "Sending..."
 msgstr "Đang gửi..."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1259
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1263
 #: packages/admin/src/components/ContentTypeEditor.tsx:700
 #: packages/admin/src/components/Settings.tsx:68
 #: packages/admin/src/lib/editor-sections.ts:37
@@ -13793,7 +13793,7 @@ msgid "SEO settings"
 msgstr "Cài đặt SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:3277
+#: packages/admin/src/router.tsx:3295
 msgid "SEO Settings"
 msgstr "Cài đặt SEO"
 
@@ -13802,7 +13802,7 @@ msgid "SEO settings saved"
 msgstr "Đã lưu cài đặt SEO"
 
 #: packages/admin/src/components/SeoPanel.tsx:224
-#: packages/admin/src/components/SeoPanel.tsx:228
+#: packages/admin/src/components/SeoPanel.tsx:229
 msgid "SEO Title"
 msgstr "Tiêu đề SEO"
 
@@ -13827,7 +13827,7 @@ msgstr "Đặt ngôn ngữ"
 msgid "Set language (current: {label})"
 msgstr "Đặt ngôn ngữ (hiện tại: {label})"
 
-#: packages/admin/src/components/BylineCreditsEditor.tsx:727
+#: packages/admin/src/components/BylineCreditsEditor.tsx:730
 msgid "Set role"
 msgstr "Đặt vai trò"
 
@@ -13866,14 +13866,14 @@ msgid "Setting up..."
 msgstr "Đang thiết lập..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:252
-#: packages/admin/src/components/ContentEditor.tsx:2887
+#: packages/admin/src/components/ContentEditor.tsx:2909
 #: packages/admin/src/components/ContentTypeEditor.tsx:496
 #: packages/admin/src/components/Header.tsx:113
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:610
 #: packages/admin/src/components/WordPressImport.tsx:1861
-#: packages/admin/src/router.tsx:3142
+#: packages/admin/src/router.tsx:3160
 msgid "Settings"
 msgstr "Cài đặt"
 
@@ -13924,7 +13924,7 @@ msgstr "Văn bản ngắn"
 msgid "Short Text"
 msgstr "Văn bản ngắn"
 
-#: packages/admin/src/components/ContentEditor.tsx:256
+#: packages/admin/src/components/ContentEditor.tsx:258
 msgid "Show"
 msgstr "Hiện"
 
@@ -13956,7 +13956,7 @@ msgstr "Hiện các bản lưu cũ hơn"
 msgid "Show post count"
 msgstr "Hiện số bài viết"
 
-#: packages/admin/src/components/SettingsPanelToggle.tsx:207
+#: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Show settings"
 msgstr ""
 
@@ -13981,7 +13981,7 @@ msgstr "Hiển thị {pageShowingRange} trên {0}"
 msgid "Shown in the admin. Some themes also show it on the site."
 msgstr "Hiện trong trang quản trị. Một số giao diện cũng hiện nó trên trang web."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1194
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1198
 msgid "Shown to readers in this order."
 msgstr "Hiển thị cho người đọc theo thứ tự này."
 
@@ -14200,7 +14200,7 @@ msgstr "Đã bỏ qua"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentEditor.tsx:2482
+#: packages/admin/src/components/ContentEditor.tsx:2502
 #: packages/admin/src/components/ContentSettingsPanel.tsx:996
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
 #: packages/admin/src/components/ContentTypeEditor.tsx:518
@@ -14288,7 +14288,7 @@ msgstr "Liên kết hồ sơ mạng xã hội"
 msgid "Social Profiles"
 msgstr "Hồ sơ mạng xã hội"
 
-#: packages/admin/src/router.tsx:3265
+#: packages/admin/src/router.tsx:3283
 msgid "Social Settings"
 msgstr "Cài đặt mạng xã hội"
 
@@ -14454,8 +14454,8 @@ msgstr "Bắt đầu với các bài viết và trang mẫu từ template. Khuy�
 msgid "Start writing with plain text"
 msgstr "Bắt đầu viết bằng văn bản thuần"
 
-#: packages/admin/src/components/ContentEditor.tsx:3742
-#: packages/admin/src/components/ContentEditor.tsx:3765
+#: packages/admin/src/components/ContentEditor.tsx:3778
+#: packages/admin/src/components/ContentEditor.tsx:3801
 #: packages/admin/src/components/PortableTextEditor.tsx:2239
 msgid "Start writing, or type '/' for commands"
 msgstr "Bắt đầu viết, hoặc gõ '/' để xem lệnh"
@@ -14688,7 +14688,7 @@ msgstr "Ngôn ngữ đích"
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:989
 #: packages/admin/src/lib/editor-sections.ts:36
-#: packages/admin/src/router.tsx:3446
+#: packages/admin/src/router.tsx:3464
 msgid "Taxonomies"
 msgstr "Phân loại"
 
@@ -14787,7 +14787,7 @@ msgstr "Đã gửi email thử tới {to}"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/BlocksField.tsx:2237
+#: packages/admin/src/components/BlocksField.tsx:2325
 #: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr "Văn bản"
@@ -15087,7 +15087,7 @@ msgstr "Nội dung của gói được ghi vào trang web này. Không thể ho�
 msgid "The package’s file index is not valid."
 msgstr "Chỉ mục tệp của gói không hợp lệ."
 
-#: packages/admin/src/router.tsx:4080
+#: packages/admin/src/router.tsx:4098
 msgid "The page you're looking for doesn't exist."
 msgstr "Trang bạn đang tìm không tồn tại."
 
@@ -15107,12 +15107,12 @@ msgstr "Tiện ích trường của plugin không hiển thị được."
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Plugin chưa lưu các thay đổi này. Hãy xem lại trước khi cập nhật trình soạn thảo."
 
-#: packages/admin/src/components/ContentEditor.tsx:1789
+#: packages/admin/src/components/ContentEditor.tsx:1809
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:1759
-#: packages/admin/src/components/ContentEditor.tsx:1775
+#: packages/admin/src/components/ContentEditor.tsx:1779
+#: packages/admin/src/components/ContentEditor.tsx:1795
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Kết quả từ plugin không còn hiệu lực vì nội dung trong trình chỉnh sửa đã thay đổi trong lúc xử lý."
 
@@ -15238,7 +15238,7 @@ msgstr "Giao diện"
 msgid "Theme \"{id}\" not found"
 msgstr "Không tìm thấy giao diện \"{id}\""
 
-#: packages/admin/src/router.tsx:3397
+#: packages/admin/src/router.tsx:3415
 msgid "Theme Details"
 msgstr "Thông tin giao diện"
 
@@ -15247,7 +15247,7 @@ msgstr "Thông tin giao diện"
 msgid "Theme ID: {0}"
 msgstr "ID giao diện: {0}"
 
-#: packages/admin/src/router.tsx:3389
+#: packages/admin/src/router.tsx:3407
 msgid "Theme Marketplace"
 msgstr "Cửa hàng giao diện"
 
@@ -15291,7 +15291,7 @@ msgstr ""
 msgid "This also removes:"
 msgstr "Thao tác này cũng xoá:"
 
-#: packages/admin/src/components/BlocksField.tsx:1677
+#: packages/admin/src/components/BlocksField.tsx:1765
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr "Không thể chỉnh sửa khối này vì cấu hình đã lưu không còn khả dụng."
 
@@ -15300,7 +15300,7 @@ msgstr "Không thể chỉnh sửa khối này vì cấu hình đã lưu không 
 msgid "This block embeds a page from {0}."
 msgstr "Khối này nhúng một trang từ {0}."
 
-#: packages/admin/src/components/BlocksField.tsx:2069
+#: packages/admin/src/components/BlocksField.tsx:2157
 msgid "This block has no fields."
 msgstr "Khối này không có trường nào."
 
@@ -15308,11 +15308,11 @@ msgstr "Khối này không có trường nào."
 msgid "This block runs JavaScript."
 msgstr "Khối này chạy JavaScript."
 
-#: packages/admin/src/components/BlocksField.tsx:881
+#: packages/admin/src/components/BlocksField.tsx:959
 msgid "This block type can no longer be added to this field, so the block can't be restored after you delete it."
 msgstr "Loại khối này không còn thêm được vào trường này, nên không thể khôi phục khối sau khi bạn xoá."
 
-#: packages/admin/src/components/BlocksField.tsx:874
+#: packages/admin/src/components/BlocksField.tsx:952
 msgid "This block uses an older version of its type, so it can't be restored after you delete it."
 msgstr "Khối này thuộc phiên bản cũ và không thể khôi phục sau khi bạn xoá."
 
@@ -15320,7 +15320,7 @@ msgstr "Khối này thuộc phiên bản cũ và không thể khôi phục sau k
 msgid "This block was deleted, so your changes can't be saved."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:876
+#: packages/admin/src/components/BlocksField.tsx:954
 msgid "This block's stored definition is unavailable, so it can't be restored after you delete it."
 msgstr "Cấu hình đã lưu của khối này không còn khả dụng, do đó bạn sẽ không thể khôi phục lại sau khi xoá."
 
@@ -15374,20 +15374,20 @@ msgstr "Khoá di chuyển này có vẻ không hợp lệ. Hãy tạo khoá mớ
 msgid "This domain is already in the list. Enter a different one."
 msgstr "Tên miền này đã có trong danh sách. Hãy nhập tên miền khác."
 
-#: packages/admin/src/components/ContentEditor.tsx:2748
+#: packages/admin/src/components/ContentEditor.tsx:2768
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Mục này đã thay đổi ở nơi khác sau khi bạn mở nó."
 
-#: packages/admin/src/components/ContentEditor.tsx:2219
+#: packages/admin/src/components/ContentEditor.tsx:2239
 #: packages/admin/src/router.tsx:1561
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Mục này đã thay đổi ở nơi khác. Hãy lưu đè, hoặc tải lại để lấy phiên bản mới hơn."
 
-#: packages/admin/src/router.tsx:2522
+#: packages/admin/src/router.tsx:2538
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Mục này không tồn tại hoặc chưa xuất bản. Bạn chỉ có quyền xem nội dung đã xuất bản."
 
-#: packages/admin/src/router.tsx:2523
+#: packages/admin/src/router.tsx:2539
 msgid "This entry doesn't exist or was deleted."
 msgstr "Mục này không tồn tại hoặc đã bị xoá."
 
@@ -15399,11 +15399,11 @@ msgstr "Mục này chưa có URL cho đến khi được xuất bản. Hãy dán
 msgid "This entry is open somewhere else"
 msgstr "Mục này đang mở ở nơi khác"
 
-#: packages/admin/src/components/ContentEditor.tsx:2735
+#: packages/admin/src/components/ContentEditor.tsx:2755
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Mục này ở chế độ chỉ đọc vì lược đồ của nó dùng các loại trường mà phiên bản EmDash này không hỗ trợ."
 
-#: packages/admin/src/components/ContentEditor.tsx:2203
+#: packages/admin/src/components/ContentEditor.tsx:2223
 msgid "This entry is still loading."
 msgstr ""
 
@@ -15411,7 +15411,7 @@ msgstr ""
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "Mục này đã quá hạn {lateness} nhưng chưa được xuất bản. Có thể tiến trình xuất bản theo lịch đang không hoạt động."
 
-#: packages/admin/src/router.tsx:2572
+#: packages/admin/src/router.tsx:2588
 msgid "This entry was moved to Trash or deleted"
 msgstr ""
 
@@ -15423,8 +15423,8 @@ msgstr ""
 msgid "This export is large"
 msgstr "Lần xuất này lớn"
 
-#: packages/admin/src/components/ContentEditor.tsx:3517
-#: packages/admin/src/components/ContentEditor.tsx:3525
+#: packages/admin/src/components/ContentEditor.tsx:3553
+#: packages/admin/src/components/ContentEditor.tsx:3561
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Phiên bản EmDash này không thể sửa trường này."
@@ -15450,7 +15450,7 @@ msgstr "Trường này không nhận tệp {mimeType}."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Trường này yêu cầu dữ liệu dạng danh sách. Giá trị đã lưu sẽ được giữ nguyên cho đến khi bạn thay bằng một danh sách trống (thao tác này sẽ xoá giá trị cũ). Hãy sao chép lại dữ liệu cần thiết trước khi thực hiện."
 
-#: packages/admin/src/components/ContentEditor.tsx:5042
+#: packages/admin/src/components/ContentEditor.tsx:5080
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "Trường này là bắt buộc"
@@ -15734,7 +15734,7 @@ msgstr "Không thể phát video này."
 msgid "This will delete the widget area and all its widgets. This action cannot be undone."
 msgstr "Thao tác này sẽ xoá khu vực tiện ích và mọi tiện ích trong đó. Không thể hoàn tác."
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1390
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1394
 msgid "This will move the item to trash. You can restore it later from the trash."
 msgstr "Thao tác này sẽ chuyển mục vào thùng rác. Bạn có thể khôi phục lại sau."
 
@@ -15882,7 +15882,7 @@ msgstr "Theo dõi nơi dùng tệp trong thư viện trên toàn bộ nội dung
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:3221
+#: packages/admin/src/router.tsx:3239
 msgid "Transfer"
 msgstr "Chuyển dữ liệu"
 
@@ -15911,7 +15911,7 @@ msgstr "Đang dịch..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:870
-#: packages/admin/src/router.tsx:2082
+#: packages/admin/src/router.tsx:2098
 msgid "Translation created"
 msgstr "Đã tạo bản dịch"
 
@@ -16125,8 +16125,8 @@ msgstr "TypeScript"
 msgid "Unable to reach marketplace"
 msgstr "Không thể kết nối tới cửa hàng"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1410
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1427
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1414
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1431
 msgid "Unassigned"
 msgstr "Chưa gán"
 
@@ -16203,7 +16203,7 @@ msgstr "Tài khoản chưa đặt tên"
 msgid "Unpublish {itemLabel}"
 msgstr "Huỷ xuất bản {itemLabel}"
 
-#: packages/admin/src/router.tsx:1966
+#: packages/admin/src/router.tsx:1982
 msgid "Unpublished"
 msgstr "Đã huỷ xuất bản"
 
@@ -16225,8 +16225,8 @@ msgstr "Phần gán chưa xử lý"
 msgid "visualEditing.unsaved"
 msgstr "Chưa lưu"
 
-#: packages/admin/src/components/ContentEditor.tsx:3013
-#: packages/admin/src/components/ContentEditor.tsx:3022
+#: packages/admin/src/components/ContentEditor.tsx:3045
+#: packages/admin/src/components/ContentEditor.tsx:3054
 msgid "Unsaved changes"
 msgstr "Thay đổi chưa lưu"
 
@@ -16234,11 +16234,11 @@ msgstr "Thay đổi chưa lưu"
 msgid "Unsaved content may leave your site"
 msgstr "Nội dung chưa lưu có thể rời khỏi trang web của bạn"
 
-#: packages/admin/src/router.tsx:2051
+#: packages/admin/src/router.tsx:2067
 msgid "Unscheduled"
 msgstr "Đã huỷ đặt lịch"
 
-#: packages/admin/src/components/BlocksField.tsx:1268
+#: packages/admin/src/components/BlocksField.tsx:1355
 #: packages/admin/src/components/ContentTypeEditor.tsx:994
 msgid "Unsupported"
 msgstr "Không được hỗ trợ"
@@ -16253,13 +16253,13 @@ msgstr "Loại phần tử tiện ích không được hỗ trợ: {0}"
 msgid "Until {0}"
 msgstr "Đến {0}"
 
-#: packages/admin/src/components/BlockListField.tsx:386
+#: packages/admin/src/components/BlockListField.tsx:401
 #: packages/admin/src/components/Dashboard.tsx:598
 #: packages/admin/src/components/MediaUsedIn.tsx:320
 msgid "Untitled"
 msgstr "Không có tiêu đề"
 
-#: packages/admin/src/components/ContentEditor.tsx:4868
+#: packages/admin/src/components/ContentEditor.tsx:4906
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Tệp chưa đặt tên"
@@ -16332,7 +16332,7 @@ msgid "Update to v{0}"
 msgstr "Cập nhật lên v{0}"
 
 #: packages/admin/src/components/ContentList.tsx:1026
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1107
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1111
 #: packages/admin/src/components/ContentTypeEditor.tsx:679
 #: packages/admin/src/components/RegistryPluginDetail.tsx:581
 msgid "Updated"
@@ -16502,7 +16502,7 @@ msgstr "Đang tải video lên…"
 msgid "URL"
 msgstr "URL"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1137
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1141
 #: packages/admin/src/lib/editor-sections.ts:32
 msgid "URL & language"
 msgstr "URL & ngôn ngữ"
@@ -16640,7 +16640,7 @@ msgstr "Được sử dụng làm ảnh Open Graph mặc định khi bài viết
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Dùng làm mã định danh. Chỉ gồm chữ cái viết thường, chữ số và dấu gạch dưới."
 
-#: packages/admin/src/components/ContentEditor.tsx:3954
+#: packages/admin/src/components/ContentEditor.tsx:3990
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Dùng làm hình ảnh chính cho bài viết này ở trang danh sách và đầu bài viết"
 
@@ -16702,7 +16702,7 @@ msgstr "Tên đăng nhập"
 #: packages/admin/src/components/AdminCommandPalette.tsx:228
 #: packages/admin/src/components/Sidebar.tsx:584
 #: packages/admin/src/components/users/UserList.tsx:64
-#: packages/admin/src/router.tsx:3494
+#: packages/admin/src/router.tsx:3512
 msgid "Users"
 msgstr "Tài khoản"
 
@@ -16777,7 +16777,7 @@ msgstr "Phiên bản"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:1658
+#: packages/admin/src/components/BlocksField.tsx:1746
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -17014,7 +17014,7 @@ msgstr "Những gì sẽ được nhập"
 msgid "What will happen when you import"
 msgstr "Điều gì sẽ xảy ra khi bạn nhập"
 
-#: packages/admin/src/components/ContentEditor.tsx:2749
+#: packages/admin/src/components/ContentEditor.tsx:2769
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Nội dung bạn vừa nhập vẫn còn nguyên. Nếu lưu, bạn sẽ ghi đè lên phiên bản mới hơn."
 
@@ -17051,7 +17051,7 @@ msgstr "Những loại nội dung có thể dùng phân loại này"
 msgid "Whole number"
 msgstr "Số nguyên"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1195
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1199
 msgid "Why are bylines shown in this order?"
 msgstr "Vì sao tác giả được hiện theo thứ tự này?"
 
@@ -17059,15 +17059,15 @@ msgstr "Vì sao tác giả được hiện theo thứ tự này?"
 msgid "Why can't this be changed?"
 msgstr "Vì sao không thể đổi?"
 
-#: packages/admin/src/components/ContentSettingsPanel.tsx:1155
+#: packages/admin/src/components/ContentSettingsPanel.tsx:1159
 msgid "Why English is used"
 msgstr "Vì sao dùng tiếng Anh"
 
-#: packages/admin/src/components/SeoPanel.tsx:268
+#: packages/admin/src/components/SeoPanel.tsx:269
 msgid "Why is this important for duplicate pages?"
 msgstr "Vì sao điều này quan trọng với các trang trùng lặp?"
 
-#: packages/admin/src/components/SeoPanel.tsx:242
+#: packages/admin/src/components/SeoPanel.tsx:243
 msgid "Why is this important for search result summaries?"
 msgstr "Vì sao điều này quan trọng với phần tóm tắt trong kết quả tìm kiếm?"
 
@@ -17075,7 +17075,7 @@ msgstr "Vì sao điều này quan trọng với phần tóm tắt trong kết qu
 msgid "Why is this important for search result titles?"
 msgstr "Vì sao điều này quan trọng với tiêu đề trong kết quả tìm kiếm?"
 
-#: packages/admin/src/components/SeoPanel.tsx:288
+#: packages/admin/src/components/SeoPanel.tsx:289
 msgid "Why is this important for search visibility?"
 msgstr "Vì sao điều này quan trọng với khả năng hiển thị trên công cụ tìm kiếm?"
 
@@ -17131,7 +17131,7 @@ msgstr "Đã cập nhật tiện ích"
 #: packages/admin/src/components/Sidebar.tsx:535
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1209
-#: packages/admin/src/router.tsx:3460
+#: packages/admin/src/router.tsx:3478
 msgid "Widgets"
 msgstr "Tiện ích"
 
@@ -17304,7 +17304,7 @@ msgstr "Bạn cần quyền quản trị để chuyển trang web này."
 msgid "You need admin permissions to view this page."
 msgstr "Bạn cần quyền quản trị để xem trang này."
 
-#: packages/admin/src/router.tsx:3098
+#: packages/admin/src/router.tsx:3116
 msgid "You need Editor permissions to moderate comments."
 msgstr "Bạn cần quyền biên tập viên để kiểm duyệt bình luận."
 
@@ -17385,7 +17385,7 @@ msgstr "Tài khoản của bạn đã được tạo thành công."
 msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
 msgstr "Trình duyệt của bạn không hỗ trợ khoá truy cập. Vui lòng dùng trình duyệt như: Chrome, Safari, Firefox hoặc Edge."
 
-#: packages/admin/src/components/ContentEditor.tsx:2724
+#: packages/admin/src/components/ContentEditor.tsx:2744
 msgid "Your change to {refusedFieldLabel} wasn’t saved"
 msgstr ""
 
@@ -17486,11 +17486,11 @@ msgstr "Tên của bạn (tuỳ chọn)"
 msgid "Your Role"
 msgstr "Vai trò của bạn"
 
-#: packages/admin/src/router.tsx:2538
+#: packages/admin/src/router.tsx:2554
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "Bạn chỉ có quyền chỉnh sửa mục của mình khi còn ở trạng thái nháp."
 
-#: packages/admin/src/router.tsx:2539
+#: packages/admin/src/router.tsx:2555
 msgid "Your role can't edit this entry."
 msgstr "Bạn không có quyền chỉnh sửa mục này."
 

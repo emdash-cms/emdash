@@ -9,7 +9,7 @@
  * rest still run. Failures are logged but never surface to callers.
  */
 
-import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
+import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import type { Kysely } from "kysely";
 
 import { ACCESS_TOKEN_TTL_SECONDS } from "./auth/api-tokens.js";
@@ -118,10 +118,7 @@ export async function runSystemCleanup(
 
 	// 2. Magic link / invite / signup tokens
 	try {
-		// Cast needed: Database extends AuthTables but uses Generated<> wrappers
-		// that confuse structural checks. The adapter casts internally anyway.
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Database uses Generated<> wrappers incompatible with AuthTables structurally; safe at runtime
-		const authAdapter = createKyselyAdapter(db as unknown as Kysely<AuthTables>);
+		const authAdapter = createKyselyAdapter(db);
 		await authAdapter.deleteExpiredTokens();
 		result.expiredTokens = 0; // deleteExpiredTokens returns void
 	} catch (error) {

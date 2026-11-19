@@ -16,7 +16,7 @@ The CLI detects which fields need conversion by fetching the collection's field 
 
 ### Supported Markdown Syntax
 
-Standard blocks (lossless round-trip):
+Standard blocks:
 
 | Markdown                     | PT block                                   |
 | ---------------------------- | ------------------------------------------ |
@@ -26,7 +26,12 @@ Standard blocks (lossless round-trip):
 | `- item` / `* item`          | bullet list (nesting via 2-space indent)   |
 | `1. item`                    | numbered list (nesting via 2-space indent) |
 | ` ``` ```lang``` `           | code block with language                   |
+| `~~~` fence                  | code block, like a backtick fence          |
 | `![alt](url)`                | image block                                |
+
+Lines inside a paragraph join with a space, so separate paragraphs with a blank line. To keep a line break, end the line with two spaces or a backslash. A backslash before a punctuation character, as in `\*` or `\#`, keeps that character as text.
+
+On read, the CLI ends each internal paragraph line with a backslash and escapes literal Markdown syntax, such as `*`, `_`, or a `#` at the start of a line. List items and quotes can contain hard breaks. Headings with line breaks are written as opaque fences to keep their content intact. Newlines inside inline code become spaces. Markdown conversion can normalize whitespace and span boundaries; use raw mode when you need the exact Portable Text structure.
 
 Inline marks:
 
@@ -34,6 +39,7 @@ Inline marks:
 | ------------- | --------------- |
 | `**bold**`    | `strong`        |
 | `_italic_`    | `em`            |
+| `*italic*`    | `em`            |
 | `` `code` ``  | `code`          |
 | `~~strike~~`  | `strikethrough` |
 | `[text](url)` | link annotation |

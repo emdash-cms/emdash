@@ -2386,6 +2386,40 @@ describe("ContentEditor", () => {
 				return { open, close };
 			}
 
+			it("keeps a settings link pending when its control cannot take focus", async () => {
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const onFieldFocused = vi.fn();
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem(),
+					readOnly: true,
+					focusField: "slug",
+					onFieldFocused,
+				});
+				const panel = getPanel(screen).element();
+				await expect.poll(() => panel.getBoundingClientRect().width).toBeCloseTo(368);
+				await new Promise(requestAnimationFrame);
+				await new Promise(requestAnimationFrame);
+				await expect.element(screen.getByLabelText("Slug")).toBeDisabled();
+				expect(document.activeElement).not.toBe(screen.getByLabelText("Slug").element());
+				expect(onFieldFocused).not.toHaveBeenCalled();
+				await screen.rerender(
+					<ContentEditor
+						collection="posts"
+						collectionLabel="Post"
+						fields={defaultFields}
+						isNew={false}
+						item={makeItem()}
+						focusField="slug"
+						onFieldFocused={onFieldFocused}
+					/>,
+				);
+				await new Promise(requestAnimationFrame);
+				await new Promise(requestAnimationFrame);
+				expect(document.activeElement).not.toBe(screen.getByLabelText("Slug").element());
+				expect(onFieldFocused).not.toHaveBeenCalled();
+			});
+
 			it("hides and shows the panel without unmounting it", async () => {
 				const screen = await renderEditor({ isNew: false, item: makeItem() });
 				const slug = screen.getByLabelText("Slug");
