@@ -37,6 +37,7 @@ const waitUntilReady: Promise<WaitUntilFn | null> = (async () => {
 	try {
 		// Injected or vendored adapters may not be known at config:setup.
 		// @ts-ignore - optional workerd built-in; unavailable on Node
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- workerd's binding has no Node declarations
 		const mod = (await import("cloudflare:workers")) as { waitUntil?: WaitUntilFn };
 		return mod.waitUntil ?? null;
 	} catch {
