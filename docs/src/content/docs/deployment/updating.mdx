@@ -99,7 +99,7 @@ Most releases need nothing beyond the steps above. The entries below cover relea
 
 ### Fixed: media URL link usage
 
-Media usage tracking now counts links to `/_emdash/api/media/file/` URLs in Portable Text paragraph link marks, HTML block `href` and `src` attributes, and whole string or URL field values, including fields inside blocks and repeaters. Both root-relative URLs and full same-site media URLs from **Copy URL** are recognized. Full URLs must match the configured site origin or, if unset, the **Site URL** setting or the URL recorded during setup. If the site has moved, set its current **Site URL** before running the repair.
+Media usage tracking now counts links to `/_emdash/api/media/file/` URLs in Portable Text paragraph link marks, HTML block `href` and `src` attributes, and whole string or URL field values, including fields inside blocks and repeaters. Both root-relative URLs and full same-site media URLs from **Copy URL** are recognized. Full URLs must match the configured site origin or, if unset, the **Site URL** setting or the URL recorded during setup. The **Site URL** setting is used only for HTTPS or loopback HTTP addresses (`localhost`, `127.0.0.1`, or `[::1]`); for other HTTP sites, set `siteUrl` instead (or `EMDASH_SITE_URL` on Node.js). If the site has moved, update its origin before running the repair.
 
 Existing entries are not re-indexed automatically. If tracking was already enabled before this fix, coverage can still report complete while omitting these links, and a linked file can show **No tracked references found**. Do not use that result to decide whether a file is safe to delete until the index is repaired or the affected entries are saved again.
 
