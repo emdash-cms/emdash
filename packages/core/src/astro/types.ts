@@ -551,7 +551,14 @@ export interface EmDashHandlers {
 		input: { size: number; width: number; height: number; contentHash: string },
 	) => Promise<HandlerResponse<MediaResponse>>;
 
-	handleMediaDelete: (id: string) => Promise<HandlerResponse>;
+	handleMediaDelete: (id: string) => Promise<
+		HandlerResponse<{
+			deleted: true;
+			storageKey: string;
+			mimeType: string;
+			storageDeleted: boolean;
+		}>
+	>;
 
 	// Revision handlers
 	handleRevisionList: (

@@ -77,9 +77,33 @@ Creating, editing, or deleting a redirect invalidates the cached page at the red
 
 The comment API routes invalidate `[collection, id]` for the commented entry when a submission is approved immediately, when admin moderation moves a comment into or out of approved status, or when deletion removes an approved comment or reply. Bulk moderation and deletion invalidate only the entries whose approved comments change. Pending submissions, moderation between non-approved statuses, and deletion of non-approved comments without approved replies leave the route cache unchanged. Comment moderation through the plugin API (`ctx.comments.moderate`) does not invalidate the route cache.
 
-Restoring an older revision, and changes to bylines and the media library, invalidate nothing. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again. Scheduled publishing invalidates the published entries' tags on Cloudflare only; see [Provider differences](#provider-differences).
+Restoring an older revision, and changes to bylines and the media library, invalidate no pages. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again. Media files have their own tag; see [Media files](#media-files). Scheduled publishing invalidates the published entries' tags on Cloudflare only; see [Provider differences](#provider-differences).
 
 This is also why the tag convention matters: EmDash invalidates collection names, entry ids, and the `emdash:*` chrome tags. If your route rules use other tag names, the built-in invalidation will not match them and stale entries survive until `maxAge` expires.
+
+## Media files
+
+With a compatible cache provider, such as `cacheCloudflare()`, EmDash caches whole image files served from `/_emdash/api/media/file/` for one year, tagged `emdash:media:<storageKey>`. Resized variants from `/_image` use the same tag and lifetime only with Astro's stock sharp service on Node or `@astrojs/cloudflare/image-service-workerd` on Cloudflare. EmDash does not populate Astro's `memoryCache()` with media responses, regardless of their size. A custom cache provider must keep distinct `href` values and transform options separate in its cache keys and preserve conditional request behavior; configuring a provider alone does not establish that compatibility.
+
+Replacing an image purges that tag, which removes the original and every cached variant at once. Deleting a media item purges it when the stored file was removed: from the admin media library or media picker, the MCP `media_delete` tool, or `ctx.media.delete()` in a plugin route. On Cloudflare, stored files that the hourly cleanup removes later, after a delete could not remove them, are purged then. A failed or rate-limited purge leaves the old image cached until the entry expires; purge the tag again to clear it. The same applies to a response that was still being generated while the purge ran: the cache stores it afterwards with the old image.
+
+Some deletes are not purged:
+
+- Files removed directly from the storage bucket.
+- `ctx.media.delete()` called from a plugin hook or cron job, except on Cloudflare once a Cron Trigger has run in that Worker isolate.
+- On Cloudflare, a sandboxed `ctx.media.delete()` that finishes after its plugin route exceeded the wall-time limit, when the route never completes.
+- Stored files removed by the hourly cleanup on Node.
+- Media whose storage key exceeds 1,011 characters or contains characters other than ASCII letters, digits, `.`, `_` and `-`. EmDash serves these files without automatic route caching. The full `emdash:media:<storageKey>` tag must fit Cloudflare's [1,024-character purge limit](https://developers.cloudflare.com/workers/cache/purge/#attach-tags-on-write).
+
+Audio, video, and other non-image files are not cached. A file URL with a query string, including the admin's `_emdash_media` preview parameter, is not stored in the cache.
+
+For variants, the `href` must be exactly `/_emdash/api/media/file/<storageKey>` or that path prefixed with the request's origin to be stored. A nested query string (including `_emdash_media`), a fragment, a foreign origin, or an alternate spelling of that path keeps the variant out of the cache. These source values pass through unchanged to the existing image handling. Both the relative and same-origin absolute forms are accepted, so they can occupy separate cache entries for the same image and transform.
+
+With either stock image service, a `/_image` URL for EmDash media redirects with a `301` when its outer query has unknown or repeated parameters, lists them in a different order than Astro writes them, or encodes a value differently (for example an `href` with unencoded `/`). This normalization applies even without a cache provider and preserves the `href` value, including any nested query. URLs built by `<Image>` and `getImage()` with the stock services are already canonical. Custom image services keep their existing handling without these redirects or automatic variant caching; EmDash does not strip their parameters.
+
+Browsers still revalidate media on every visit, because browser caches can't be purged.
+
+Middleware that answers these URLs differently depending on a request header, such as serving another image format for some `Accept` values, must set `Vary` naming that header on every response for the URL, including the responses it passes through from EmDash. Without it, the cache serves the first response it stored to every visitor. Responses the middleware builds itself need the same `emdash:media:<storageKey>` tag, so that replacing or deleting the image also purges them.
 
 ## Keep responses out of the cache
 
@@ -113,6 +137,7 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 - A restart empties the cache.
 - `memoryCache()` only stores a response that has a `maxAge`, so a route without a rule is never cached, even if the page calls `Astro.cache.set()` with a cache hint.
 - Scheduled publishing does not invalidate the route cache on Node. A page that lists a scheduled entry shows it once its cached copy expires, so keep `maxAge` short on routes that list scheduled content.
+- EmDash does not automatically cache original media files or resized variants with `memoryCache()`. Its cache-key normalization and conditional request handling do not preserve the media endpoint's behavior. Use a compatible provider for media caching; page caching remains available with `memoryCache()`.
 
 ### Cloudflare with `cacheCloudflare()`
 
@@ -124,7 +149,7 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 
 #### Purge rate limits
 
-The Cloudflare provider invalidates by purging the Workers Cache. Workers Cache purges always use Cloudflare's [Free plan purge limits](https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits), whatever plan your account is on: 5 requests per minute with a burst of 25, per account (see [Purge rate limits](https://developers.cloudflare.com/workers/cache/purge/#rate-limits)). Most content writes cost one purge request each: saves that change live content (including autosaves in collections that save directly to the live entry), publishing, unpublishing, deleting, restoring, scheduling, and assigning taxonomy terms to an entry, plus every settings, menu, taxonomy, or widget edit. A redirect write costs one purge request per source path variant, so up to four when a redirect's source changes.
+The Cloudflare provider invalidates by purging the Workers Cache. Workers Cache purges always use Cloudflare's [Free plan purge limits](https://developers.cloudflare.com/cache/how-to/purge-cache/#availability-and-limits), whatever plan your account is on: 5 requests per minute with a burst of 25, per account (see [Purge rate limits](https://developers.cloudflare.com/workers/cache/purge/#rate-limits)). Most content writes cost one purge request each: saves that change live content (including autosaves in collections that save directly to the live entry), publishing, unpublishing, deleting, restoring, scheduling, and assigning taxonomy terms to an entry, plus every settings, menu, taxonomy, or widget edit. Replacing an image, and deleting one whose stored file was removed, costs one purge request each, so a bulk delete of images in the media library can use up the burst on its own. Deleting other files, such as documents, audio or video, costs none. A redirect write costs one purge request per source path variant, so up to four when a redirect's source changes.
 
 Each comment approved on submission costs one purge request, even when submitted by a logged-out visitor. Each admin comment status change or deletion that changes the approved comments shown on a page costs one request. A bulk comment action that changes approved comments costs one or two purge requests, depending on how many entries it touches. Actions that leave approved comments unchanged cost none.
 
