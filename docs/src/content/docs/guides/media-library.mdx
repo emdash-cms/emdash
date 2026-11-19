@@ -250,11 +250,14 @@ settings that select the file: **Logo**, **Favicon**, or **Default Social Image*
 **Used in** checks these references:
 
 - image and file fields
-- image fields inside repeaters
-- image, file, and Portable Text fields inside `blocks` fields
+- image, string, and URL fields inside repeaters
+- image, file, string, URL, and Portable Text fields inside `blocks` fields
 - image, gallery, and video blocks in Portable Text fields, including blocks that refer to the file by
   its `/_emdash/api/media/file/` URL instead of its media ID, as Markdown images written through MCP
   or the CLI do
+- links to a local file's `/_emdash/api/media/file/` URL in Portable Text link marks, `href` or
+  `src` attributes in HTML blocks, and whole string or URL field values; query strings and fragments
+  do not change which file is counted
 - the site logo, favicon, and default social image
 
 When usage coverage is complete and the file has none of these references, the list shows **No

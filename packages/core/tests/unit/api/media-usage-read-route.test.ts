@@ -279,6 +279,25 @@ describe("media usage details handler and route", () => {
 		expect(mediaUsageDetailsResponseSchema.parse(result.data)).toEqual(result.data);
 	});
 
+	it("reports a local file URL link reference", async () => {
+		await new MediaUsageRepository(db).replaceSource(contentSource("entry-link", "columns"), [
+			occurrence("body", "body[0].markDefs[0].href", "link", unreferencedMedia.id),
+		]);
+
+		const result = await handleMediaUsageDetails(db, unreferencedMedia.id, { limit: 10 });
+
+		if (!result.success) throw new Error("Expected media usage details");
+		expect(result.data.items[0]?.sources[0]?.occurrences).toEqual([
+			{
+				fieldSlug: "body",
+				fieldPath: "body[0].markDefs[0].href",
+				occurrenceIndex: 0,
+				referenceType: "link",
+			},
+		]);
+		expect(mediaUsageDetailsResponseSchema.parse(result.data)).toEqual(result.data);
+	});
+
 	it("returns empty details plus coverage for an existing unreferenced media item", async () => {
 		const result = await handleMediaUsageDetails(db, unreferencedMedia.id, {});
 
@@ -484,7 +503,12 @@ function contentSource(
 function occurrence(
 	fieldSlug: string,
 	fieldPath: string,
-	referenceType: "image_field" | "file_field" | "portable_text_image" | "portable_text_video",
+	referenceType:
+		| "image_field"
+		| "file_field"
+		| "portable_text_image"
+		| "portable_text_video"
+		| "link",
 	mediaId: string,
 	occurrenceIndex = 0,
 ): Parameters<MediaUsageRepository["replaceSource"]>[1][number] {

@@ -1,3 +1,5 @@
+import { Parser } from "htmlparser2";
+
 import { isPortableTextVideoBlock } from "../../content/converters/video.js";
 import { normalizeMime } from "../mime.js";
 import { INTERNAL_MEDIA_PREFIX } from "../normalize.js";
@@ -38,6 +40,11 @@ export function extractMediaUsageOccurrences({
 
 	for (const field of fields) {
 		const value = data[field.slug];
+
+		if (field.type === "string" || field.type === "url") {
+			addLinkOccurrence(occurrences, seen, field.slug, field.slug, value);
+			continue;
+		}
 
 		if (field.type === "image") {
 			addImageOccurrences(occurrences, seen, field.slug, field.slug, value);
@@ -87,6 +94,16 @@ function extractRepeaterOccurrences(
 		if (!isRecord(item)) continue;
 
 		for (const subField of subFields) {
+			if (subField.type === "string" || subField.type === "url") {
+				addLinkOccurrence(
+					occurrences,
+					seen,
+					fieldSlug,
+					`${pathPrefix}[${itemIndex}].${subField.slug}`,
+					item[subField.slug],
+				);
+				continue;
+			}
 			if (subField.type !== "image") continue;
 
 			addImageOccurrences(
@@ -136,6 +153,42 @@ function extractPortableTextOccurrences(
 
 	for (const [blockIndex, block] of value.entries()) {
 		if (!isRecord(block)) continue;
+
+		if (block._type === "block" && Array.isArray(block.markDefs)) {
+			for (const [markIndex, mark] of block.markDefs.entries()) {
+				if (!isRecord(mark)) continue;
+				addLinkOccurrence(
+					occurrences,
+					seen,
+					fieldSlug,
+					`${pathPrefix}[${blockIndex}].markDefs[${markIndex}].href`,
+					mark.href,
+				);
+			}
+		}
+
+		if (block._type === "htmlBlock" && typeof block.html === "string") {
+			const keys = new Set<string>();
+			new Parser({
+				onopentag(_name, attribs) {
+					for (const name of ["href", "src"]) {
+						const url = attribs[name];
+						const key = typeof url === "string" ? storageKeyFromLocalMediaFileUrl(url) : null;
+						if (key && !keys.has(key)) {
+							addLinkOccurrence(
+								occurrences,
+								seen,
+								fieldSlug,
+								`${pathPrefix}[${blockIndex}].html`,
+								url,
+								keys.size,
+							);
+							keys.add(key);
+						}
+					}
+				},
+			}).end(block.html);
+		}
 
 		if (block._type === "image") {
 			addPortableTextAssetOccurrence(
@@ -217,7 +270,9 @@ function extractBlockOccurrences(
 		for (const nestedField of version.fields) {
 			const nestedValue = block[nestedField.slug];
 			const nestedPath = `${pathPrefix}.${nestedField.slug}`;
-			if (nestedField.type === "image") {
+			if (nestedField.type === "string" || nestedField.type === "url") {
+				addLinkOccurrence(occurrences, seen, field.slug, nestedPath, nestedValue);
+			} else if (nestedField.type === "image") {
 				addImageOccurrences(occurrences, seen, field.slug, nestedPath, nestedValue);
 			} else if (nestedField.type === "file") {
 				addOccurrence(occurrences, seen, {
@@ -286,6 +341,32 @@ function addPortableTextAssetOccurrence(
 	});
 }
 
+function addLinkOccurrence(
+	occurrences: ExtractedMediaUsageOccurrence[],
+	seen: Set<string>,
+	fieldSlug: string,
+	fieldPath: string,
+	value: unknown,
+	occurrenceIndex = 0,
+): void {
+	const storageKey = typeof value === "string" ? storageKeyFromLocalMediaFileUrl(value) : null;
+	if (!storageKey) return;
+	addRefOccurrence(occurrences, seen, {
+		fieldSlug,
+		fieldPath,
+		occurrenceIndex,
+		referenceType: "link",
+		ref: {
+			mediaId: null,
+			provider: "local",
+			providerAssetId: storageKey,
+			storageKey,
+			mediaKind: null,
+			mimeType: null,
+		},
+	});
+}
+
 function addOccurrence(
 	occurrences: ExtractedMediaUsageOccurrence[],
 	seen: Set<string>,
@@ -309,6 +390,7 @@ function addRefOccurrence(
 		fieldSlug: string;
 		fieldPath: string;
 		referenceType: MediaUsageReferenceType;
+		occurrenceIndex?: number;
 		ref: MediaRef | null;
 	},
 ): void {
@@ -317,7 +399,7 @@ function addRefOccurrence(
 	const occurrence: ExtractedMediaUsageOccurrence = {
 		fieldSlug: input.fieldSlug,
 		fieldPath: input.fieldPath,
-		occurrenceIndex: 0,
+		occurrenceIndex: input.occurrenceIndex ?? 0,
 		referenceType: input.referenceType,
 		mediaId: input.ref.mediaId,
 		provider: input.ref.provider,

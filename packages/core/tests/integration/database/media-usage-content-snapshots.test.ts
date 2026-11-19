@@ -101,6 +101,7 @@ describeEachDialect("content media usage snapshots", (dialect) => {
 				type: "repeater",
 				validation: { subFields: [{ slug: "image", type: "image" }] },
 			},
+			{ slug: "title", type: "string" },
 		]);
 		expect(snapshot.occurrences).toEqual([
 			expect.objectContaining({ fieldPath: "attachment", mediaId: "media-file" }),
