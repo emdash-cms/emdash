@@ -1041,7 +1041,7 @@ export function MediaPickerModal({
 					/>
 				) : null}
 				{!assetOpen ? (
-					<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-5 py-4 sm:px-7">
+					<header className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-5 py-3 sm:px-7 sm:py-4">
 						<div className="min-w-0">
 							<Dialog.Title className="text-lg font-semibold leading-6">{title}</Dialog.Title>
 							<Dialog.Description className="mt-1 text-sm leading-5 text-kumo-subtle">
@@ -1080,19 +1080,23 @@ export function MediaPickerModal({
 					}}
 				>
 					{hasSourceControls && (
-						<div className="flex shrink-0 flex-wrap items-center gap-2 px-5 py-4 sm:px-7">
+						<div className="flex shrink-0 flex-col gap-2 px-5 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:px-7 sm:py-4">
 							{sourceTabs.length > 1 && (
-								<div aria-disabled={uploadQueue.hasUnfinished || undefined} data-source-tabs>
+								<div
+									className="min-w-0 max-w-full"
+									aria-disabled={uploadQueue.hasUnfinished || undefined}
+									data-source-tabs
+								>
 									<Tabs
 										variant="segmented"
 										size="base"
-										listClassName="px-px"
+										listClassName="w-full px-px sm:w-auto"
 										indicatorClassName="rounded-[7px]"
 										value={activeSource}
 										onValueChange={changeSource}
 										tabs={sourceTabs.map((source) => ({
 											value: source.id,
-											className: `my-px h-[34px] rounded-[7px] ${source.id === "local" || source.id === URL_SOURCE || source.icon ? "ps-2.5 pe-3" : "px-3"}`,
+											className: `my-px h-[34px] flex-1 rounded-[7px] sm:flex-none ${source.id === "local" || source.id === URL_SOURCE || source.icon ? "ps-2.5 pe-3" : "px-3"}`,
 											render: (props) => <button {...props} disabled={uploadQueue.hasUnfinished} />,
 											label: (
 												<span className="flex items-center gap-2">
@@ -1119,7 +1123,7 @@ export function MediaPickerModal({
 									<Button
 										variant="outline"
 										size="base"
-										className="ms-auto"
+										className="w-full sm:ms-auto sm:w-auto"
 										onClick={() => fileInputRef.current?.click()}
 										icon={<Upload aria-hidden="true" />}
 									>
@@ -1224,7 +1228,7 @@ export function MediaPickerModal({
 					) : (
 						<>
 							<div
-								className={`shrink-0 space-y-4 px-5 sm:px-7 ${hasSourceControls ? "pb-4" : "py-4"}`}
+								className={`shrink-0 space-y-4 px-5 sm:px-7 ${hasSourceControls ? "pb-3 sm:pb-4" : "py-3 sm:py-4"}`}
 							>
 								{folderId && activeSource === "local" && (
 									<div className="flex min-w-0 items-center gap-2">
@@ -1262,6 +1266,7 @@ export function MediaPickerModal({
 								)}
 
 								<TableToolbar
+									className="grid grid-cols-[minmax(0,1fr)_auto] items-center [&>div:first-child]:contents sm:flex sm:[&>div:first-child]:flex"
 									trailing={
 										<div role="group" aria-label={t`View mode`}>
 											<Tabs
@@ -1312,7 +1317,7 @@ export function MediaPickerModal({
 												if (activeSource === "local") resetPage();
 											}}
 											maxLength={MEDIA_SEARCH_MAX_LENGTH}
-											className="basis-full sm:w-72 sm:basis-auto"
+											className="col-span-2 basis-full sm:w-72 sm:basis-auto"
 										/>
 									)}
 									{activeSource === "local" && (
@@ -1471,6 +1476,7 @@ export function MediaPickerModal({
 											) : viewMode === "grid" ? (
 												<Grid
 													variant="4up"
+													className="grid-cols-2"
 													gap="sm"
 													inert={currentFetching || undefined}
 													data-media-items
@@ -1573,7 +1579,7 @@ export function MediaPickerModal({
 
 							{activeSource === "local" && totalCount > 0 && (
 								<div
-									className="shrink-0 border-t border-kumo-line px-5 py-3 sm:px-7"
+									className="shrink-0 border-t border-kumo-line px-5 py-2 sm:px-7 sm:py-3"
 									data-media-pagination
 								>
 									<Pagination
