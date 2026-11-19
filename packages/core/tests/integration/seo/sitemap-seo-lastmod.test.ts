@@ -228,6 +228,20 @@ describeEachDialect("sitemap SEO lastmod", (dialect) => {
 		});
 	});
 
+	it("can set and clear noIndex without losing existing SEO fields", async () => {
+		const post = await publishedPost();
+		await seo.upsert("post", post.id, { title: "Keep this title", noIndex: true });
+		const hidden = await handleSitemapData(ctx.db, "post");
+		expect(hidden.data!.collections).toEqual([]);
+
+		expect(await seo.upsert("post", post.id, { noIndex: false })).toMatchObject({
+			title: "Keep this title",
+			noIndex: false,
+		});
+		const visible = await handleSitemapData(ctx.db, "post");
+		expect(visible.data!.collections[0].entries[0].id).toBe(post.id);
+	});
+
 	it("does not use one locale sibling's SEO update for another locale", async () => {
 		const en = await publishedPost("hello", "en");
 		const fr = await publishedPost("bonjour", "fr", en.id);

@@ -128,6 +128,35 @@ export class SeoRepository {
 		}
 
 		const now = new Date().toISOString();
+		const changed = [
+			input.title !== undefined && sql`_emdash_seo.seo_title IS DISTINCT FROM excluded.seo_title`,
+			input.description !== undefined &&
+				sql`_emdash_seo.seo_description IS DISTINCT FROM excluded.seo_description`,
+			input.image !== undefined && sql`_emdash_seo.seo_image IS DISTINCT FROM excluded.seo_image`,
+			input.canonical !== undefined &&
+				sql`_emdash_seo.seo_canonical IS DISTINCT FROM excluded.seo_canonical`,
+			input.noIndex !== undefined &&
+				sql`_emdash_seo.seo_no_index IS DISTINCT FROM excluded.seo_no_index`,
+		].filter((condition) => condition !== false);
+		const hasNonDefaultValue =
+			input.title != null ||
+			input.description != null ||
+			input.image != null ||
+			input.canonical != null ||
+			input.noIndex === true;
+		const values = sql`
+			${collection}, ${contentId},
+			${input.title ?? null}, ${input.description ?? null},
+			${input.image ?? null}, ${input.canonical ?? null},
+			CAST(${input.noIndex ? 1 : 0} AS INTEGER),
+			${now}, ${now}
+		`;
+		const source = hasNonDefaultValue
+			? sql`VALUES (${values})`
+			: sql`SELECT ${values} WHERE EXISTS (
+				SELECT 1 FROM _emdash_seo
+				WHERE collection = ${collection} AND content_id = ${contentId}
+			)`;
 
 		// Use INSERT ON CONFLICT for atomic upsert — avoids TOCTOU race
 		// where two concurrent requests both see "no row" and both try INSERT.
@@ -139,17 +168,7 @@ export class SeoRepository {
 				collection, content_id,
 				seo_title, seo_description, seo_image, seo_canonical, seo_no_index,
 				created_at, updated_at
-			) SELECT
-				${collection}, ${contentId},
-				${input.title ?? null}, ${input.description ?? null},
-				${input.image ?? null}, ${input.canonical ?? null},
-				${input.noIndex ? 1 : 0},
-				${now}, ${now}
-			WHERE ${input.title != null || input.description != null || input.image != null || input.canonical != null || input.noIndex === true}
-				OR EXISTS (
-					SELECT 1 FROM _emdash_seo
-					WHERE collection = ${collection} AND content_id = ${contentId}
-				)
+			) ${source}
 			ON CONFLICT (collection, content_id) DO UPDATE SET
 				seo_title = ${input.title !== undefined ? sql`${input.title}` : sql`_emdash_seo.seo_title`},
 				seo_description = ${input.description !== undefined ? sql`${input.description}` : sql`_emdash_seo.seo_description`},
@@ -157,12 +176,7 @@ export class SeoRepository {
 				seo_canonical = ${input.canonical !== undefined ? sql`${input.canonical}` : sql`_emdash_seo.seo_canonical`},
 				seo_no_index = ${input.noIndex !== undefined ? sql`${input.noIndex ? 1 : 0}` : sql`_emdash_seo.seo_no_index`},
 				updated_at = ${now}
-			WHERE
-				(${input.title !== undefined} AND _emdash_seo.seo_title IS DISTINCT FROM excluded.seo_title)
-				OR (${input.description !== undefined} AND _emdash_seo.seo_description IS DISTINCT FROM excluded.seo_description)
-				OR (${input.image !== undefined} AND _emdash_seo.seo_image IS DISTINCT FROM excluded.seo_image)
-				OR (${input.canonical !== undefined} AND _emdash_seo.seo_canonical IS DISTINCT FROM excluded.seo_canonical)
-				OR (${input.noIndex !== undefined} AND _emdash_seo.seo_no_index IS DISTINCT FROM excluded.seo_no_index)
+			WHERE ${sql.join(changed, sql` OR `)}
 		`.execute(this.db);
 
 		invalidateCollectionCache(collection);
