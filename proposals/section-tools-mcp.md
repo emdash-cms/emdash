@@ -20,13 +20,13 @@ This came up while managing EmDash sites through Tedix.
 
 Register five tools in `packages/core/src/mcp/server.ts`. Call the section handlers in process with the MCP runtime's database, and return their results through the standard MCP response wrapper. [In-process registration pattern](https://github.com/emdash-cms/emdash/blob/01f717df78a544e1033dbf58f6aa8e1f963c3bc5/packages/core/src/mcp/server.ts#L2139-L2199) · [Section handlers](https://github.com/emdash-cms/emdash/blob/01f717df78a544e1033dbf58f6aa8e1f963c3bc5/packages/core/src/api/handlers/sections.ts#L24-L296) · [MCP response wrapper](https://github.com/emdash-cms/emdash/blob/01f717df78a544e1033dbf58f6aa8e1f963c3bc5/packages/core/src/mcp/server.ts#L514-L532)
 
-| Tool | Input | Result |
-| --- | --- | --- |
-| `section_list` | Optional `search`, `source`, `limit` and `cursor` | `{ items, nextCursor? }` |
-| `section_get` | Section slug | Section record |
-| `section_create` | Create schema fields | Created section record |
-| `section_update` | Current slug and partial update fields, including an optional replacement slug | Updated section record |
-| `section_delete` | Section slug | `{ deleted: true }` |
+| Tool             | Input                                                                          | Result                   |
+| ---------------- | ------------------------------------------------------------------------------ | ------------------------ |
+| `section_list`   | Optional `search`, `source`, `limit` and `cursor`                              | `{ items, nextCursor? }` |
+| `section_get`    | Section slug                                                                   | Section record           |
+| `section_create` | Create schema fields                                                           | Created section record   |
+| `section_update` | Current slug and partial update fields, including an optional replacement slug | Updated section record   |
+| `section_delete` | Section slug                                                                   | `{ deleted: true }`      |
 
 Reuse `sectionsListQuery`, `createSectionBody` and `updateSectionBody`, and use the existing section and list response shapes. Listing defaults to 50 items and accepts 1–100. Use the returned `nextCursor` with the same filters to get the next page. Search matches title, description and keywords. Source can be `theme`, `user` or `import`. [Section schemas](https://github.com/emdash-cms/emdash/blob/01f717df78a544e1033dbf58f6aa8e1f963c3bc5/packages/core/src/api/schemas/sections.ts#L7-L67) · [List query and pagination](https://github.com/emdash-cms/emdash/blob/01f717df78a544e1033dbf58f6aa8e1f963c3bc5/packages/core/src/sections/index.ts#L112-L166) · [Delete result](https://github.com/emdash-cms/emdash/blob/01f717df78a544e1033dbf58f6aa8e1f963c3bc5/packages/core/src/api/handlers/sections.ts#L256-L289)
 
