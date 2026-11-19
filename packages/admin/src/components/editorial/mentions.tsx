@@ -173,13 +173,20 @@ export function useMentionPicker({
 
 	const query = useDebouncedValue(trigger?.query ?? "", SEARCH_DEBOUNCE_MS);
 
-	const { data: people = [] } = useQuery({
+	const { data: results = [], isPlaceholderData } = useQuery({
 		queryKey: ["editorial-mentionable", entry?.collection, entry?.id, query],
 		queryFn: () => fetchEditorialMentionable(entry!, query),
 		enabled: open,
 		staleTime: 30_000,
 		placeholderData: (previous) => previous,
 	});
+	const typed = trigger?.query ?? "";
+	const term = typed.trim().toLowerCase();
+	// Until results for what's typed arrive, offer only earlier results that still match it.
+	const people =
+		query === typed && !isPlaceholderData
+			? results
+			: results.filter((person) => !term || person.name?.toLowerCase().includes(term));
 	const showList = open && people.length > 0;
 	const active = Math.min(activeIndex, people.length - 1);
 
