@@ -66,15 +66,15 @@ The `href` stays absolute, against the site's public origin, as today. Every tra
 />
 ```
 
-| Request                                                          | Response                                                                                 |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| A URL from the page, unchanged                                   | `200` with the variant, or the cached variant                                            |
-| The same URL with `w=1201`                                       | `403`, no storage read, no fetch and no transform                                        |
-| The same URL with its parameters reordered                       | stored media: `301` to the canonical form, keeping `_emdash_sig`; other sources: `200`, verified over the canonical query |
-| No `_emdash_sig`, from a visitor or a Subscriber                 | `403`                                                                                    |
-| No `_emdash_sig`, from a Contributor or above (a library thumbnail) | `200`, kept out of the shared cache as today (#4475)                                  |
-| A bundled asset or an allowed remote image, rendered by the site | signed like any other transform URL, so `200`                                            |
-| Any `/_image` URL written by hand                                | `403` for visitors and Subscribers                                                       |
+| Request                                                             | Response                                                                                                                  |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| A URL from the page, unchanged                                      | `200` with the variant, or the cached variant                                                                             |
+| The same URL with `w=1201`                                          | `403`, no storage read, no fetch and no transform                                                                         |
+| The same URL with its parameters reordered                          | stored media: `301` to the canonical form, keeping `_emdash_sig`; other sources: `200`, verified over the canonical query |
+| No `_emdash_sig`, from a visitor or a Subscriber                    | `403`                                                                                                                     |
+| No `_emdash_sig`, from a Contributor or above (a library thumbnail) | `200`, kept out of the shared cache as today (#4475)                                                                      |
+| A bundled asset or an allowed remote image, rendered by the site    | signed like any other transform URL, so `200`                                                                             |
+| Any `/_image` URL written by hand                                   | `403` for visitors and Subscribers                                                                                        |
 
 ## Goals
 
@@ -251,6 +251,7 @@ Each slice lands with its tests. The options schema accepts `signedUrls` only fr
   - a configured Astro `base` (`/blog/_emdash/api/media/file/…`), which the router strips (on Node).
 
   The sixth was a redirect on the site (for example, one an editor created) from any path to a media URL: Astro's fetch follows it, and no `href` test can see it. Signing every transform URL removes the test, and also bounds transforms of remote images, which cost the same on Cloudflare.
+
 - **An allow-list of widths, qualities and formats, rejecting or snapping other values.** This is the approach in #4214's report, and Next.js's `deviceSizes`, `imageSizes` and `qualities`. EmDash's renderers request exact sizes: `responsiveWidths` adds each image's rendered width and its 2× or original width to the breakpoint list, and heights follow each template's aspect ratio. A list either refuses URLs EmDash itself builds, or grows large enough to bound little. Making it work means snapping EmDash's output to the list, which changes how every site renders images. Next.js can use lists because it controls a fixed width ladder.
 - **Named presets**, like Cloudflare Images' predefined variants or Cloudflare's advice to name a preset in the URL. Presets suit a fixed set of renditions. EmDash's `Image` API takes arbitrary widths and heights, so presets would change the public API and every template.
 - **Signing only in EmDash's own components.** Astro's `<Image>` and `getImage()` are common in EmDash templates for stored media. They would emit unsigned URLs that break.
@@ -282,26 +283,26 @@ Each slice lands with its tests. The options schema accepts `signedUrls` only fr
 
 The prototype is [`proto/signed-image-urls`](https://github.com/bimsonz/emdash/tree/proto/signed-image-urls) on `bimsonz/emdash` (head [`c046e6c0d976635eee5b45abefbc687bcbc73beb`](https://github.com/bimsonz/emdash/commit/c046e6c0d976635eee5b45abefbc687bcbc73beb)). Production builds of scratch copies of the two starter templates, with test pages added, were checked with `curl`, in a browser, and with an independent HMAC computation: Astro 7.3.2 with `@astrojs/cloudflare` 14.3.1 under `wrangler dev` 4.125.0, and `@astrojs/node` 11.1.5 with sharp 0.35.4. The rows below come from a full run at `f3ab82ecb` and a smoke run at `7f2bd5a8c`, after the changes review asked for; the one later commit keeps the request's origin when a path starts with `//`.
 
-| Check                                                         | Cloudflare                                                        | Node                                             |
-| ------------------------------------------------------------- | ----------------------------------------------------------------- | ------------------------------------------------ |
-| Rendered transform URLs signed, `_emdash_sig` last            | 206 URLs, 100 unique; at head 23 of 23                            | 147 URLs, 73 unique; at head 127 of 127          |
-| Unique URLs, logged out                                       | `200` (100 of 100; at head 20 of 20)                              | `200` (73 of 73; at head 75 of 75)               |
-| Edited `w`; signature stripped                                | `403`; `403`                                                      | `403` (75 of 75 each, at head)                   |
-| Reordered stored-media URL                                    | `301` keeping the signature, then `200`                           | `301` keeping the signature (30 of 30, at head)  |
-| Signed bundled or remote URL with an extra parameter          | `200` (at head)                                                   | `200` (45 of 45, at head)                        |
-| Independent HMAC over the canonical query                     | 100 of 100 match; 0 with another secret                           |                                                  |
-| `EMDASH_IMAGE_SECRET` with the database binding broken        | signed `200`, edited `403`; without the secret `503` (at head)    |                                                  |
-| Non-root `base`, `assetQueryParams`, streaming, rotation      |                                                                   | all served `200`, no redirect                    |
-| Prerender with no secret                                      | build fails naming `EMDASH_IMAGE_SECRET` (default mode)           | passes; no `/_image` URLs                        |
-| Prerender with the secret under `secrets.required`            | signed and `200`; a different runtime secret `403`                |                                                  |
-| Secret row written by a prerender build                       | none (at head)                                                    | none (at head)                                   |
-| `getImage()` in `getStaticPaths`                              |                                                                   | replaced by a static file, with or without the secret |
-| `compile` and `custom` modes                                  | build, warn naming `cloudflare-binding`, signing off              |                                                  |
-| Unsigned thumbnail: anonymous, Contributor, Subscriber        | `403`, `200`, `403` (production build, at head)                   |                                                  |
-| Persisted secret across a restart                             |                                                                   | `200` before any render; byte-identical HTML     |
-| Queries on a cold render of `/`, signing off and on           |                                                                   | 12 and 12; the first request after enabling adds the one insert |
-| Signing off                                                   | no signature, no secret row after 34 requests                     | no signature, no secret row after 120 requests   |
-| 420 signed URLs, median of 5 runs                             | `curl` 6.2 → 10.4 ms; Worker span 4 → 8 ms; HTML +16.4 KB, gzip +7.9 KB |                                          |
+| Check                                                    | Cloudflare                                                              | Node                                                            |
+| -------------------------------------------------------- | ----------------------------------------------------------------------- | --------------------------------------------------------------- |
+| Rendered transform URLs signed, `_emdash_sig` last       | 206 URLs, 100 unique; at head 23 of 23                                  | 147 URLs, 73 unique; at head 127 of 127                         |
+| Unique URLs, logged out                                  | `200` (100 of 100; at head 20 of 20)                                    | `200` (73 of 73; at head 75 of 75)                              |
+| Edited `w`; signature stripped                           | `403`; `403`                                                            | `403` (75 of 75 each, at head)                                  |
+| Reordered stored-media URL                               | `301` keeping the signature, then `200`                                 | `301` keeping the signature (30 of 30, at head)                 |
+| Signed bundled or remote URL with an extra parameter     | `200` (at head)                                                         | `200` (45 of 45, at head)                                       |
+| Independent HMAC over the canonical query                | 100 of 100 match; 0 with another secret                                 |                                                                 |
+| `EMDASH_IMAGE_SECRET` with the database binding broken   | signed `200`, edited `403`; without the secret `503` (at head)          |                                                                 |
+| Non-root `base`, `assetQueryParams`, streaming, rotation |                                                                         | all served `200`, no redirect                                   |
+| Prerender with no secret                                 | build fails naming `EMDASH_IMAGE_SECRET` (default mode)                 | passes; no `/_image` URLs                                       |
+| Prerender with the secret under `secrets.required`       | signed and `200`; a different runtime secret `403`                      |                                                                 |
+| Secret row written by a prerender build                  | none (at head)                                                          | none (at head)                                                  |
+| `getImage()` in `getStaticPaths`                         |                                                                         | replaced by a static file, with or without the secret           |
+| `compile` and `custom` modes                             | build, warn naming `cloudflare-binding`, signing off                    |                                                                 |
+| Unsigned thumbnail: anonymous, Contributor, Subscriber   | `403`, `200`, `403` (production build, at head)                         |                                                                 |
+| Persisted secret across a restart                        |                                                                         | `200` before any render; byte-identical HTML                    |
+| Queries on a cold render of `/`, signing off and on      |                                                                         | 12 and 12; the first request after enabling adds the one insert |
+| Signing off                                              | no signature, no secret row after 34 requests                           | no signature, no secret row after 120 requests                  |
+| 420 signed URLs, median of 5 runs                        | `curl` 6.2 → 10.4 ms; Worker span 4 → 8 ms; HTML +16.4 KB, gzip +7.9 KB |                                                                 |
 
 A throwaway Worker on `workers.dev`, serving `Cache-Control: public, max-age=3600`, was deployed four times and then deleted. Under the default configuration, a page cached by the previous version was a `MISS` after a deploy. With `cache.cross_version_cache: true`, the new version served the previous version's page as a `HIT` (`age: 25`); turning the setting on was itself a cold start.
 
