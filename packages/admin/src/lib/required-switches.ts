@@ -33,6 +33,9 @@ function rowWithSwitchesOff(slugs: string[], row: unknown): unknown {
  * rows saved before the switch was added. A switch shows a missing value as off, but
  * the server refuses to save a required one without a value.
  *
+ * Optional switches stay unset: an update copies each non-translatable value it sends
+ * to the entry's other locales, so a filled `false` would overwrite theirs.
+ *
  * Returns `data` itself when no value is missing.
  */
 export function withRequiredSwitchesOff(
