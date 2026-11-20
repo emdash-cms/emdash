@@ -249,4 +249,24 @@ describe("unsupported blocks", () => {
 			);
 		});
 	});
+
+	it("does not offer URL editing for a registered block that declares an empty fields list", async () => {
+		const screen = await render(
+			<PortableTextEditor
+				value={[{ _type: "test.divider", _key: "divider-1" }]}
+				pluginBlocks={[
+					{ type: "test.divider", pluginId: "test", label: "Plain Divider", fields: [] },
+				]}
+			/>,
+		);
+
+		await expect.element(screen.getByText("Plain Divider", { exact: true })).toBeVisible();
+		expect(screen.getByRole("button", { name: "Edit URL", exact: true }).query()).toBeNull();
+		expect(screen.getByRole("button", { name: "Edit", exact: true }).query()).toBeNull();
+		expect(
+			screen
+				.getByText("No editor is available for this block type. Its content is preserved.")
+				.query(),
+		).toBeNull();
+	});
 });
