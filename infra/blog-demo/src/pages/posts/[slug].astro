@@ -1,6 +1,7 @@
 ---
 import {
 	getEmDashEntry,
+	getWidgetArea,
 	getEmDashCollection,
 	getTermsForEntries,
 	getSeoMeta,
@@ -25,11 +26,11 @@ if (!slug) {
 
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
 
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
 if (!post) {
 	return Astro.rewrite("/404");
 }
-
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 // Get featured image URL for OG fallback
 // The image may have src (external) or meta.storageKey (local)
@@ -74,13 +75,31 @@ const readingTime = getReadingTime(post.data.content);
 const tags = post.data.terms?.tag ?? [];
 
 // Fetch a few extra recent posts in case the current post is among them.
-const { entries: recentPosts, cacheHint: recentPostsCacheHint } =
-	await getEmDashCollection("posts", {
-		orderBy: { published_at: "desc" },
-		limit: 4,
-	});
-if (Astro.cache?.enabled) Astro.cache.set(recentPostsCacheHint);
+const { entries: recentPosts } = await getEmDashCollection("posts", {
+	orderBy: { published_at: "desc" },
+	limit: 4,
+});
 const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
+if (Astro.cache?.enabled) Astro.cache.set({ tags: otherPosts.map((p) => p.data.id) });
+
+// Recent Posts widgets render after the response headers are sent, so tag their entries
+// here. The widgets reuse these results.
+if (Astro.cache?.enabled) {
+	const areas = await Promise.all([getWidgetArea("sidebar"), getWidgetArea("footer")]);
+	const recentPostsWidgets = areas.flatMap((area) => area?.widgets ?? []).filter(
+		(widget) => widget.componentId === "core:recent-posts",
+	);
+	const lists = await Promise.all(
+		recentPostsWidgets.map((widget) =>
+			getEmDashCollection("posts", {
+				orderBy: { published_at: "desc" },
+				limit: widget.componentProps?.count === undefined ? 5 : (widget.componentProps.count as number),
+				locale: Astro.currentLocale,
+			}),
+		),
+	);
+	Astro.cache.set({ tags: lists.flatMap(({ entries }) => entries.map((p) => p.data.id)) });
+}
 
 // Single batched query for related-posts tags, rather than one
 // getEntryTerms() call per related post.
