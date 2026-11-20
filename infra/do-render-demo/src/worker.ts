@@ -9,8 +9,6 @@ import { DurableObject, tracing } from "cloudflare:workers";
 
 import { registerStorage } from "./do-local-db.js";
 
-type Env = Record<string, unknown>;
-
 export class SiteDO extends DurableObject<Env> {
 	constructor(ctx: DurableObjectState, env: Env) {
 		super(ctx, env);

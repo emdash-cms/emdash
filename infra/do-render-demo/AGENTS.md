@@ -2,9 +2,12 @@ This is an EmDash site -- a CMS built on Astro with a full admin UI.
 
 ## Commands
 
+Run `pnpm build` at the repository root first; the scripts below build only this site, not the workspace packages it imports.
+
 ```bash
 pnpm dev              # Build, then run the front Worker and the SiteDO backend with wrangler dev
-pnpm deploy           # Build, deploy the backend Worker, then the front Worker
+pnpm run deploy       # Build, deploy the backend Worker, then the front Worker
+pnpm cf-typegen       # Regenerate worker-configuration.d.ts after changing a wrangler config
 npx emdash seed seed/seed.json --validate  # Validate seed file
 ```
 

@@ -7,7 +7,8 @@
 		"dev": "astro build && wrangler dev -c wrangler.front.jsonc -c dist/server/wrangler.json",
 		"build": "astro build",
 		"deploy": "astro build && wrangler deploy && wrangler deploy --config wrangler.front.jsonc",
-		"typecheck": "astro check"
+		"typecheck": "astro check",
+		"cf-typegen": "wrangler types --include-runtime=false -c wrangler.jsonc -c wrangler.front.jsonc"
 	},
 	"dependencies": {
 		"@astrojs/cloudflare": "catalog:",

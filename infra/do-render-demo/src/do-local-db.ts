@@ -23,7 +23,7 @@ import {
 
 const STORAGE_KEY = Symbol.for("emdash-do-render:storage");
 const globals = globalThis as Record<symbol, DurableObjectStorage | undefined>;
-const READ_PATTERN = /^\s*(select|with|pragma\s+table_info|explain)\b/i;
+const READ_PATTERN = /^\s*(select|with|pragma|explain)\b/i;
 const SLUG_PATTERN = /^[a-z][a-z0-9_]*$/;
 
 export function registerStorage(objectStorage: DurableObjectStorage): void {
@@ -98,7 +98,7 @@ class LocalIntrospector extends SqliteIntrospector {
 			: ["kysely_migration", "kysely_migration_lock"];
 		const tables = sql
 			.exec<{ name: string; type: string }>(
-				"SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND name NOT LIKE 'sqlite_%' AND substr(name, 1, 4) <> '_cf_' ORDER BY name",
+				"SELECT name, type FROM sqlite_master WHERE type IN ('table', 'view') AND substr(name, 1, 7) <> 'sqlite_' AND substr(name, 1, 4) <> '_cf_' ORDER BY name",
 			)
 			.toArray()
 			.filter((table) => !hidden.includes(table.name));

@@ -4,10 +4,6 @@
  * app code so a cold isolate at any location starts quickly.
  */
 
-interface FrontEnv {
-	SITE: DurableObjectNamespace;
-}
-
 export default {
 	fetch: (request, env) => env.SITE.getByName("site").fetch(request),
-} satisfies ExportedHandler<FrontEnv>;
+} satisfies ExportedHandler<Env>;

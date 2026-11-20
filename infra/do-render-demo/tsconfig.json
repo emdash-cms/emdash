@@ -3,5 +3,5 @@
 	"compilerOptions": {
 		"types": ["node", "@cloudflare/workers-types"]
 	},
-	"include": ["src", ".astro/types.d.ts", "emdash-env.d.ts"]
+	"include": ["src", ".astro/types.d.ts", "emdash-env.d.ts", "worker-configuration.d.ts"]
 }
