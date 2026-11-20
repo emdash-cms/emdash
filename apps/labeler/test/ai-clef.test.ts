@@ -5,6 +5,7 @@ import { parseManualImageClefOptions } from "../evals/sweep-worker.js";
 import {
 	CLEF_IMAGE_ASSESSMENT_SETTINGS,
 	CLEF_IMAGE_PROMPT_HASH,
+	CLEF_TEXT_ASSESSMENT_SETTINGS,
 	CLEF_TEXT_PROMPT_HASH,
 	clefTextPromptHash,
 	createClefImageAdapter,
@@ -116,6 +117,27 @@ describe("Clef moderation adapter", () => {
 			configuredUnits: 1,
 		});
 	});
+
+	it.each([
+		[0.55, []],
+		[0.65, ["malicious-or-deceptive-link"]],
+	])(
+		"reports a link probability of %s with the production settings as %j",
+		async (score, expected) => {
+			const adapter = createClefTextAdapter(
+				binding({ "malicious-or-deceptive-link": score, "scam-or-spam": 0.44 }),
+				{
+					modelId: "@cf/cloudflare/clef",
+					promptHash: CLEF_TEXT_PROMPT_HASH,
+					...CLEF_TEXT_ASSESSMENT_SETTINGS,
+				},
+			);
+
+			const result = await adapter.moderate(REQUEST);
+
+			expect(result.findings.map(({ category }) => category)).toEqual(expected);
+		},
+	);
 
 	it("merges one request per category into a single result when questions are separated", async () => {
 		const calls: Array<{ model: string; input: Record<string, unknown> }> = [];

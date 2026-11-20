@@ -35,7 +35,7 @@ describe("labeler runtime configuration", () => {
 
 	it("rejects a model the Clef adapters cannot run", async () => {
 		await expect(
-			readLabelerRuntimeConfig({ ...ENV, LABELER_IMAGE_MODEL_ID: "@cf/zai-org/glm-5.3-flash" }),
+			readLabelerRuntimeConfig({ ...ENV, LABELER_IMAGE_MODEL_ID: "@cf/zai-org/glm-5.3" }),
 		).rejects.toThrow(/Clef model/);
 	});
 
