@@ -1,5 +1,5 @@
 import { Role } from "@emdash-cms/auth";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
@@ -13,6 +13,7 @@ import {
 	type EditorialEntryRef,
 } from "../../../src/api/handlers/editorial-comments.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { Database } from "../../../src/database/types.js";
 import {
 	buildEditorialNotificationEmail,
@@ -279,6 +280,23 @@ describeEachDialect("editorial mentions and notifications", (dialect) => {
 			[`${ADA.id}@example.com`, 'Grace Hopper commented on "Launch post"'],
 			[`${LIN.id}@example.com`, 'Grace Hopper mentioned you on "Launch post"'],
 		]);
+	});
+
+	it("names the entry by the title in its draft", async () => {
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: entry.id,
+			data: { title: "Relaunch post" },
+		});
+		await sql`UPDATE ec_post SET draft_revision_id = ${draft.id} WHERE id = ${entry.id}`.execute(
+			db,
+		);
+		const { email, sent } = fakeEmail();
+		const { created } = await startThread(ADA, `<@${GRACE.id}> is this claim sourced?`);
+
+		await sendEditorialCommentNotifications(db, email, { ...created, adminBaseUrl: ADMIN_BASE });
+
+		expect(sent[0]!.subject).toBe('Ada Lovelace mentioned you on "Relaunch post"');
 	});
 
 	it("skips participants who can no longer comment", async () => {
