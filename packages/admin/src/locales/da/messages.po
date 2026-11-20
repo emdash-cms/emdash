@@ -3887,7 +3887,11 @@ msgstr "Indholdet er fjernet fra offentlig visning"
 msgid "Content reverted to draft"
 msgstr "Indholdet er sat tilbage til kladde"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:286
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
+msgid "Content search is unavailable. Paste a URL instead."
+msgstr ""
+
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
 msgstr "Søgeresultater for indhold"
 
@@ -10532,7 +10536,7 @@ msgstr "Ingen matchende bylines"
 msgid "No matching bylines."
 msgstr "Ingen matchende bylines."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:341
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:356
 msgid "No matching content found."
 msgstr "Intet matchende indhold fundet."
 
@@ -13336,11 +13340,11 @@ msgstr ""
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
 msgstr ""
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:85
 msgid "Search failed"
 msgstr "Søgningen mislykkedes"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:337
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:352
 msgid "Search failed. Check your connection and try again."
 msgstr "Søgningen mislykkedes. Tjek din forbindelse, og prøv igen."
 
@@ -13374,8 +13378,8 @@ msgstr ""
 msgid "Search or create {label}…"
 msgstr ""
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:282
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:283
 msgid "Search or type a URL"
 msgstr "Søg, eller indtast en URL"
 
@@ -15420,7 +15424,7 @@ msgstr ""
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:234
 msgid "This entry has no URL until it is published. Paste a URL instead."
 msgstr "Dette indlæg har ingen URL, før det er udgivet. Indsæt i stedet en URL."
 
@@ -15542,7 +15546,7 @@ msgstr "Dette er et WordPress websted."
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Dette er ikke den pakke, importen blev startet med. Vælg den samme fil igen."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr ""
 

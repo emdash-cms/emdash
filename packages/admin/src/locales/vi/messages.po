@@ -3887,7 +3887,11 @@ msgstr "Nội dung đã được gỡ khỏi chế độ xem công khai"
 msgid "Content reverted to draft"
 msgstr "Nội dung đã trở về bản nháp"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:286
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
+msgid "Content search is unavailable. Paste a URL instead."
+msgstr ""
+
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
 msgstr "Kết quả tìm kiếm nội dung"
 
@@ -10532,7 +10536,7 @@ msgstr "Không có tác giả phù hợp"
 msgid "No matching bylines."
 msgstr "Không có tác giả phù hợp."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:341
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:356
 msgid "No matching content found."
 msgstr "Không tìm thấy nội dung phù hợp."
 
@@ -13336,11 +13340,11 @@ msgstr "Xác minh công cụ tìm kiếm"
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
 msgstr "Các công cụ tìm kiếm có thể thu thập và lập chỉ mục trang web này. Chuyển về chế độ thử nghiệm để ẩn trang lại, chẳng hạn như trong giai đoạn chuẩn bị ra mắt lại."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:85
 msgid "Search failed"
 msgstr "Tìm kiếm thất bại"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:337
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:352
 msgid "Search failed. Check your connection and try again."
 msgstr "Tìm kiếm thất bại. Kiểm tra kết nối và thử lại."
 
@@ -13374,8 +13378,8 @@ msgstr "Tìm hoặc tạo {label}"
 msgid "Search or create {label}…"
 msgstr "Tìm hoặc tạo {label}…"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:282
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:283
 msgid "Search or type a URL"
 msgstr "Tìm hoặc nhập URL"
 
@@ -15420,7 +15424,7 @@ msgstr "Mục này không tồn tại hoặc chưa xuất bản. Bạn chỉ có
 msgid "This entry doesn't exist or was deleted."
 msgstr "Mục này không tồn tại hoặc đã bị xoá."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:234
 msgid "This entry has no URL until it is published. Paste a URL instead."
 msgstr "Mục này chưa có URL cho đến khi được xuất bản. Hãy dán một URL."
 
@@ -15542,7 +15546,7 @@ msgstr "Đây là một trang web WordPress."
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Đây không phải gói mà lần nhập đã bắt đầu. Hãy chọn lại đúng tệp đó."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr "Không dùng được liên kết này. Hãy nhập địa chỉ web, ví dụ https://example.com."
 

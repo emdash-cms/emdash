@@ -3887,7 +3887,11 @@ msgstr "已從公開頁面移除內容"
 msgid "Content reverted to draft"
 msgstr "內容已還原為草稿"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:286
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
+msgid "Content search is unavailable. Paste a URL instead."
+msgstr ""
+
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
 msgstr "內容搜尋結果"
 
@@ -10532,7 +10536,7 @@ msgstr "沒有符合的署名"
 msgid "No matching bylines."
 msgstr "沒有符合的署名。"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:341
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:356
 msgid "No matching content found."
 msgstr "找不到符合的內容。"
 
@@ -13336,11 +13340,11 @@ msgstr "搜尋引擎驗證"
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
 msgstr "搜尋引擎可以索引這個網站。若要再次要求搜尋引擎不要索引，例如在改版期間，可以切回測試模式。"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:85
 msgid "Search failed"
 msgstr "搜尋失敗"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:337
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:352
 msgid "Search failed. Check your connection and try again."
 msgstr "搜尋失敗。請檢查連線後再試一次。"
 
@@ -13374,8 +13378,8 @@ msgstr "搜尋或建立 {label}"
 msgid "Search or create {label}…"
 msgstr "搜尋或建立 {label}…"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:282
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:283
 msgid "Search or type a URL"
 msgstr "搜尋或輸入網址"
 
@@ -15420,7 +15424,7 @@ msgstr "這筆內容不存在或尚未發佈。您的角色只能檢視已發佈
 msgid "This entry doesn't exist or was deleted."
 msgstr "這筆內容不存在或已刪除。"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:234
 msgid "This entry has no URL until it is published. Paste a URL instead."
 msgstr "這個內容項目發佈前沒有網址。請改為貼上網址。"
 
@@ -15542,7 +15546,7 @@ msgstr "這是 WordPress 網站。"
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "這不是開始匯入時使用的套件。請重新選取同一個檔案。"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr "無法使用這個連結。請輸入網址，例如 https://example.com。"
 

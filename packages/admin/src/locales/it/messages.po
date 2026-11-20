@@ -3887,7 +3887,11 @@ msgstr "Il contenuto non è più visibile al pubblico"
 msgid "Content reverted to draft"
 msgstr "Il contenuto è stato riportato a bozza"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:286
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
+msgid "Content search is unavailable. Paste a URL instead."
+msgstr ""
+
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
 msgstr "Risultati della ricerca nei contenuti"
 
@@ -10532,7 +10536,7 @@ msgstr "Nessun profilo corrispondente"
 msgid "No matching bylines."
 msgstr "Nessun profilo corrispondente."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:341
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:356
 msgid "No matching content found."
 msgstr "Nessun contenuto corrispondente trovato."
 
@@ -13336,11 +13340,11 @@ msgstr "Verifica per i motori di ricerca"
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
 msgstr "I motori di ricerca possono indicizzare questo sito. Torna alla modalità staging per nasconderlo di nuovo ai motori di ricerca, ad esempio durante un rilancio."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:85
 msgid "Search failed"
 msgstr "Ricerca non riuscita"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:337
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:352
 msgid "Search failed. Check your connection and try again."
 msgstr "Ricerca non riuscita. Controlla la connessione e riprova."
 
@@ -13374,8 +13378,8 @@ msgstr "Cerca o crea {label}"
 msgid "Search or create {label}…"
 msgstr "Cerca o crea {label}…"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:282
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:283
 msgid "Search or type a URL"
 msgstr "Cerca o digita un URL"
 
@@ -15420,7 +15424,7 @@ msgstr "Questo elemento non esiste o non è pubblicato. Il tuo ruolo può visual
 msgid "This entry doesn't exist or was deleted."
 msgstr "Questo elemento non esiste o è stato eliminato."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:234
 msgid "This entry has no URL until it is published. Paste a URL instead."
 msgstr "Questo elemento non ha un URL finché non viene pubblicato. Incolla un URL."
 
@@ -15542,7 +15546,7 @@ msgstr "Questo è un sito WordPress."
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Questo non è il pacchetto con cui è stata avviata l'importazione. Seleziona di nuovo lo stesso file."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr "Questo link non può essere utilizzato. Inserisci un indirizzo web, come https://example.com."
 

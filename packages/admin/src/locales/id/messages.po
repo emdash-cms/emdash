@@ -3887,7 +3887,11 @@ msgstr "Konten dihapus dari tampilan publik"
 msgid "Content reverted to draft"
 msgstr "Konten dikembalikan ke draf"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:286
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
+msgid "Content search is unavailable. Paste a URL instead."
+msgstr ""
+
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
 msgstr "Hasil pencarian konten"
 
@@ -10532,7 +10536,7 @@ msgstr "Tidak ada byline yang cocok"
 msgid "No matching bylines."
 msgstr "Tidak ada byline yang cocok."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:341
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:356
 msgid "No matching content found."
 msgstr "Tidak ditemukan ada konten yang cocok."
 
@@ -13336,11 +13340,11 @@ msgstr "Verifikasi Mesin Pencarian"
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
 msgstr "Mesin pencarian dapat mengindeks situs ini. Alihkan kembali ke tahapan untuk menyembunyikannya lagi, contohnya selama peluncuran ulang."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:85
 msgid "Search failed"
 msgstr "Pencarian gagal"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:337
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:352
 msgid "Search failed. Check your connection and try again."
 msgstr "Pencarian gagal. Periksa sambungan Anda dan coba lagi."
 
@@ -13374,8 +13378,8 @@ msgstr "Cari atau buat {label}"
 msgid "Search or create {label}…"
 msgstr "Cari atau buat {label}…"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:282
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:283
 msgid "Search or type a URL"
 msgstr "Cari atau ketik URL"
 
@@ -15420,7 +15424,7 @@ msgstr "Entri ini tidak ada atau tidak dipublikasikan. Peran Anda hanya dapat me
 msgid "This entry doesn't exist or was deleted."
 msgstr "Entri ini tidak ada atau telah dihapus."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:234
 msgid "This entry has no URL until it is published. Paste a URL instead."
 msgstr "Entri ini tidak memiliki URL hingga dipublikasikan. Tempel URL sebagai gantinya."
 
@@ -15542,7 +15546,7 @@ msgstr "Ini adalah situs WordPress."
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Ini bukan paket yang digunakan untuk memulai impor. Pilih berkas yang sama lagi."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr "Tautan ini tidak dapat digunakan. Masukkan alamat web, seperti https://example.com."
 

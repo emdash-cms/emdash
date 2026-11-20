@@ -3887,7 +3887,11 @@ msgstr "コンテンツを公開表示から外しました"
 msgid "Content reverted to draft"
 msgstr "コンテンツを下書きに戻しました"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:286
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
+msgid "Content search is unavailable. Paste a URL instead."
+msgstr ""
+
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
 msgstr "コンテンツの検索結果"
 
@@ -10532,7 +10536,7 @@ msgstr "一致する執筆者がいません"
 msgid "No matching bylines."
 msgstr "一致する執筆者がありません。"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:341
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:356
 msgid "No matching content found."
 msgstr "一致するコンテンツが見つかりません。"
 
@@ -13336,11 +13340,11 @@ msgstr "検索エンジンの所有権確認"
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
 msgstr "検索エンジンはこのサイトをインデックスできます。サイトのリニューアル時など、再び検索エンジンに非公開にするには、準備中に戻してください。"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:85
 msgid "Search failed"
 msgstr "検索に失敗しました"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:337
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:352
 msgid "Search failed. Check your connection and try again."
 msgstr "検索に失敗しました。接続を確認して、もう一度お試しください。"
 
@@ -13374,8 +13378,8 @@ msgstr "{label}を検索または作成"
 msgid "Search or create {label}…"
 msgstr "{label}を検索または作成…"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:282
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:283
 msgid "Search or type a URL"
 msgstr "検索するか、URLを入力"
 
@@ -15420,7 +15424,7 @@ msgstr "このコンテンツは存在しないか、公開されていません
 msgid "This entry doesn't exist or was deleted."
 msgstr "このコンテンツは存在しないか、削除されました。"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:234
 msgid "This entry has no URL until it is published. Paste a URL instead."
 msgstr "このコンテンツは公開されるまでURLがありません。代わりにURLを貼り付けてください。"
 
@@ -15542,7 +15546,7 @@ msgstr "WordPressサイトを確認しました。"
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "インポートの開始時に使用したパッケージと異なります。同じファイルを再度選択してください。"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr "このリンクは使えません。https://example.com のようなWebアドレスを入力してください。"
 

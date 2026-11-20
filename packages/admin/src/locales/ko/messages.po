@@ -3887,7 +3887,11 @@ msgstr "콘텐츠가 더 이상 공개되지 않습니다"
 msgid "Content reverted to draft"
 msgstr "콘텐츠를 초안으로 되돌렸습니다"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:286
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
+msgid "Content search is unavailable. Paste a URL instead."
+msgstr ""
+
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
 msgstr "콘텐츠 검색 결과"
 
@@ -10532,7 +10536,7 @@ msgstr "일치하는 저자 정보가 없습니다."
 msgid "No matching bylines."
 msgstr "일치하는 저자 정보가 없습니다."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:341
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:356
 msgid "No matching content found."
 msgstr "일치하는 콘텐츠가 없습니다."
 
@@ -13336,11 +13340,11 @@ msgstr ""
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
 msgstr ""
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:85
 msgid "Search failed"
 msgstr "검색 실패"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:337
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:352
 msgid "Search failed. Check your connection and try again."
 msgstr "검색에 실패했습니다. 연결 상태를 확인하고 다시 시도하세요."
 
@@ -13374,8 +13378,8 @@ msgstr ""
 msgid "Search or create {label}…"
 msgstr ""
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:282
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:283
 msgid "Search or type a URL"
 msgstr "검색 또는 URL 입력"
 
@@ -15420,7 +15424,7 @@ msgstr ""
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:234
 msgid "This entry has no URL until it is published. Paste a URL instead."
 msgstr "이 항목은 게시되기 전까지 URL이 없습니다. 대신 URL을 붙여넣으세요."
 
@@ -15542,7 +15546,7 @@ msgstr "WordPress 사이트입니다."
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "가져오기를 시작할 때 사용한 패키지가 아닙니다. 같은 파일을 다시 선택하세요."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr ""
 

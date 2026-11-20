@@ -3887,7 +3887,11 @@ msgstr "Innehållet har tagits bort från offentlig visning"
 msgid "Content reverted to draft"
 msgstr "Innehållet återställdes till utkast"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:286
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
+msgid "Content search is unavailable. Paste a URL instead."
+msgstr ""
+
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
 msgstr "Sökresultat för innehåll"
 
@@ -10532,7 +10536,7 @@ msgstr "Inga matchande skribenter"
 msgid "No matching bylines."
 msgstr "Inga matchande skribenter."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:341
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:356
 msgid "No matching content found."
 msgstr "Inget matchande innehåll hittades."
 
@@ -13336,11 +13340,11 @@ msgstr "Sökmotorverifiering"
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
 msgstr "Sökmotorer kan indexera webbplatsen. Byt tillbaka till testläge för att dölja den igen, till exempel inför en nylansering."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:85
 msgid "Search failed"
 msgstr "Sökningen misslyckades"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:337
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:352
 msgid "Search failed. Check your connection and try again."
 msgstr "Sökningen misslyckades. Kontrollera anslutningen och försök igen."
 
@@ -13374,8 +13378,8 @@ msgstr "Sök eller skapa {label}"
 msgid "Search or create {label}…"
 msgstr "Sök eller skapa {label} …"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:282
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:283
 msgid "Search or type a URL"
 msgstr "Sök eller skriv en URL"
 
@@ -15420,7 +15424,7 @@ msgstr "Posten finns inte eller är inte publicerad. Med din roll kan du bara se
 msgid "This entry doesn't exist or was deleted."
 msgstr "Posten finns inte eller har tagits bort."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:234
 msgid "This entry has no URL until it is published. Paste a URL instead."
 msgstr "Posten får en URL först när den publiceras. Klistra in en URL i stället."
 
@@ -15542,7 +15546,7 @@ msgstr "Det här är en WordPress-webbplats."
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Det här är inte paketet som importen startades med. Välj samma fil igen."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr "Länken går inte att använda. Ange en webbadress, till exempel https://example.com."
 

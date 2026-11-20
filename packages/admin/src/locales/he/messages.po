@@ -3888,7 +3888,11 @@ msgstr "התוכן הוסר מהתצוגה הציבורית"
 msgid "Content reverted to draft"
 msgstr "התוכן הוחזר לטיוטה"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:286
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
+msgid "Content search is unavailable. Paste a URL instead."
+msgstr ""
+
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
 msgstr "תוצאות חיפוש תוכן"
 
@@ -10533,7 +10537,7 @@ msgstr "אין קרדיטים תואמים"
 msgid "No matching bylines."
 msgstr "אין קרדיטים תואמים."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:341
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:356
 msgid "No matching content found."
 msgstr "לא נמצא תוכן תואם."
 
@@ -13337,11 +13341,11 @@ msgstr ""
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
 msgstr ""
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:85
 msgid "Search failed"
 msgstr "החיפוש נכשל"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:337
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:352
 msgid "Search failed. Check your connection and try again."
 msgstr "החיפוש נכשל. בדקו את החיבור שלכם ונסו שוב."
 
@@ -13375,8 +13379,8 @@ msgstr ""
 msgid "Search or create {label}…"
 msgstr ""
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:282
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:283
 msgid "Search or type a URL"
 msgstr "חפשו או הזינו URL"
 
@@ -15421,7 +15425,7 @@ msgstr ""
 msgid "This entry doesn't exist or was deleted."
 msgstr ""
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:234
 msgid "This entry has no URL until it is published. Paste a URL instead."
 msgstr "לפריט זה אין URL עד לפרסומו. הדביקו URL במקום זאת."
 
@@ -15543,7 +15547,7 @@ msgstr "זהו אתר WordPress."
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "זו לא החבילה שאיתה הייבוא התחיל. בחרו שוב את אותו קובץ."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr ""
 
