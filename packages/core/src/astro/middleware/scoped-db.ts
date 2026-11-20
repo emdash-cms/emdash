@@ -95,10 +95,10 @@ export function wrapResponseForScopedClose(response: Response, close: () => void
 		return response;
 	}
 
-	const transform = new TransformStream<Uint8Array, Uint8Array>({
-		flush: runClose,
-		cancel: runClose,
-	});
+	// The DOM lib's `Transformer` predates the Streams `cancel` callback, so an
+	// inline literal fails its excess-property check.
+	const transformer = { flush: runClose, cancel: runClose };
+	const transform = new TransformStream<Uint8Array, Uint8Array>(transformer);
 	const wrapped = new Response(response.body.pipeThrough(transform), response);
 	const astroCookies = Reflect.get(response, ASTRO_COOKIES_SYMBOL);
 	if (astroCookies !== undefined) {

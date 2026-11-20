@@ -32,24 +32,14 @@ export const POST: APIRoute = async ({ params, locals }) => {
 		);
 	}
 
-	const existingData =
-		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
-				(existing.data as Record<string, unknown>)
-			: undefined;
-	// Handler returns { item, _rev } — extract the item for ownership check
-	const existingItem =
-		existingData?.item && typeof existingData.item === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
-				(existingData.item as Record<string, unknown>)
-			: existingData;
-	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
+	const existingItem = existing.data.item;
+	const authorId = existingItem.authorId ?? "";
 	// Duplicating requires read access to the source — check ownership-based edit permissions
 	// since content:read is flat (no own/any split). This ensures authors can only duplicate their own.
 	const readDenied = requireOwnerPerm(user, authorId, "content:edit_own", "content:edit_any");
 	if (readDenied) return readDenied;
 
-	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
+	const resolvedId = existingItem.id;
 	const result = await emdash.handleContentDuplicate(collection, resolvedId, user?.id);
 
 	return unwrapResult(result, 201);

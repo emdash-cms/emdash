@@ -7,6 +7,7 @@ import { fireEvent } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup } from "vitest-browser-react";
+import { page } from "vitest/browser";
 
 import { ThemeProvider } from "../src/components/ThemeProvider";
 import type { AdminManifest, ContentItem } from "../src/lib/api";
@@ -316,6 +317,14 @@ function unpublishRequests(requests: RecordedRequest[]) {
 	);
 }
 
+async function confirmUnpublish() {
+	const confirm = page
+		.getByRole("dialog", { name: "Unpublish Post?" })
+		.getByRole("button", { name: "Unpublish", exact: true });
+	await expect.element(confirm).toBeVisible();
+	fireEvent.click(confirm.element());
+}
+
 function watchUnhandledRejections() {
 	const rejections: PromiseRejectionEvent[] = [];
 	const handler = (event: PromiseRejectionEvent) => {
@@ -350,6 +359,7 @@ describe("ContentEditPage revision token handling", () => {
 
 		await screen.getByRole("textbox", { name: "Title" }).fill("Before unpublish");
 		await screen.getByRole("button", { name: "Unpublish Post", exact: true }).click();
+		await confirmUnpublish();
 		await vi.advanceTimersByTimeAsync(0);
 
 		const mutations = contentMutations(server.requests);
@@ -378,6 +388,7 @@ describe("ContentEditPage revision token handling", () => {
 		const screen = await renderEditPage();
 
 		await screen.getByRole("button", { name: "Unpublish Post", exact: true }).click();
+		await confirmUnpublish();
 		await vi.waitFor(() => {
 			expect(
 				server.requests.filter(
@@ -452,6 +463,7 @@ describe("ContentEditPage revision token handling", () => {
 			await screen.getByRole("textbox", { name: "Website" }).fill("not a valid url");
 			const button = screen.getByRole("button", { name: "Unpublish Post", exact: true });
 			fireEvent.click(button.element());
+			await confirmUnpublish();
 			// The unhandledrejection event is dispatched asynchronously. Run the
 			// rest of the assertion on real timers so the rejection can surface
 			// before we check for it; fake timers complete the microtask too soon.
@@ -472,6 +484,7 @@ describe("ContentEditPage revision token handling", () => {
 		try {
 			const button = screen.getByRole("button", { name: "Unpublish Post", exact: true }).element();
 			fireEvent.click(button);
+			await confirmUnpublish();
 			expect(button).toBeDisabled();
 			fireEvent.click(button);
 			await vi.advanceTimersByTimeAsync(0);

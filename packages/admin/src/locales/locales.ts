@@ -198,6 +198,13 @@ export const LOCALES: LocaleDefinition[] = [
 		enabled: false,
 		dateLocale: () => import("react-day-picker/locale/ko").then((m) => m.ko),
 	},
+	// Lithuanian
+	{
+		code: "lt",
+		label: "Lietuvių",
+		enabled: true,
+		dateLocale: () => import("react-day-picker/locale/lt").then((m) => m.lt),
+	},
 	// Norwegian Bokmål
 	{
 		code: "nb",

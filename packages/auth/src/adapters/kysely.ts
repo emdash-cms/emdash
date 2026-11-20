@@ -2,7 +2,7 @@
  * Kysely database adapter for @emdash-cms/auth
  */
 
-import type { Kysely, Insertable, Selectable, Updateable } from "kysely";
+import type { Kysely, Insertable, Selectable, Updateable, Generated } from "kysely";
 import { ulid } from "ulidx";
 
 import {
@@ -37,7 +37,24 @@ export interface AuthTables {
 	allowed_domains: AllowedDomainTable;
 }
 
+type Defaulted<Table, Column extends keyof Table> = Omit<Table, Column> & {
+	[K in Column]: Generated<Table[K]>;
+};
+
+/**
+ * `AuthTables` with the columns that have database defaults typed as
+ * `Generated`, as EmDash's own `Database` types them.
+ */
+export interface GeneratedAuthTables {
+	users: Defaulted<UserTable, "disabled" | "created_at" | "updated_at">;
+	credentials: Defaulted<CredentialTable, "created_at" | "last_used_at">;
+	auth_tokens: Defaulted<AuthTokenTable, "created_at">;
+	oauth_accounts: Defaulted<OAuthAccountTable, "created_at">;
+	allowed_domains: Defaulted<AllowedDomainTable, "created_at">;
+}
+
 interface UserTable {
+	last_login_at?: Generated<string | null>;
 	id: string;
 	email: string;
 	name: string | null;
@@ -93,9 +110,11 @@ interface AllowedDomainTable {
 // Adapter implementation
 // ============================================================================
 
-export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAdapter {
+export function createKyselyAdapter<T extends AuthTables | GeneratedAuthTables>(
+	db: Kysely<T>,
+): AuthAdapter {
 	// Type cast to work with generic Kysely instance
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- generic Kysely<T extends AuthTables> narrowed to concrete AuthTables for internal queries
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- generic Kysely<T extends AuthTables | GeneratedAuthTables> narrowed to concrete AuthTables for internal queries
 	const kdb = db as unknown as Kysely<AuthTables>;
 
 	return {
@@ -271,7 +290,11 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 				data: row.data ? JSON.parse(row.data) : null,
 				createdAt: new Date(row.created_at),
 				updatedAt: new Date(row.updated_at),
-				lastLogin: row.last_login ? new Date(row.last_login) : null,
+				lastLogin: row.last_login_at
+					? new Date(row.last_login_at)
+					: row.last_login
+						? new Date(row.last_login)
+						: null,
 				credentialCount: row.credential_count ?? 0,
 				oauthProviders: oauthByUser.get(row.id) ?? [],
 			}));
@@ -306,11 +329,13 @@ export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAd
 				kdb.selectFrom("oauth_accounts").selectAll().where("user_id", "=", id).execute(),
 			]);
 
-			// Find last login from most recent credential use
-			const lastLogin = credentials.reduce<Date | null>((latest, cred) => {
-				const lastUsed = new Date(cred.last_used_at);
-				return !latest || lastUsed > latest ? lastUsed : latest;
-			}, null);
+			// Retain passkey history for users who have not signed in since the migration.
+			const lastLogin = user.last_login_at
+				? new Date(user.last_login_at)
+				: credentials.reduce<Date | null>((latest, cred) => {
+						const lastUsed = new Date(cred.last_used_at);
+						return !latest || lastUsed > latest ? lastUsed : latest;
+					}, null);
 
 			return {
 				user: rowToUser(user),
@@ -673,6 +698,7 @@ CREATE TABLE IF NOT EXISTS users (
   email_verified INTEGER NOT NULL DEFAULT 0,
   disabled INTEGER NOT NULL DEFAULT 0,
   data TEXT,
+  last_login_at TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );

@@ -29,6 +29,7 @@ import {
 import * as React from "react";
 
 import type { OutsideValue } from "./co-editing/types.js";
+import { NestedBreadcrumb, useBreadcrumbLabel } from "./components/AdminBreadcrumbs.js";
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import type { BylineFormValues } from "./components/BylineFormDialog.js";
@@ -179,6 +180,7 @@ import {
 } from "./lib/co-editing/types.js";
 import { canDuplicateEntry, canPublishEntry, entryEditAccess } from "./lib/content-permissions";
 import { describeContentValidationError } from "./lib/content-validation-errors";
+import { invalidateContentViews } from "./lib/invalidate-content-views.js";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
 import {
@@ -738,16 +740,14 @@ function ContentListPage() {
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
 	const restoreMutation = useMutation({
 		mutationFn: (id: string) => restoreContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 		onError: (mutationError) => {
 			toastManager.add({
@@ -761,14 +761,14 @@ function ContentListPage() {
 	const permanentDeleteMutation = useMutation({
 		mutationFn: (id: string) => permanentDeleteContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
 	const duplicateMutation = useMutation({
 		mutationFn: (id: string) => duplicateContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 		},
 		onError: (mutationError) => {
 			toastManager.add({
@@ -804,7 +804,7 @@ function ContentListPage() {
 			}
 		},
 		onSettled: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
@@ -827,7 +827,7 @@ function ContentListPage() {
 			}
 		},
 		onSettled: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
@@ -848,8 +848,7 @@ function ContentListPage() {
 			}
 		},
 		onSettled: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
@@ -984,7 +983,7 @@ function ContentNewPage() {
 			references?: Record<string, string[]>;
 		}) => createContent(collection, { ...data, locale: pickerLocale }),
 		onSuccess: (result) => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 			void navigate({
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
@@ -1251,6 +1250,7 @@ function ContentEditPage() {
 			case "checkpoint":
 				refusedSavesRef.current.clear();
 				if (event.editedBy.length > 0) {
+					void invalidateContentViews(queryClient, { collection, id }, "none");
 					void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 					void queryClient.invalidateQueries({ queryKey: ["publishEditedBy", collection, id] });
 					// Only the first save after a publish or discard gives the entry a draft of its own.
@@ -1264,6 +1264,7 @@ function ContentEditPage() {
 				return;
 			case "reconnected":
 			case "operation": {
+				void invalidateContentViews(queryClient, { collection, id });
 				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 				void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 				void queryClient.invalidateQueries({ queryKey: ["publishEditedBy", collection, id] });
@@ -1589,20 +1590,36 @@ function ContentEditPage() {
 	);
 	const publishRequestRef = React.useRef<Promise<void> | null>(null);
 
+	const handleFieldFocused = React.useCallback(() => {
+		const { field: _, ...preservedSearch } = searchParams;
+		void navigate({ search: preservedSearch as never, replace: true });
+	}, [searchParams, navigate]);
+
 	React.useEffect(() => {
 		if (typeof searchParams.field !== "string" || isLoading) return;
+		const rootField = searchParams.field.split(".")[0] ?? "";
+		const rootDefinition = (roomView?.manifest?.collections[collection]?.fields ??
+			collectionFields)[rootField];
+		// Blocks fields reveal and focus their own nested controls after mounting them.
+		if (searchParams.field.includes(".") && rootDefinition?.kind === "blocks") return;
 
 		const timeoutId = requestIdleCallback(() => {
 			const el = document.getElementById(`field-${searchParams.field}`);
 			if (el) {
 				el.scrollIntoView({ behavior: "smooth", block: "center" });
 				el.focus();
-				const { field: _, ...preservedSearch } = searchParams;
-				void navigate({ search: preservedSearch as never, replace: true });
+				handleFieldFocused();
 			}
 		});
 		return () => cancelIdleCallback(timeoutId);
-	}, [searchParams, isLoading, navigate]);
+	}, [
+		searchParams,
+		isLoading,
+		handleFieldFocused,
+		roomView?.manifest,
+		collection,
+		collectionFields,
+	]);
 
 	// Fetch translations when i18n is enabled
 	const { data: translationsData } = useQuery({
@@ -1720,6 +1737,7 @@ function ContentEditPage() {
 			const contentRefresh = queryClient.invalidateQueries({
 				queryKey: ["content", collection, targetId],
 			});
+			void invalidateContentViews(queryClient, { collection, id: targetId });
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({
 				queryKey: ["revisions", collection, targetId],
@@ -1931,6 +1949,7 @@ function ContentEditPage() {
 			});
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
+			void invalidateContentViews(queryClient, { collection, id: variables.targetId }, "none");
 		},
 		onError: async (err, variables) => {
 			if (await recoverInEditor(err, variables.targetId)) return;
@@ -1960,6 +1979,7 @@ function ContentEditPage() {
 			if (savedReferences) {
 				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			}
+			void invalidateContentViews(queryClient, { collection, id });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
@@ -1984,6 +2004,7 @@ function ContentEditPage() {
 			void queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
+			void invalidateContentViews(queryClient, { collection, id });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
 		},
@@ -2005,6 +2026,7 @@ function ContentEditPage() {
 			await queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
+			void invalidateContentViews(queryClient, { collection, id });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			resetEditorItem(id, { discarded: true });
 			toastManager.add({
@@ -2055,6 +2077,7 @@ function ContentEditPage() {
 		mutationFn: (scheduledAt: string) =>
 			scheduleContent(collection, id, scheduledAt, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
+			void invalidateContentViews(queryClient, { collection, id });
 			toastManager.add({
 				title: t`Scheduled`,
 				description: t`Content has been scheduled for publishing`,
@@ -2066,6 +2089,7 @@ function ContentEditPage() {
 		mutationFn: () =>
 			unscheduleContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
+			void invalidateContentViews(queryClient, { collection, id });
 			toastManager.add({
 				title: t`Unscheduled`,
 				description: t`Content reverted to draft`,
@@ -2091,8 +2115,7 @@ function ContentEditPage() {
 				translationOf: id,
 			}),
 		onSuccess: (result) => {
-			void queryClient.invalidateQueries({ queryKey: ["translations", collection, id] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 			void navigate({
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
@@ -2117,8 +2140,7 @@ function ContentEditPage() {
 	const deleteMutation = useMutation({
 		mutationFn: () => deleteContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 			void navigate({
 				to: "/content/$collection",
 				params: { collection },
@@ -2515,6 +2537,7 @@ function ContentEditPage() {
 	);
 	const handlePluginEntryRefresh = React.useCallback(async () => {
 		await Promise.all([
+			invalidateContentViews(queryClient, { collection, id }),
 			queryClient.invalidateQueries({ queryKey: ["entry-terms", collection, id] }),
 			queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
 			queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] }),
@@ -2616,6 +2639,8 @@ function ContentEditPage() {
 			collection={collection}
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
+			focusField={typeof searchParams.field === "string" ? searchParams.field : undefined}
+			onFieldFocused={handleFieldFocused}
 			timezone={manifest.timezone ?? "UTC"}
 			fields={(editorManifest?.collections[collection] ?? collectionConfig).fields}
 			isSaving={
@@ -2938,16 +2963,35 @@ function MediaPage() {
 		[currentUser],
 	);
 
+	const folderCrumb = folder !== undefined && (
+		<NestedBreadcrumb
+			label={
+				currentFolderQuery.data?.name ?? (currentFolderQuery.isLoading ? undefined : t`Folder`)
+			}
+		/>
+	);
+
 	if (currentFolderQuery.error && !missingFolder) {
-		return <ErrorScreen error={currentFolderQuery.error.message} />;
+		return (
+			<>
+				{folderCrumb}
+				<ErrorScreen error={currentFolderQuery.error.message} />
+			</>
+		);
 	}
 
 	if (error) {
-		return <ErrorScreen error={error.message} />;
+		return (
+			<>
+				{folderCrumb}
+				<ErrorScreen error={error.message} />
+			</>
+		);
 	}
 
 	return (
 		<MediaLibrary
+			focusHeadingOnMount={folderChanged}
 			items={isRecoveringPage ? [] : (data?.items ?? [])}
 			isLoading={paginationPending}
 			pagination={{
@@ -3168,7 +3212,10 @@ const mediaUsageSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/media-usage",
 	component: MediaUsageSettings,
-	staticData: { pageTitle: msg`Media Usage` },
+	staticData: {
+		pageTitle: msg`Media Usage`,
+		breadcrumb: { parent: "/settings", label: msg`Media usage tracking` },
+	},
 });
 
 // Security settings route
@@ -3176,7 +3223,10 @@ const securitySettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/security",
 	component: SecuritySettingsWrapper,
-	staticData: { pageTitle: msg`Security Settings` },
+	staticData: {
+		pageTitle: msg`Security Settings`,
+		breadcrumb: { parent: "/settings", label: msg`Security` },
+	},
 	validateSearch: (search: Record<string, unknown>): { addPasskey?: boolean } =>
 		search.addPasskey === true || search.addPasskey === 1 || search.addPasskey === "1"
 			? { addPasskey: true }
@@ -3197,7 +3247,10 @@ const allowedDomainsSettingsRoute = createRoute({
 			<AllowedDomainsSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Allowed Domains` },
+	staticData: {
+		pageTitle: msg`Allowed Domains`,
+		breadcrumb: { parent: "/settings", label: msg`Self-Signup Domains` },
+	},
 });
 
 // API tokens settings route
@@ -3209,7 +3262,7 @@ const apiTokenSettingsRoute = createRoute({
 			<ApiTokenSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`API Tokens` },
+	staticData: { pageTitle: msg`API Tokens`, breadcrumb: { parent: "/settings" } },
 });
 
 // Email settings route
@@ -3221,7 +3274,10 @@ const emailSettingsRoute = createRoute({
 			<EmailSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Email Settings` },
+	staticData: {
+		pageTitle: msg`Email Settings`,
+		breadcrumb: { parent: "/settings", label: msg`Email` },
+	},
 });
 
 // Backup settings route
@@ -3233,14 +3289,14 @@ const backupSettingsRoute = createRoute({
 			<BackupSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Backups` },
+	staticData: { pageTitle: msg`Backups`, breadcrumb: { parent: "/settings" } },
 });
 
 const transferSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/transfer",
 	component: TransferSettingsPage,
-	staticData: { pageTitle: msg`Transfer` },
+	staticData: { pageTitle: msg`Transfer`, breadcrumb: { parent: "/settings" } },
 	validateSearch: (search: Record<string, unknown>): { start?: "import" } =>
 		search.start === "import" ? { start: "import" } : {},
 });
@@ -3254,6 +3310,7 @@ const sidebarsSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/sidebars",
 	component: SidebarsSettingsPage,
+	staticData: { breadcrumb: { parent: "/settings", label: msg`Sidebars` } },
 	validateSearch: (search: Record<string, unknown>): { tab?: "editor" } =>
 		search.tab === "editor" ? { tab: "editor" } : {},
 });
@@ -3272,7 +3329,10 @@ const generalSettingsRoute = createRoute({
 			<GeneralSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`General Settings` },
+	staticData: {
+		pageTitle: msg`General Settings`,
+		breadcrumb: { parent: "/settings", label: msg`General` },
+	},
 });
 
 // Social settings route
@@ -3284,7 +3344,10 @@ const socialSettingsRoute = createRoute({
 			<SocialSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Social Settings` },
+	staticData: {
+		pageTitle: msg`Social Settings`,
+		breadcrumb: { parent: "/settings", label: msg`Social Links` },
+	},
 });
 
 // SEO settings route
@@ -3296,7 +3359,10 @@ const seoSettingsRoute = createRoute({
 			<SeoSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`SEO Settings` },
+	staticData: {
+		pageTitle: msg`SEO Settings`,
+		breadcrumb: { parent: "/settings", label: msg`SEO` },
+	},
 });
 
 // Plugin manager route
@@ -3319,7 +3385,7 @@ const registryBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/registry",
 	component: RegistryBrowsePage,
-	staticData: { pageTitle: msg`Plugin Registry` },
+	staticData: { pageTitle: msg`Plugin Registry`, breadcrumb: { label: msg`Registry` } },
 });
 
 function RegistryBrowsePage() {
@@ -3377,7 +3443,10 @@ const registryDetailRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/registry/$publisher/$slug",
 	component: RegistryDetailPage,
-	staticData: { pageTitle: msg`Plugin Details` },
+	staticData: {
+		pageTitle: msg`Plugin Details`,
+		breadcrumb: { parent: "/plugins/registry", dynamic: true },
+	},
 });
 
 function RegistryDetailPage() {
@@ -3452,7 +3521,7 @@ const menuEditorRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/menus/$name",
 	component: MenuEditor,
-	staticData: { pageTitle: msg`Edit menu` },
+	staticData: { pageTitle: msg`Edit menu`, breadcrumb: { parent: "/menus", dynamic: true } },
 	validateSearch: (search: Record<string, unknown>) => {
 		return {
 			locale: typeof search.locale === "string" ? search.locale : undefined,
@@ -3501,7 +3570,10 @@ const sectionEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/sections/$slug",
 	component: SectionEditor,
-	staticData: { pageTitle: msg`Edit section` },
+	staticData: {
+		pageTitle: msg`Edit section`,
+		breadcrumb: { parent: "/sections", dynamic: true },
+	},
 });
 
 // Users route
@@ -3651,7 +3723,7 @@ const contentTypesNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/new",
 	component: ContentTypesNewPage,
-	staticData: { pageTitle: msg`New content type` },
+	staticData: { pageTitle: msg`New content type`, breadcrumb: { parent: "/content-types" } },
 });
 
 function ContentTypesNewPage() {
@@ -3687,7 +3759,7 @@ const relationsListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/relations",
 	component: RelationsListPage,
-	staticData: { pageTitle: msg`Relations` },
+	staticData: { pageTitle: msg`Relations`, breadcrumb: { parent: "/content-types" } },
 });
 
 function RelationsListPage() {
@@ -3748,7 +3820,10 @@ const contentTypesEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/$slug",
 	component: ContentTypesEditPage,
-	staticData: { pageTitle: msg`Edit content type` },
+	staticData: {
+		pageTitle: msg`Edit content type`,
+		breadcrumb: { parent: "/content-types", dynamic: true },
+	},
 });
 
 function ContentTypesEditPage() {
@@ -3765,6 +3840,7 @@ function ContentTypesEditPage() {
 		queryKey: ["schema", "collections", slug],
 		queryFn: () => fetchCollection(slug),
 	});
+	useBreadcrumbLabel(collection?.label ?? (isLoading ? undefined : t`Edit content type`));
 
 	const updateMutation = useMutation({
 		mutationFn: async (input: UpdateCollectionInput) => {
@@ -3932,7 +4008,10 @@ const pluginSettingsRoute = createRoute({
 			<PluginSettingsPage />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Plugin Settings` },
+	staticData: {
+		pageTitle: msg`Plugin Settings`,
+		breadcrumb: { parent: "/plugins-manager", dynamic: true },
+	},
 });
 
 function PluginSettingsPage() {

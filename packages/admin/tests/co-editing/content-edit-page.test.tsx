@@ -361,6 +361,7 @@ describe("operations in a room", () => {
 		const { screen, server } = await openInRoom(entry({ draftRevisionId: null }));
 
 		await screen.getByRole("button", { name: "Unpublish Post" }).click();
+		await confirm(screen, "Unpublish Post?", "Unpublish");
 
 		await vi.waitFor(() =>
 			expect(server.log).toEqual([

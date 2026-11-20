@@ -1,7 +1,7 @@
 import { Toasty } from "@cloudflare/kumo";
 import * as React from "react";
 import { flushSync } from "react-dom";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { page, userEvent } from "vitest/browser";
 
 import "../../dist/styles.css";
@@ -89,7 +89,11 @@ const linked = (): StoredBlockValue => ({
 	title: "Contact",
 });
 
-function Harness({ initial }: { initial: StoredBlockValue[] }) {
+type HarnessProps = Partial<Omit<BlocksFieldProps, "value" | "onChange">> & {
+	initial: StoredBlockValue[];
+};
+
+function Harness({ initial, ...extraProps }: HarnessProps) {
 	const [value, setValue] = React.useState(initial);
 	const props: BlocksFieldProps = {
 		id: "field-layout",
@@ -110,18 +114,40 @@ function Harness({ initial }: { initial: StoredBlockValue[] }) {
 				onChange={(event) => onChange(event.target.value)}
 			/>
 		),
+		...extraProps,
 	};
 	return <BlocksField {...props} />;
 }
 
-function renderField(initial: StoredBlockValue[], { width = 480 }: { width?: number } = {}) {
+function renderField(
+	initial: StoredBlockValue[],
+	{ width = 480, ...props }: Omit<HarnessProps, "initial"> & { width?: number } = {},
+) {
 	return render(
 		<div style={{ width, marginInline: 80 }}>
-			<Harness initial={initial} />
+			<Harness initial={initial} {...props} />
 		</div>,
 		{ wrapper: Toasty },
 	);
 }
+
+const advanced = blockType("advanced", "Advanced", [
+	{ slug: "title", label: "Title", type: "string" },
+	{
+		slug: "anchor_id",
+		label: "Section ID",
+		type: "string",
+		validation: { pattern: "^(?:$|[a-z][a-z0-9_-]*)$" },
+	},
+]);
+
+const advancedBlock = (key: string, anchor_id = "section"): StoredBlockValue => ({
+	_type: "advanced",
+	_version: 1,
+	_key: key,
+	title: key,
+	anchor_id,
+});
 
 const row = (key: string) => document.querySelector<HTMLElement>(`[data-block-key="${key}"]`)!;
 const menuButtonOf = (key: string) =>
@@ -149,6 +175,181 @@ async function openLinked() {
 afterEach(() => {
 	// A test that fails part way could leave a press unlanded for the next one.
 	document.body.dispatchEvent(new PointerEvent("pointercancel", { bubbles: true }));
+});
+
+describe("A linked field focus request", () => {
+	it("opens only the addressed block and focuses its field", async () => {
+		const onFieldFocused = vi.fn();
+		await renderField([short("first"), short("target"), short("last")], {
+			focusField: "layout.target.title",
+			onFieldFocused,
+		});
+
+		await expect.element(textbox("Title")).toHaveFocus();
+		expect(onFieldFocused).toHaveBeenCalledOnce();
+		expect(textbox("Title").all()).toHaveLength(1);
+		await expect
+			.element(
+				page.elementLocator(row("target")).getByRole("button", { name: "Short", exact: true }),
+			)
+			.toHaveAttribute("aria-expanded", "true");
+		for (const key of ["first", "last"])
+			await expect
+				.element(page.elementLocator(row(key)).getByRole("button", { name: "Short", exact: true }))
+				.toHaveAttribute("aria-expanded", "false");
+	});
+
+	it("does not refocus the same request when a field value changes", async () => {
+		const onFieldFocused = vi.fn();
+		await renderField([linked()], { focusField: "layout.linked.title", onFieldFocused });
+		await expect.element(textbox("Title")).toHaveFocus();
+
+		await link().fill("https://example.com");
+		await expect.element(link()).toHaveFocus();
+		expect(onFieldFocused).toHaveBeenCalledOnce();
+	});
+
+	it("opens Advanced for an anchor_id field and focuses it", async () => {
+		await renderField([advancedBlock("target")], {
+			blockTypes: [advanced],
+			allowedTypes: ["advanced"],
+			focusField: "layout.target.anchor_id",
+		});
+
+		await expect.element(textbox("Section ID")).toHaveFocus();
+		await expect
+			.element(page.getByRole("button", { name: "Advanced: Advanced" }))
+			.toHaveAttribute("aria-expanded", "true");
+	});
+
+	it("focuses the add button for an empty repeater", async () => {
+		await renderField([{ ...stats(), stats: [] }], { focusField: "layout.stats.stats" });
+		await expect.element(page.getByRole("button", { name: "Add item to Stats" })).toHaveFocus();
+	});
+
+	it.each([false, true])(
+		"focuses a repeater before paused animation frames resume (empty: %s)",
+		async (empty) => {
+			const servicesType = blockType("services", "Services", [
+				{ slug: "heading", label: "Heading", type: "string" },
+				{
+					slug: "items",
+					label: "Items",
+					type: "repeater",
+					validation: {
+						subFields: [
+							{ slug: "title", label: "Title", type: "string" },
+							{ slug: "text", label: "Text", type: "text" },
+						],
+					},
+				},
+			]);
+			const initial = [
+				{
+					_type: "services",
+					_version: 1,
+					_key: "services",
+					heading: "Our services",
+					items: empty
+						? []
+						: [
+								{ title: "First service", text: "First description" },
+								{ title: "Second service", text: "Second description" },
+								{ title: "Third service", text: "Third description" },
+							],
+				},
+			];
+			const props = { initial, blockTypes: [servicesType], allowedTypes: ["services"] };
+			const screen = await render(<Harness {...props} />, { wrapper: Toasty });
+			const onFieldFocused = vi.fn();
+			const requestFrame = window.requestAnimationFrame.bind(window);
+			const pendingFrames: FrameRequestCallback[] = [];
+			const frames = vi.spyOn(window, "requestAnimationFrame").mockImplementation((callback) => {
+				pendingFrames.push(callback);
+				return -pendingFrames.length;
+			});
+			try {
+				await screen.rerender(
+					<Harness {...props} focusField="layout.services.items" onFieldFocused={onFieldFocused} />,
+				);
+				await expect
+					.poll(() =>
+						row("services").querySelector("[data-block-toggle]")?.getAttribute("aria-expanded"),
+					)
+					.toBe("true");
+				const firstControl = () =>
+					empty
+						? page.getByRole("button", { name: "Add item to Items", exact: true }).query()
+						: row("services").querySelector('[data-field="items"] [data-item-focus]');
+				await expect.poll(firstControl).not.toBeNull();
+				await expect.poll(() => document.activeElement).toBe(firstControl());
+				expect(onFieldFocused).toHaveBeenCalledOnce();
+			} finally {
+				frames.mockRestore();
+				for (const callback of pendingFrames) requestFrame(callback);
+				await frame();
+			}
+		},
+	);
+
+	it("focuses a target in read-only mode", async () => {
+		await renderField([short("first"), short("target")], {
+			focusField: "layout.target.title",
+			readOnly: true,
+		});
+
+		const target = page.elementLocator(document.querySelector("#field-layout\\.target\\.title")!);
+		await expect.element(target).toHaveFocus();
+		await expect.element(target).toHaveValue("target");
+	});
+
+	it.each(["layout.missing.title", "layout.target.missing"])(
+		"does not expand or focus a missing target: %s",
+		async (focusField) => {
+			const onFieldFocused = vi.fn();
+			await renderField([short("target")], { focusField, onFieldFocused });
+
+			await frame();
+			expect(textbox("Title").query()).toBeNull();
+			expect(onFieldFocused).not.toHaveBeenCalled();
+			await expect
+				.element(
+					page.elementLocator(row("target")).getByRole("button", { name: "Short", exact: true }),
+				)
+				.toHaveAttribute("aria-expanded", "false");
+		},
+	);
+
+	it.each(["-1.label", "01.label", "99.label", "one.label", "1.missing", "1.label.extra"])(
+		"leaves an invalid indexed repeater target unopened: %s",
+		async (path) => {
+			const onFieldFocused = vi.fn();
+			await renderField([stats()], { focusField: `layout.stats.stats.${path}`, onFieldFocused });
+			await frame();
+			await expect
+				.element(page.getByRole("button", { name: "Stats", exact: true }))
+				.toHaveAttribute("aria-expanded", "false");
+			expect(onFieldFocused).not.toHaveBeenCalled();
+		},
+	);
+
+	it("focuses the requested field without revealing another validation issue", async () => {
+		await renderField(
+			[
+				{
+					_type: "linked",
+					_version: 1,
+					_key: "target",
+					title: "Target",
+					cta_url: "not a link",
+				},
+			],
+			{ focusField: "layout.target.title" },
+		);
+
+		await expect.element(textbox("Title")).toHaveFocus();
+		await expect.element(textbox("Link")).not.toHaveAttribute("aria-invalid", "true");
+	});
 });
 
 describe("Focus left by a press that opens a popup", () => {

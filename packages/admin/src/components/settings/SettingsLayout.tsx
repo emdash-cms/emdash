@@ -4,7 +4,6 @@ import * as React from "react";
 import { cn } from "../../lib/utils.js";
 import { CaretNext } from "../ArrowIcons.js";
 import { EditorHeader } from "../EditorHeader.js";
-import { BackToSettingsLink } from "./BackToSettingsLink.js";
 
 interface SettingsFrameProps {
 	title: React.ReactNode;
@@ -16,14 +15,7 @@ interface SettingsFrameProps {
 export function SettingsFrame({ title, description, actions, children }: SettingsFrameProps) {
 	return (
 		<div className="max-w-4xl pb-6">
-			<EditorHeader
-				leading={
-					<div className="self-start">
-						<BackToSettingsLink />
-					</div>
-				}
-				actions={actions}
-			>
+			<EditorHeader actions={actions}>
 				<div>
 					<h1 className="text-2xl font-semibold leading-tight text-balance">{title}</h1>
 					<p className="mt-1.5 max-w-2xl text-sm leading-5 text-pretty text-kumo-subtle">

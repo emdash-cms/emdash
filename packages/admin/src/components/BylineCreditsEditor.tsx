@@ -459,6 +459,7 @@ export function BylineCreditsEditor({
 								render={
 									<Button
 										ref={chooserTriggerRef}
+										data-settings-field="bylines"
 										type="button"
 										variant="ghost"
 										shape="square"
@@ -559,6 +560,7 @@ export function BylineCreditsEditor({
 								render={
 									<Button
 										ref={chooserTriggerRef}
+										data-settings-field="bylines"
 										type="button"
 										variant="secondary"
 										className="w-full"
@@ -574,6 +576,7 @@ export function BylineCreditsEditor({
 							render={
 								<Button
 									ref={chooserTriggerRef}
+									data-settings-field="bylines"
 									type="button"
 									variant="secondary"
 									className="w-full"
