@@ -13,11 +13,18 @@ import {
 	anchorForSelection,
 	createEditorialCommentsExtension,
 	getEditorialHighlights,
+	getEditorialPending,
 	locateAnchor,
 	setEditorialHighlights,
 } from "../../src/components/editor/EditorialCommentsExtension";
 import { PORTABLE_TEXT_KEY_ATTR } from "../../src/components/editor/portableTextIdentity";
+import {
+	EmDashTableCell,
+	EmDashTableHeader,
+	EmDashTableRow,
+} from "../../src/components/editor/TableExtensions";
 import type { EditorialTextAnchor } from "../../src/editorial-anchors";
+import { PortableTextTable } from "../../src/portable-text/schema";
 
 const KeyAttribute = Extension.create({
 	name: "testPortableTextKey",
@@ -348,6 +355,21 @@ describe("editorial block comments", () => {
 		expect(onActivate).toHaveBeenCalledWith("t1");
 	});
 
+	it("keeps a block thread and a block draft when a block is inserted right before them", () => {
+		const ed = createEditorWithImage("img1");
+		setEditorialHighlights(ed.state, ed.view.dispatch, {
+			highlights: [{ threadId: "t1", kind: "block", from: 9, to: 10 }],
+			pending: { kind: "block", from: 9, to: 10 },
+		});
+
+		ed.commands.insertContentAt(9, { type: "paragraph", content: [text("New")] });
+
+		expect(getEditorialHighlights(ed.state)).toEqual([
+			{ threadId: "t1", kind: "block", from: 14, to: 15 },
+		]);
+		expect(getEditorialPending(ed.state)).toEqual({ kind: "block", from: 14, to: 15 });
+	});
+
 	it("drops a block highlight when its block is deleted", () => {
 		const ed = createEditorWithImage("img1");
 		setEditorialHighlights(ed.state, ed.view.dispatch, {
@@ -474,5 +496,68 @@ describe("editorial comments on text that isn't saved as a text block", () => {
 			ok: false,
 			reason: "unsupported",
 		});
+	});
+});
+
+describe("editorial comments on a top-level table", () => {
+	function createEditorWithTable(tableKey: string | null) {
+		editor = new Editor({
+			element: document.createElement("div"),
+			extensions: [
+				StarterKit,
+				KeyAttribute,
+				PortableTextTable,
+				EmDashTableRow,
+				EmDashTableHeader,
+				EmDashTableCell,
+				createEditorialCommentsExtension({ current: {} }),
+			],
+			content: {
+				type: "doc",
+				content: [
+					{
+						type: "table",
+						attrs: { emdashKey: tableKey },
+						content: [
+							{
+								type: "tableRow",
+								attrs: { emdashKey: "row1" },
+								content: [
+									{
+										type: "tableCell",
+										content: [{ type: "paragraph", content: [text("Price")] }],
+									},
+								],
+							},
+						],
+					},
+				],
+			},
+		});
+		return editor;
+	}
+
+	it("finds a block thread on the table by the key it saves", () => {
+		const ed = createEditorWithTable("tbl1");
+
+		expect(locateAnchor(ed.state.doc, { type: "block", field: "body", blockKey: "tbl1" })).toEqual({
+			kind: "block",
+			from: 0,
+			to: ed.state.doc.child(0).nodeSize,
+		});
+	});
+
+	it("anchors a selected table to its key, giving it one when it has none", () => {
+		const ed = createEditorWithTable(null);
+		ed.commands.setNodeSelection(0);
+
+		const result = anchorForSelection(ed.state, ed.view.dispatch, "body", () => "tbl2");
+
+		expect(result).toEqual({
+			ok: true,
+			anchor: { type: "block", field: "body", blockKey: "tbl2" },
+			range: { kind: "block", from: 0, to: ed.state.doc.child(0).nodeSize },
+		});
+		expect(ed.state.doc.child(0).attrs.emdashKey).toBe("tbl2");
 	});
 });

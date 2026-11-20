@@ -121,7 +121,7 @@ function setHoveredThread(view: EditorView, threadId: string | null): void {
 }
 
 function mapRange<T extends EditorialRange>(tr: Transaction, range: T): T | null {
-	const from = tr.mapping.mapResult(range.from, range.kind === "text" ? 1 : -1);
+	const from = tr.mapping.mapResult(range.from, 1);
 	const to = tr.mapping.mapResult(range.to, -1);
 	if (from.deleted && to.deleted) return null;
 	if (from.pos >= to.pos) return null;
@@ -326,7 +326,7 @@ export function locateAnchor(
 		let found: { kind: "block"; from: number; to: number } | null = null;
 		doc.descendants((node, pos) => {
 			if (found) return false;
-			if (node.attrs[PORTABLE_TEXT_KEY_ATTR] === anchor.blockKey) {
+			if (node.attrs[blockKeyAttr(node)] === anchor.blockKey) {
 				found = { kind: "block", from: pos, to: pos + node.nodeSize };
 				return false;
 			}
@@ -375,8 +375,14 @@ export type SelectionAnchorResult =
 	| { ok: true; anchor: EditorialAnchor; range: EditorialRange }
 	| { ok: false; reason: "empty" | "multiple-blocks" | "too-long" | "unkeyed" | "unsupported" };
 
+/** Top-level tables keep their Portable Text `_key` in their own attribute. */
+function blockKeyAttr(node: PMNode): string {
+	return node.type.name === "table" ? "emdashKey" : PORTABLE_TEXT_KEY_ATTR;
+}
+
 /** Whether a node is a top-level block other than a paragraph or heading, such as an image. */
 export function isCommentableBlock(node: PMNode, parent: PMNode | null): boolean {
+	if (node.type.name === "table") return parent?.type === node.type.schema.topNodeType;
 	if (node.isTextblock && node.type.name !== "codeBlock") return false;
 	return ownsPortableTextKey(node, parent);
 }
@@ -438,13 +444,14 @@ function ensureKey(
 	generateKey: () => string,
 	assignKey: boolean,
 ): { key: string; doc: PMNode } | null {
-	const existing: unknown = state.doc.nodeAt(pos)?.attrs[PORTABLE_TEXT_KEY_ATTR];
+	const node = state.doc.nodeAt(pos);
+	if (!node) return null;
+	const attr = blockKeyAttr(node);
+	const existing: unknown = node.attrs[attr];
 	if (typeof existing === "string" && existing) return { key: existing, doc: state.doc };
 	if (!assignKey) return null;
 	const key = generateKey();
-	const tr = state.tr
-		.setNodeAttribute(pos, PORTABLE_TEXT_KEY_ATTR, key)
-		.setMeta("addToHistory", false);
+	const tr = state.tr.setNodeAttribute(pos, attr, key).setMeta("addToHistory", false);
 	dispatch(tr);
 	return { key, doc: tr.doc };
 }
