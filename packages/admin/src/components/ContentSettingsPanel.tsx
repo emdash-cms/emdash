@@ -44,6 +44,7 @@ import { useRoomOperations } from "../lib/co-editing/operations.js";
 import type { RoomEditing } from "../lib/co-editing/types.js";
 import {
 	ContentEditorPanelBoundary,
+	type ContentEditorDraft,
 	useVisibleContentEditorPanels,
 } from "../lib/content-editor-panels.js";
 import {
@@ -85,7 +86,7 @@ import type {
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
 import { SaveButton } from "./SaveButton";
-import { SeoPanel } from "./SeoPanel";
+import { SeoPanel, type SeoTextBridge } from "./SeoPanel";
 import { declaredLabelTranslator } from "./Sidebar.js";
 import { TaxonomySidebar, useHasApplicableTaxonomies } from "./TaxonomySidebar";
 import { TranslationsPanel } from "./TranslationsPanel.js";
@@ -862,6 +863,10 @@ export interface ContentSettingsPanelProps {
 		response: EditorDraftResponse,
 	) => void;
 	onEntryRefresh?: () => void | Promise<void>;
+	/** Passed to every trusted editor panel; one per entry. */
+	editorDraft?: ContentEditorDraft;
+	/** The editor's copy of the SEO title and description, which outlives SeoPanel; one per entry. */
+	seoTextBridge?: SeoTextBridge;
 	/** In a room, the latest checkpoint's `_rev`, which sandboxed panels load again on. */
 	roomRevision?: string | null;
 	/** The entry's room, which shows who else is in the slug. */
@@ -924,6 +929,8 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	captureEditorDraft,
 	onEditorDraftResponse,
 	onEntryRefresh,
+	editorDraft,
+	seoTextBridge,
 	roomRevision,
 	room = null,
 }: ContentSettingsPanelProps) {
@@ -952,9 +959,9 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const panelContext = React.useMemo(
 		() =>
 			!isNew && item
-				? { collection, entry: item, locale: item.locale ?? entryLocale ?? undefined }
+				? { collection, entry: item, locale: item.locale ?? entryLocale ?? undefined, editorDraft }
 				: null,
-		[collection, entryLocale, isNew, item],
+		[collection, editorDraft, entryLocale, isNew, item],
 	);
 	const visibleTrustedPanels = useVisibleContentEditorPanels(trustedPanelCandidates, panelContext);
 
@@ -1292,6 +1299,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								defaultDescription={
 									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
 								}
+								textBridge={seoTextBridge}
 							/>
 						</div>
 					</ContentSettingsSection>
@@ -1350,6 +1358,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												collection={collection}
 												entry={item}
 												locale={item.locale ?? entryLocale ?? undefined}
+												editorDraft={editorDraft}
 											/>
 										</div>
 									</ContentEditorPanelBoundary>
