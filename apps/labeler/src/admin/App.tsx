@@ -550,7 +550,6 @@ function AssessmentReview({
 }) {
 	const { t } = useLingui();
 	const toast = useKumoToastManager();
-	const [evidenceOpen, setEvidenceOpen] = React.useState((detail.findings ?? []).length > 0);
 	const [technicalOpen, setTechnicalOpen] = React.useState(false);
 	const [pendingAction, setPendingAction] = React.useState<
 		"approve" | "block" | "rerun" | "notify" | null
@@ -595,26 +594,25 @@ function AssessmentReview({
 				<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-y py-3 text-sm">
 					<div>
 						<strong>
-							{findings.length === 0 ? t`No model findings` : t`${findings.length} model findings`}
+							{findings.length === 0
+								? t`No findings`
+								: plural(findings.length, { one: "# finding", other: "# findings" })}
 						</strong>
-						<span className="ms-2 text-kumo-subtle">
-							{reasonCodes.includes("manual-positive-required")
-								? t`Manual approval required`
-								: t`Operator decision required`}
-						</span>
+						{(item.state === "review" || item.state === "error") && (
+							<span className="ms-2 text-kumo-subtle">
+								{reasonCodes.includes("manual-positive-required")
+									? t`Manual approval required`
+									: t`Operator decision required`}
+							</span>
+						)}
 					</div>
 					<div className="flex gap-1">
-						<Button size="sm" variant="ghost" onClick={() => setEvidenceOpen((open) => !open)}>
-							{evidenceOpen ? t`Hide assessment` : t`Show assessment`}
-						</Button>
 						<Button size="sm" variant="ghost" onClick={() => setTechnicalOpen((open) => !open)}>
 							{technicalOpen ? t`Hide technical details` : t`Technical details`}
 						</Button>
 					</div>
 				</div>
-				{evidenceOpen && (
-					<AssessmentEvidence detail={detail} findings={findings} reasonCodes={reasonCodes} />
-				)}
+				<AssessmentEvidence detail={detail} findings={findings} reasonCodes={reasonCodes} />
 				{technicalOpen && (
 					<pre className="mt-3 max-h-80 overflow-auto rounded-lg bg-kumo-recessed p-4 text-xs">
 						{JSON.stringify(
@@ -797,16 +795,6 @@ function AssessmentEvidence({
 					runKey={detail.assessment.run_key}
 				/>
 			))}
-			{findings.length === 0 && (
-				<div className="border-s-2 border-kumo-success py-2 ps-3">
-					<p className="text-sm font-medium">
-						<Trans>No model findings</Trans>
-					</p>
-					<p className="mt-1 text-xs text-kumo-subtle">
-						<Trans>The model completed without flagging the submitted listing.</Trans>
-					</p>
-				</div>
-			)}
 			<div className="border-s-2 border-kumo-line py-2 ps-3">
 				<p className="text-sm font-medium">
 					<Trans>Policy</Trans>

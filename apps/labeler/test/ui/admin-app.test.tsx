@@ -195,7 +195,7 @@ describe("labeler admin application", () => {
 		expect((await screen.findAllByText("EmDash to Buffer")).length).toBeGreaterThan(0);
 		expect(screen.getByText("By Justin Thompson · @justin.example")).toBeTruthy();
 		expect(screen.getByText("Queue newly published EmDash posts to Buffer channels.")).toBeTruthy();
-		expect(screen.getByText("No model findings")).toBeTruthy();
+		expect(screen.getByText("No findings")).toBeTruthy();
 		expect(screen.getByText(/Review required ·/)).toBeTruthy();
 		expect(screen.queryByText(item.subject_uri)).toBeNull();
 
@@ -246,7 +246,8 @@ describe("recent assessments", () => {
 
 		expect(await screen.findByRole("heading", { name: "Review queue" })).toBeTruthy();
 		await waitFor(() => expect(api.getAssessment).toHaveBeenCalledWith("passed-release"));
-		expect(await screen.findByText("Marketplace preview")).toBeTruthy();
+		expect(await screen.findByText(/code: complete/)).toBeTruthy();
+		expect(screen.queryByText("Operator decision required")).toBeNull();
 		expect(screen.queryByText("No assessments")).toBeNull();
 		expect(window.location.search).toBe("?state=passed");
 	});
