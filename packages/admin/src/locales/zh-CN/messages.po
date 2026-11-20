@@ -1888,12 +1888,12 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:460
+#: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "管理员"
 
-#: packages/admin/src/components/Sidebar.tsx:741
+#: packages/admin/src/components/Sidebar.tsx:742
 msgid "Admin navigation"
 msgstr "管理员导航"
 
@@ -2851,7 +2851,7 @@ msgstr "署名字段"
 msgid "Byline schema"
 msgstr "署名架构"
 
-#: packages/admin/src/components/Sidebar.tsx:583
+#: packages/admin/src/components/Sidebar.tsx:584
 #: packages/admin/src/router.tsx:3593
 msgid "Byline Schema"
 msgstr "署名架构"
@@ -2865,7 +2865,7 @@ msgstr "署名已更新"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1195
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:549
+#: packages/admin/src/components/Sidebar.tsx:550
 #: packages/admin/src/lib/editor-sections.ts:34
 #: packages/admin/src/router.tsx:3582
 #: packages/admin/src/routes/bylines.tsx:302
@@ -2884,9 +2884,9 @@ msgstr "C#"
 msgid "C++"
 msgstr "C++"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:147
+#: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:586
-#: packages/admin/src/components/Sidebar.tsx:478
+#: packages/admin/src/components/Sidebar.tsx:479
 #: packages/admin/src/router.tsx:594
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
@@ -3022,7 +3022,7 @@ msgstr "字幕 / 对白字幕"
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr "正在准备捕获。请保持编辑暂停，直到设置完成。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:210
+#: packages/admin/src/components/AdminCommandPalette.tsx:205
 #: packages/admin/src/components/Widgets.tsx:151
 msgid "Categories"
 msgstr "分类"
@@ -3694,7 +3694,7 @@ msgstr "评论互动"
 #: packages/admin/src/components/ContentTypeEditor.tsx:702
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:513
+#: packages/admin/src/components/Sidebar.tsx:514
 #: packages/admin/src/router.tsx:3010
 msgid "Comments"
 msgstr "评论"
@@ -3797,12 +3797,12 @@ msgstr "连接"
 msgid "content"
 msgstr "内容"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:407
+#: packages/admin/src/components/AdminCommandPalette.tsx:402
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
 #: packages/admin/src/components/Dashboard.tsx:499
 #: packages/admin/src/components/SectionEditor.tsx:197
-#: packages/admin/src/components/Sidebar.tsx:458
+#: packages/admin/src/components/Sidebar.tsx:459
 #: packages/admin/src/components/Widgets.tsx:986
 #: packages/admin/src/router.tsx:606
 msgid "Content"
@@ -3882,9 +3882,9 @@ msgstr "要导入的内容"
 msgid "Content types"
 msgstr "内容类型"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:202
+#: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:148
-#: packages/admin/src/components/Sidebar.tsx:579
+#: packages/admin/src/components/Sidebar.tsx:580
 #: packages/admin/src/router.tsx:3601
 msgid "Content Types"
 msgstr "内容类型"
@@ -4551,7 +4551,7 @@ msgid "Custom Taxonomies"
 msgstr "自定义分类法"
 
 #: packages/admin/src/components/ContentEditor.tsx:3010
-#: packages/admin/src/components/Sidebar.tsx:796
+#: packages/admin/src/components/Sidebar.tsx:797
 msgid "Customize sidebar"
 msgstr "自定义侧栏"
 
@@ -4565,11 +4565,11 @@ msgstr "每日自动备份"
 msgid "Dark mode variant"
 msgstr "深色模式变体"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:140
+#: packages/admin/src/components/AdminCommandPalette.tsx:135
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
-#: packages/admin/src/components/Shell.tsx:89
-#: packages/admin/src/components/Sidebar.tsx:475
+#: packages/admin/src/components/Shell.tsx:90
+#: packages/admin/src/components/Sidebar.tsx:476
 #: packages/admin/src/router.tsx:576
 msgid "Dashboard"
 msgstr "仪表板"
@@ -5480,7 +5480,7 @@ msgstr "最早保存的版本"
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:230
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:130
+#: packages/admin/src/components/Shell.tsx:131
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -8027,7 +8027,7 @@ msgstr "隐藏令牌"
 msgid "visualEditing.hideToolbar"
 msgstr "隐藏工具栏"
 
-#: packages/admin/src/components/Shell.tsx:130
+#: packages/admin/src/components/Shell.tsx:131
 msgid "Hide toolbar"
 msgstr "隐藏工具栏"
 
@@ -8286,9 +8286,9 @@ msgstr "隐式 TLS"
 msgid "Implicit TLS (port 465)"
 msgstr "隐式 TLS（端口 465）"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:244
+#: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:605
+#: packages/admin/src/components/Sidebar.tsx:606
 #: packages/admin/src/components/WordPressImport.tsx:785
 msgid "Import"
 msgstr "导入"
@@ -9406,7 +9406,7 @@ msgstr "主库"
 msgid "Main Sidebar"
 msgstr "主侧边栏"
 
-#: packages/admin/src/components/Sidebar.tsx:459
+#: packages/admin/src/components/Sidebar.tsx:460
 msgid "Manage"
 msgstr "管理"
 
@@ -9544,7 +9544,7 @@ msgstr "MDX"
 #: packages/admin/src/components/Settings.tsx:75
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:500
+#: packages/admin/src/components/Sidebar.tsx:501
 #: packages/admin/src/components/WordPressImport.tsx:799
 #: packages/admin/src/components/WordPressImport.tsx:1197
 #: packages/admin/src/components/WordPressImport.tsx:1390
@@ -9588,7 +9588,7 @@ msgstr "此文件夹中的媒体将回到主库。不会删除任何文件。"
 msgid "visualEditing.mediaLibrary"
 msgstr "媒体库"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:171
+#: packages/admin/src/components/AdminCommandPalette.tsx:166
 #: packages/admin/src/components/MediaLibrary.tsx:780
 msgid "Media Library"
 msgstr "媒体库"
@@ -9702,10 +9702,10 @@ msgstr "菜单顺序已更新。"
 msgid "Menu renamed"
 msgstr "菜单已重命名"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:178
+#: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:159
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:521
+#: packages/admin/src/components/Sidebar.tsx:522
 #: packages/admin/src/components/WordPressImport.tsx:1201
 #: packages/admin/src/router.tsx:3489
 msgid "Menus"
@@ -10086,7 +10086,7 @@ msgstr "为片段命名，然后在编辑器中添加其内容。"
 msgid "Navigate"
 msgstr "导航"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:369
+#: packages/admin/src/components/AdminCommandPalette.tsx:364
 #: packages/admin/src/components/ContentTypeEditor.tsx:580
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:109
 msgid "Navigation"
@@ -10195,7 +10195,7 @@ msgstr "新建可复用档案"
 msgid "New section"
 msgstr "新建片段"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:508
+#: packages/admin/src/components/AdminCommandPalette.tsx:503
 msgid "new tab"
 msgstr "新标签页"
 
@@ -10636,7 +10636,7 @@ msgstr "没有“{activeSearch}”的搜索结果"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "没有找到“{debouncedQuery}”的结果。请尝试其他搜索词。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:494
+#: packages/admin/src/components/AdminCommandPalette.tsx:489
 #: packages/admin/src/components/Settings.tsx:179
 msgid "No results found"
 msgstr "未找到结果"
@@ -11522,12 +11522,12 @@ msgstr "插件已更新"
 msgid "Plugin widget error"
 msgstr "插件组件错误"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:236
+#: packages/admin/src/components/AdminCommandPalette.tsx:231
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:191
 #: packages/admin/src/components/PluginManager.tsx:201
-#: packages/admin/src/components/Sidebar.tsx:461
-#: packages/admin/src/components/Sidebar.tsx:587
+#: packages/admin/src/components/Sidebar.tsx:462
+#: packages/admin/src/components/Sidebar.tsx:588
 #: packages/admin/src/router.tsx:3345
 msgid "Plugins"
 msgstr "插件"
@@ -12022,7 +12022,7 @@ msgstr "正在重定向到登录……"
 #: packages/admin/src/components/Redirects.tsx:731
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:528
+#: packages/admin/src/components/Sidebar.tsx:529
 #: packages/admin/src/router.tsx:3531
 msgid "Redirects"
 msgstr "重定向"
@@ -12093,7 +12093,7 @@ msgstr "注册已取消或超时。请重试。"
 
 #: packages/admin/src/components/PluginManager.tsx:219
 #: packages/admin/src/components/PluginManager.tsx:464
-#: packages/admin/src/components/Sidebar.tsx:596
+#: packages/admin/src/components/Sidebar.tsx:597
 #: packages/admin/src/router.tsx:3360
 msgid "Registry"
 msgstr "插件仓库"
@@ -13354,7 +13354,7 @@ msgstr "搜索或创建{label}……"
 msgid "Search or type a URL"
 msgstr "搜索或输入 URL"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:467
+#: packages/admin/src/components/AdminCommandPalette.tsx:462
 msgid "Search pages and content..."
 msgstr "搜索页面和内容……"
 
@@ -13456,11 +13456,11 @@ msgstr "未找到片段"
 msgid "Section title"
 msgstr "片段标题"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:194
+#: packages/admin/src/components/AdminCommandPalette.tsx:189
 #: packages/admin/src/components/Sections.tsx:218
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:542
+#: packages/admin/src/components/Sidebar.tsx:543
 #: packages/admin/src/router.tsx:3538
 msgid "Sections"
 msgstr "片段"
@@ -13514,7 +13514,7 @@ msgstr "安全联系方式"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "安全错误。请确保您使用的是安全连接。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:268
+#: packages/admin/src/components/AdminCommandPalette.tsx:263
 #: packages/admin/src/components/Header.tsx:114
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
@@ -13860,13 +13860,13 @@ msgstr "正在设置"
 msgid "Setting up..."
 msgstr "正在设置……"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:252
+#: packages/admin/src/components/AdminCommandPalette.tsx:247
 #: packages/admin/src/components/ContentEditor.tsx:2909
 #: packages/admin/src/components/ContentTypeEditor.tsx:485
 #: packages/admin/src/components/Header.tsx:122
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
-#: packages/admin/src/components/Sidebar.tsx:610
+#: packages/admin/src/components/Sidebar.tsx:611
 #: packages/admin/src/components/WordPressImport.tsx:1861
 #: packages/admin/src/router.tsx:3180
 msgid "Settings"
@@ -14149,7 +14149,7 @@ msgstr "站点标题和副标题"
 msgid "Site title is required"
 msgstr "站点标题为必填项"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:260
+#: packages/admin/src/components/AdminCommandPalette.tsx:255
 msgid "Site Transfer"
 msgstr "站点转移"
 
@@ -14652,7 +14652,7 @@ msgstr "表格不能粘贴到列表或引用中。请将表格粘贴到独立段
 msgid "Tagline"
 msgstr "副标题"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:219
+#: packages/admin/src/components/AdminCommandPalette.tsx:214
 #: packages/admin/src/components/Widgets.tsx:159
 msgid "Tags"
 msgstr "标签"
@@ -15794,7 +15794,7 @@ msgstr "标题（工具提示）"
 msgid "Title Separator"
 msgstr "标题分隔符"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:512
+#: packages/admin/src/components/AdminCommandPalette.tsx:507
 msgid "to close"
 msgstr "关闭"
 
@@ -15806,7 +15806,7 @@ msgstr "要将站点迁移到另一个 EmDash 安装，请使用 <0>迁移</0>�
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr "按空格键或回车键拿起项目。用上、下方向键移动，再按空格键或回车键放下，或按 Esc 取消。按住 Alt 加上、下方向键可立即移动一位。"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:502
+#: packages/admin/src/components/AdminCommandPalette.tsx:497
 msgid "to select"
 msgstr "选择"
 
@@ -16695,8 +16695,8 @@ msgstr "未找到用户：{id}"
 msgid "Username"
 msgstr "用户名"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:228
-#: packages/admin/src/components/Sidebar.tsx:584
+#: packages/admin/src/components/AdminCommandPalette.tsx:223
+#: packages/admin/src/components/Sidebar.tsx:585
 #: packages/admin/src/components/users/UserList.tsx:64
 #: packages/admin/src/router.tsx:3560
 msgid "Users"
@@ -17121,11 +17121,11 @@ msgstr "小部件标题"
 msgid "Widget updated"
 msgstr "小部件已更新"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:186
+#: packages/admin/src/components/AdminCommandPalette.tsx:181
 #: packages/admin/src/components/PluginManager.tsx:495
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:535
+#: packages/admin/src/components/Sidebar.tsx:536
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1209
 #: packages/admin/src/router.tsx:3523

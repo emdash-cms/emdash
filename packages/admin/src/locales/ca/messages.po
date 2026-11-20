@@ -1888,12 +1888,12 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:460
+#: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Administració"
 
-#: packages/admin/src/components/Sidebar.tsx:741
+#: packages/admin/src/components/Sidebar.tsx:742
 msgid "Admin navigation"
 msgstr "Navegació d'administració"
 
@@ -2851,7 +2851,7 @@ msgstr "Camps de signatura"
 msgid "Byline schema"
 msgstr "Esquema de signatures"
 
-#: packages/admin/src/components/Sidebar.tsx:583
+#: packages/admin/src/components/Sidebar.tsx:584
 #: packages/admin/src/router.tsx:3593
 msgid "Byline Schema"
 msgstr "Esquema de signatures"
@@ -2865,7 +2865,7 @@ msgstr "Signatura actualitzada"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1195
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:549
+#: packages/admin/src/components/Sidebar.tsx:550
 #: packages/admin/src/lib/editor-sections.ts:34
 #: packages/admin/src/router.tsx:3582
 #: packages/admin/src/routes/bylines.tsx:302
@@ -2884,9 +2884,9 @@ msgstr "C#"
 msgid "C++"
 msgstr "C++"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:147
+#: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:586
-#: packages/admin/src/components/Sidebar.tsx:478
+#: packages/admin/src/components/Sidebar.tsx:479
 #: packages/admin/src/router.tsx:594
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
@@ -3022,7 +3022,7 @@ msgstr "Llegendes / Subtítols"
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr "La captura s'està preparant. Mantén l'edició en pausa fins que la configuració s'hagi completat."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:210
+#: packages/admin/src/components/AdminCommandPalette.tsx:205
 #: packages/admin/src/components/Widgets.tsx:151
 msgid "Categories"
 msgstr "Categories"
@@ -3694,7 +3694,7 @@ msgstr "Reaccions als comentaris"
 #: packages/admin/src/components/ContentTypeEditor.tsx:702
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:513
+#: packages/admin/src/components/Sidebar.tsx:514
 #: packages/admin/src/router.tsx:3010
 msgid "Comments"
 msgstr "Comentaris"
@@ -3797,12 +3797,12 @@ msgstr "Connexions"
 msgid "content"
 msgstr "contingut"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:407
+#: packages/admin/src/components/AdminCommandPalette.tsx:402
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
 #: packages/admin/src/components/Dashboard.tsx:499
 #: packages/admin/src/components/SectionEditor.tsx:197
-#: packages/admin/src/components/Sidebar.tsx:458
+#: packages/admin/src/components/Sidebar.tsx:459
 #: packages/admin/src/components/Widgets.tsx:986
 #: packages/admin/src/router.tsx:606
 msgid "Content"
@@ -3882,9 +3882,9 @@ msgstr "Contingut per importar"
 msgid "Content types"
 msgstr "Tipus de contingut"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:202
+#: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:148
-#: packages/admin/src/components/Sidebar.tsx:579
+#: packages/admin/src/components/Sidebar.tsx:580
 #: packages/admin/src/router.tsx:3601
 msgid "Content Types"
 msgstr "Tipus de contingut"
@@ -4551,7 +4551,7 @@ msgid "Custom Taxonomies"
 msgstr "Taxonomies personalitzades"
 
 #: packages/admin/src/components/ContentEditor.tsx:3010
-#: packages/admin/src/components/Sidebar.tsx:796
+#: packages/admin/src/components/Sidebar.tsx:797
 msgid "Customize sidebar"
 msgstr ""
 
@@ -4565,11 +4565,11 @@ msgstr "Còpies de seguretat automàtiques diàries"
 msgid "Dark mode variant"
 msgstr "Variant de mode fosc"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:140
+#: packages/admin/src/components/AdminCommandPalette.tsx:135
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
-#: packages/admin/src/components/Shell.tsx:89
-#: packages/admin/src/components/Sidebar.tsx:475
+#: packages/admin/src/components/Shell.tsx:90
+#: packages/admin/src/components/Sidebar.tsx:476
 #: packages/admin/src/router.tsx:576
 msgid "Dashboard"
 msgstr "Tauler"
@@ -5480,7 +5480,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:230
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:130
+#: packages/admin/src/components/Shell.tsx:131
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -8027,7 +8027,7 @@ msgstr "Amaga el token"
 msgid "visualEditing.hideToolbar"
 msgstr "visualEditing.hideToolbar"
 
-#: packages/admin/src/components/Shell.tsx:130
+#: packages/admin/src/components/Shell.tsx:131
 msgid "Hide toolbar"
 msgstr "Amaga la barra d'eines"
 
@@ -8286,9 +8286,9 @@ msgstr ""
 msgid "Implicit TLS (port 465)"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:244
+#: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:605
+#: packages/admin/src/components/Sidebar.tsx:606
 #: packages/admin/src/components/WordPressImport.tsx:785
 msgid "Import"
 msgstr "Importa"
@@ -9406,7 +9406,7 @@ msgstr "Biblioteca principal"
 msgid "Main Sidebar"
 msgstr "Barra lateral principal"
 
-#: packages/admin/src/components/Sidebar.tsx:459
+#: packages/admin/src/components/Sidebar.tsx:460
 msgid "Manage"
 msgstr "Gestiona"
 
@@ -9544,7 +9544,7 @@ msgstr "MDX"
 #: packages/admin/src/components/Settings.tsx:75
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:500
+#: packages/admin/src/components/Sidebar.tsx:501
 #: packages/admin/src/components/WordPressImport.tsx:799
 #: packages/admin/src/components/WordPressImport.tsx:1197
 #: packages/admin/src/components/WordPressImport.tsx:1390
@@ -9588,7 +9588,7 @@ msgstr "El multimèdia d'aquesta carpeta tornarà a la biblioteca principal. No 
 msgid "visualEditing.mediaLibrary"
 msgstr "visualEditing.mediaLibrary"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:171
+#: packages/admin/src/components/AdminCommandPalette.tsx:166
 #: packages/admin/src/components/MediaLibrary.tsx:780
 msgid "Media Library"
 msgstr "Biblioteca multimèdia"
@@ -9702,10 +9702,10 @@ msgstr "S'ha actualitzat l'ordre del menú."
 msgid "Menu renamed"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:178
+#: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:159
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:521
+#: packages/admin/src/components/Sidebar.tsx:522
 #: packages/admin/src/components/WordPressImport.tsx:1201
 #: packages/admin/src/router.tsx:3489
 msgid "Menus"
@@ -10086,7 +10086,7 @@ msgstr "Posa nom a la teva secció i afegeix-ne el contingut a l'editor."
 msgid "Navigate"
 msgstr "Navega"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:369
+#: packages/admin/src/components/AdminCommandPalette.tsx:364
 #: packages/admin/src/components/ContentTypeEditor.tsx:580
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:109
 msgid "Navigation"
@@ -10195,7 +10195,7 @@ msgstr "Perfil reutilitzable nou"
 msgid "New section"
 msgstr "Secció nova"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:508
+#: packages/admin/src/components/AdminCommandPalette.tsx:503
 msgid "new tab"
 msgstr "pestanya nova"
 
@@ -10636,7 +10636,7 @@ msgstr "Cap resultat per a \"{activeSearch}\""
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "Cap resultat per a \"{debouncedQuery}\". Prova un altre terme de cerca."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:494
+#: packages/admin/src/components/AdminCommandPalette.tsx:489
 #: packages/admin/src/components/Settings.tsx:179
 msgid "No results found"
 msgstr "No s'ha trobat cap resultat"
@@ -11522,12 +11522,12 @@ msgstr "S'ha actualitzat el connector"
 msgid "Plugin widget error"
 msgstr "Error del giny del connector"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:236
+#: packages/admin/src/components/AdminCommandPalette.tsx:231
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:191
 #: packages/admin/src/components/PluginManager.tsx:201
-#: packages/admin/src/components/Sidebar.tsx:461
-#: packages/admin/src/components/Sidebar.tsx:587
+#: packages/admin/src/components/Sidebar.tsx:462
+#: packages/admin/src/components/Sidebar.tsx:588
 #: packages/admin/src/router.tsx:3345
 msgid "Plugins"
 msgstr "Connectors"
@@ -12022,7 +12022,7 @@ msgstr "S'està redirigint a l'inici de sessió..."
 #: packages/admin/src/components/Redirects.tsx:731
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:528
+#: packages/admin/src/components/Sidebar.tsx:529
 #: packages/admin/src/router.tsx:3531
 msgid "Redirects"
 msgstr "Redireccions"
@@ -12093,7 +12093,7 @@ msgstr "El registre s'ha cancel·lat o ha excedit el temps d'espera. Torna-ho a 
 
 #: packages/admin/src/components/PluginManager.tsx:219
 #: packages/admin/src/components/PluginManager.tsx:464
-#: packages/admin/src/components/Sidebar.tsx:596
+#: packages/admin/src/components/Sidebar.tsx:597
 #: packages/admin/src/router.tsx:3360
 msgid "Registry"
 msgstr "Registre"
@@ -13354,7 +13354,7 @@ msgstr ""
 msgid "Search or type a URL"
 msgstr "Cerca o escriu una URL"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:467
+#: packages/admin/src/components/AdminCommandPalette.tsx:462
 msgid "Search pages and content..."
 msgstr "Cerca pàgines i contingut..."
 
@@ -13456,11 +13456,11 @@ msgstr "No s'ha trobat la secció"
 msgid "Section title"
 msgstr "Títol de la secció"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:194
+#: packages/admin/src/components/AdminCommandPalette.tsx:189
 #: packages/admin/src/components/Sections.tsx:218
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:542
+#: packages/admin/src/components/Sidebar.tsx:543
 #: packages/admin/src/router.tsx:3538
 msgid "Sections"
 msgstr "Seccions"
@@ -13514,7 +13514,7 @@ msgstr "Contactes de seguretat"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Error de seguretat. Assegura't que estàs en una connexió segura."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:268
+#: packages/admin/src/components/AdminCommandPalette.tsx:263
 #: packages/admin/src/components/Header.tsx:114
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
@@ -13860,13 +13860,13 @@ msgstr "S'està configurant"
 msgid "Setting up..."
 msgstr "S'està configurant..."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:252
+#: packages/admin/src/components/AdminCommandPalette.tsx:247
 #: packages/admin/src/components/ContentEditor.tsx:2909
 #: packages/admin/src/components/ContentTypeEditor.tsx:485
 #: packages/admin/src/components/Header.tsx:122
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
-#: packages/admin/src/components/Sidebar.tsx:610
+#: packages/admin/src/components/Sidebar.tsx:611
 #: packages/admin/src/components/WordPressImport.tsx:1861
 #: packages/admin/src/router.tsx:3180
 msgid "Settings"
@@ -14149,7 +14149,7 @@ msgstr "Títol i eslògan del lloc"
 msgid "Site title is required"
 msgstr "El títol del lloc és obligatori"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:260
+#: packages/admin/src/components/AdminCommandPalette.tsx:255
 msgid "Site Transfer"
 msgstr "Transferència del lloc"
 
@@ -14652,7 +14652,7 @@ msgstr "Les taules no es poden enganxar dins de llistes o cites. Enganxa la taul
 msgid "Tagline"
 msgstr "Eslògan"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:219
+#: packages/admin/src/components/AdminCommandPalette.tsx:214
 #: packages/admin/src/components/Widgets.tsx:159
 msgid "Tags"
 msgstr "Etiquetes"
@@ -15794,7 +15794,7 @@ msgstr "Títol (descripció emergent)"
 msgid "Title Separator"
 msgstr "Separador del títol"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:512
+#: packages/admin/src/components/AdminCommandPalette.tsx:507
 msgid "to close"
 msgstr "per tancar"
 
@@ -15806,7 +15806,7 @@ msgstr "Per traslladar un lloc a una altra instal·lació d'EmDash, fes servir <
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:502
+#: packages/admin/src/components/AdminCommandPalette.tsx:497
 msgid "to select"
 msgstr "per seleccionar"
 
@@ -16695,8 +16695,8 @@ msgstr ""
 msgid "Username"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:228
-#: packages/admin/src/components/Sidebar.tsx:584
+#: packages/admin/src/components/AdminCommandPalette.tsx:223
+#: packages/admin/src/components/Sidebar.tsx:585
 #: packages/admin/src/components/users/UserList.tsx:64
 #: packages/admin/src/router.tsx:3560
 msgid "Users"
@@ -17121,11 +17121,11 @@ msgstr "Títol del giny"
 msgid "Widget updated"
 msgstr "S'ha actualitzat el giny"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:186
+#: packages/admin/src/components/AdminCommandPalette.tsx:181
 #: packages/admin/src/components/PluginManager.tsx:495
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:535
+#: packages/admin/src/components/Sidebar.tsx:536
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1209
 #: packages/admin/src/router.tsx:3523

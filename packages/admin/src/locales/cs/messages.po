@@ -1888,12 +1888,12 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:460
+#: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Správce"
 
-#: packages/admin/src/components/Sidebar.tsx:741
+#: packages/admin/src/components/Sidebar.tsx:742
 msgid "Admin navigation"
 msgstr "Navigace administrace"
 
@@ -2851,7 +2851,7 @@ msgstr ""
 msgid "Byline schema"
 msgstr "Schéma autorského podpisu"
 
-#: packages/admin/src/components/Sidebar.tsx:583
+#: packages/admin/src/components/Sidebar.tsx:584
 #: packages/admin/src/router.tsx:3593
 msgid "Byline Schema"
 msgstr "Schéma autorského podpisu"
@@ -2865,7 +2865,7 @@ msgstr ""
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1195
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:549
+#: packages/admin/src/components/Sidebar.tsx:550
 #: packages/admin/src/lib/editor-sections.ts:34
 #: packages/admin/src/router.tsx:3582
 #: packages/admin/src/routes/bylines.tsx:302
@@ -2884,9 +2884,9 @@ msgstr "C#"
 msgid "C++"
 msgstr "C++"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:147
+#: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:586
-#: packages/admin/src/components/Sidebar.tsx:478
+#: packages/admin/src/components/Sidebar.tsx:479
 #: packages/admin/src/router.tsx:594
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
@@ -3022,7 +3022,7 @@ msgstr "Titulky / skryté titulky"
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:210
+#: packages/admin/src/components/AdminCommandPalette.tsx:205
 #: packages/admin/src/components/Widgets.tsx:151
 msgid "Categories"
 msgstr "Kategorie"
@@ -3694,7 +3694,7 @@ msgstr ""
 #: packages/admin/src/components/ContentTypeEditor.tsx:702
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:513
+#: packages/admin/src/components/Sidebar.tsx:514
 #: packages/admin/src/router.tsx:3010
 msgid "Comments"
 msgstr "Komentáře"
@@ -3797,12 +3797,12 @@ msgstr ""
 msgid "content"
 msgstr "obsah"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:407
+#: packages/admin/src/components/AdminCommandPalette.tsx:402
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
 #: packages/admin/src/components/Dashboard.tsx:499
 #: packages/admin/src/components/SectionEditor.tsx:197
-#: packages/admin/src/components/Sidebar.tsx:458
+#: packages/admin/src/components/Sidebar.tsx:459
 #: packages/admin/src/components/Widgets.tsx:986
 #: packages/admin/src/router.tsx:606
 msgid "Content"
@@ -3882,9 +3882,9 @@ msgstr "Obsah k importu"
 msgid "Content types"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:202
+#: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:148
-#: packages/admin/src/components/Sidebar.tsx:579
+#: packages/admin/src/components/Sidebar.tsx:580
 #: packages/admin/src/router.tsx:3601
 msgid "Content Types"
 msgstr "Typy obsahu"
@@ -4551,7 +4551,7 @@ msgid "Custom Taxonomies"
 msgstr "Vlastní taxonomie"
 
 #: packages/admin/src/components/ContentEditor.tsx:3010
-#: packages/admin/src/components/Sidebar.tsx:796
+#: packages/admin/src/components/Sidebar.tsx:797
 msgid "Customize sidebar"
 msgstr ""
 
@@ -4565,11 +4565,11 @@ msgstr "Denní automatické zálohy"
 msgid "Dark mode variant"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:140
+#: packages/admin/src/components/AdminCommandPalette.tsx:135
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
-#: packages/admin/src/components/Shell.tsx:89
-#: packages/admin/src/components/Sidebar.tsx:475
+#: packages/admin/src/components/Shell.tsx:90
+#: packages/admin/src/components/Sidebar.tsx:476
 #: packages/admin/src/router.tsx:576
 msgid "Dashboard"
 msgstr "Přehled"
@@ -5480,7 +5480,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:230
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:130
+#: packages/admin/src/components/Shell.tsx:131
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -8027,7 +8027,7 @@ msgstr "Skrýt token"
 msgid "visualEditing.hideToolbar"
 msgstr ""
 
-#: packages/admin/src/components/Shell.tsx:130
+#: packages/admin/src/components/Shell.tsx:131
 msgid "Hide toolbar"
 msgstr ""
 
@@ -8286,9 +8286,9 @@ msgstr ""
 msgid "Implicit TLS (port 465)"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:244
+#: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:605
+#: packages/admin/src/components/Sidebar.tsx:606
 #: packages/admin/src/components/WordPressImport.tsx:785
 msgid "Import"
 msgstr "Import"
@@ -9406,7 +9406,7 @@ msgstr "Hlavní knihovna"
 msgid "Main Sidebar"
 msgstr "Hlavní postranní panel"
 
-#: packages/admin/src/components/Sidebar.tsx:459
+#: packages/admin/src/components/Sidebar.tsx:460
 msgid "Manage"
 msgstr "Spravovat"
 
@@ -9544,7 +9544,7 @@ msgstr "MDX"
 #: packages/admin/src/components/Settings.tsx:75
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:500
+#: packages/admin/src/components/Sidebar.tsx:501
 #: packages/admin/src/components/WordPressImport.tsx:799
 #: packages/admin/src/components/WordPressImport.tsx:1197
 #: packages/admin/src/components/WordPressImport.tsx:1390
@@ -9588,7 +9588,7 @@ msgstr "Média v této složce budou vrácena do hlavní knihovny. Žádné soub
 msgid "visualEditing.mediaLibrary"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:171
+#: packages/admin/src/components/AdminCommandPalette.tsx:166
 #: packages/admin/src/components/MediaLibrary.tsx:780
 msgid "Media Library"
 msgstr "Knihovna médií"
@@ -9702,10 +9702,10 @@ msgstr "Pořadí nabídky bylo upraveno."
 msgid "Menu renamed"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:178
+#: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:159
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:521
+#: packages/admin/src/components/Sidebar.tsx:522
 #: packages/admin/src/components/WordPressImport.tsx:1201
 #: packages/admin/src/router.tsx:3489
 msgid "Menus"
@@ -10086,7 +10086,7 @@ msgstr ""
 msgid "Navigate"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:369
+#: packages/admin/src/components/AdminCommandPalette.tsx:364
 #: packages/admin/src/components/ContentTypeEditor.tsx:580
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:109
 msgid "Navigation"
@@ -10195,7 +10195,7 @@ msgstr ""
 msgid "New section"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:508
+#: packages/admin/src/components/AdminCommandPalette.tsx:503
 msgid "new tab"
 msgstr "nová karta"
 
@@ -10636,7 +10636,7 @@ msgstr "Žádné výsledky pro „{activeSearch}“"
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "Žádné výsledky pro „{debouncedQuery}“. Zkuste jiný výraz."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:494
+#: packages/admin/src/components/AdminCommandPalette.tsx:489
 #: packages/admin/src/components/Settings.tsx:179
 msgid "No results found"
 msgstr "Nenalezeny žádné výsledky"
@@ -11522,12 +11522,12 @@ msgstr "Plugin aktualizován"
 msgid "Plugin widget error"
 msgstr "Chyba widgetu pluginu"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:236
+#: packages/admin/src/components/AdminCommandPalette.tsx:231
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:191
 #: packages/admin/src/components/PluginManager.tsx:201
-#: packages/admin/src/components/Sidebar.tsx:461
-#: packages/admin/src/components/Sidebar.tsx:587
+#: packages/admin/src/components/Sidebar.tsx:462
+#: packages/admin/src/components/Sidebar.tsx:588
 #: packages/admin/src/router.tsx:3345
 msgid "Plugins"
 msgstr "Pluginy"
@@ -12022,7 +12022,7 @@ msgstr "Přesměrování na přihlašovací stránku…"
 #: packages/admin/src/components/Redirects.tsx:731
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:528
+#: packages/admin/src/components/Sidebar.tsx:529
 #: packages/admin/src/router.tsx:3531
 msgid "Redirects"
 msgstr "Přesměrování"
@@ -12093,7 +12093,7 @@ msgstr "Registrace byla zrušena nebo vypršel časový limit. Zkuste to prosím
 
 #: packages/admin/src/components/PluginManager.tsx:219
 #: packages/admin/src/components/PluginManager.tsx:464
-#: packages/admin/src/components/Sidebar.tsx:596
+#: packages/admin/src/components/Sidebar.tsx:597
 #: packages/admin/src/router.tsx:3360
 msgid "Registry"
 msgstr "Registr"
@@ -13354,7 +13354,7 @@ msgstr ""
 msgid "Search or type a URL"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:467
+#: packages/admin/src/components/AdminCommandPalette.tsx:462
 msgid "Search pages and content..."
 msgstr "Hledat stránky a obsah..."
 
@@ -13456,11 +13456,11 @@ msgstr "Sekce nenalezena"
 msgid "Section title"
 msgstr "Název sekce"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:194
+#: packages/admin/src/components/AdminCommandPalette.tsx:189
 #: packages/admin/src/components/Sections.tsx:218
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:542
+#: packages/admin/src/components/Sidebar.tsx:543
 #: packages/admin/src/router.tsx:3538
 msgid "Sections"
 msgstr "Sekce"
@@ -13514,7 +13514,7 @@ msgstr "Bezpečnostní kontakty"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "Chyba zabezpečení. Ujistěte se, že používáte zabezpečené připojení."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:268
+#: packages/admin/src/components/AdminCommandPalette.tsx:263
 #: packages/admin/src/components/Header.tsx:114
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
@@ -13860,13 +13860,13 @@ msgstr "Nastavení"
 msgid "Setting up..."
 msgstr "Nastavování..."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:252
+#: packages/admin/src/components/AdminCommandPalette.tsx:247
 #: packages/admin/src/components/ContentEditor.tsx:2909
 #: packages/admin/src/components/ContentTypeEditor.tsx:485
 #: packages/admin/src/components/Header.tsx:122
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
-#: packages/admin/src/components/Sidebar.tsx:610
+#: packages/admin/src/components/Sidebar.tsx:611
 #: packages/admin/src/components/WordPressImport.tsx:1861
 #: packages/admin/src/router.tsx:3180
 msgid "Settings"
@@ -14149,7 +14149,7 @@ msgstr "Název a podtitulek webu"
 msgid "Site title is required"
 msgstr "Název webu je povinný"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:260
+#: packages/admin/src/components/AdminCommandPalette.tsx:255
 msgid "Site Transfer"
 msgstr ""
 
@@ -14652,7 +14652,7 @@ msgstr ""
 msgid "Tagline"
 msgstr "Podtitulek"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:219
+#: packages/admin/src/components/AdminCommandPalette.tsx:214
 #: packages/admin/src/components/Widgets.tsx:159
 msgid "Tags"
 msgstr "Štítky"
@@ -15794,7 +15794,7 @@ msgstr "Titulek (nápověda)"
 msgid "Title Separator"
 msgstr "Oddělovač titulku"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:512
+#: packages/admin/src/components/AdminCommandPalette.tsx:507
 msgid "to close"
 msgstr "zavřít"
 
@@ -15806,7 +15806,7 @@ msgstr ""
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:502
+#: packages/admin/src/components/AdminCommandPalette.tsx:497
 msgid "to select"
 msgstr "vybrat"
 
@@ -16695,8 +16695,8 @@ msgstr ""
 msgid "Username"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:228
-#: packages/admin/src/components/Sidebar.tsx:584
+#: packages/admin/src/components/AdminCommandPalette.tsx:223
+#: packages/admin/src/components/Sidebar.tsx:585
 #: packages/admin/src/components/users/UserList.tsx:64
 #: packages/admin/src/router.tsx:3560
 msgid "Users"
@@ -17121,11 +17121,11 @@ msgstr "Název widgetu"
 msgid "Widget updated"
 msgstr "Widget aktualizován"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:186
+#: packages/admin/src/components/AdminCommandPalette.tsx:181
 #: packages/admin/src/components/PluginManager.tsx:495
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:535
+#: packages/admin/src/components/Sidebar.tsx:536
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1209
 #: packages/admin/src/router.tsx:3523

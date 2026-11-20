@@ -1889,12 +1889,12 @@ msgid "admin"
 msgstr "ניהול"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:460
+#: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "מנהל/ת"
 
-#: packages/admin/src/components/Sidebar.tsx:741
+#: packages/admin/src/components/Sidebar.tsx:742
 msgid "Admin navigation"
 msgstr "ניווט ניהול"
 
@@ -2852,7 +2852,7 @@ msgstr "שדות קרדיט"
 msgid "Byline schema"
 msgstr "סכמת קרדיטים"
 
-#: packages/admin/src/components/Sidebar.tsx:583
+#: packages/admin/src/components/Sidebar.tsx:584
 #: packages/admin/src/router.tsx:3593
 msgid "Byline Schema"
 msgstr "סכמת קרדיטים"
@@ -2866,7 +2866,7 @@ msgstr "הקרדיט עודכן"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1195
 #: packages/admin/src/components/settings/transfer/labels.ts:19
 #: packages/admin/src/components/settings/transfer/labels.ts:79
-#: packages/admin/src/components/Sidebar.tsx:549
+#: packages/admin/src/components/Sidebar.tsx:550
 #: packages/admin/src/lib/editor-sections.ts:34
 #: packages/admin/src/router.tsx:3582
 #: packages/admin/src/routes/bylines.tsx:302
@@ -2885,9 +2885,9 @@ msgstr "שפת C#"
 msgid "C++"
 msgstr "שפת C++"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:147
+#: packages/admin/src/components/AdminCommandPalette.tsx:142
 #: packages/admin/src/components/ContentTypeEditor.tsx:586
-#: packages/admin/src/components/Sidebar.tsx:478
+#: packages/admin/src/components/Sidebar.tsx:479
 #: packages/admin/src/router.tsx:594
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
@@ -3023,7 +3023,7 @@ msgstr "כיתובים / כתוביות"
 msgid "Capture is being prepared. Keep editing paused until setup is complete."
 msgstr "הצילום מוכן. השאירו את העריכה מושהית עד להשלמת ההגדרה."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:210
+#: packages/admin/src/components/AdminCommandPalette.tsx:205
 #: packages/admin/src/components/Widgets.tsx:151
 msgid "Categories"
 msgstr "קטגוריות"
@@ -3695,7 +3695,7 @@ msgstr "תגובות רגשיות לתגובות"
 #: packages/admin/src/components/ContentTypeEditor.tsx:702
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
-#: packages/admin/src/components/Sidebar.tsx:513
+#: packages/admin/src/components/Sidebar.tsx:514
 #: packages/admin/src/router.tsx:3010
 msgid "Comments"
 msgstr "תגובות"
@@ -3798,12 +3798,12 @@ msgstr "מחבר"
 msgid "content"
 msgstr "תוכן"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:407
+#: packages/admin/src/components/AdminCommandPalette.tsx:402
 #: packages/admin/src/components/comments/CommentDetail.tsx:106
 #: packages/admin/src/components/comments/CommentInbox.tsx:359
 #: packages/admin/src/components/Dashboard.tsx:499
 #: packages/admin/src/components/SectionEditor.tsx:197
-#: packages/admin/src/components/Sidebar.tsx:458
+#: packages/admin/src/components/Sidebar.tsx:459
 #: packages/admin/src/components/Widgets.tsx:986
 #: packages/admin/src/router.tsx:606
 msgid "Content"
@@ -3883,9 +3883,9 @@ msgstr "תוכן לייבוא"
 msgid "Content types"
 msgstr "סוגי תוכן"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:202
+#: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:148
-#: packages/admin/src/components/Sidebar.tsx:579
+#: packages/admin/src/components/Sidebar.tsx:580
 #: packages/admin/src/router.tsx:3601
 msgid "Content Types"
 msgstr "סוגי תוכן"
@@ -4552,7 +4552,7 @@ msgid "Custom Taxonomies"
 msgstr "טקסונומיות מותאמות אישית"
 
 #: packages/admin/src/components/ContentEditor.tsx:3010
-#: packages/admin/src/components/Sidebar.tsx:796
+#: packages/admin/src/components/Sidebar.tsx:797
 msgid "Customize sidebar"
 msgstr ""
 
@@ -4566,11 +4566,11 @@ msgstr "גיבויים אוטומטיים יומיים"
 msgid "Dark mode variant"
 msgstr "גרסה למצב כהה"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:140
+#: packages/admin/src/components/AdminCommandPalette.tsx:135
 #: packages/admin/src/components/ContentTypeList.tsx:408
 #: packages/admin/src/components/Dashboard.tsx:75
-#: packages/admin/src/components/Shell.tsx:89
-#: packages/admin/src/components/Sidebar.tsx:475
+#: packages/admin/src/components/Shell.tsx:90
+#: packages/admin/src/components/Sidebar.tsx:476
 #: packages/admin/src/router.tsx:576
 msgid "Dashboard"
 msgstr "לוח בקרה"
@@ -5481,7 +5481,7 @@ msgstr ""
 #: packages/admin/src/components/Redirects.tsx:519
 #: packages/admin/src/components/RelationList.tsx:230
 #: packages/admin/src/components/Sections.tsx:513
-#: packages/admin/src/components/Shell.tsx:130
+#: packages/admin/src/components/Shell.tsx:131
 #: packages/admin/src/components/TaxonomyManager.tsx:403
 #: packages/admin/src/components/TranslationsPanel.tsx:95
 #: packages/admin/src/routes/byline-schema.tsx:427
@@ -8028,7 +8028,7 @@ msgstr "הסתרת אסימון"
 msgid "visualEditing.hideToolbar"
 msgstr "הסתרת סרגל עריכה חזותית"
 
-#: packages/admin/src/components/Shell.tsx:130
+#: packages/admin/src/components/Shell.tsx:131
 msgid "Hide toolbar"
 msgstr "הסתרת סרגל כלים"
 
@@ -8287,9 +8287,9 @@ msgstr ""
 msgid "Implicit TLS (port 465)"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:244
+#: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
-#: packages/admin/src/components/Sidebar.tsx:605
+#: packages/admin/src/components/Sidebar.tsx:606
 #: packages/admin/src/components/WordPressImport.tsx:785
 msgid "Import"
 msgstr "ייבוא"
@@ -9407,7 +9407,7 @@ msgstr "ספרייה ראשית"
 msgid "Main Sidebar"
 msgstr "סרגל צד ראשי"
 
-#: packages/admin/src/components/Sidebar.tsx:459
+#: packages/admin/src/components/Sidebar.tsx:460
 msgid "Manage"
 msgstr "ניהול"
 
@@ -9545,7 +9545,7 @@ msgstr "תחביר MDX"
 #: packages/admin/src/components/Settings.tsx:75
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
-#: packages/admin/src/components/Sidebar.tsx:500
+#: packages/admin/src/components/Sidebar.tsx:501
 #: packages/admin/src/components/WordPressImport.tsx:799
 #: packages/admin/src/components/WordPressImport.tsx:1197
 #: packages/admin/src/components/WordPressImport.tsx:1390
@@ -9589,7 +9589,7 @@ msgstr "המדיה בתיקייה זו תחזור לספרייה הראשית. �
 msgid "visualEditing.mediaLibrary"
 msgstr "ספריית המדיה"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:171
+#: packages/admin/src/components/AdminCommandPalette.tsx:166
 #: packages/admin/src/components/MediaLibrary.tsx:780
 msgid "Media Library"
 msgstr "ספריית המדיה"
@@ -9703,10 +9703,10 @@ msgstr "סדר התפריט עודכן."
 msgid "Menu renamed"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:178
+#: packages/admin/src/components/AdminCommandPalette.tsx:173
 #: packages/admin/src/components/MenuList.tsx:159
 #: packages/admin/src/components/settings/transfer/labels.ts:28
-#: packages/admin/src/components/Sidebar.tsx:521
+#: packages/admin/src/components/Sidebar.tsx:522
 #: packages/admin/src/components/WordPressImport.tsx:1201
 #: packages/admin/src/router.tsx:3489
 msgid "Menus"
@@ -10087,7 +10087,7 @@ msgstr "תנו שם למקטע, ואז הוסיפו את התוכן שלו בע�
 msgid "Navigate"
 msgstr "ניווט"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:369
+#: packages/admin/src/components/AdminCommandPalette.tsx:364
 #: packages/admin/src/components/ContentTypeEditor.tsx:580
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:109
 msgid "Navigation"
@@ -10196,7 +10196,7 @@ msgstr "פרופיל חדש לשימוש חוזר"
 msgid "New section"
 msgstr "מקטע חדש"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:508
+#: packages/admin/src/components/AdminCommandPalette.tsx:503
 msgid "new tab"
 msgstr "לשונית חדשה"
 
@@ -10637,7 +10637,7 @@ msgstr "אין תוצאות עבור \"{activeSearch}\""
 msgid "No results for \"{debouncedQuery}\". Try a different search term."
 msgstr "אין תוצאות עבור \"{debouncedQuery}\". נסו מונח חיפוש אחר."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:494
+#: packages/admin/src/components/AdminCommandPalette.tsx:489
 #: packages/admin/src/components/Settings.tsx:179
 msgid "No results found"
 msgstr "לא נמצאו תוצאות"
@@ -11523,12 +11523,12 @@ msgstr "התוסף עודכן"
 msgid "Plugin widget error"
 msgstr "שגיאת וידג׳ט של תוסף"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:236
+#: packages/admin/src/components/AdminCommandPalette.tsx:231
 #: packages/admin/src/components/PluginManager.tsx:182
 #: packages/admin/src/components/PluginManager.tsx:191
 #: packages/admin/src/components/PluginManager.tsx:201
-#: packages/admin/src/components/Sidebar.tsx:461
-#: packages/admin/src/components/Sidebar.tsx:587
+#: packages/admin/src/components/Sidebar.tsx:462
+#: packages/admin/src/components/Sidebar.tsx:588
 #: packages/admin/src/router.tsx:3345
 msgid "Plugins"
 msgstr "תוספים"
@@ -12023,7 +12023,7 @@ msgstr "מתבצעת הפניה להתחברות..."
 #: packages/admin/src/components/Redirects.tsx:731
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
-#: packages/admin/src/components/Sidebar.tsx:528
+#: packages/admin/src/components/Sidebar.tsx:529
 #: packages/admin/src/router.tsx:3531
 msgid "Redirects"
 msgstr "הפניות"
@@ -12094,7 +12094,7 @@ msgstr "ההרשמה בוטלה או שתם זמנה. נסו שוב."
 
 #: packages/admin/src/components/PluginManager.tsx:219
 #: packages/admin/src/components/PluginManager.tsx:464
-#: packages/admin/src/components/Sidebar.tsx:596
+#: packages/admin/src/components/Sidebar.tsx:597
 #: packages/admin/src/router.tsx:3360
 msgid "Registry"
 msgstr "רישום"
@@ -13355,7 +13355,7 @@ msgstr ""
 msgid "Search or type a URL"
 msgstr "חפשו או הזינו URL"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:467
+#: packages/admin/src/components/AdminCommandPalette.tsx:462
 msgid "Search pages and content..."
 msgstr "חיפוש עמודים ותוכן..."
 
@@ -13457,11 +13457,11 @@ msgstr "המקטע לא נמצא"
 msgid "Section title"
 msgstr "כותרת מקטע"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:194
+#: packages/admin/src/components/AdminCommandPalette.tsx:189
 #: packages/admin/src/components/Sections.tsx:218
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
-#: packages/admin/src/components/Sidebar.tsx:542
+#: packages/admin/src/components/Sidebar.tsx:543
 #: packages/admin/src/router.tsx:3538
 msgid "Sections"
 msgstr "מקטעים"
@@ -13515,7 +13515,7 @@ msgstr "אנשי קשר לאבטחה"
 msgid "Security error. Make sure you're on a secure connection."
 msgstr "שגיאת אבטחה. ודאו שאתם בחיבור מאובטח."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:268
+#: packages/admin/src/components/AdminCommandPalette.tsx:263
 #: packages/admin/src/components/Header.tsx:114
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
@@ -13861,13 +13861,13 @@ msgstr "בהגדרה"
 msgid "Setting up..."
 msgstr "בהגדרה..."
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:252
+#: packages/admin/src/components/AdminCommandPalette.tsx:247
 #: packages/admin/src/components/ContentEditor.tsx:2909
 #: packages/admin/src/components/ContentTypeEditor.tsx:485
 #: packages/admin/src/components/Header.tsx:122
 #: packages/admin/src/components/PluginManager.tsx:547
 #: packages/admin/src/components/Settings.tsx:47
-#: packages/admin/src/components/Sidebar.tsx:610
+#: packages/admin/src/components/Sidebar.tsx:611
 #: packages/admin/src/components/WordPressImport.tsx:1861
 #: packages/admin/src/router.tsx:3180
 msgid "Settings"
@@ -14150,7 +14150,7 @@ msgstr "כותרת האתר והסלוגן"
 msgid "Site title is required"
 msgstr "נדרשת כותרת אתר"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:260
+#: packages/admin/src/components/AdminCommandPalette.tsx:255
 msgid "Site Transfer"
 msgstr "העברת אתר"
 
@@ -14653,7 +14653,7 @@ msgstr "לא ניתן להדביק טבלאות בתוך רשימות או צי�
 msgid "Tagline"
 msgstr "סלוגן"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:219
+#: packages/admin/src/components/AdminCommandPalette.tsx:214
 #: packages/admin/src/components/Widgets.tsx:159
 msgid "Tags"
 msgstr "תגיות"
@@ -15795,7 +15795,7 @@ msgstr "כותרת (חלונית מידע)"
 msgid "Title Separator"
 msgstr "מפריד כותרות"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:512
+#: packages/admin/src/components/AdminCommandPalette.tsx:507
 msgid "to close"
 msgstr "לסגירה"
 
@@ -15807,7 +15807,7 @@ msgstr "כדי להעביר אתר להתקנת EmDash אחרת, השתמשו ב
 msgid "To pick up an item, press Space or Enter. Use the up and down arrow keys to move it, then press Space or Enter to drop it, or Escape to cancel. Alt with the up or down arrow moves it one place right away."
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:502
+#: packages/admin/src/components/AdminCommandPalette.tsx:497
 msgid "to select"
 msgstr "לבחירה"
 
@@ -16696,8 +16696,8 @@ msgstr ""
 msgid "Username"
 msgstr ""
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:228
-#: packages/admin/src/components/Sidebar.tsx:584
+#: packages/admin/src/components/AdminCommandPalette.tsx:223
+#: packages/admin/src/components/Sidebar.tsx:585
 #: packages/admin/src/components/users/UserList.tsx:64
 #: packages/admin/src/router.tsx:3560
 msgid "Users"
@@ -17122,11 +17122,11 @@ msgstr "כותרת וידג׳ט"
 msgid "Widget updated"
 msgstr "הווידג׳ט עודכן"
 
-#: packages/admin/src/components/AdminCommandPalette.tsx:186
+#: packages/admin/src/components/AdminCommandPalette.tsx:181
 #: packages/admin/src/components/PluginManager.tsx:495
 #: packages/admin/src/components/settings/transfer/labels.ts:31
 #: packages/admin/src/components/settings/transfer/labels.ts:91
-#: packages/admin/src/components/Sidebar.tsx:535
+#: packages/admin/src/components/Sidebar.tsx:536
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1209
 #: packages/admin/src/router.tsx:3523
