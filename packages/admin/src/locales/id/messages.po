@@ -13299,6 +13299,27 @@ msgstr "Cari berdasarkan nama atau surel..."
 #: packages/admin/src/components/BylineCreditsEditor.tsx:335
 #: packages/admin/src/components/BylineFilter.tsx:128
 #: packages/admin/src/routes/bylines.tsx:334
+#: packages/admin/src/routes/bylines.tsx:335
+msgid "Search bylines"
+msgstr "Cari byline"
+
+#: packages/admin/src/components/BylineCreditsEditor.tsx:336
+msgid "Search bylines to add…"
+msgstr "Cari byline untuk ditambahkan…"
+
+#: packages/admin/src/components/BylineFilter.tsx:129
+msgid "Search bylines…"
+msgstr "Cari byline…"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:207
+msgid "Search comments"
+msgstr "Cari komentar"
+
+#: packages/admin/src/components/comments/CommentInbox.tsx:189
+msgid "Search comments..."
+msgstr "Cari komentar..."
+
+#: packages/admin/src/components/ContentPickerModal.tsx:246
 msgid "Search content..."
 msgstr "Cari konten..."
 
@@ -15117,7 +15138,7 @@ msgstr "Pengaya belum menyimpan perubahan ini. Tinjau sebelum memperbarui penyun
 
 #: packages/admin/src/components/ContentEditor.tsx:2673
 msgid "The plugin proposed a value this editor can't load."
-msgstr "Pengaya "
+msgstr "Pengaya mengusulkan nilai yang tidak dapat dimuat oleh penyunting ini."
 
 #: packages/admin/src/components/ContentEditor.tsx:2678
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
