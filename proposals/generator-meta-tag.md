@@ -1,5 +1,5 @@
 ---
-title: Identify EmDash sites with a generator meta tag
+title: Name EmDash in every page it renders
 type: feature-plan
 status: proposed
 authors:
@@ -8,18 +8,17 @@ discussion: null
 created: 2026-11-20
 ---
 
-# Identify EmDash sites with a generator meta tag
+# Name EmDash in every page it renders
 
 ## Problem and user case
 
-Nothing in an EmDash site's pages names EmDash. Technology detectors such as Wappalyzer recognize Astro from its asset paths and report a production EmDash site as an Astro site. As a result:
+Every page EmDash renders should say that it was made with EmDash, to anyone who reads its HTML: a person viewing source, a crawler, an archive, or an agent with a saved copy. Today nothing in the page does. An EmDash page reads as an Astro page, and nobody can tell from the page alone that EmDash's editor, documentation and APIs are behind it.
 
-- People evaluating EmDash can't confirm that a site they've found runs it.
-- Usage studies can't count EmDash sites. The Web Almanac's CMS figures come from HTTP Archive's crawl, which detects technologies with [HTTP Archive's fork of Wappalyzer](https://github.com/HTTPArchive/wappalyzer) ([methodology](https://almanac.httparchive.org/en/2025/methodology)). That fork has no EmDash entry.
+The established CMSs name themselves in every page with the `generator` meta tag, which the [HTML standard](https://html.spec.whatwg.org/multipage/semantics.html#meta-generator) defines as identifying "one of the software packages used to generate the document". WordPress, Drupal, Ghost and Joomla emit it by default, and crawl-based counts of how much of the web each one runs read it. Drupal [turned its tag on in 2008](https://www.drupal.org/project/drupal/issues/275092) to make Drupal more visible and its spread measurable. Ghost [declined to remove its tag](https://forum.ghost.org/t/remove-generator-meta-tag/14955) because the project's metrics depend on it.
 
-`GET /_emdash/api/health` already returns `product: "emdash"` and the full version without authentication. Crawlers don't find it, because they read only the requested page's HTML and headers.
+They differ in how much version they show. WordPress shows the full version, Ghost shows the major and minor version, Drupal shows the major version only, and Joomla shows no version.
 
-Other systems name themselves with the `generator` meta tag, which the [HTML standard](https://html.spec.whatwg.org/multipage/semantics.html#meta-generator) defines as identifying "one of the software packages used to generate the document". WordPress, Drupal, Ghost and Joomla emit one by default. They differ in how much version they show. WordPress shows the full version, Ghost shows the major and minor version, Drupal shows the major version only, and Joomla shows no version. Drupal [chose the major version in 2008](https://www.drupal.org/project/drupal/issues/275092) so that its adoption could be measured without page source naming the patch release.
+`GET /_emdash/api/health` already returns `product: "emdash"` and the full version without authentication. It's a separate request to a path the reader has to know, and the page itself carries nothing.
 
 ## Proposed behavior
 
@@ -46,8 +45,8 @@ emdash({
 
 ## Goals
 
-- Name EmDash, without setup, on every page whose layout renders `EmDashHead`.
-- Show the major version, so usage studies can count adoption per release line.
+- Name EmDash, without setup, in the HTML of every page whose layout renders `EmDashHead`.
+- Show the major version, so counts of EmDash sites can be split by release line.
 - Keep page renders at their current query count.
 - Let a site remove the tag with one option.
 
@@ -57,7 +56,7 @@ emdash({
 - Showing the full version in pages, or an option to show it.
 - Changing what `/_emdash/api/health` returns.
 - Agent discovery documents such as `llms.txt`, Markdown versions of pages, and `Link` headers. They describe what a site offers and need their own proposal.
-- Detector fingerprints, which live in other repositories. The [detector follow-up](#detector-follow-up) describes them.
+- Technology detector fingerprints, which live in other repositories. The [follow-up](#follow-up) describes them.
 
 ## Interfaces and compatibility
 
@@ -83,6 +82,6 @@ emdash({
 - The query-count snapshots don't change.
 - The rendered HTML of `demos/simple` contains the tag.
 
-## Detector follow-up
+## Follow-up
 
-After the release that ships the tag, fingerprint pull requests go to HTTP Archive's fork and to [enthec/webappanalyzer](https://github.com/enthec/webappanalyzer), the community continuation of Wappalyzer's open-source fingerprints. Wappalyzer's own fingerprints are closed, so EmDash is suggested to Wappalyzer through its website. The fingerprint matches the generator tag and implies Astro. It also matches `/_emdash/api/media/file/` URLs, which finds some sites with custom layouts: those that serve media through EmDash's media route.
+Once a release ships the tag, EmDash gets added to the technology detectors that read it: [HTTP Archive's fork of Wappalyzer](https://github.com/HTTPArchive/wappalyzer), which the Web Almanac uses ([methodology](https://almanac.httparchive.org/en/2025/methodology)), and [enthec/webappanalyzer](https://github.com/enthec/webappanalyzer). Their fingerprints also match `/_emdash/api/media/file/` URLs, which finds sites with custom layouts that serve media through EmDash's media route.
