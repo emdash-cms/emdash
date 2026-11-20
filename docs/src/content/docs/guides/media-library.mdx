@@ -250,15 +250,37 @@ settings that select the file: **Logo**, **Favicon**, or **Default Social Image*
 **Used in** checks these references:
 
 - image and file fields
-- image fields inside repeaters
-- image, file, and Portable Text fields inside `blocks` fields
+- image, string, and URL fields inside repeaters
+- image, file, string, URL, and Portable Text fields inside `blocks` fields
 - image, gallery, and video blocks in Portable Text fields, including blocks that refer to the file by
   its `/_emdash/api/media/file/` URL instead of its media ID, as Markdown images written through MCP
   or the CLI do
+- links to a local file's `/_emdash/api/media/file/` URL in Portable Text paragraph link marks, `href` or
+  `src` attributes in HTML blocks, and whole string or URL field values; query strings and fragments
+  do not change which file is counted
 - the site logo, favicon, and default social image
+
+Both root-relative media URLs and full same-site URLs from **Copy URL** are tracked. Full URLs must
+match the site's origin: `siteUrl` configuration or `EMDASH_SITE_URL`/`SITE_URL`, then the **Site URL**
+setting, then the URL recorded during setup if neither is set. A different host, port, or protocol is
+not treated as local. The **Site URL** setting is used only for HTTPS or loopback HTTP addresses
+(`localhost`, `127.0.0.1`, or `[::1]`); for other HTTP sites, set `siteUrl` instead (or `EMDASH_SITE_URL` on Node.js).
+After moving a site, update its origin and repair usage to recount its links.
+Copying from an alternate admin origin does not make that origin local: full URLs on
+`allowedOrigins` or `EMDASH_ALLOWED_ORIGINS` are not counted unless they also match the site origin.
+Use the primary site address or a root-relative media URL for those links.
+
+Links in other Portable Text structures, such as file or button blocks, table cells, and nested
+column or cover content, are not tracked. Check those uses separately before deleting files.
 
 When usage coverage is complete and the file has none of these references, the list shows **No
 tracked references found**. Until coverage is complete, an empty list shows **No usage to show yet**.
+
+If tracking was enabled before media URL links were supported, existing entries need a
+[`media repair-usage` repair](/reference/cli/#media-repair-usage) or a re-save to index those links.
+Until then, coverage can still report complete and a linked file can show **No tracked references
+found**. Follow the [media URL link upgrade instructions](/deployment/updating/#fixed-media-url-link-usage)
+before relying on the list when reviewing files for deletion.
 
 Media usage tracking must be active before the content results can be complete. Site settings are
 listed whether or not tracking is active. An administrator turns tracking on once for the site:
