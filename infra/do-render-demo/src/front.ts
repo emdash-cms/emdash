@@ -5,5 +5,5 @@
  */
 
 export default {
-	fetch: (request, env) => env.SITE.getByName("site").fetch(request),
+	fetch: (request, env) => env.SITE.getByName("site", { locationHint: "weur" }).fetch(request),
 } satisfies ExportedHandler<Env>;
