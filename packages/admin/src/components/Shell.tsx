@@ -51,6 +51,7 @@ export interface ShellProps {
 			id?: string;
 			name: string;
 			label: string;
+			hierarchical?: boolean;
 			locale?: string;
 			translationGroup?: string | null;
 		}>;

@@ -62,7 +62,8 @@ let portableTextMountCount = 0;
 type EditorReadyCall = { mockId: number | null };
 let onEditorReadyCalls: EditorReadyCall[] = [];
 const portableTextProps: { current: Record<string, unknown> | null } = { current: null };
-vi.mock("../../src/components/PortableTextEditor", () => ({
+vi.mock("../../src/components/PortableTextEditor", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/components/PortableTextEditor")>()),
 	PortableTextEditor: (props: Record<string, any>) => {
 		const { value, placeholder, onEditorReady } = props;
 		portableTextProps.current = props;
@@ -3114,6 +3115,11 @@ describe("ContentEditor", () => {
 				exact: true,
 			});
 			await unpublishBtn.click();
+			const confirm = screen
+				.getByRole("dialog", { name: "Unpublish Post?" })
+				.getByRole("button", { name: "Unpublish", exact: true });
+			await expect.element(confirm).toBeVisible();
+			confirm.element().click();
 			expect(onUnpublish).toHaveBeenCalled();
 		});
 
@@ -3137,6 +3143,11 @@ describe("ContentEditor", () => {
 					.element();
 
 				unpublish.click();
+				const confirm = screen
+					.getByRole("dialog", { name: "Unpublish Post?" })
+					.getByRole("button", { name: "Unpublish", exact: true });
+				await expect.element(confirm).toBeVisible();
+				confirm.element().click();
 				await vi.waitFor(() => expect(onUnpublish).toHaveBeenCalledOnce());
 				await expect.element(unpublish).toBeDisabled();
 				if (settlement === "resolve") pending.resolve();

@@ -296,13 +296,13 @@ describe("redirect middleware — 404 logging attributes misses to the requested
 		log404.mockRestore();
 	});
 
-	it("keeps 404 responses out of the route cache", async () => {
+	it("does not enable caching for a 404 on a route without cache options", async () => {
 		const miss = buildContext({
 			pathname: "/posts/deleted-post",
 			cache: { enabled: true, options: { tags: [] }, set: vi.fn() },
 		});
 		await onRequest(miss.context, async () => new Response("not found", { status: 404 }));
-		expect(miss.cache.set).toHaveBeenCalledWith(false);
+		expect(miss.cache.set).not.toHaveBeenCalled();
 
 		const hit = buildContext({
 			pathname: "/posts/live-post",
@@ -616,14 +616,14 @@ describe("redirect middleware — does not rerun route when next() throws (issue
 	});
 });
 
-function storingRouteCache(initial: { maxAge?: number } = {}) {
-	let options: { maxAge?: number; tags: string[] } = { ...initial, tags: [] };
+function storingRouteCache(initial: { maxAge?: number; swr?: number; tags?: string[] } = {}) {
+	let options: { maxAge?: number; swr?: number; tags: string[] } = { tags: [], ...initial };
 	return {
 		enabled: true,
 		get options() {
 			return options;
 		},
-		set: vi.fn((input: false | { maxAge?: number; tags?: string[] }) => {
+		set: vi.fn((input: false | { maxAge?: number; swr?: number; tags?: string[] }) => {
 			options =
 				input === false
 					? { tags: [] }
@@ -688,6 +688,105 @@ describe("redirect middleware — responses the route cache stores", () => {
 			return new Response("page");
 		};
 	}
+
+	it.each([
+		{ maxAge: 86_400, swr: 604_800, expectedMaxAge: 60 },
+		{ maxAge: 15, swr: 300, expectedMaxAge: 15 },
+		{ maxAge: 0, swr: 300, expectedMaxAge: 0 },
+		{ expectedMaxAge: 60 },
+	])("bounds a cached content miss with options %j", async ({ expectedMaxAge, ...initial }) => {
+		await warm();
+		const cache = storingRouteCache({ ...initial, tags: ["posts"] });
+		const { context } = buildContext({ pathname: "/posts/missing", cache });
+		const response = await runMiddleware(
+			context,
+			async () => new Response("not found", { status: 404 }),
+		);
+
+		expect(response.status).toBe(404);
+		expect(cache.options).toEqual({ maxAge: expectedMaxAge, swr: 0, tags: ["posts"] });
+		expect(selects).toBe(1);
+	});
+
+	it("caches a 404 whose page or layout supplies only chrome tags without a route rule", async () => {
+		await warm();
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/posts/missing", cache });
+		const response = await runMiddleware(context, async () => {
+			cache.set({ tags: ["emdash:settings", "emdash:menu:primary"] });
+			return new Response("not found", { status: 404 });
+		});
+
+		expect(response.status).toBe(404);
+		expect(cache.options).toEqual({
+			maxAge: 60,
+			swr: 0,
+			tags: ["emdash:settings", "emdash:menu:primary"],
+		});
+		expect(selects).toBe(1);
+	});
+
+	it("bounds a rewritten 404 across nested middleware passes on one cache handle", async () => {
+		await warm();
+		const cache = storingRouteCache({ maxAge: 86_400, swr: 604_800, tags: ["posts"] });
+		const outer = buildContext({ pathname: "/posts/missing", cache });
+		const inner = buildContext({ pathname: "/404", cache });
+		const response = await runMiddleware(outer.context, () =>
+			runMiddleware(inner.context, async () => new Response("not found", { status: 404 })),
+		);
+
+		expect(response.status).toBe(404);
+		expect(cache.options).toEqual({ maxAge: 60, swr: 0, tags: ["posts"] });
+		expect(selects).toBe(2);
+	});
+
+	it("preserves a content miss's explicit cache opt-out", async () => {
+		await warm();
+		const cache = storingRouteCache({ maxAge: 300, tags: ["posts"] });
+		const { context } = buildContext({ pathname: "/posts/missing", cache });
+		await runMiddleware(context, async () => {
+			cache.set(false);
+			return new Response("not found", { status: 404 });
+		});
+
+		expect(cache.options).toEqual({ tags: [] });
+		expect(selects).toBe(0);
+	});
+
+	it("replaces a cacheable 404 when a redirect was added in another isolate", async () => {
+		await warm();
+		await repo.create({ source: "/posts/missing", destination: "/moved", type: 301 });
+		await publishRedirectArtifacts(db);
+		const cache = storingRouteCache({ maxAge: 300, tags: ["posts"] });
+		const { context } = buildContext({ pathname: "/posts/missing", cache });
+		const response = await runMiddleware(
+			context,
+			async () => new Response("not found", { status: 404 }),
+		);
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/moved");
+		expect(cache.options).toEqual({ tags: [] });
+	});
+
+	it("does not cache a 404 when settings freshness cannot be verified", async () => {
+		await warm();
+		const cache = storingRouteCache({ maxAge: 300, tags: ["posts"] });
+		const { context } = buildContext({ pathname: "/posts/missing", cache });
+		getDbMock.mockResolvedValue(
+			db.withPlugin({
+				transformQuery() {
+					throw new Error("database unavailable");
+				},
+				async transformResult(args) {
+					return args.result;
+				},
+			}),
+		);
+		await runMiddleware(context, async () => new Response("not found", { status: 404 }));
+
+		expect(cache.options).toEqual({ tags: [] });
+	});
 
 	it("redirects a stored render when another isolate has added a redirect for its path", async () => {
 		await warm();
