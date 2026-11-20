@@ -342,6 +342,7 @@
     "consola": "^3.4.2",
     "croner": "^10.0.1",
     "highlight.js": "catalog:",
+    "htmlparser2": "^8.0.2",
     "lowlight": "catalog:",
     "jose": "^6.1.3",
     "jpeg-js": "^0.4.4",

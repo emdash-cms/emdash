@@ -17,6 +17,8 @@ Choose one database adapter for each deployment. The database holds the content 
 | **PostgreSQL** | Several Node.js processes need one shared database                  | Node.js              |
 | **libSQL**     | A Node.js deployment needs a remote SQLite-compatible database      | Node.js              |
 
+Built-in full-text search is available only with SQLite-family databases (SQLite, D1, and libSQL) that provide FTS5. It is unavailable with PostgreSQL, including PostgreSQL accessed through Hyperdrive. See the [Search API reference](/reference/rest-api/#search) for the error returned by search endpoints on unsupported databases.
+
 D1 is the default for the Cloudflare templates. SQLite is the simplest Node.js option, but it requires one writable persistent volume and operational database backups.
 
 ## SQLite

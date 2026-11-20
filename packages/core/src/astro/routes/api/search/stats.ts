@@ -8,6 +8,7 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { requireSearchSupport } from "#api/search.js";
 import { getSearchStats } from "#search/index.js";
 
 export const prerender = false;
@@ -24,6 +25,9 @@ export const GET: APIRoute = async ({ locals }) => {
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash not configured", 500);
 	}
+
+	const unavailable = requireSearchSupport(emdash.db);
+	if (unavailable) return unavailable;
 
 	try {
 		const stats = await getSearchStats(emdash.db);

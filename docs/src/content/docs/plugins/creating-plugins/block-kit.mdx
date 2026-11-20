@@ -278,7 +278,7 @@ return {
 };
 ```
 
-EmDash validates every operation together against the current server schema, capability, collection, field selector, locale, base revision, ownership, count limits, and byte limits. The browser repeats identity, generation, and field checks before showing a host-rendered preview. Applying the preview marks the form dirty and does not save, create a revision, or run hooks. Any edit made while the plugin is working rejects the complete result.
+EmDash validates every operation together against the current server schema, capability, collection, field selector, locale, base revision, ownership, count limits, and byte limits. The browser repeats identity, generation, and field checks before showing a host-rendered preview. Applying the preview marks the form dirty and does not save, create a revision, or run hooks. If the result holds Portable Text the rich text editor can't load, such as an unsupported mark, Apply refuses the whole result and shows a notice instead. In a collection with revisions, the first save after Apply keeps the draft revision it replaces, so the user can restore the values from before the patch. Any edit made while the plugin is working rejects the complete result.
 
 Saved-only editor actions remain disabled while the form has unsaved changes. Draft-aware actions can run against the unsaved form. An action receives `{ type: "editor_action" }` and, when declared, the same bounded draft snapshot. Return an object containing an optional toast and at most one terminal effect:
 

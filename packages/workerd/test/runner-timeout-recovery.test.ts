@@ -407,9 +407,9 @@ describe("workerd timeout recovery", () => {
 		void invocation.catch(() => {});
 		await vi.advanceTimersByTimeAsync(100);
 		await expect(invocation).rejects.toThrow("exceeded wall-time limit");
-		await runner!.terminateAll();
+		const shutdown = runner!.terminateAll();
 		releaseRestart();
-		await runner!["startupPromise"];
+		await shutdown;
 		expect(runner!["workerdProcess"]).toBeNull();
 		expect(runner!["backingServer"]).toBeNull();
 		pendingFetches.forEach((settle) => settle());

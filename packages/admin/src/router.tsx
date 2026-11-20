@@ -237,6 +237,8 @@ interface AutosaveMutationInput {
 	targetLocale?: string;
 	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "references" | "_rev">;
 	referenceRows?: Record<string, ReferenceEntryRow[]>;
+	/** Keep the draft revision this autosave replaces, as a manual save does. */
+	keepReplacedRevision?: boolean;
 }
 
 function isSaveConflict(error: unknown): boolean {
@@ -297,9 +299,20 @@ function patchAutosaveQueries(
 		fields: Record<string, { validation?: Record<string, unknown> }>;
 		/** The draft revision the entry had when the autosave was sent. */
 		previousDraftId: string | null;
+		/** Whether the server kept that draft revision. */
+		keepPreviousDraft: boolean;
 	},
 ) {
-	const { collection, id, savedItem, payload, referenceRows, fields, previousDraftId } = params;
+	const {
+		collection,
+		id,
+		savedItem,
+		payload,
+		referenceRows,
+		fields,
+		previousDraftId,
+		keepPreviousDraft,
+	} = params;
 	const draftRevisionId = savedItem.draftRevisionId;
 
 	if (draftRevisionId) {
@@ -351,7 +364,9 @@ function patchAutosaveQueries(
 		const autosavedKey = autosavedDraftKey(collection, id);
 		const previousIsAutosave =
 			previousDraftId !== null && autosaved.get(autosavedKey) === previousDraftId;
-		autosaved.set(autosavedKey, draftRevisionId);
+		// An autosave that kept the draft it replaced wrote a revision the next autosave keeps too.
+		if (keepPreviousDraft) autosaved.delete(autosavedKey);
+		else autosaved.set(autosavedKey, draftRevisionId);
 		for (const [queryKey, list] of lists) {
 			if (!list) continue;
 			queryClient.setQueryData(
@@ -362,6 +377,7 @@ function patchAutosaveQueries(
 					previousIsAutosave,
 					liveRevisionId: savedItem.liveRevisionId ?? null,
 					limit: revisionListLimit(queryKey),
+					keepPrevious: keepPreviousDraft,
 				}),
 			);
 		}
@@ -1895,11 +1911,20 @@ function ContentEditPage() {
 						])?.draftRevisionId ?? null),
 			};
 		},
-		mutationFn: async ({ targetId, targetLocale, changes }: AutosaveMutationInput) => {
+		mutationFn: async ({
+			targetId,
+			targetLocale,
+			changes,
+			keepReplacedRevision,
+		}: AutosaveMutationInput) => {
 			const savedItem = await updateContent(
 				collection,
 				targetId,
-				{ ...changes, skipRevision: true, _rev: revisionTokensRef.current.get(targetId) },
+				{
+					...changes,
+					skipRevision: !keepReplacedRevision,
+					_rev: revisionTokensRef.current.get(targetId),
+				},
 				{ locale: targetLocale },
 			);
 			recordWriteRevision(targetId, savedItem);
@@ -1920,6 +1945,7 @@ function ContentEditPage() {
 				referenceRows: variables.referenceRows,
 				fields: collectionFields,
 				previousDraftId: started?.previousDraftId ?? null,
+				keepPreviousDraft: Boolean(variables.keepReplacedRevision),
 			});
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
@@ -2163,14 +2189,16 @@ function ContentEditPage() {
 			bylines?: BylineCreditInput[];
 			references?: Record<string, string[]>;
 			referenceRows?: Record<string, ReferenceEntryRow[]>;
+			keepReplacedRevision?: boolean;
 		}) => {
-			const { referenceRows, ...changes } = payload;
+			const { referenceRows, keepReplacedRevision, ...changes } = payload;
 			void serializeEditorSave(() =>
 				autosaveMutation.mutateAsync({
 					targetId: id,
 					targetLocale: rawItem?.locale ?? activeLocale,
 					changes,
 					referenceRows,
+					keepReplacedRevision,
 				}),
 			).catch(() => undefined);
 		},

@@ -9,6 +9,9 @@ import { defineConfig } from "vitest/config";
 // Astro integration's vite plugin uses at build time.
 const virtualStubs: Record<string, string> = {
 	"virtual:emdash/wait-until": "export const waitUntil = undefined;",
+	// jsdom import analysis resolves even caught dynamic imports before running them.
+	// Node has no Workers lifetime extender; tests can mock it when needed.
+	"cloudflare:workers": "export const waitUntil = undefined;",
 	// No timer heartbeat under test — like the Cloudflare adapter's output.
 	"virtual:emdash/scheduler": "export const createScheduler = null;",
 	// No object cache under test — like a site that configures none.
@@ -48,7 +51,7 @@ export default defineConfig({
 				return null;
 			},
 			load(id) {
-				if (!id.startsWith("\0virtual:emdash/")) return null;
+				if (!id.startsWith("\0")) return null;
 				const key = id.slice(1);
 				if (Object.hasOwn(virtualStubs, key)) return virtualStubs[key];
 				return null;
