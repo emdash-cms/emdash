@@ -3114,6 +3114,11 @@ describe("ContentEditor", () => {
 				exact: true,
 			});
 			await unpublishBtn.click();
+			const confirm = screen
+				.getByRole("dialog", { name: "Unpublish Post?" })
+				.getByRole("button", { name: "Unpublish", exact: true });
+			await expect.element(confirm).toBeVisible();
+			confirm.element().click();
 			expect(onUnpublish).toHaveBeenCalled();
 		});
 
@@ -3137,6 +3142,11 @@ describe("ContentEditor", () => {
 					.element();
 
 				unpublish.click();
+				const confirm = screen
+					.getByRole("dialog", { name: "Unpublish Post?" })
+					.getByRole("button", { name: "Unpublish", exact: true });
+				await expect.element(confirm).toBeVisible();
+				confirm.element().click();
 				await vi.waitFor(() => expect(onUnpublish).toHaveBeenCalledOnce());
 				await expect.element(unpublish).toBeDisabled();
 				if (settlement === "resolve") pending.resolve();

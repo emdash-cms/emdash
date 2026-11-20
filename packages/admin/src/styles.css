@@ -176,6 +176,11 @@ div:has(> [role="listbox"] > .emdash-compact-select-option) {
 	min-width: var(--anchor-width);
 }
 
+/* A confirmation with nothing in its body drops the body's padding, so its actions sit under the description. */
+div:has(> [data-emdash-confirm-body]:empty) {
+	padding-block: 0;
+}
+
 /* Transitions.dev — Text states swap */
 :root {
 	--text-swap-dur: 150ms;
