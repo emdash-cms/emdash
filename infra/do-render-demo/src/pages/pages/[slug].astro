@@ -1,0 +1,84 @@
+---
+import {
+	getEmDashEntry,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import { PortableText } from "emdash/ui";
+import Base from "../../layouts/Base.astro";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+import "../../styles/prose.css";
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.rewrite("/404");
+}
+
+const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
+
+if (!page) {
+	return Astro.rewrite("/404");
+}
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
+const seo = getSeoMeta(page, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: Astro.url.pathname.replace(/\/$/, ""),
+});
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	content={{ collection: "pages", id: page.data.id, slug }}
+>
+	<article class="band page">
+		<div class="frame page__layout">
+			<header class="page__header">
+				<h1 class="page__title" {...page.edit.title}>{page.data.title}</h1>
+			</header>
+
+			<div class="prose page__body" {...page.edit.content}>
+				<PortableText value={page.data.content} />
+			</div>
+		</div>
+	</article>
+</Base>
+
+<style>
+	.page {
+		padding-block: clamp(3rem, 2rem + 4vw, 5.5rem) clamp(4rem, 3rem + 4vw, 7rem);
+	}
+
+	.page__layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		gap: var(--spacing-8);
+	}
+
+	.page__title {
+		font-size: var(--font-size-display);
+		line-height: 1.05;
+		max-width: 22ch;
+	}
+
+	@media (min-width: 960px) {
+		.page__layout {
+			grid-template-columns: minmax(14rem, 1fr) minmax(0, var(--content-width));
+			column-gap: clamp(2rem, 1rem + 4vw, 6rem);
+		}
+
+		.page__header {
+			position: sticky;
+			top: calc(var(--nav-height) + var(--spacing-8));
+			align-self: start;
+		}
+	}
+</style>
