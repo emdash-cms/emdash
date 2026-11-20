@@ -1287,7 +1287,15 @@ export function InlinePortableTextEditor({
 	// Store editor ref for getBlocks, and record the loaded document as saved.
 	React.useEffect(() => {
 		editorRef.current = editor;
-		if (editor && !savedDocRef.current) savedDocRef.current = editor.state.doc;
+		if (editor && !savedDocRef.current) {
+			// TrailingNode normalizes on the first transaction, even a selection change.
+			// Include that normalization in the baseline without dirtying the toolbar
+			// or making it part of the first edit's undo history.
+			editor.view.dispatch(
+				editor.state.tr.setMeta("preventUpdate", true).setMeta("addToHistory", false),
+			);
+			savedDocRef.current = editor.state.doc;
+		}
 	}, [editor]);
 
 	const runSlashCommand = React.useCallback(

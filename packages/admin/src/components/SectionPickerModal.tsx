@@ -51,7 +51,7 @@ export function SectionPickerModal({ open, onOpenChange, onSelect }: SectionPick
 
 	return (
 		<Dialog.Root open={open} onOpenChange={onOpenChange}>
-			<Dialog className="p-6 max-w-3xl max-h-[80vh] flex flex-col" size="lg">
+			<Dialog className="p-6 max-w-3xl flex flex-col" size="lg" style={{ maxHeight: "80vh" }}>
 				<div className="flex items-start justify-between gap-4 mb-4">
 					<Dialog.Title className="text-lg font-semibold leading-none tracking-tight flex items-center gap-2">
 						<ADMIN_NAV_ICONS.sections className="h-5 w-5" />
