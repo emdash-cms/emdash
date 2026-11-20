@@ -107,7 +107,7 @@ Middleware that answers these URLs differently depending on a request header, su
 
 ## Keep responses out of the cache
 
-Route rules match the request path, so they also apply to responses you do not want cached under a long TTL. EmDash keeps responses rendered for a signed-in user, and responses sent with `Cache-Control: private` or `no-store`, out of the route cache automatically, and 404 responses too. Other error responses and your own middleware redirects are the template's job, opted out per request with `Astro.cache.set(false)`.
+Route rules match the request path, so they also apply to responses you do not want cached under a long TTL. EmDash keeps responses rendered for a signed-in user, and responses sent with `Cache-Control: private` or `no-store`, out of the route cache automatically. It limits cacheable 404 responses to a short lifetime, as described below. Other error responses and your own middleware redirects are the template's job, opted out per request with `Astro.cache.set(false)`.
 
 `Astro.cache.set(false)` only holds until the next `Astro.cache.set()` call. A layout renders after the page frontmatter, so a layout that sets a cache hint turns caching back on for a page that opted out. Pass the opt-out to the layout (for example as a prop) and skip its `Astro.cache.set()` calls when it is set.
 
@@ -117,7 +117,15 @@ EmDash's middleware opts these responses out of the route cache itself, so no te
 
 ### Error responses
 
-EmDash keeps every 404 out of the route cache, so publishing a missing entry later shows it right away. Other error responses, such as a 500 rendered on a cached route, inherit the rule's TTL. Opt them out with `Astro.cache.set(false)`.
+For public page paths handled by the redirect middleware, a 404 on a route already opted into caching (through a route rule or a cache hint set before the miss) is cached for at most 60 seconds, with no stale-while-revalidate window. A shorter `maxAge`, including zero, is preserved. This covers content misses answered with `Astro.rewrite("/404")`. A hint set after the page returns that rewrite cannot enable caching for the miss; use an explicit route rule to cover it.
+
+Tag the route with the collection or taxonomy it looks up, even when no entry or term is found. For example, use `tags: ["posts"]` on `/posts/[slug]` and `tags: ["emdash:taxonomy:category"]` on `/category/[slug]`. Publishing an entry invalidates its collection tag, saving a taxonomy term invalidates its taxonomy tag, and adding a redirect invalidates its source path. Without a matching tag, or if a purge fails, new content can keep returning the cached 404 until its short lifetime expires.
+
+Cache hits skip rendering and writing to the 404 log, so the admin's 404 hit counts record origin misses rather than every request. To keep a miss uncached, call `Astro.cache.set(false)` in the miss branch or in the 404 page's frontmatter, and keep later layout code from re-enabling caching.
+
+URLs that match no Astro route still have no route-cache handle and remain uncached. Internal paths (`/_emdash`, `/_image`) and paths ending in a file extension bypass the redirect middleware and do not get this 404 lifetime limit.
+
+Other error responses, such as a 500 rendered on a cached route, inherit the rule's TTL. Opt them out with `Astro.cache.set(false)`.
 
 ### Redirects in middleware
 
