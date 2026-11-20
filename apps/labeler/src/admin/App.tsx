@@ -164,7 +164,9 @@ function renderView(
 		return (
 			<ReviewWorkspace
 				initialRunKey={
-					path.startsWith(prefix) ? decodeURIComponent(path.slice(prefix.length)) : undefined
+					path.startsWith(prefix)
+						? decodeURIComponent(path.slice(prefix.length).split("?")[0]!)
+						: undefined
 				}
 				navigate={navigate}
 				isAdmin={session.identity.roles.includes("admin")}
@@ -287,9 +289,7 @@ function RecentAssessments({
 								<button
 									type="button"
 									className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 text-start hover:bg-kumo-tint sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
-									onClick={() =>
-										navigate(`/_admin/assessments/${encodeURIComponent(item.run_key)}`)
-									}
+									onClick={() => navigate(assessmentPath(item.run_key, item.state))}
 								>
 									<span className="min-w-0 truncate text-sm font-medium">
 										{identity.name}
@@ -443,7 +443,7 @@ function ReviewWorkspace({
 			)}
 			{list.loading ? (
 				<CenteredLoader label={t`Loading assessments`} />
-			) : items.length === 0 ? (
+			) : items.length === 0 && !selectedRunKey ? (
 				<Empty
 					title={t`No assessments`}
 					description={t`There are no assessments in this state.`}
@@ -469,7 +469,7 @@ function ReviewWorkspace({
 											className="min-w-56 border-e px-4 py-3 text-start hover:bg-kumo-tint aria-current:bg-kumo-info-tint lg:block lg:min-w-0 lg:w-full lg:border-e-0 lg:border-b"
 											onClick={() => {
 												setSelectedRunKey(item.run_key);
-												navigate(`/_admin/assessments/${encodeURIComponent(item.run_key)}`);
+												navigate(assessmentPath(item.run_key, state));
 											}}
 										>
 											<span className="block truncate text-sm font-medium">{identity.name}</span>
@@ -572,7 +572,7 @@ function AssessmentReview({
 		refreshDetail();
 		const index = items.findIndex((candidate) => candidate.run_key === item.run_key);
 		const next = items[index + 1] ?? items[index - 1];
-		if (next) navigate(`/_admin/assessments/${encodeURIComponent(next.run_key)}`);
+		if (next) navigate(assessmentPath(next.run_key, stateFromLocation()));
 	};
 	return (
 		<>
@@ -1764,6 +1764,9 @@ function isAssessmentFilter(value: string): value is AssessmentFilter {
 function stateFromLocation(): AssessmentFilter {
 	const value = new URLSearchParams(window.location.search).get("state");
 	return value && isAssessmentFilter(value) ? value : "review";
+}
+function assessmentPath(runKey: string, filter: AssessmentFilter): string {
+	return `/_admin/assessments/${encodeURIComponent(runKey)}?state=${filter}`;
 }
 function viewFromPath(path: string): View {
 	if (path.startsWith("/_admin/assessments")) return "assessments";

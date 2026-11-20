@@ -209,6 +209,49 @@ describe("labeler admin application", () => {
 	});
 });
 
+describe("recent assessments", () => {
+	it("opens a passed assessment from the overview", async () => {
+		const passed = {
+			...assessment("passed-release", "passed"),
+			subject_kind: "release",
+			subject_uri: "at://did:plc:test/com.emdashcms.experimental.package.release/gallery:1.2.3",
+			code_coverage: "complete",
+			code_review_count: 2,
+		};
+		api.getAssessments.mockImplementation((state: string) =>
+			Promise.resolve({ items: state === "all" || state === "passed" ? [passed] : [] }),
+		);
+		api.getAssessment.mockResolvedValue({
+			assessment: {
+				...passed,
+				canonicalInput: { input: { slug: "gallery", version: "1.2.3" } },
+				summary: { reasonCodes: ["automatic-pass"] },
+				coverage: { text: "complete", links: "complete", media: "not-present", code: "complete" },
+			},
+			findings: [],
+			manualDecision: null,
+			publisherHandle: null,
+		});
+
+		render(
+			<I18nProvider i18n={i18n}>
+				<Toasty>
+					<App />
+				</Toasty>
+			</I18nProvider>,
+		);
+
+		expect(await screen.findByText("Code reviewed by 2 models")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: /Gallery/ }));
+
+		expect(await screen.findByRole("heading", { name: "Review queue" })).toBeTruthy();
+		await waitFor(() => expect(api.getAssessment).toHaveBeenCalledWith("passed-release"));
+		expect(await screen.findByText("Marketplace preview")).toBeTruthy();
+		expect(screen.queryByText("No assessments")).toBeNull();
+		expect(window.location.search).toBe("?state=passed");
+	});
+});
+
 describe("emailing a publisher about code findings", () => {
 	const item = assessment("gallery-release", "review");
 	const draft = {
@@ -403,7 +446,7 @@ describe("assessment findings", () => {
 	});
 });
 
-function assessment(runKey: string, state: "review" | "error") {
+function assessment(runKey: string, state: "review" | "error" | "passed") {
 	return {
 		run_key: runKey,
 		subject_uri: `at://did:plc:test/profile/${runKey}`,
