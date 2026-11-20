@@ -25,6 +25,7 @@ Recent Posts widgets render after the response headers are sent, so they can't a
 
 - The block is copied into about 20 templates, demos and infra sites. It repeats the widget's query (`count` default 5, `orderBy: { published_at: "desc" }`, `locale: Astro.currentLocale`). If the widget's query changes, every copy silently stops sharing the request cache: each widget costs an extra query, and the tags describe a different list from the one rendered.
 - Other pages that render the same widget areas, such as the blog's `pages/[slug].astro` with its footer, don't tag the widget's entries at all.
+
 ## Proposed behavior
 
 ### `entriesCacheHint` on collection results
