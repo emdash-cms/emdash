@@ -1,11 +1,13 @@
 import type { Kysely } from "kysely";
 
 import { after } from "../after.js";
+import { overlayDraft } from "../api/content-save.js";
 import { escapeHtml } from "../api/escape.js";
 import type { SiteUrlConfig } from "../api/public-url.js";
 import { getSiteBaseUrl } from "../api/site-url.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { EditorialThreadRepository } from "../database/repositories/editorial-threads.js";
+import { RevisionRepository } from "../database/repositories/revision.js";
 import type { Database } from "../database/types.js";
 import type { EmailPipeline } from "../plugins/email.js";
 import type { EmailMessage } from "../plugins/types.js";
@@ -80,12 +82,15 @@ async function entryTitle(db: Kysely<Database>, collection: string, entryId: str
 		.where("slug", "=", collection)
 		.executeTakeFirst();
 	const item = await new ContentRepository(db).findByIdOrSlugIncludingTrashed(collection, entryId);
-	const data = item?.data ?? {};
+	const draft = item?.draftRevisionId
+		? await new RevisionRepository(db).findById(item.draftRevisionId)
+		: null;
+	const { data, slug } = item ? overlayDraft(item, draft?.data) : { data: {}, slug: null };
 	for (const key of [collectionRow?.title_field, "title", "name"]) {
 		const value = key ? data[key] : undefined;
 		if (typeof value === "string" && value.trim()) return value.trim();
 	}
-	return item?.slug || `${collectionRow?.label_singular ?? collection} entry`;
+	return slug || `${collectionRow?.label_singular ?? collection} entry`;
 }
 
 /**
