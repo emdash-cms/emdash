@@ -708,6 +708,24 @@ describe("redirect middleware — responses the route cache stores", () => {
 		expect(selects).toBe(1);
 	});
 
+	it("caches a 404 whose page or layout supplies only chrome tags without a route rule", async () => {
+		await warm();
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/posts/missing", cache });
+		const response = await runMiddleware(context, async () => {
+			cache.set({ tags: ["emdash:settings", "emdash:menu:primary"] });
+			return new Response("not found", { status: 404 });
+		});
+
+		expect(response.status).toBe(404);
+		expect(cache.options).toEqual({
+			maxAge: 60,
+			swr: 0,
+			tags: ["emdash:settings", "emdash:menu:primary"],
+		});
+		expect(selects).toBe(1);
+	});
+
 	it("bounds a rewritten 404 across nested middleware passes on one cache handle", async () => {
 		await warm();
 		const cache = storingRouteCache({ maxAge: 86_400, swr: 604_800, tags: ["posts"] });
