@@ -40,8 +40,13 @@ import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
 import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
-import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import {
+	type ContentItem,
+	decodeCursor,
+	InvalidCursorError,
+} from "../database/repositories/types.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
+import { isRouteCachedMedia, mediaCacheTag } from "../media/image-endpoint.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -642,7 +647,7 @@ async function convertWriteData(
 async function applyReadMarkdown(
 	ec: EmDashHandlers,
 	collection: string,
-	items: Array<Record<string, unknown>>,
+	items: Array<{ data?: unknown }>,
 ): Promise<void> {
 	const fields = await getCollectionFields(ec, collection);
 	if (!fields) return;
@@ -1155,21 +1160,13 @@ export function createMcpServer(
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			const result = await ec.handleContentGet(args.collection, args.id, args.locale);
+			if (!result.success) return unwrap(result);
+			let item: Omit<ContentItem, "liveData" | "draftRevisionId"> = result.data.item;
 			// Hide non-published items from users without draft access. Return a
 			// not-found error so subscribers can't enumerate draft IDs by status.
-			if (result.success && !canReadDrafts(extra)) {
-				const data =
-					result.data && typeof result.data === "object"
-						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check
-							(result.data as Record<string, unknown>)
-						: undefined;
-				const item =
-					data?.item && typeof data.item === "object"
-						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check
-							(data.item as Record<string, unknown>)
-						: undefined;
-				const status = typeof item?.status === "string" ? item.status : null;
-				if (status !== "published") {
+			if (!canReadDrafts(extra)) {
+				const { liveData, draftRevisionId: _draftRevisionId, ...published } = result.data.item;
+				if (published.status !== "published") {
 					return unwrap({
 						success: false,
 						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
@@ -1177,18 +1174,12 @@ export function createMcpServer(
 				}
 				// handleContentGet overlays the draft revision onto item.data and
 				// moves the published values to item.liveData.
-				if (item) {
-					if (item.liveData && typeof item.liveData === "object") {
-						item.data = item.liveData;
-					}
-					delete item.liveData;
-					delete item.draftRevisionId;
-				}
+				item = { ...published, data: liveData ?? published.data };
 			}
-			if (result.success && args.markdown && result.data?.item) {
-				await applyReadMarkdown(ec, args.collection, [result.data.item]);
+			if (args.markdown) {
+				await applyReadMarkdown(ec, args.collection, [item]);
 			}
-			return unwrap(result);
+			return unwrap({ success: true, data: { ...result.data, item } });
 		},
 	);
 
@@ -2875,10 +2866,7 @@ export function createMcpServer(
 			if (!existing.success) {
 				return unwrap(existing);
 			}
-			const media = (existing.data as Record<string, unknown> | undefined)?.item as
-				| Record<string, unknown>
-				| undefined;
-			const authorId = typeof media?.authorId === "string" ? media.authorId : "";
+			const authorId = existing.data.item.authorId ?? "";
 			requireOwnership(extra, authorId, "media:edit_own", "media:edit_any");
 
 			return unwrap(
@@ -2915,13 +2903,18 @@ export function createMcpServer(
 			if (!existing.success) {
 				return unwrap(existing);
 			}
-			const media = (existing.data as Record<string, unknown> | undefined)?.item as
-				| Record<string, unknown>
-				| undefined;
-			const authorId = typeof media?.authorId === "string" ? media.authorId : "";
+			const authorId = existing.data.item.authorId ?? "";
 			requireOwnership(extra, authorId, "media:delete_own", "media:delete_any");
 
-			return unwrap(await ec.handleMediaDelete(args.id));
+			const result = await ec.handleMediaDelete(args.id);
+			if (
+				result.success &&
+				result.data?.storageDeleted &&
+				isRouteCachedMedia(result.data.storageKey, result.data.mimeType)
+			) {
+				await invalidateRouteCache(getExtra(extra).cache, [mediaCacheTag(result.data.storageKey)]);
+			}
+			return unwrap(result);
 		},
 	);
 

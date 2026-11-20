@@ -1,4 +1,5 @@
 import { CompiledQuery } from "kysely";
+import { SqliteAdapter } from "kysely";
 import { describe, it, expect, vi } from "vitest";
 
 import { DOSqlDialect } from "../../src/db/do-sql-dialect.js";
@@ -22,7 +23,7 @@ describe("DOSqlDialect", () => {
 	it("creates a SqliteAdapter and SqliteQueryCompiler", () => {
 		const { config } = createConfig();
 		const dialect = new DOSqlDialect(config);
-		expect(dialect.createAdapter().constructor.name).toBe("SqliteAdapter");
+		expect(dialect.createAdapter()).toBeInstanceOf(SqliteAdapter);
 		expect(dialect.createQueryCompiler().constructor.name).toBe("SqliteQueryCompiler");
 	});
 });
@@ -65,6 +66,56 @@ describe("DOSqlDriver", () => {
 		await c2.executeQuery(CompiledQuery.raw("SELECT 2"));
 
 		expect(make).toHaveBeenCalledTimes(1);
+	});
+});
+
+describe("DOSqlAdapter", () => {
+	it("routes an atomic batch and maps results and bookmarks", async () => {
+		const atomicBatch = vi
+			.fn()
+			.mockResolvedValue([
+				{ rows: [], changes: 1, bookmark: "bm-atomic" },
+				{ rows: [{ id: "1" }] },
+			]);
+		const sink: BookmarkSink = {};
+		const onRpc = vi.fn();
+		const stub = { ...createMockStub(), executeAtomicBatch: atomicBatch } as EmDashDBStub;
+		const resolveStub = vi.fn<() => EmDashDBStub>(() => stub);
+		const config: DOSqlDialectConfig = {
+			resolveStub,
+			bookmarkSink: sink,
+			onRpc,
+		};
+
+		const adapter = new DOSqlDialect(config).createAdapter() as SqliteAdapter & {
+			executeAtomicBatch(queries: readonly CompiledQuery[]): Promise<unknown>;
+		};
+		const results = await adapter.executeAtomicBatch([
+			CompiledQuery.raw("INSERT INTO posts (id) VALUES (?)", ["1"]),
+			CompiledQuery.raw("SELECT * FROM posts"),
+		]);
+
+		expect(resolveStub).toHaveBeenCalledTimes(1);
+		expect(onRpc).toHaveBeenCalledTimes(1);
+		expect(atomicBatch).toHaveBeenCalledWith([
+			{ sql: "INSERT INTO posts (id) VALUES (?)", params: ["1"] },
+			{ sql: "SELECT * FROM posts", params: [] },
+		]);
+		expect(results).toEqual([
+			{ rows: [], numAffectedRows: 1n },
+			{ rows: [{ id: "1" }], numAffectedRows: undefined },
+		]);
+		expect(sink.latest).toBe("bm-atomic");
+	});
+
+	it("rejects before an atomic write when the RPC is unavailable", async () => {
+		const { config } = createConfig();
+		const adapter = new DOSqlDialect(config).createAdapter() as SqliteAdapter & {
+			executeAtomicBatch(queries: readonly CompiledQuery[]): Promise<unknown>;
+		};
+		await expect(
+			adapter.executeAtomicBatch([CompiledQuery.raw("INSERT INTO posts VALUES (1)")]),
+		).rejects.toThrow(/does not support atomic SQL batches/i);
 	});
 });
 

@@ -48,6 +48,7 @@ export const mediaUsageOccurrenceDetailSchema = z
 			"file_field",
 			"portable_text_image",
 			"portable_text_video",
+			"link",
 			"unknown",
 		]),
 	})

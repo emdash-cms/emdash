@@ -27,6 +27,7 @@ export default defineConfig({
 						reviewers: [],
 					}),
 					RECONCILIATION_TOKEN: "test-reconciliation-token",
+					LABELER_CODE_REVIEW_MODELS: "",
 				},
 				serviceBindings: {
 					AGGREGATOR_RECONCILIATION: async (request) => {
@@ -39,6 +40,7 @@ export default defineConfig({
 						return new Response("not found", { status: 404 });
 					},
 					REGISTRY_BLOB_CACHE: () => new Response("not found", { status: 404 }),
+					PLUGIN_REVIEW: () => new Response("not found", { status: 404 }),
 				},
 			},
 		}),

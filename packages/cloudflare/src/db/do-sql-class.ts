@@ -265,6 +265,39 @@ export class EmDashDB extends DurableObject {
 		});
 	}
 
+	/** Execute an ordered statement list in one primary storage transaction. */
+	async executeAtomicBatch(statements: DOQueryStatement[]): Promise<DOQueryResult[]> {
+		this.#ensureReplication();
+		if (this.#isReplica) {
+			const primary = this.#primaryStub!;
+			if (typeof primary.executeAtomicBatch !== "function") {
+				throw new Error("EmDashDB primary does not support atomic SQL batches");
+			}
+			return primary.executeAtomicBatch(statements);
+		}
+
+		const results = this.ctx.storage.transactionSync(() =>
+			statements.map((statement) => {
+				const cursor = statement.params?.length
+					? this.ctx.storage.sql.exec(statement.sql, ...statement.params)
+					: this.ctx.storage.sql.exec(statement.sql);
+				const rows: Record<string, unknown>[] = [];
+				for (const row of cursor) rows.push(row);
+
+				const wrote =
+					!isReadStatement(statement.sql) ||
+					cursor.rowsWritten > 0 ||
+					isPragmaStatement(statement.sql);
+				return wrote ? { rows, changes: this.#changes() } : { rows };
+			}),
+		);
+		if (!results.some((result) => result.changes !== undefined)) return results;
+		const bookmark = await this.#currentBookmark();
+		return results.map((result) =>
+			result.changes === undefined ? result : { ...result, bookmark },
+		);
+	}
+
 	/**
 	 * Execute several read statements in a single RPC, returning one result per
 	 * statement in order. This is the round-trip win: a page that issues ~17

@@ -5,6 +5,7 @@ import * as React from "react";
 
 import { restoreRevision, type ContentItem, type RevisionListItem } from "../../lib/api";
 import { useRoomOperations } from "../../lib/co-editing/operations.js";
+import { invalidateContentViews } from "../../lib/invalidate-content-views.js";
 import { isolate } from "../../lib/utils.js";
 import { ConfirmDialog } from "../ConfirmDialog.js";
 import { getMutationError } from "../DialogError.js";
@@ -75,6 +76,7 @@ export function RevisionRestoreDialog({
 		},
 		onSuccess: async (restoredItem) => {
 			onRestoreStart(restoredItem);
+			void invalidateContentViews(queryClient, { collection, id: entryId });
 			void queryClient.invalidateQueries({ queryKey: ["content", collection, entryId] });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, entryId] });
 			if (onRevisionRestored) {
@@ -117,6 +119,7 @@ export function RevisionRestoreDialog({
 			open={open}
 			onClose={onClose}
 			variant="primary"
+			undoable={operations.inRoom || !isDirty}
 			title={t`Restore this version?`}
 			description={
 				<>

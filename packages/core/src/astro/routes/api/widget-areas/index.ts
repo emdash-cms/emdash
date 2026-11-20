@@ -21,6 +21,9 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ locals }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const db = emdash.db;
 
 	const denied = requirePerm(user, "widgets:read");
@@ -60,6 +63,9 @@ export const GET: APIRoute = async ({ locals }) => {
 
 export const POST: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const db = emdash.db;
 
 	const denied = requirePerm(user, "widgets:manage");
