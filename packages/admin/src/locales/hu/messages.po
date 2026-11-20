@@ -6440,7 +6440,7 @@ msgstr "Nem sikerült kommunikálni a pluginnel"
 msgid "Failed to compare revisions"
 msgstr "Nem sikerült összehasonlítani a verziókat"
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "Nem sikerült megerősíteni a feltöltést"
 
@@ -6507,7 +6507,7 @@ msgstr "Nem sikerült létrehozni a tartalmat"
 msgid "Failed to create field"
 msgstr "Nem sikerült mezőt létrehozni"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "Nem sikerült létrehozni a médiamappát"
 
@@ -6601,15 +6601,15 @@ msgstr "Nem sikerült tartalmat törölni"
 msgid "Failed to delete field"
 msgstr "Nem sikerült mezőt törölni"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "Nem sikerült törölni a szolgáltatóból"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "Nem sikerült médiát törölni"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "Nem sikerült törölni a médiamappát"
 
@@ -6806,27 +6806,27 @@ msgstr "Nem sikerült lekérni a mezőket"
 msgid "Failed to fetch manifest"
 msgstr "Nem sikerült manifestet lekérni"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "Nem sikerült médiát lekérni"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "Nem sikerült lekérni a médiamappát"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "Nem sikerült lekérni a médiamappákat"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "Nem sikerült médiaelemet lekérni"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "Nem sikerült médiaszolgáltatókat lekérni"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "Nem sikerült lekérni a médiahasználat részleteit"
 
@@ -6864,7 +6864,7 @@ msgstr "Nem sikerült lekérni a plugin beállításait"
 msgid "Failed to fetch plugins"
 msgstr "Nem sikerült plugineket lekérni"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "Nem sikerült szolgáltatói médiát lekérni"
 
@@ -6990,7 +6990,7 @@ msgstr "Nem sikerült hitelesítési opciókat lekérni"
 msgid "Failed to get registration options"
 msgstr "Nem sikerült regisztrációs opciókat lekérni"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "Nem sikerült feltöltési URL-t lekérni"
 
@@ -7190,7 +7190,7 @@ msgstr "Nem sikerült feloldani a bejegyzés zárolását"
 msgid "Failed to remove passkey"
 msgstr "Nem sikerült eltávolítani a passkeyt"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "Nem sikerült átnevezni a médiamappát"
 
@@ -7224,7 +7224,7 @@ msgstr "Nem sikerült átrendezni a kifejezéseket"
 msgid "Failed to reorder widgets"
 msgstr "Nem sikerült átrendezni a widgeteket"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "Nem sikerült lecserélni a médiaképet"
 
@@ -7397,7 +7397,7 @@ msgstr "Domain frissítése nem sikerült"
 msgid "Failed to update field"
 msgstr "Nem sikerült frissíteni a mezőt"
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "Nem sikerült a média frissítése"
 
@@ -7459,15 +7459,15 @@ msgstr "Nem sikerült frissíteni a widgetet"
 msgid "Failed to upload a package file"
 msgstr "Nem sikerült feltölteni a csomag egyik fájlját"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "Fájl feltöltése sikertelen"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "Média feltöltése sikertelen"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "Nem sikerült feltölteni a szolgáltatóhoz"
 

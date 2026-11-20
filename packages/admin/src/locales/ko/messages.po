@@ -6440,7 +6440,7 @@ msgstr "플러그인과 통신하지 못했습니다."
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "업로드 완료 확인에 실패했습니다"
 
@@ -6507,7 +6507,7 @@ msgstr ""
 msgid "Failed to create field"
 msgstr "필드를 생성하지 못했습니다."
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "미디어 폴더 생성에 실패했습니다"
 
@@ -6601,15 +6601,15 @@ msgstr "콘텐츠를 삭제하지 못했습니다."
 msgid "Failed to delete field"
 msgstr "필드를 삭제하지 못했습니다."
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "미디어 제공자에서 삭제하는 데 실패했습니다"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "미디어 삭제에 실패했습니다"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "미디어 폴더 삭제에 실패했습니다"
 
@@ -6806,27 +6806,27 @@ msgstr ""
 msgid "Failed to fetch manifest"
 msgstr "매니페스트를 가져오지 못했습니다"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "미디어 목록을 가져오지 못했습니다"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "미디어 폴더를 가져오지 못했습니다"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "미디어 폴더 목록을 가져오지 못했습니다"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "미디어 항목을 가져오지 못했습니다"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "미디어 제공자 목록을 가져오지 못했습니다"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "미디어 사용 현황 상세 정보를 가져오지 못했습니다"
 
@@ -6864,7 +6864,7 @@ msgstr "플러그인 설정을 가져오지 못했습니다."
 msgid "Failed to fetch plugins"
 msgstr "플러그인 목록을 가져오지 못했습니다."
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "미디어 제공자의 미디어를 가져오지 못했습니다"
 
@@ -6990,7 +6990,7 @@ msgstr "인증 옵션을 가져오지 못했습니다"
 msgid "Failed to get registration options"
 msgstr "등록 옵션을 가져오지 못했습니다"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "업로드 URL을 가져오지 못했습니다"
 
@@ -7190,7 +7190,7 @@ msgstr "항목의 편집 잠금 해제에 실패했습니다"
 msgid "Failed to remove passkey"
 msgstr "패스키를 제거하지 못했습니다."
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "미디어 폴더 이름 변경에 실패했습니다"
 
@@ -7224,7 +7224,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "위젯 순서를 변경하지 못했습니다."
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "미디어 이미지 교체에 실패했습니다"
 
@@ -7397,7 +7397,7 @@ msgstr "도메인을 업데이트하지 못했습니다."
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "미디어 업데이트에 실패했습니다"
 
@@ -7459,15 +7459,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "패키지 파일을 업로드하지 못했습니다"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "파일 업로드에 실패했습니다"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "미디어 업로드에 실패했습니다"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "미디어 제공자에 업로드하는 데 실패했습니다"
 

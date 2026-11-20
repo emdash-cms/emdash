@@ -6440,7 +6440,7 @@ msgstr "Échec lors de la communication avec le module d'extension"
 msgid "Failed to compare revisions"
 msgstr "Impossible de comparer les révisions"
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "Échec lors de la confirmation du téléversement"
 
@@ -6507,7 +6507,7 @@ msgstr "Impossible de créer le contenu"
 msgid "Failed to create field"
 msgstr "Échec lors de la création du champ"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "Impossible de créer le dossier multimédia"
 
@@ -6601,15 +6601,15 @@ msgstr "Échec lors de la suppression du contenu"
 msgid "Failed to delete field"
 msgstr "Échec lors de la suppression du champ"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "Échec lors de la suppression du fournisseur"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "Échec lors de la suppression du média"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "Impossible de supprimer le dossier multimédia"
 
@@ -6806,27 +6806,27 @@ msgstr "Impossible de récupérer les champs"
 msgid "Failed to fetch manifest"
 msgstr "Échec lors de la récupération du manifeste"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "Échec lors de la récupération des fichiers multimédias"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "Impossible de récupérer le dossier multimédia"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "Impossible de récupérer les dossiers multimédias"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "Échec lors de la récupération du fichier multimédia"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "Échec lors de la récupération des fournisseurs de médias"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "Impossible de récupérer les détails des utilisations des médias"
 
@@ -6864,7 +6864,7 @@ msgstr "Échec lors de la récupération des paramètres du module d'extension"
 msgid "Failed to fetch plugins"
 msgstr "Échec lors de la récupération des modules d'extension"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "Échec lors de la récupération des fichiers multimédias du fournisseur"
 
@@ -6990,7 +6990,7 @@ msgstr "Échec lors de l'obtention des options d'authentification"
 msgid "Failed to get registration options"
 msgstr "Échec lors de l'obtention des options d'inscription"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "Échec lors de l'obtention de l'URL de téléversement"
 
@@ -7190,7 +7190,7 @@ msgstr "Impossible de libérer le verrou de l’entrée"
 msgid "Failed to remove passkey"
 msgstr "Échec lors de la suppression de la clé d'accès"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "Impossible de renommer le dossier multimédia"
 
@@ -7224,7 +7224,7 @@ msgstr "Impossible de réordonner les termes"
 msgid "Failed to reorder widgets"
 msgstr "Échec lors de la réorganisation des widgets"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "Impossible de remplacer l’image du média"
 
@@ -7397,7 +7397,7 @@ msgstr "Échec lors de la mise à jour du domaine"
 msgid "Failed to update field"
 msgstr "Impossible de mettre à jour le champ"
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "Échec lors de la mise à jour du média"
 
@@ -7459,15 +7459,15 @@ msgstr "Impossible de mettre à jour le widget"
 msgid "Failed to upload a package file"
 msgstr "Impossible de téléverser un fichier du paquet"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "Échec lors du téléchargement du fichier"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "Échec lors du téléversement du média"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "Échec lors du téléversement vers le fournisseur"
 

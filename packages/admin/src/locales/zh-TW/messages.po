@@ -6440,7 +6440,7 @@ msgstr "無法與外掛通訊"
 msgid "Failed to compare revisions"
 msgstr "無法比較內容修訂"
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "無法確認上傳"
 
@@ -6507,7 +6507,7 @@ msgstr "無法建立內容"
 msgid "Failed to create field"
 msgstr "無法建立欄位"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "無法建立媒體資料夾"
 
@@ -6601,15 +6601,15 @@ msgstr "無法刪除內容"
 msgid "Failed to delete field"
 msgstr "無法刪除欄位"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "無法從服務提供者刪除"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "無法刪除媒體"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "無法刪除媒體資料夾"
 
@@ -6806,27 +6806,27 @@ msgstr "無法取得欄位"
 msgid "Failed to fetch manifest"
 msgstr "無法擷取資訊清單"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "擷取媒體失敗"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "無法取得媒體資料夾"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "無法取得媒體資料夾"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "擷取媒體項目失敗"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "無法擷取媒體服務提供者"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "無法取得媒體使用詳情"
 
@@ -6864,7 +6864,7 @@ msgstr "無法擷取外掛設定"
 msgid "Failed to fetch plugins"
 msgstr "無法擷取外掛"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "無法擷取服務提供者媒體"
 
@@ -6990,7 +6990,7 @@ msgstr "無法取得驗證選項"
 msgid "Failed to get registration options"
 msgstr "無法取得註冊選項"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "無法取得上傳網址"
 
@@ -7190,7 +7190,7 @@ msgstr "無法解除內容項目的鎖定"
 msgid "Failed to remove passkey"
 msgstr "移除通行密鑰失敗"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "無法重新命名媒體資料夾"
 
@@ -7224,7 +7224,7 @@ msgstr "無法調整分類項目順序"
 msgid "Failed to reorder widgets"
 msgstr "無法重新排序小工具"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "無法取代媒體圖片"
 
@@ -7397,7 +7397,7 @@ msgstr "無法更新網域"
 msgid "Failed to update field"
 msgstr "無法更新欄位"
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "更新媒體失敗"
 
@@ -7459,15 +7459,15 @@ msgstr "無法更新小工具"
 msgid "Failed to upload a package file"
 msgstr "無法上傳套件檔案"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "上傳檔案失敗"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "上傳媒體失敗"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "無法上傳至服務提供者"
 

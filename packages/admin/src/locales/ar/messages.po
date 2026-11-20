@@ -6440,7 +6440,7 @@ msgstr "فشل التواصل مع الإضافة"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "فشل تأكيد الرفع"
 
@@ -6507,7 +6507,7 @@ msgstr ""
 msgid "Failed to create field"
 msgstr "فشل إنشاء الحقل"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "فشل إنشاء مجلد الوسائط"
 
@@ -6601,15 +6601,15 @@ msgstr "فشل حذف المحتوى"
 msgid "Failed to delete field"
 msgstr "فشل حذف الحقل"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "فشل الحذف من المزوّد"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "فشل حذف الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "فشل حذف مجلد الوسائط"
 
@@ -6806,27 +6806,27 @@ msgstr ""
 msgid "Failed to fetch manifest"
 msgstr "فشل جلب ملف البيان"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "فشل جلب الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "فشل جلب مجلد الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "فشل جلب مجلدات الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "فشل جلب عنصر الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "فشل جلب مزوّدي الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "فشل جلب تفاصيل استخدام الوسائط"
 
@@ -6864,7 +6864,7 @@ msgstr "فشل جلب إعدادات الإضافة"
 msgid "Failed to fetch plugins"
 msgstr "فشل جلب الإضافات"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "فشل جلب وسائط المزوّد"
 
@@ -6990,7 +6990,7 @@ msgstr "فشل الحصول على خيارات المصادقة"
 msgid "Failed to get registration options"
 msgstr "فشل الحصول على خيارات التسجيل"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "فشل الحصول على عنوان URL للرفع"
 
@@ -7190,7 +7190,7 @@ msgstr "فشل تحرير قفل الإدخال"
 msgid "Failed to remove passkey"
 msgstr "فشل في إزالة مفتاح المرور"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "فشلت إعادة تسمية مجلد الوسائط"
 
@@ -7224,7 +7224,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "فشل إعادة ترتيب عناصر الواجهة"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "فشل استبدال صورة الوسائط"
 
@@ -7397,7 +7397,7 @@ msgstr "فشل في تحديث النطاق"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "فشل تحديث الوسائط"
 
@@ -7459,15 +7459,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "فشل رفع ملف من الحزمة"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "فشل رفع الملف"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "فشل رفع الوسائط"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "فشل الرفع إلى المزوّد"
 
