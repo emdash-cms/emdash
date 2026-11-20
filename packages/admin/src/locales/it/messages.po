@@ -2751,7 +2751,7 @@ msgstr "Entrambi i campi di riferimento associati a questa relazione condividono
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:17
 msgid "Breadcrumb"
-msgstr ""
+msgstr "Percorso di navigazione"
 
 #: packages/admin/src/components/SeoPanel.tsx:242
 msgid "Brief summary shown below the title in search results"
@@ -3513,7 +3513,7 @@ msgstr "Fai clic su questo link per accedere a {siteName}:"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:19
 msgid "Click to copy"
-msgstr ""
+msgstr "Fai clic per copiare"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:275
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:324
@@ -3970,7 +3970,7 @@ msgstr "Copiato negli appunti"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:18
 msgid "Copy"
-msgstr ""
+msgstr "Copia"
 
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 msgid "Copy {label}"
@@ -8015,7 +8015,7 @@ msgstr "Nascondi ai motori di ricerca"
 
 #: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Hide settings"
-msgstr ""
+msgstr "Nascondi le impostazioni"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:294
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:301
@@ -9820,7 +9820,7 @@ msgstr "Altre opzioni di formattazione"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:16
 msgid "More information"
-msgstr ""
+msgstr "Ulteriori informazioni"
 
 #: packages/admin/src/components/DialogSection.tsx:28
 #: packages/admin/src/components/FieldHelpLabel.tsx:110
@@ -13953,7 +13953,7 @@ msgstr "Mostra il numero di articoli"
 
 #: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Show settings"
-msgstr ""
+msgstr "Mostra le impostazioni"
 
 #: packages/admin/src/components/Widgets.tsx:145
 msgid "Show thumbnails"
