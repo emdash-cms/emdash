@@ -16,11 +16,17 @@ export function getSiteLocale(): string | undefined {
 	}
 }
 
+const dateFormats = new Map<string, Intl.DateTimeFormat>();
+
 /** Formats a date in the site's locale, or in US English without one. */
 export function formatDate(date: Date, month: "long" | "short"): string {
-	return date.toLocaleDateString(getSiteLocale() ?? "en-US", {
-		year: "numeric",
-		month,
-		day: "numeric",
-	});
+	if (Number.isNaN(date.getTime())) return "Invalid Date";
+	const locale = getSiteLocale() ?? "en-US";
+	const key = `${locale}:${month}`;
+	let format = dateFormats.get(key);
+	if (!format) {
+		format = new Intl.DateTimeFormat(locale, { year: "numeric", month, day: "numeric" });
+		dateFormats.set(key, format);
+	}
+	return format.format(date);
 }

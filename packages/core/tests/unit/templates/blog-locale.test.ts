@@ -48,6 +48,21 @@ describe.each([
 		expect(await feedLanguage(feed)).toBe("fr");
 	});
 
+	it("follows a locale change between calls", () => {
+		setDefaultLocale("fr");
+		expect(formatDate(date, "long")).toBe("7 octobre 2026");
+		setDefaultLocale("de");
+		expect(formatDate(date, "long")).toBe("7. Oktober 2026");
+		expect(formatDate(date, "short")).toBe("7. Okt. 2026");
+		setDefaultLocale(null);
+		expect(formatDate(date, "short")).toBe("Oct 7, 2026");
+	});
+
+	it("renders an invalid date as text instead of throwing", () => {
+		setDefaultLocale(null);
+		expect(formatDate(new Date(Number.NaN), "long")).toBe("Invalid Date");
+	});
+
 	it.each([
 		["a malformed tag", "pt_BR"],
 		["an Astro custom locale path", "spanish"],
