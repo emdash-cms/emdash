@@ -494,7 +494,11 @@ URLs are built from the collection's `urlPattern` and localized through the Astr
 
 ## Import multilingual content
 
-Import WordPress content through the admin migration tool — see [Content Import](/migration/content-import/) and [Migrate from WordPress](/migration/from-wordpress/). A WXR export does not carry the locale and translation-group structure that WPML or Polylang add, so imported content lands in your default locale.
+Import WordPress content through the admin migration tool — see [Content Import](/migration/content-import/) and [Migrate from WordPress](/migration/from-wordpress/).
+
+A WXR export from a site translated with Polylang records the language and translations of each post. The importer uses the Polylang language code, for example `en`, as each entry's locale and links the entry to its translations. List the same codes in `i18n.locales` so Astro can route the imported entries. Categories, tags, and other terms that Polylang translates keep their own language and name, and are linked to their translations.
+
+A WXR export does not carry the locale and translation-group structure that WPML adds, so content imported from a WPML site lands in your default locale.
 
 To build translations from imported content, create the translated entry as a draft and link it to the original database ID:
 

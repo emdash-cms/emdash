@@ -19,6 +19,9 @@
  *                      the user controls their schema through the admin.
  *   - Terms are created idempotently by `(taxonomy, slug, locale)`. Existing
  *     terms are reused.
+ *   - Polylang records each term's language and translations in a
+ *     `term_translations` term. Such terms are created in their own locale and
+ *     linked to their translations, and the mirror pass leaves them alone.
  *   - Assignments respect the def's `collections` array. If the post's target
  *     collection isn't listed on the taxonomy def, the assignment is skipped
  *     (matches admin UI behaviour: you can't tag a "products" post with a
@@ -28,6 +31,7 @@
 import type { Kysely } from "kysely";
 
 import type { WxrCategory, WxrPost, WxrTag, WxrTerm } from "../cli/wxr/parser.js";
+import { parsePolylangTranslations } from "../cli/wxr/parser.js";
 import {
 	findTaxonomyStructure,
 	selectTaxonomyDefs,
@@ -88,6 +92,17 @@ export interface TaxonomyImportPlan {
 	 * need to check pivot existence without repeating per-term DB reads.
 	 */
 	translationGroupByTermId: Map<string, string | null>;
+	/**
+	 * Lookup table: `taxonomy name`, `term slug` and locale -> term id, keyed
+	 * by `localizedTermKey`. Resolves a post's terms in the post's own locale
+	 * first, so translations that share a slug don't collide.
+	 */
+	termIdByNameSlugAndLocale: Map<string, string>;
+	/**
+	 * Terms whose locale the export recorded (Polylang). They already exist
+	 * in each locale they have, so `mirrorTermsToLocales` skips them.
+	 */
+	localizedTermIds: Set<string>;
 }
 
 /**
@@ -106,6 +121,8 @@ function makeState(): TaxonomyImportState {
 			termIdByNameAndSlug: new Map(),
 			collectionsByTaxonomy: new Map(),
 			translationGroupByTermId: new Map(),
+			termIdByNameSlugAndLocale: new Map(),
+			localizedTermIds: new Set(),
 		},
 	};
 }
@@ -130,6 +147,38 @@ function rememberTerm(
 		state.plan.termIdByNameAndSlug.set(taxonomyName, bySlug);
 	}
 	bySlug.set(slug, termId);
+}
+
+function localizedTermKey(taxonomyName: string, slug: string, locale: string): string {
+	return `${taxonomyName}\u0000${slug}\u0000${locale}`;
+}
+
+/**
+ * Taxonomies that WordPress plugins use for their own bookkeeping rather than
+ * for content: menus, and Polylang's languages and translation groups.
+ */
+const INTERNAL_TAXONOMIES = new Set([
+	"nav_menu",
+	"language",
+	"term_language",
+	"post_translations",
+	"term_translations",
+]);
+
+/**
+ * Read the locale and translation group of every term that Polylang's
+ * `term_translations` terms list, keyed by WordPress term id. Each of those
+ * terms' descriptions holds a serialized `{ lang_code => term_id }` map.
+ */
+function polylangTermLocales(terms: WxrTerm[]): Map<number, { locale: string; group: string }> {
+	const result = new Map<number, { locale: string; group: string }>();
+	for (const term of terms) {
+		if (term.taxonomy !== "term_translations" || !term.description) continue;
+		for (const [locale, id] of parsePolylangTranslations(term.description)) {
+			result.set(id, { locale, group: term.slug });
+		}
+	}
+	return result;
 }
 
 function parseDefCollections(raw: string | null): string[] {
@@ -168,13 +217,17 @@ export async function loadTaxonomyPlanFromDb(db: Kysely<Database>): Promise<Taxo
 
 	const terms = await db
 		.selectFrom("taxonomies")
-		.select(["name", "slug", "id"])
+		.select(["name", "slug", "id", "locale"])
 		.orderBy("locale", "asc")
 		.execute();
 	for (const term of terms) {
 		if (!state.plan.termIdByNameAndSlug.get(term.name)?.has(term.slug)) {
 			rememberTerm(state, term.name, term.slug, term.id);
 		}
+		state.plan.termIdByNameSlugAndLocale.set(
+			localizedTermKey(term.name, term.slug, term.locale),
+			term.id,
+		);
 	}
 
 	return state.plan;
@@ -185,6 +238,10 @@ interface TermDescriptor {
 	slug: string;
 	label: string;
 	description?: string;
+	/** The term's own locale, when the export records it (Polylang) */
+	locale?: string;
+	/** Shared by the term's translations, when the export records them */
+	translationKey?: string;
 }
 
 function termKey(taxonomyName: string, slug: string): string {
@@ -268,6 +325,124 @@ async function ensureTermsBatch(
 	}
 }
 
+/** A term as the import's conflict messages name it */
+const describeTerm = (d: TermDescriptor) => `"${d.taxonomyName}/${d.slug}" (${d.locale})`;
+
+/**
+ * Find or create terms whose locale the export records, each in that locale.
+ * The members of one translation group are linked through `translationOf`.
+ * Rows that already exist decide the group: missing members join it, anchored
+ * on the existing member in the import's locale when there is one. The import
+ * stops with a conflict when existing members sit in different groups, or
+ * when a missing member would give its group a second row in one locale,
+ * which the term API refuses too. Existing rows are looked up in one batched
+ * SELECT per locale, and the rows of their groups in batched SELECTs too.
+ */
+async function ensureLocalizedTerms(
+	db: Kysely<Database>,
+	state: TaxonomyImportState,
+	descriptors: TermDescriptor[],
+	importLocale: string | undefined,
+): Promise<void> {
+	if (descriptors.length === 0) return;
+
+	const repo = new TaxonomyRepository(db);
+
+	const byLocale = new Map<string, TermDescriptor[]>();
+	const groups = new Map<string, TermDescriptor[]>();
+	for (const d of descriptors) {
+		const locale = d.locale!;
+		const sameLocale = byLocale.get(locale);
+		if (sameLocale) sameLocale.push(d);
+		else byLocale.set(locale, [d]);
+		const groupKey = termKey(d.taxonomyName, d.translationKey ?? d.slug);
+		const members = groups.get(groupKey);
+		if (members) members.push(d);
+		else groups.set(groupKey, [d]);
+	}
+
+	// Existing rows, each with the translation group it belongs to
+	const existing = new Map<string, { id: string; group: string }>();
+	for (const [locale, localeDescriptors] of byLocale) {
+		for (const row of await findExistingTerms(db, localeDescriptors, locale)) {
+			existing.set(localizedTermKey(row.name, row.slug, locale), {
+				id: row.id,
+				group: row.translation_group ?? row.id,
+			});
+		}
+	}
+
+	// Resolve every group's existing members, and the translation group they
+	// share, before anything is created
+	const resolved = Array.from(groups.values(), (members) => {
+		const seen = new Set<string>();
+		const ordered: Array<{ d: TermDescriptor; key: string; row?: { id: string; group: string } }> =
+			[];
+		const sorted = members.toSorted(
+			(a, b) => Number(b.locale === importLocale) - Number(a.locale === importLocale),
+		);
+		for (const d of sorted) {
+			const key = localizedTermKey(d.taxonomyName, d.slug, d.locale!);
+			// A term the export lists twice
+			if (seen.has(key)) continue;
+			seen.add(key);
+			ordered.push({ d, key, row: existing.get(key) });
+		}
+		const found = ordered.filter((member) => member.row !== undefined);
+		const existingGroups = new Set(found.map((member) => member.row!.group));
+		if (existingGroups.size > 1) {
+			throw new WxrTaxonomyConflictError(
+				`Cannot import: the translations ${found.map((member) => describeTerm(member.d)).join(" and ")} already exist in different translation groups. Link them in the admin (re-link via translationOf, or delete one) and retry.`,
+			);
+		}
+		const [group] = existingGroups;
+		return { ordered, found, group };
+	});
+
+	// A missing member may not give its group a second row in one locale
+	const occupied = await findGroupLocales(
+		db,
+		resolved.flatMap(({ group }) => (group === undefined ? [] : [group])),
+	);
+	for (const { ordered, found, group } of resolved) {
+		// Slug of each locale's row in the group the existing members share
+		const groupLocales = group === undefined ? undefined : occupied.get(group);
+		for (const { d, row } of ordered) {
+			const taken = row ? undefined : groupLocales?.get(d.locale!);
+			if (taken !== undefined) {
+				throw new WxrTaxonomyConflictError(
+					`Cannot import: term ${describeTerm(d)} would join the translation group of ${describeTerm(found[0].d)}, which already has "${d.taxonomyName}/${taken}" at locale "${d.locale}". Reconcile the rows in the admin (re-link via translationOf, or delete one) and retry.`,
+				);
+			}
+		}
+	}
+
+	for (const { ordered, found } of resolved) {
+		let anchorId = found[0]?.row?.id;
+		for (const { d, key, row } of ordered) {
+			let termId = row?.id ?? state.plan.termIdByNameSlugAndLocale.get(key);
+			if (termId) {
+				bump(state.plan.termsReused, d.taxonomyName);
+			} else {
+				const created = await repo.create({
+					name: d.taxonomyName,
+					slug: d.slug,
+					label: d.label,
+					data: d.description ? { description: d.description } : undefined,
+					locale: d.locale,
+					translationOf: anchorId,
+				});
+				bump(state.plan.termsCreated, d.taxonomyName);
+				termId = created.id;
+			}
+			anchorId ??= termId;
+			rememberTerm(state, d.taxonomyName, d.slug, termId);
+			state.plan.termIdByNameSlugAndLocale.set(key, termId);
+			state.plan.localizedTermIds.add(termId);
+		}
+	}
+}
+
 /**
  * Batched lookup of term rows for a list of `(taxonomy, slug)` pairs.
  * Chunks at `SQL_BATCH_SIZE / 2` because each pair consumes two bind
@@ -280,16 +455,17 @@ async function findExistingTerms(
 	db: Kysely<Database>,
 	descriptors: TermDescriptor[],
 	locale: string | undefined,
-): Promise<Array<{ id: string; name: string; slug: string }>> {
+): Promise<Array<{ id: string; name: string; slug: string; translation_group: string | null }>> {
 	const { chunks, SQL_BATCH_SIZE } = await import("../utils/chunks.js");
-	const rows: Array<{ id: string; name: string; slug: string }> = [];
+	const rows: Array<{ id: string; name: string; slug: string; translation_group: string | null }> =
+		[];
 	const seenKeys = new Set<string>();
 
 	// Each pair uses 2 bind params, so limit each batch to SQL_BATCH_SIZE / 2 pairs.
 	for (const batch of chunks(descriptors, Math.floor(SQL_BATCH_SIZE / 2))) {
 		const batchRows = await db
 			.selectFrom("taxonomies")
-			.select(["id", "name", "slug"])
+			.select(["id", "name", "slug", "translation_group"])
 			.where((eb) =>
 				eb.or(batch.map((d) => eb.and([eb("name", "=", d.taxonomyName), eb("slug", "=", d.slug)]))),
 			)
@@ -306,6 +482,32 @@ async function findExistingTerms(
 	}
 
 	return rows;
+}
+
+/**
+ * Batched lookup of the rows in the given translation groups: for each group,
+ * the slug of its row in each locale.
+ */
+async function findGroupLocales(
+	db: Kysely<Database>,
+	groups: string[],
+): Promise<Map<string, Map<string, string>>> {
+	const { chunks, SQL_BATCH_SIZE } = await import("../utils/chunks.js");
+	const result = new Map<string, Map<string, string>>();
+	for (const batch of chunks([...new Set(groups)], SQL_BATCH_SIZE)) {
+		const rows = await db
+			.selectFrom("taxonomies")
+			.select(["translation_group", "locale", "slug"])
+			.where("translation_group", "in", batch)
+			.execute();
+		for (const row of rows) {
+			if (!row.translation_group) continue;
+			const locales = result.get(row.translation_group) ?? new Map<string, string>();
+			locales.set(row.locale, row.slug);
+			result.set(row.translation_group, locales);
+		}
+	}
+	return result;
 }
 
 /**
@@ -364,6 +566,11 @@ export async function preImportWxrTaxonomies(
 	const categoryDef = await lookupDef("category");
 	const tagDef = await lookupDef("tag");
 	const topLevel: TermDescriptor[] = [];
+	const polylang = polylangTermLocales(terms);
+	const localeFields = (id: number | undefined) => {
+		const recorded = id === undefined ? undefined : polylang.get(id);
+		return recorded ? { locale: recorded.locale, translationKey: recorded.group } : {};
+	};
 
 	if (categoryDef) {
 		for (const cat of categories) {
@@ -373,6 +580,7 @@ export async function preImportWxrTaxonomies(
 				slug: cat.nicename,
 				label: cat.name,
 				description: cat.description,
+				...localeFields(cat.id),
 			});
 		}
 	} else if (categories.length > 0) {
@@ -387,6 +595,7 @@ export async function preImportWxrTaxonomies(
 				slug: tag.slug,
 				label: tag.name,
 				description: tag.description,
+				...localeFields(tag.id),
 			});
 		}
 	} else if (tags.length > 0) {
@@ -394,7 +603,7 @@ export async function preImportWxrTaxonomies(
 	}
 
 	for (const term of terms) {
-		if (term.taxonomy === "nav_menu" || term.taxonomy === "language") continue;
+		if (INTERNAL_TAXONOMIES.has(term.taxonomy)) continue;
 		// Normalize WordPress' `post_tag` synonym -> EmDash `tag`. WordPress
 		// emits `<wp:tag>` for some exports and `<wp:term wp:term_taxonomy="post_tag">`
 		// for others; both must land in the same EmDash taxonomy.
@@ -411,10 +620,22 @@ export async function preImportWxrTaxonomies(
 			slug: term.slug,
 			label: term.name,
 			description: term.description,
+			...localeFields(term.id),
 		});
 	}
 
-	await ensureTermsBatch(db, state, topLevel, locale);
+	await ensureLocalizedTerms(
+		db,
+		state,
+		topLevel.filter((d) => d.locale),
+		locale,
+	);
+	await ensureTermsBatch(
+		db,
+		state,
+		topLevel.filter((d) => !d.locale),
+		locale,
+	);
 
 	// Pass 4: per-item assignments. Backfills terms missing from the top-
 	// level blocks (rare, but observed in hand-edited or partial exports).
@@ -459,7 +680,7 @@ export async function preImportWxrTaxonomies(
 		}
 		if (post.customTaxonomies) {
 			for (const [rawName, slugs] of post.customTaxonomies) {
-				if (rawName === "nav_menu" || rawName === "language") continue;
+				if (INTERNAL_TAXONOMIES.has(rawName)) continue;
 				const taxonomyName = rawName === "post_tag" ? "tag" : rawName;
 				const def = await lookupDef(taxonomyName);
 				if (!def) {
@@ -506,8 +727,8 @@ export async function preImportWxrTaxonomies(
  * inherited terms (see #1087 review feedback).
  *
  * Skipped taxonomies: `nav_menu` (handled by the menu importer) and
- * `language` (Polylang's locale signal, already promoted to `post.locale`
- * by the parser).
+ * Polylang's own bookkeeping (`language`, already promoted to `post.locale`
+ * by the parser, and its translation groups).
  */
 export function resolvePostTermAssignments(
 	collection: string,
@@ -518,7 +739,10 @@ export function resolvePostTermAssignments(
 	const seen = new Set<string>();
 
 	const tryResolve = (taxonomyName: string, slug: string): void => {
-		const termId = plan.termIdByNameAndSlug.get(taxonomyName)?.get(slug);
+		const termId =
+			(post.locale
+				? plan.termIdByNameSlugAndLocale.get(localizedTermKey(taxonomyName, slug, post.locale))
+				: undefined) ?? plan.termIdByNameAndSlug.get(taxonomyName)?.get(slug);
 		if (!termId) return;
 		const collectionFilter = plan.collectionsByTaxonomy.get(taxonomyName);
 		// Empty set means "no filter" (def has no collections array). A
@@ -541,7 +765,7 @@ export function resolvePostTermAssignments(
 	for (const slug of post.tags) tryResolve("tag", slug);
 	if (post.customTaxonomies) {
 		for (const [rawName, slugs] of post.customTaxonomies) {
-			if (rawName === "nav_menu" || rawName === "language") continue;
+			if (INTERNAL_TAXONOMIES.has(rawName)) continue;
 			const taxonomyName = rawName === "post_tag" ? "tag" : rawName;
 			for (const slug of slugs) tryResolve(taxonomyName, slug);
 		}
@@ -642,7 +866,8 @@ async function termTranslationGroup(
  *
  * Idempotent: skips a locale when a row already exists at `(name, slug,
  * locale)`. Safe to call after `preImportWxrTaxonomies` on subsequent
- * imports.
+ * imports. Terms whose locale the export recorded are left as they are:
+ * they exist in exactly the locales their translations cover.
  */
 export async function mirrorTermsToLocales(
 	db: Kysely<Database>,
@@ -661,6 +886,7 @@ export async function mirrorTermsToLocales(
 
 	for (const [taxonomyName, bySlug] of plan.termIdByNameAndSlug) {
 		for (const [slug, canonicalTermId] of bySlug) {
+			if (plan.localizedTermIds.has(canonicalTermId)) continue;
 			// Resolve the canonical's translation_group once; we'll compare
 			// against any pre-existing rows we find at the target locales.
 			// Cache on the plan so subsequent attaches (which also need

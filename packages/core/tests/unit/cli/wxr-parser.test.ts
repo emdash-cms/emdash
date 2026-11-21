@@ -596,6 +596,40 @@ describe("parseWxr", () => {
 			expect(result.posts[0]?.locale).toBe("fr");
 		});
 
+		it("prefers the Polylang `language` term over `_locale` meta", async () => {
+			// The term's slug is the code Polylang's translation maps use, so the
+			// post and its terms resolve in the same locale.
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Hello</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="en"><![CDATA[English]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_locale</wp:meta_key>
+        <wp:meta_value><![CDATA[en_US]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+    <item>
+      <title>Only meta</title>
+      <wp:post_id>2</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <wp:postmeta>
+        <wp:meta_key>_locale</wp:meta_key>
+        <wp:meta_value><![CDATA[fr]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+
+			expect(result.posts.map((post) => post.locale)).toEqual(["en", "fr"]);
+		});
+
 		it("derives a stable Polylang translationGroup from _translations meta", async () => {
 			// Polylang stores `_translations` as a serialized PHP map. We
 			// hash the post IDs into a stable key shared by every member of
@@ -635,6 +669,58 @@ describe("parseWxr", () => {
 			expect(result.posts[1]?.locale).toBe("fr");
 			expect(result.posts[0]?.translationGroup).toBeDefined();
 			expect(result.posts[0]?.translationGroup).toBe(result.posts[1]?.translationGroup);
+		});
+
+		it("takes a Polylang translationGroup from the post's `post_translations` term", async () => {
+			// A plain Polylang export has no `_translations` meta: each post is
+			// assigned a `post_translations` term whose description holds the
+			// same map. A post that does carry the meta joins the same group.
+			// Polylang Pro also keeps a `sync` map of language codes there
+			// for synchronized posts, which must not change the group.
+			const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <wp:term>
+      <wp:term_id>60</wp:term_id>
+      <wp:term_taxonomy>post_translations</wp:term_taxonomy>
+      <wp:term_slug>pll_65a1b2c3d4e5f</wp:term_slug>
+      <wp:term_name><![CDATA[pll_65a1b2c3d4e5f]]></wp:term_name>
+      <wp:term_description><![CDATA[a:4:{s:2:"en";i:1;s:2:"fr";i:2;s:2:"uk";i:3;s:4:"sync";a:2:{s:2:"fr";s:2:"en";s:2:"en";s:2:"en";}}]]></wp:term_description>
+    </wp:term>
+    <item>
+      <title>EN</title>
+      <wp:post_id>1</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="en"><![CDATA[English]]></category>
+      <category domain="post_translations" nicename="pll_65a1b2c3d4e5f"><![CDATA[pll_65a1b2c3d4e5f]]></category>
+    </item>
+    <item>
+      <title>FR</title>
+      <wp:post_id>2</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="fr"><![CDATA[Français]]></category>
+      <category domain="post_translations" nicename="pll_65a1b2c3d4e5f"><![CDATA[pll_65a1b2c3d4e5f]]></category>
+    </item>
+    <item>
+      <title>UK</title>
+      <wp:post_id>3</wp:post_id>
+      <wp:post_type>post</wp:post_type>
+      <category domain="language" nicename="uk"><![CDATA[Українська]]></category>
+      <wp:postmeta>
+        <wp:meta_key>_translations</wp:meta_key>
+        <wp:meta_value><![CDATA[a:3:{s:2:"en";i:1;s:2:"fr";i:2;s:2:"uk";i:3;}]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+			const result = await parseWxr(createStream(wxr));
+			const groups = result.posts.map((post) => post.translationGroup);
+
+			expect(groups).toHaveLength(3);
+			expect(groups[0]).toBeDefined();
+			expect(new Set(groups).size).toBe(1);
 		});
 
 		it("leaves locale/translationGroup undefined on monolingual exports", async () => {
