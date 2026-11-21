@@ -241,6 +241,17 @@ interface AutosaveMutationInput {
 	keepReplacedRevision?: boolean;
 }
 
+interface EntryMutationTarget {
+	targetCollection: string;
+	targetId: string;
+	targetLocale?: string;
+}
+
+interface PublishMutationInput extends EntryMutationTarget {
+	revision: string | undefined;
+	savedReferences: boolean;
+}
+
 function isSaveConflict(error: unknown): boolean {
 	return error instanceof ApiResponseError && error.code === "CONFLICT";
 }
@@ -1728,19 +1739,19 @@ function ContentEditPage() {
 	});
 
 	const handleContentUpdateSuccess = React.useCallback(
-		async (targetId: string) => {
+		async (targetId: string, targetCollection = collection) => {
 			// Invalidate by (collection, id) prefix without the locale object: the
 			// editor's read query is keyed `{ locale: activeLocale }` (undefined when
 			// i18n is off) while `rawItem.locale` is the DB default "en", so a
 			// locale-scoped invalidation key would not match and the item would never
 			// refetch — leaving the publish/save buttons stale until a hard refresh.
 			const contentRefresh = queryClient.invalidateQueries({
-				queryKey: ["content", collection, targetId],
+				queryKey: ["content", targetCollection, targetId],
 			});
-			void invalidateContentViews(queryClient, { collection, id: targetId });
+			void invalidateContentViews(queryClient, { collection: targetCollection, id: targetId });
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({
-				queryKey: ["revisions", collection, targetId],
+				queryKey: ["revisions", targetCollection, targetId],
 			});
 			// Invalidate the cached draft revision so stale data doesn't overwrite the form
 			if (rawItem?.draftRevisionId) {
@@ -1753,12 +1764,14 @@ function ContentEditPage() {
 		[collection, queryClient, rawItem?.draftRevisionId],
 	);
 	const recoverFromSaveConflict = React.useCallback(
-		async (entryId: string) => {
+		async (
+			entryId: string,
+			targetCollection = collection,
+			targetLocale = rawItem?.locale ?? activeLocale,
+		) => {
 			setConflictedEntryId(entryId);
 			try {
-				const server = await fetchContent(collection, entryId, {
-					locale: rawItem?.locale ?? activeLocale,
-				});
+				const server = await fetchContent(targetCollection, entryId, { locale: targetLocale });
 				recordWriteRevision(entryId, server);
 				return true;
 			} catch {
@@ -1871,26 +1884,33 @@ function ContentEditPage() {
 		},
 	});
 	const publishedAtMutation = useMutation({
-		mutationFn: async (publishedAt: string) => {
+		mutationFn: async ({
+			targetCollection,
+			targetId,
+			targetLocale,
+			publishedAt,
+			startedInRoom,
+		}: EntryMutationTarget & { publishedAt: string; startedInRoom: boolean }) => {
 			const savedItem = await updateContent(
-				collection,
-				id,
+				targetCollection,
+				targetId,
 				{
 					publishedAt,
-					_rev: roomRef.current ? undefined : revisionTokensRef.current.get(id),
+					_rev: startedInRoom ? undefined : revisionTokensRef.current.get(targetId),
 				},
-				{ locale: rawItem?.locale ?? activeLocale },
+				{ locale: targetLocale },
 			);
-			recordWriteRevision(id, savedItem);
+			recordWriteRevision(targetId, savedItem);
 			return savedItem;
 		},
-		onSuccess: () => {
-			setConflictedEntryId((current) => (current === id ? "" : current));
-			void handleContentUpdateSuccess(id);
+		onSuccess: (_, { targetCollection, targetId }) => {
+			setConflictedEntryId((current) => (current === targetId ? "" : current));
+			void handleContentUpdateSuccess(targetId, targetCollection);
 		},
 		// The publication-date dialog shows the failure.
-		onError: async (error) => {
-			if (isSaveConflict(error)) await recoverFromSaveConflict(id);
+		onError: async (error, { targetCollection, targetId, targetLocale }) => {
+			if (isSaveConflict(error) && editorShows(targetId))
+				await recoverFromSaveConflict(targetId, targetCollection, targetLocale);
 		},
 	});
 
@@ -1959,17 +1979,14 @@ function ContentEditPage() {
 	});
 
 	const publishMutation = useMutation({
-		mutationFn: ({ revision }: { revision: string | undefined; savedReferences: boolean }) =>
-			publishContent(collection, id, {
-				locale: rawItem?.locale ?? activeLocale,
-				_rev: revision,
-			}),
-		onSuccess: (publishedItem, { savedReferences }) => {
-			recordWriteRevision(id, publishedItem);
+		mutationFn: ({ targetCollection, targetId, targetLocale, revision }: PublishMutationInput) =>
+			publishContent(targetCollection, targetId, { locale: targetLocale, _rev: revision }),
+		onSuccess: (publishedItem, { targetCollection, targetId, savedReferences }) => {
+			recordWriteRevision(targetId, publishedItem);
 			// A selection the preceding save sent is in no cached page yet, so the
 			// entry is read again instead of keeping the pages from before it.
 			queryClient.setQueriesData<ContentItem>(
-				{ queryKey: ["content", collection, id] },
+				{ queryKey: ["content", targetCollection, targetId] },
 				(cached) => ({
 					...publishedItem,
 					references:
@@ -1977,14 +1994,14 @@ function ContentEditPage() {
 				}),
 			);
 			if (savedReferences) {
-				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+				void queryClient.invalidateQueries({ queryKey: ["content", targetCollection, targetId] });
 			}
-			void invalidateContentViews(queryClient, { collection, id });
-			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+			void invalidateContentViews(queryClient, { collection: targetCollection, id: targetId });
+			void queryClient.invalidateQueries({ queryKey: ["revisions", targetCollection, targetId] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
-		onError: (error) => {
-			if (entryLock.reportWriteError(error, id)) return;
+		onError: (error, { targetId }) => {
+			if (entryLock.reportWriteError(error, targetId)) return;
 			toastManager.add({
 				title: t`Failed to publish`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
@@ -1994,22 +2011,24 @@ function ContentEditPage() {
 	});
 
 	const unpublishMutation = useMutation({
-		mutationFn: (_rev?: string) =>
-			unpublishContent(collection, id, {
-				locale: rawItem?.locale ?? activeLocale,
-				_rev,
-			}),
-		onSuccess: (unpublishedItem) => {
-			recordWriteRevision(id, unpublishedItem);
+		mutationFn: ({
+			targetCollection,
+			targetId,
+			targetLocale,
+			revision,
+		}: EntryMutationTarget & { revision: string | undefined }) =>
+			unpublishContent(targetCollection, targetId, { locale: targetLocale, _rev: revision }),
+		onSuccess: (unpublishedItem, { targetCollection, targetId }) => {
+			recordWriteRevision(targetId, unpublishedItem);
 			void queryClient.invalidateQueries({
-				queryKey: ["content", collection, id],
+				queryKey: ["content", targetCollection, targetId],
 			});
-			void invalidateContentViews(queryClient, { collection, id });
-			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+			void invalidateContentViews(queryClient, { collection: targetCollection, id: targetId });
+			void queryClient.invalidateQueries({ queryKey: ["revisions", targetCollection, targetId] });
 			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
 		},
-		onError: (error) => {
-			if (entryLock.reportWriteError(error, id)) return;
+		onError: (error, { targetId }) => {
+			if (entryLock.reportWriteError(error, targetId)) return;
 			toastManager.add({
 				title: t`Failed to unpublish`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
@@ -2019,16 +2038,17 @@ function ContentEditPage() {
 	});
 
 	const discardDraftMutation = useMutation({
-		mutationFn: () => discardDraft(collection, id, { locale: rawItem?.locale ?? activeLocale }),
-		onSuccess: async (discardedItem) => {
-			setConflictedEntryId((conflicted) => (conflicted === id ? "" : conflicted));
-			recordWriteRevision(id, discardedItem);
+		mutationFn: ({ targetCollection, targetId, targetLocale }: EntryMutationTarget) =>
+			discardDraft(targetCollection, targetId, { locale: targetLocale }),
+		onSuccess: async (discardedItem, { targetCollection, targetId }) => {
+			setConflictedEntryId((conflicted) => (conflicted === targetId ? "" : conflicted));
+			recordWriteRevision(targetId, discardedItem);
 			await queryClient.invalidateQueries({
-				queryKey: ["content", collection, id],
+				queryKey: ["content", targetCollection, targetId],
 			});
-			void invalidateContentViews(queryClient, { collection, id });
-			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
-			resetEditorItem(id, { discarded: true });
+			void invalidateContentViews(queryClient, { collection: targetCollection, id: targetId });
+			void queryClient.invalidateQueries({ queryKey: ["revisions", targetCollection, targetId] });
+			resetEditorItem(targetId, { discarded: true });
 			toastManager.add({
 				title: t`Changes discarded`,
 				description: t`Reverted to published version`,
@@ -2074,10 +2094,15 @@ function ContentEditPage() {
 		[activeLocale, collection, id, queryClient, rawItem?.locale, recordWriteRevision],
 	);
 	const scheduleMutation = useMutation({
-		mutationFn: (scheduledAt: string) =>
-			scheduleContent(collection, id, scheduledAt, { locale: rawItem?.locale ?? activeLocale }),
-		onSuccess: () => {
-			void invalidateContentViews(queryClient, { collection, id });
+		mutationFn: ({
+			targetCollection,
+			targetId,
+			targetLocale,
+			scheduledAt,
+		}: EntryMutationTarget & { scheduledAt: string }) =>
+			scheduleContent(targetCollection, targetId, scheduledAt, { locale: targetLocale }),
+		onSuccess: (_, { targetCollection, targetId }) => {
+			void invalidateContentViews(queryClient, { collection: targetCollection, id: targetId });
 			toastManager.add({
 				title: t`Scheduled`,
 				description: t`Content has been scheduled for publishing`,
@@ -2086,17 +2111,17 @@ function ContentEditPage() {
 	});
 
 	const unscheduleMutation = useMutation({
-		mutationFn: () =>
-			unscheduleContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
-		onSuccess: () => {
-			void invalidateContentViews(queryClient, { collection, id });
+		mutationFn: ({ targetCollection, targetId, targetLocale }: EntryMutationTarget) =>
+			unscheduleContent(targetCollection, targetId, { locale: targetLocale }),
+		onSuccess: (_, { targetCollection, targetId }) => {
+			void invalidateContentViews(queryClient, { collection: targetCollection, id: targetId });
 			toastManager.add({
 				title: t`Unscheduled`,
 				description: t`Content reverted to draft`,
 			});
 		},
-		onError: (error) => {
-			if (entryLock.reportWriteError(error, id)) return;
+		onError: (error, { targetId }) => {
+			if (entryLock.reportWriteError(error, targetId)) return;
 			toastManager.add({
 				title: t`Failed to unschedule`,
 				description: error instanceof Error ? error.message : t`An error occurred`,
@@ -2279,6 +2304,7 @@ function ContentEditPage() {
 				bylines?: BylineCreditInput[];
 			},
 		) => {
+			const startedInRoom = roomRef.current !== null;
 			await serializeEditorSave(
 				async () => {
 					if (!payload) return;
@@ -2291,12 +2317,22 @@ function ContentEditPage() {
 				},
 				{ allowConflict: !payload },
 			);
-			await publishedAtMutation.mutateAsync(publishedAt).catch((error: unknown) => {
-				if (!entryLock.reportWriteError(error, id)) throw error;
-			});
+			await publishedAtMutation
+				.mutateAsync({
+					targetCollection: collection,
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
+					publishedAt,
+					startedInRoom,
+				})
+				.catch((error: unknown) => {
+					if (!editorShows(id) || !entryLock.reportWriteError(error, id)) throw error;
+				});
 		},
 		[
 			activeLocale,
+			collection,
+			editorShows,
 			entryLock.reportWriteError,
 			id,
 			publishedAtMutation.mutateAsync,
@@ -2339,7 +2375,13 @@ function ContentEditPage() {
 				// that save.
 				if (!payload) {
 					await prepareRoomOperation({ draft: true }).catch(failWithToast(t`Failed to publish`));
-					await publishMutation.mutateAsync({ revision: undefined, savedReferences: false });
+					await publishMutation.mutateAsync({
+						targetCollection: collection,
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						revision: undefined,
+						savedReferences: false,
+					});
 					return;
 				}
 				const savedItem = await serializeEditorSave(() =>
@@ -2351,6 +2393,9 @@ function ContentEditPage() {
 					}),
 				);
 				await publishMutation.mutateAsync({
+					targetCollection: collection,
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
 					revision: savedItem._rev,
 					savedReferences: Boolean(payload.references),
 				});
@@ -2365,6 +2410,7 @@ function ContentEditPage() {
 		},
 		[
 			activeLocale,
+			collection,
 			failWithToast,
 			id,
 			prepareRoomOperation,
@@ -2386,7 +2432,12 @@ function ContentEditPage() {
 			const request = (async () => {
 				if (roomRef.current) {
 					await prepareRoomOperation().catch(failWithToast(t`Failed to unpublish`));
-					await unpublishMutation.mutateAsync(undefined);
+					await unpublishMutation.mutateAsync({
+						targetCollection: collection,
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						revision: undefined,
+					});
 					return;
 				}
 				const savedItem = await serializeEditorSave(async () => {
@@ -2399,7 +2450,12 @@ function ContentEditPage() {
 					});
 				});
 				const currentToken = savedItem?._rev ?? revisionTokensRef.current.get(id);
-				await unpublishMutation.mutateAsync(currentToken);
+				await unpublishMutation.mutateAsync({
+					targetCollection: collection,
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
+					revision: currentToken,
+				});
 			})();
 			unpublishRequestRef.current = request;
 			void request
@@ -2411,6 +2467,7 @@ function ContentEditPage() {
 		},
 		[
 			activeLocale,
+			collection,
 			failWithToast,
 			id,
 			prepareRoomOperation,
@@ -2425,10 +2482,25 @@ function ContentEditPage() {
 	// that resolves, so the confirmation closes and the lock notice takes over.
 	const handleDiscardDraft = React.useCallback(async () => {
 		if (roomRef.current) await prepareRoomOperation();
-		return discardDraftMutation.mutateAsync().catch((error: unknown) => {
-			if (!entryLock.reportWriteError(error, id)) throw error;
-		});
-	}, [discardDraftMutation.mutateAsync, entryLock.reportWriteError, id, prepareRoomOperation]);
+		return discardDraftMutation
+			.mutateAsync({
+				targetCollection: collection,
+				targetId: id,
+				targetLocale: rawItem?.locale ?? activeLocale,
+			})
+			.catch((error: unknown) => {
+				if (!editorShows(id) || !entryLock.reportWriteError(error, id)) throw error;
+			});
+	}, [
+		activeLocale,
+		collection,
+		discardDraftMutation.mutateAsync,
+		editorShows,
+		entryLock.reportWriteError,
+		id,
+		prepareRoomOperation,
+		rawItem?.locale,
+	]);
 	const handleSchedule = React.useCallback(
 		async (
 			scheduledAt: string,
@@ -2451,9 +2523,14 @@ function ContentEditPage() {
 			});
 			// The schedule dialog shows the failure, unless the lock explains it.
 			const scheduledItem = await scheduleMutation
-				.mutateAsync(scheduledAt)
+				.mutateAsync({
+					targetCollection: collection,
+					targetId: id,
+					targetLocale: rawItem?.locale ?? activeLocale,
+					scheduledAt,
+				})
 				.catch((error: unknown) => {
-					if (entryLock.reportWriteError(error, id)) return null;
+					if (editorShows(id) && entryLock.reportWriteError(error, id)) return null;
 					throw error;
 				});
 			if (!scheduledItem) return;
@@ -2462,6 +2539,8 @@ function ContentEditPage() {
 		[
 			activeLocale,
 			applyScheduleChange,
+			collection,
+			editorShows,
 			entryLock.reportWriteError,
 			id,
 			prepareRoomOperation,
@@ -2490,12 +2569,17 @@ function ContentEditPage() {
 					changes: payload,
 				});
 			});
-			const unscheduledItem = await unscheduleMutation.mutateAsync();
+			const unscheduledItem = await unscheduleMutation.mutateAsync({
+				targetCollection: collection,
+				targetId: id,
+				targetLocale: rawItem?.locale ?? activeLocale,
+			});
 			await applyScheduleChange(unscheduledItem, savedItem, payload);
 		},
 		[
 			activeLocale,
 			applyScheduleChange,
+			collection,
 			failWithToast,
 			id,
 			prepareRoomOperation,
