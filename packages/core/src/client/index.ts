@@ -867,6 +867,7 @@ export class EmDashClient {
 
 		if (options?.published && item.liveData) {
 			item.data = item.liveData;
+			delete item.liveData;
 		}
 
 		// Convert PT fields to markdown unless raw is requested

@@ -304,15 +304,13 @@ describe("CLI Integration", () => {
 				);
 				expect(latest.data.title).toBe("Draft title");
 
-				const published = await cliJson<{ data: { title: string; body: string } }>(
-					"content",
-					"get",
-					"cli_revisions",
-					created.id,
-					"--published",
-				);
+				const published = await cliJson<{
+					data: { title: string; body: string };
+					liveData?: unknown;
+				}>("content", "get", "cli_revisions", created.id, "--published");
 				expect(published.data.title).toBe("Live title");
 				expect(published.data.body.trim()).toBe("Live body");
+				expect(published).not.toHaveProperty("liveData");
 
 				const publishedRaw = await cliJson<{ data: { title: string; body: unknown } }>(
 					"content",
