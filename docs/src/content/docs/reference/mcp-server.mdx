@@ -134,6 +134,35 @@ The following inventory matches the static tools returned by `tools/list`. The r
 | `schema_create_field` | Add Field to Collection | `schema:write` |
 | `schema_delete_field` | Remove Field from Collection | `schema:write` |
 | `schema_update_field` | Update Field | `schema:write` |
+| `schema_reorder_fields` | Reorder Fields | `schema:write` |
+
+`schema_create_field` accepts the REST field-creation settings, including `url` and
+`repeater` types, `widget`, `options`, and `sortOrder`. Define repeater sub-fields
+in `validation.subFields`. For example, call it with:
+
+```json
+{
+	"collection": "posts",
+	"slug": "reader_url",
+	"label": "Reader URL",
+	"type": "url",
+	"sortOrder": 0
+}
+```
+
+For reference fields, set `validation.targetCollection` to create a relation, or
+`validation.relation` to bind an existing relation. The older
+`options.collection` target setting is also accepted.
+
+Call `schema_reorder_fields` with a `collection` slug and a `fieldSlugs` array in
+the desired editor order to reorder fields in one call.
+
+`schema_update_collection` accepts `admin`, `hidden`, and `sortOrder` along with
+the other collection settings. Pass `admin: { "quickCreate": false, "listColumns":
+["title"] }` to configure quick create and the admin list columns. Providing
+`admin` replaces the current admin configuration; omit it to preserve that
+configuration. Set collection `sortOrder` to `null` to restore alphabetical sidebar
+ordering. Field `sortOrder` must be a non-negative integer.
 
 ### Media tools
 
