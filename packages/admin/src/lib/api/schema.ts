@@ -77,6 +77,8 @@ export interface SchemaCollection {
 	routable?: boolean;
 	/** Source for the content list's Date column. */
 	dateField?: string | null;
+	/** Create automatic redirects when a published slug changes. */
+	autoSlugRedirects?: boolean;
 	hasSeo: boolean;
 	/** Sidebar entry, dashboard quick action, and dashboard Content card row omitted in the admin; the collection stays reachable by URL */
 	hidden: boolean;
@@ -152,6 +154,7 @@ export interface CreateCollectionInput {
 	supports?: string[];
 	urlPattern?: string;
 	routable?: boolean;
+	autoSlugRedirects?: boolean;
 	hasSeo?: boolean;
 	hidden?: boolean;
 	sortOrder?: number | null;
@@ -170,6 +173,7 @@ export interface UpdateCollectionInput {
 	routable?: boolean;
 	/** Source for the content list's Date column. */
 	dateField?: string | null;
+	autoSlugRedirects?: boolean;
 	hasSeo?: boolean;
 	hidden?: boolean;
 	sortOrder?: number | null;

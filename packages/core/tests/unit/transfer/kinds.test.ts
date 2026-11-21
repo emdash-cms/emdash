@@ -34,6 +34,25 @@ const SYNTHETIC_OR_DERIVED_PROPERTIES: Partial<Record<RecordKind, string[]>> = {
 };
 
 describe("record kind registry", () => {
+	it("keeps auto slug redirect policy through collection records", () => {
+		const record = {
+			kind: "collection" as const,
+			id: "C1",
+			slug: "posts",
+			label: "Posts",
+			hasSeo: false,
+			hidden: false,
+			routable: true,
+			editLocking: true,
+			autoSlugRedirects: false,
+		};
+
+		expect(validateRecord("collection", record)).toMatchObject({ success: true });
+		const defaulted = validateRecord("collection", { ...record, autoSlugRedirects: undefined });
+		expect(defaulted).toMatchObject({ success: true, record: { autoSlugRedirects: true } });
+		expect(validateRecord("collection", { ...record, autoSlugRedirects: 0 }).success).toBe(false);
+	});
+
 	it("every kind except principal and entry maps to exactly one portable table", () => {
 		for (const kind of RECORD_KINDS) {
 			const spec = getPortableTableSpecForKind(kind);

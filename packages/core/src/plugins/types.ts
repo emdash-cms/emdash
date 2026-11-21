@@ -461,6 +461,7 @@ export interface CollectionSchemaInfo {
 	dateField: string | null;
 	urlPattern: string | null;
 	routable: boolean;
+	autoSlugRedirects?: boolean;
 	hidden: boolean;
 	fields: FieldSchemaInfo[];
 }

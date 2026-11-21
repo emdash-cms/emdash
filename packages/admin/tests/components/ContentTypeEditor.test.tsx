@@ -228,6 +228,7 @@ describe("ContentTypeEditor", () => {
 			description: undefined,
 			urlPattern: undefined,
 			routable: true,
+			autoSlugRedirects: true,
 			editLocking: true,
 			hidden: false,
 			supports: ["drafts", "revisions"], // default
@@ -253,6 +254,7 @@ describe("ContentTypeEditor", () => {
 			description: "Blog posts",
 			urlPattern: undefined,
 			routable: true,
+			autoSlugRedirects: true,
 			editLocking: true,
 			icon: "",
 			group: null,
@@ -926,6 +928,77 @@ describe("ContentTypeEditor", () => {
 		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ urlPattern: "/blog/{slug}" }));
 	});
 
+	it("defaults automatic slug redirects on for new collections", async () => {
+		const screen = await render(<ContentTypeEditor {...defaultProps()} isNew />);
+		await expect
+			.element(screen.getByRole("switch", { name: /Automatic slug redirects/i }))
+			.toBeChecked();
+	});
+
+	it("defaults automatic slug redirects on for legacy collections", async () => {
+		const screen = await render(
+			<ContentTypeEditor {...defaultProps()} collection={makeCollection()} />,
+		);
+		await expect
+			.element(screen.getByRole("switch", { name: /Automatic slug redirects/i }))
+			.toBeChecked();
+	});
+
+	it("renders existing automatic slug redirects setting and saves changes", async () => {
+		const onSave = vi.fn();
+		const screen = await render(
+			<ContentTypeEditor
+				{...defaultProps({ onSave })}
+				collection={makeCollection({ autoSlugRedirects: false })}
+			/>,
+		);
+		const toggle = screen.getByRole("switch", { name: /Automatic slug redirects/i });
+		await expect.element(toggle).not.toBeChecked();
+		await expect
+			.element(screen.getByRole("button", { name: "Saved", exact: true }).last())
+			.toBeDisabled();
+
+		await toggle.click();
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }).last())
+			.toBeEnabled();
+		await toggle.click();
+		await expect
+			.element(screen.getByRole("button", { name: "Saved", exact: true }).last())
+			.toBeDisabled();
+
+		await toggle.click();
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenLastCalledWith(expect.objectContaining({ autoSlugRedirects: true }));
+	});
+
+	it("saves the automatic slug redirects choice for new collections", async () => {
+		const onSave = vi.fn();
+		const screen = await render(<ContentTypeEditor {...defaultProps({ onSave })} isNew />);
+		await screen.getByLabelText("Label (Plural)").fill("Articles");
+		await expect
+			.element(screen.getByRole("switch", { name: /Automatic slug redirects/i }))
+			.toBeChecked();
+		await screen.getByRole("switch", { name: /Automatic slug redirects/i }).click();
+		await screen.getByRole("button", { name: CREATE_CONTENT_TYPE_BUTTON_REGEX }).click();
+		expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ autoSlugRedirects: false }));
+	});
+
+	it("preserves disabled automatic slug redirects when saving an unrelated edit", async () => {
+		const onSave = vi.fn();
+		const screen = await render(
+			<ContentTypeEditor
+				{...defaultProps({ onSave })}
+				collection={makeCollection({ autoSlugRedirects: false })}
+			/>,
+		);
+		await screen.getByLabelText("Label (Plural)").fill("Articles");
+		await screen.getByRole("button", { name: "Save", exact: true }).last().click();
+		expect(onSave).toHaveBeenCalledWith(
+			expect.objectContaining({ label: "Articles", autoSlugRedirects: false }),
+		);
+	});
+
 	it("saves whether the collection is routable", async () => {
 		const onSave = vi.fn();
 		const collection = makeCollection({ routable: true });
@@ -1071,6 +1144,9 @@ describe("ContentTypeEditor", () => {
 
 		const input = screen.getByLabelText("URL Pattern");
 		await expect.element(input).toBeDisabled();
+		await expect
+			.element(screen.getByRole("switch", { name: /Automatic slug redirects/i }))
+			.toBeDisabled();
 	});
 
 	it("shows field count in header", async () => {

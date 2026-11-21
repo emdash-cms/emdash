@@ -198,9 +198,58 @@ describe("schema_create_collection", () => {
 			arguments: { slug: "article", label: "Articles" },
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
-		const created = extractJson<{ slug: string; label: string }>(result);
+		const created = extractJson<{ slug: string; label: string; autoSlugRedirects: boolean }>(
+			result,
+		);
 		expect(created.slug).toBe("article");
 		expect(created.label).toBe("Articles");
+		expect(created.autoSlugRedirects).toBe(true);
+	});
+
+	it("round-trips auto slug redirect settings through MCP", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const createdResult = await harness.client.callTool({
+			name: "schema_create_collection",
+			arguments: { slug: "redirects", label: "Redirects", autoSlugRedirects: false },
+		});
+		expect(createdResult.isError, extractText(createdResult)).toBeFalsy();
+		expect(extractJson<{ autoSlugRedirects: boolean }>(createdResult).autoSlugRedirects).toBe(
+			false,
+		);
+
+		const readResult = await harness.client.callTool({
+			name: "schema_get_collection",
+			arguments: { slug: "redirects" },
+		});
+		expect(readResult.isError, extractText(readResult)).toBeFalsy();
+		expect(extractJson<{ autoSlugRedirects: boolean }>(readResult).autoSlugRedirects).toBe(false);
+		expect(
+			(
+				await db
+					.selectFrom("_emdash_collections")
+					.select("auto_slug_redirects")
+					.where("slug", "=", "redirects")
+					.executeTakeFirstOrThrow()
+			).auto_slug_redirects,
+		).toBe(0);
+
+		const updatedResult = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "redirects", autoSlugRedirects: true },
+		});
+		expect(updatedResult.isError, extractText(updatedResult)).toBeFalsy();
+		expect(
+			extractJson<{ item: { autoSlugRedirects: boolean } }>(updatedResult).item.autoSlugRedirects,
+		).toBe(true);
+		expect(
+			(
+				await db
+					.selectFrom("_emdash_collections")
+					.select("auto_slug_redirects")
+					.where("slug", "=", "redirects")
+					.executeTakeFirstOrThrow()
+			).auto_slug_redirects,
+		).toBe(1);
 	});
 
 	it("creates with all optional fields", async () => {

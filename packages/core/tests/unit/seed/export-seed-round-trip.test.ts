@@ -87,6 +87,33 @@ describe("exportSeed → applySeed round trip", () => {
 		await teardownTestDatabase(db);
 	});
 
+	it("exports disabled auto slug redirects and omits the enabled default", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "posts", label: "Posts", autoSlugRedirects: false });
+		await registry.createCollection({ slug: "pages", label: "Pages" });
+
+		const seed: SeedFile = JSON.parse(JSON.stringify(await exportSeed(db)));
+
+		expect(seed.collections).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({ slug: "posts", autoSlugRedirects: false }),
+			]),
+		);
+		expect(seed.collections?.find((collection) => collection.slug === "pages")).not.toHaveProperty(
+			"autoSlugRedirects",
+		);
+
+		const target = await setupTestDatabase();
+		try {
+			await applySeed(target, seed);
+			const restored = new SchemaRegistry(target);
+			expect((await restored.getCollection("posts"))?.autoSlugRedirects).toBe(false);
+			expect((await restored.getCollection("pages"))?.autoSlugRedirects).toBe(true);
+		} finally {
+			await teardownTestDatabase(target);
+		}
+	});
+
 	it("restores sections", async () => {
 		const now = new Date().toISOString();
 		await db
