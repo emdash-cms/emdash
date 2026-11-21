@@ -22,6 +22,21 @@ export const TEST_LANES = [
 ];
 
 const BROWSER_SUITES = ["browser_admin", "browser_embeds", "browser_release"];
+const DOCS_BUILD_INPUTS = new Set([
+	"package.json",
+	"pnpm-lock.yaml",
+	"pnpm-workspace.yaml",
+	".github/workflows/ci.yml",
+	".github/scripts/test-plan.mjs",
+	".github/scripts/test-plan.test.mjs",
+	"packages/core/src/schema/types.ts",
+	"packages/core/src/plugins/types.ts",
+	"packages/core/src/astro/integration/runtime.ts",
+	"packages/core/src/db/adapters.ts",
+	"packages/core/src/astro/storage/adapters.ts",
+	"packages/core/src/astro/object-cache/adapters.ts",
+	"packages/cloudflare/src/index.ts",
+]);
 const REPOSITORY_METADATA_PATTERN =
 	/^\.github\/(?:dependabot\.yml|codeql-config\.yml|zizmor\.yml)$/;
 const UNIT_PACKAGE_PATH_PATTERN =
@@ -260,10 +275,21 @@ function isUnsafePath(path) {
 	);
 }
 
+function affectsDocs(path) {
+	return (
+		path.startsWith("docs/") ||
+		path.startsWith("patches/") ||
+		path.startsWith("packages/core/src/cli/") ||
+		path.startsWith("templates/") ||
+		DOCS_BUILD_INPUTS.has(path)
+	);
+}
+
 function createFullPlan(paths, reason, unknownPaths = []) {
 	return {
 		...Object.fromEntries(TEST_LANES.map((lane) => [lane, true])),
 		...Object.fromEntries(BROWSER_SUITES.map((suite) => [suite, true])),
+		docs: paths.length === 0 || paths.some(affectsDocs),
 		unit_mode: "full",
 		unit_packages: ALL_UNIT_PACKAGES,
 		full: true,
@@ -336,6 +362,7 @@ export function createTestPlan(inputPaths) {
 	return {
 		...laneValues,
 		...browserValues,
+		docs: paths.some(affectsDocs),
 		unit_mode: unitMode,
 		unit_packages: unitMode === "full" ? ALL_UNIT_PACKAGES : [...unitPackages],
 		full: TEST_LANES.every((lane) => selected.has(lane)),
@@ -350,7 +377,7 @@ export function createTestPlan(inputPaths) {
 
 export function formatGitHubOutput(plan) {
 	const lines = [];
-	for (const lane of [...TEST_LANES, ...BROWSER_SUITES, "full", "design_only"]) {
+	for (const lane of [...TEST_LANES, ...BROWSER_SUITES, "docs", "full", "design_only"]) {
 		lines.push(`${lane}=${String(plan[lane])}`);
 	}
 	lines.push(`reason=${plan.reason}`);

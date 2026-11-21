@@ -10,7 +10,9 @@
     "build": "astro build && node scripts/check-worker-output.mjs",
     "preview": "astro preview",
     "astro": "astro",
-    "generate-types": "wrangler types"
+    "generate-types": "wrangler types",
+    "test": "node --test scripts/*.test.mjs",
+    "lint:linkcheck": "pnpm build && node scripts/lint-linkcheck.mjs"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.3.1",
@@ -29,5 +31,8 @@
   },
   "overrides": {
     "vite": "^8"
+  },
+  "devDependencies": {
+    "parse5": "^7.2.1"
   }
 }
