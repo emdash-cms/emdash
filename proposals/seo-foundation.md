@@ -1,0 +1,551 @@
+---
+title: "SEO foundation: identity, connected structured data and canonical URLs"
+type: rfc
+status: proposed
+authors:
+  - Kevin Kyburz (@swissky)
+  - Evgenii Zinner (@Evgenii-Zinner)
+champion: Kevin Kyburz (@swissky)
+sponsor: Kevin Kyburz (@swissky)
+discussions:
+  - https://github.com/emdash-cms/emdash/discussions/4621
+  - https://github.com/emdash-cms/emdash/discussions/4614
+  - https://github.com/emdash-cms/emdash/discussions/2990
+created: 2026-11-07
+---
+
+# SEO foundation: identity, connected structured data and canonical URLs
+
+## Summary
+
+EmDash gets one model for who publishes a site, who writes its content, and which URL represents each page. Every search-facing output reads from that model: the canonical link, Open Graph tags, JSON-LD and sitemap URLs.
+
+The RFC is delivered in two phases. Each phase ships on its own and leaves a site in a consistent state.
+
+1. **Identity.** Site settings describe the publisher as an `Organization` or a `Person`, with an open list of profile links. Each user keeps their own profile links in their profile, and guest bylines carry their own. Each link controls separately whether it appears in Schema.org `sameAs` and whether it is emitted as `<link rel="me">`. The six `site:social` keys keep working.
+2. **Connected graph and canonical URLs.** `EmDashHead` emits one JSON-LD `@graph` whose nodes reference each other by `@id`: publisher, `WebSite`, `WebPage`, the article, its authors, breadcrumbs and the primary image. Themes and plugins replace or extend single nodes instead of the whole block. Every page gets a self-referencing absolute canonical URL from the resolver that also produces sitemap and graph URLs.
+
+Later proposals build on this foundation and link to it instead of restating it. See [Follow-up proposals](#follow-up-proposals).
+
+Structured data that Google no longer uses for search features is out of scope: FAQ, HowTo and the sitelinks search box.
+
+## Problem and user case
+
+### Publisher identity is incomplete
+
+The generated `BlogPosting` names its publisher by site title only, and `WebSite` has no publisher. Nothing in core describes the organization or person behind a site. [Discussion #4614](https://github.com/emdash-cms/emdash/discussions/4614) runs several company sites and adds `Organization` data with address, served areas and profiles through a `page:metadata` plugin, because site settings have nowhere to store it and editors can't change plugin options.
+
+### Social links are a closed list
+
+`site:social` accepts six keys (`twitter`, `github`, `facebook`, `instagram`, `linkedin`, `youtube`), and the settings schema strips everything else. [Issue #4155](https://github.com/emdash-cms/emdash/issues/4155) and [Discussion #4131](https://github.com/emdash-cms/emdash/discussions/4131) need regional platforms such as WeChat and Weibo, some of which identify an account by handle or ID rather than by a public URL. [Discussion #4621](https://github.com/emdash-cms/emdash/discussions/4621) and design [#4714](https://github.com/emdash-cms/emdash/pull/4714) ask for an open list with `rel="me"` verification.
+
+### Authors have no identity in structured data
+
+Article markup lists the author as `{ "@type": "Person", "name": … }`. Bylines already store a display name, bio, avatar and website URL, but none of it reaches JSON-LD, and a byline has no place for profile links. Google recommends a `url` or `sameAs` for every author so it can tell authors apart, and recommends listing every author separately ([Article structured data: author markup best practices](https://developers.google.com/search/docs/appearance/structured-data/article#author-bp)).
+
+### Structured data cannot be extended in parts
+
+Core emits one JSON-LD block under the contribution ID `primary`. A theme that needs `NewsArticle` instead of `BlogPosting`, or an `ImageObject` logo, must replace the whole block or ship a second one with a conflicting `@type` ([issue #4471](https://github.com/emdash-cms/emdash/issues/4471), [Discussion #2990](https://github.com/emdash-cms/emdash/discussions/2990)).
+
+### Canonical URLs depend on the template
+
+A page has a canonical link only when its template passes `canonical` to `createPublicPageContext`, or when an editor sets one in the SEO panel. Sitemap `<loc>`, `og:url`, JSON-LD `url` and slug-change redirects derive their URLs separately. When these disagree, the site sends conflicting signals, which Google's guidance tells sites to avoid: "Don't specify different URLs as canonical for the same page using different canonicalization techniques" ([How to specify a canonical URL](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls)). Sites with runtime locale prefixes already get sitemap URLs that redirect ([issue #2697](https://github.com/emdash-cms/emdash/issues/2697)).
+
+## Example
+
+A company site with one author. After Phase 1 the site identity is stored like this:
+
+```json title="site:identity"
+{
+	"type": "Organization",
+	"name": "Example Studio AG",
+	"logo": { "mediaId": "01J9ZK6V1Q" },
+	"description": "Design studio in Zurich.",
+	"address": {
+		"streetAddress": "Bahnhofstrasse 1",
+		"postalCode": "8001",
+		"addressLocality": "Zürich",
+		"addressCountry": "CH"
+	},
+	"links": [
+		{
+			"id": "l1",
+			"platform": "linkedin",
+			"value": "https://www.linkedin.com/company/example-studio",
+			"sameAs": true,
+			"relMe": false
+		},
+		{
+			"id": "l2",
+			"platform": "mastodon",
+			"value": "https://mastodon.social/@examplestudio",
+			"sameAs": true,
+			"relMe": true
+		},
+		{
+			"id": "l3",
+			"platform": "wechat",
+			"value": "examplestudio_ch",
+			"sameAs": false,
+			"relMe": false
+		}
+	]
+}
+```
+
+Jane Doe has one GitHub profile link marked `sameAs` in her user profile, and the site has an author archive at `/authors/jane-doe/`. An article page emits one graph:
+
+```json
+{
+	"@context": "https://schema.org",
+	"@graph": [
+		{
+			"@type": "Organization",
+			"@id": "https://example.com/#organization",
+			"name": "Example Studio AG",
+			"url": "https://example.com/",
+			"logo": { "@id": "https://example.com/#logo" },
+			"address": {
+				"@type": "PostalAddress",
+				"streetAddress": "Bahnhofstrasse 1",
+				"postalCode": "8001",
+				"addressLocality": "Zürich",
+				"addressCountry": "CH"
+			},
+			"sameAs": [
+				"https://www.linkedin.com/company/example-studio",
+				"https://mastodon.social/@examplestudio"
+			]
+		},
+		{
+			"@type": "ImageObject",
+			"@id": "https://example.com/#logo",
+			"url": "https://example.com/_emdash/api/media/file/logo.png",
+			"width": 512,
+			"height": 512
+		},
+		{
+			"@type": "WebSite",
+			"@id": "https://example.com/#website",
+			"url": "https://example.com/",
+			"name": "Example Studio",
+			"inLanguage": "de-CH",
+			"publisher": { "@id": "https://example.com/#organization" }
+		},
+		{
+			"@type": "WebPage",
+			"@id": "https://example.com/blog/launch/#webpage",
+			"url": "https://example.com/blog/launch/",
+			"name": "We launched",
+			"inLanguage": "de-CH",
+			"isPartOf": { "@id": "https://example.com/#website" },
+			"breadcrumb": { "@id": "https://example.com/blog/launch/#breadcrumb" },
+			"primaryImageOfPage": { "@id": "https://example.com/blog/launch/#primaryimage" }
+		},
+		{
+			"@type": "BlogPosting",
+			"@id": "https://example.com/blog/launch/#article",
+			"headline": "We launched",
+			"datePublished": "2026-11-02T08:00:00+01:00",
+			"dateModified": "2026-11-03T09:20:00+01:00",
+			"mainEntityOfPage": { "@id": "https://example.com/blog/launch/#webpage" },
+			"image": { "@id": "https://example.com/blog/launch/#primaryimage" },
+			"author": [{ "@id": "https://example.com/authors/jane-doe/#person" }],
+			"publisher": { "@id": "https://example.com/#organization" }
+		},
+		{
+			"@type": "Person",
+			"@id": "https://example.com/authors/jane-doe/#person",
+			"name": "Jane Doe",
+			"url": "https://example.com/authors/jane-doe/",
+			"sameAs": ["https://github.com/janedoe"]
+		},
+		{
+			"@type": "ImageObject",
+			"@id": "https://example.com/blog/launch/#primaryimage",
+			"url": "https://example.com/_emdash/api/media/file/launch.jpg",
+			"width": 1600,
+			"height": 900
+		},
+		{
+			"@type": "BreadcrumbList",
+			"@id": "https://example.com/blog/launch/#breadcrumb",
+			"itemListElement": [
+				{ "@type": "ListItem", "position": 1, "name": "Home", "item": "https://example.com/" },
+				{ "@type": "ListItem", "position": 2, "name": "Blog", "item": "https://example.com/blog/" },
+				{ "@type": "ListItem", "position": 3, "name": "We launched" }
+			]
+		}
+	]
+}
+```
+
+The head of the same page contains:
+
+```html
+<link rel="canonical" href="https://example.com/blog/launch/" />
+<link rel="me" href="https://mastodon.social/@examplestudio" />
+<meta property="og:url" content="https://example.com/blog/launch/" />
+```
+
+A plugin adds properties to the article node from its `page:metadata` hook, instead of replacing the whole block:
+
+```ts title="src/plugins/article-section.ts"
+import type { PageMetadataHandler } from "emdash";
+
+export const pageMetadata: PageMetadataHandler = (event) => {
+	if (event.page.content?.collection !== "posts") return null;
+	return {
+		kind: "jsonld-node",
+		id: "article",
+		mode: "merge",
+		node: { articleSection: "Company news" },
+	};
+};
+```
+
+The WeChat ID appears in neither `sameAs` nor `rel="me"`, because it is not a URL. Themes can still render it from `getSiteIdentity()`.
+
+## Goals
+
+- Site settings describe the publisher as an `Organization` or a `Person`, editable in the admin and through REST and MCP.
+- The site, each user and each guest byline keep an open list of profile links. A user enters their links once, in their own profile, and every byline linked to that user uses them. Each link controls `sameAs` and `rel="me"` separately, and a link can hold a handle or ID that isn't a URL.
+- Existing `site:social` values keep rendering, and themes that read `settings.social` keep working without changes.
+- Each page emits at most one core JSON-LD graph whose nodes reference each other by stable `@id` values.
+- Themes and plugins can replace, merge into or remove a single graph node.
+- Every indexable page has one absolute, self-referencing canonical URL, and the sitemap, `og:url` and graph use that same URL.
+- Logged-out page renders run no additional database queries.
+- Every new schema property has a source in Google Search Central documentation or the Schema.org vocabulary.
+
+## Non-goals
+
+- FAQ, HowTo and sitelinks search box markup. Google removed these features from search results ([Search Central documentation updates](https://developers.google.com/search/updates)).
+- Product, Recipe, Event, JobPosting, LocalBusiness opening hours and other vertical types. Plugins add them through graph nodes.
+- Robots controls, sitemap providers, news and video sitemaps, IndexNow and editorial tooling. Each is a separate proposal that builds on this one ([Follow-up proposals](#follow-up-proposals)).
+- A keyword score, readability score or other single rating of content quality.
+- Server-side AI content generation.
+- Replacing hreflang output, which already renders from translations.
+- Defining an entry's public URL for routes a URL pattern can't express. [Discussion #4336](https://github.com/emdash-cms/emdash/discussions/4336) covers that. This RFC consumes whatever resolver that work produces.
+- External redirect targets ([issue #3821](https://github.com/emdash-cms/emdash/issues/3821)).
+- Guaranteeing indexing or rich results. Google treats canonical URLs as a hint and doesn't guarantee that structured data produces a search feature ([General structured data guidelines](https://developers.google.com/search/docs/appearance/structured-data/sd-policies)).
+
+## Detailed design
+
+### Phase 1: identity
+
+#### Profile links
+
+A profile link is the shared shape for site, user and guest byline links:
+
+```ts
+interface ProfileLink {
+	/** Stable ID within its list, generated by the admin. */
+	id: string;
+	/** Platform key from the built-in registry, or "custom". */
+	platform: string;
+	/** Display label. Required for "custom", optional otherwise. */
+	label?: string;
+	/** URL, handle or account ID, as the editor entered it. */
+	value: string;
+	/** Include in Schema.org `sameAs`. Applies only when `value` resolves to an https URL. */
+	sameAs: boolean;
+	/** Emit `<link rel="me">`. Applies only when `value` resolves to an https URL. */
+	relMe: boolean;
+}
+```
+
+The platform registry lives in core. It maps a key to a display name, an icon name and, optionally, a function that builds a profile URL from a handle, for example `@example` on `twitter` to `https://x.com/example`. Platforms without a public profile URL, such as `wechat`, have no builder, so their values never reach `sameAs` or `rel="me"`. The six legacy platforms also get the reverse function, which extracts the handle from a profile URL, so the legacy sync can write values in the form `site:social` has always held. Adding a platform to the registry is a non-breaking change.
+
+Validation at the REST and MCP boundary:
+
+- `value` is trimmed, non-empty and at most 2048 characters.
+- A value that parses as a URL must use `https:` or `http:`. Other schemes, such as `javascript:` or `data:`, are rejected with `VALIDATION_ERROR`.
+- `sameAs` and `relMe` are stored as the editor set them. Output ignores them for values that don't resolve to an `https:` URL, and the admin says so next to the switch. Storing the intent keeps it when the editor later corrects the value.
+- A list holds at most 50 links, and `id` values are unique within a list.
+
+`sameAs` and `relMe` are separate switches because they mean different things. `sameAs` states that the profile describes the same entity; Google documents it for `Organization` and for article authors ([Organization](https://developers.google.com/search/docs/appearance/structured-data/organization), [Article](https://developers.google.com/search/docs/appearance/structured-data/article)). `rel="me"` lets a platform such as Mastodon verify that the site links to the profile. A company profile on a platform that doesn't verify links needs `sameAs` without `rel="me"`.
+
+#### Site identity
+
+A new setting, `site:identity`, stores the publisher:
+
+```ts
+interface SiteIdentity {
+	type: "Organization" | "Person";
+	/** Legal or display name. Falls back to the site title. */
+	name?: string;
+	alternateName?: string;
+	description?: string;
+	/** Falls back to `site:logo`. */
+	logo?: MediaReference;
+	/** Absolute https URL used as the entity's `url`. Defaults to the site URL. */
+	url?: string;
+	email?: string;
+	telephone?: string;
+	address?: {
+		streetAddress?: string;
+		postalCode?: string;
+		addressLocality?: string;
+		addressRegion?: string;
+		/** ISO 3166-1 alpha-2 */
+		addressCountry?: string;
+	};
+	/** ISO 3166-1 alpha-2 codes or region names. */
+	areaServed?: string[];
+	foundingDate?: string;
+	/** Organization only. */
+	identifiers?: Array<{ propertyID: string; value: string }>;
+	/** Organization only: absolute https URLs of policy pages. */
+	policies?: {
+		publishingPrinciples?: string;
+		correctionsPolicy?: string;
+		ethicsPolicy?: string;
+		diversityPolicy?: string;
+		ownershipFundingInfo?: string;
+		actionableFeedbackPolicy?: string;
+	};
+	/** Person only. */
+	jobTitle?: string;
+	/** Person only: the byline that represents the site owner. */
+	bylineId?: string;
+	links: ProfileLink[];
+}
+```
+
+Each property maps to the Schema.org property of the same name. The organization properties are the ones Google lists for `Organization` ([Organization structured data](https://developers.google.com/search/docs/appearance/structured-data/organization)); `identifiers` with `propertyID` `vatID` or `taxID` map to those properties, and `iso6523Code` values (for example `0199:` for an LEI or `0060:` for a DUNS number) map to `iso6523Code`, which Google recommends over `leiCode` and `duns`. Other `propertyID` values become `identifier` entries of type `PropertyValue`. The policy properties come from Schema.org ([publishingPrinciples](https://schema.org/publishingPrinciples)). Google doesn't document them as a search feature, so the admin shows them in a collapsed section for news publishers.
+
+Settings, REST and MCP read and write `identity` like the other `site:*` keys, behind the existing `settings:manage` permission. `site:identity` is added to `PORTABLE_SETTING_NAMES`, so site transfer exports and imports it.
+
+The admin edits identity in the SEO settings, which become one screen. This RFC adds its publisher section (type, name, logo, links and the collapsed organization details) and the schema type per collection; follow-up proposals add their own sections to the same screen. The publisher section replaces `Settings > Social`, and the old route redirects to it.
+
+The admin warns when the logo is smaller than 112 x 112 pixels or not in a format Google supports, following Google's logo guidelines. The save still succeeds.
+
+When `type` is `Person` and `bylineId` is set, the publisher and that byline's author node are one node with one `@id`, so a personal blog doesn't describe its owner twice.
+
+Themes read the resolved identity through a new `getSiteIdentity()` export. It returns the stored value, or a value synthesized from legacy settings, with media references resolved. It reads the cached site settings and runs no query of its own.
+
+#### Author identity
+
+Profile links describe a person, not a translation, so a user's links live on the user:
+
+- `users.profile_links`: JSON array of `ProfileLink`, nullable.
+- `_emdash_bylines.profile_links`: JSON array of `ProfileLink`, nullable. Used only by guest bylines, which have no user.
+- `_emdash_bylines.job_title`: text, nullable, per locale like `bio`, because a job title is translated.
+
+A byline linked to a user takes its links from that user, in every locale; its own `profile_links` column is ignored. A guest byline uses its own column. When a byline is unlinked from its user, its author node no longer carries the user's links.
+
+Every signed-in user edits their own links on a new **Profile** screen in the admin, through a new `setProfileLinks` action on `POST /_emdash/api/auth/me`. The action writes only the signed-in user's row, so it needs no new permission. Editors keep managing guest bylines and job titles through the existing byline permissions.
+
+The folded byline subquery in the content query and the byline repository queries add `LEFT JOIN users AS u ON u.id = b.user_id` and select only `u.profile_links`. The join reads no email, role or other user column, so the public byline shape gains the links and nothing else. The existing `websiteUrl` stays on the byline; it becomes the author's `url` when the site has no author archive.
+
+#### Head output
+
+`<link rel="me">` is emitted for every site link with `relMe` that resolves to an https URL, and on an author archive also for the links of that byline, or of its user when it has one. `PageMetadataLinkRel` gains `"me"`, so plugins can contribute such links.
+
+### Phase 2: connected graph and canonical URLs
+
+#### URL resolution
+
+Phase 2 depends on one function that returns an entry's public URL:
+
+```ts
+function resolveEntryUrl(entry: {
+	collection: string;
+	id: string;
+	slug: string | null;
+	locale: string;
+	data: Record<string, unknown>;
+}): Promise<string | null>;
+```
+
+It wraps today's `resolveLocalizedContentRoutePath` (URL pattern, locale prefix, trailing slash) and prefixes the public site URL from `getPublicSiteUrl()`. When [Discussion #4336](https://github.com/emdash-cms/emdash/discussions/4336) adds a way to override entry URLs, the override plugs into this function. The canonical link, `og:url`, graph URLs and `@id` values, breadcrumbs and sitemap `<loc>` all call it, and none of them builds an entry URL another way. Follow-up proposals that need an entry URL call it too.
+
+A new site setting, `seo.authorUrlPattern` (for example `/authors/{slug}/`), gives bylines a public archive URL. When it is unset, author nodes use the byline's `websiteUrl` as `url` and fall back to an `@id` under the site URL (`{siteUrl}/#/schema/person/{translationGroup}`), so the same author keeps one identity across pages and locales.
+
+When `site:url` is unset, URLs fall back to the request origin, as today. The SEO settings screen shows a warning while it is unset, because preview and production hosts can differ.
+
+#### Canonical rules
+
+These rules follow Google's canonicalization guidance ([How to specify a canonical URL](https://developers.google.com/search/docs/crawling-indexing/consolidate-duplicate-urls), [What is canonicalization](https://developers.google.com/search/docs/crawling-indexing/canonicalization)):
+
+1. Every content page emits `<link rel="canonical">`. Without an editor override, it points at the page itself. Google: "Do include a rel="canonical" link on the canonical page itself".
+2. The URL is absolute and has no fragment. Google asks for absolute rather than relative paths and generally doesn't support fragments in canonical URLs. Graph `@id` values keep their fragments, because they identify nodes, not pages.
+3. Query parameters are removed, so `?utm_source=…` and `?gclid=…` variants point at the clean URL. Pagination is the exception: page 2 of an archive is its own canonical and doesn't point at page 1. Templates pass the page number in the page context.
+4. A translation points at itself, never at the default locale. Google asks hreflang sites to use a canonical page in the same language. hreflang alternates keep coming from `getHreflangAlternates`.
+5. An editor's override in the SEO panel resolves to an absolute URL, as today. When it points at another URL, the entry is left out of the sitemap, so the site never submits a URL whose page names a different canonical.
+6. Core emits the canonical in the HTML head only, not also as a `Link` header. Google recommends choosing one method because two can disagree.
+7. A page with `noindex` keeps its self-referencing canonical. Google advises against using `noindex` to choose a canonical.
+8. Custom Astro routes pass `canonical` to `createPublicPageContext`, as today. When they don't, core uses the request URL without query string, under the same rules.
+
+`og:url` always equals the canonical URL. Google treats a canonical as a hint, so these rules can only make the site's own signals consistent.
+
+#### Graph assembly
+
+Core builds the graph from node builders. Each builder receives the resolved page context and returns a node or `null`.
+
+| Node key                    | Schema.org type                                                                                          | Emitted when                                                              |
+| --------------------------- | -------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `publisher`                 | `Organization` or `Person`                                                                               | always; the name falls back to the site title                             |
+| `logo`                      | `ImageObject`                                                                                            | the publisher has a logo                                                  |
+| `website`                   | `WebSite`                                                                                                | always                                                                    |
+| `webpage`                   | `WebPage`; `CollectionPage` on archives; `ProfilePage` on author archives; `SearchResultsPage` on search | always                                                                    |
+| `article`                   | `BlogPosting` by default; `Article` or `NewsArticle` per collection                                      | `pageType` is `article`                                                   |
+| `author:{translationGroup}` | `Person`, or `Organization` for a byline marked as an organization                                       | each credited byline of an article; the `mainEntity` of an author archive |
+| `primaryimage`              | `ImageObject`                                                                                            | the page has an image                                                     |
+| `breadcrumb`                | `BreadcrumbList`                                                                                         | the page context has breadcrumbs                                          |
+
+`@id` values:
+
+- Site nodes: `{siteUrl}/#organization` or `{siteUrl}/#person`, `{siteUrl}/#website`, `{siteUrl}/#logo`. The organization ID matches the one `BlogPosting.publisher` already uses.
+- Page nodes: `{canonical}#webpage`, `{canonical}#article`, `{canonical}#breadcrumb`, `{canonical}#primaryimage`. The article ID matches today's `BlogPosting` `@id`.
+- Authors: `{authorArchiveUrl}#person` when `seo.authorUrlPattern` is set, otherwise the fallback described above.
+
+Properties per node come from Google's documentation for the matching feature:
+
+- **Article:** `headline`, `datePublished`, `dateModified`, `image`, and every author listed separately with `url` or `sameAs`. The author `name` holds only the name; `jobTitle` carries the title ([Article: author markup best practices](https://developers.google.com/search/docs/appearance/structured-data/article#author-bp)). Dates are ISO 8601 with a time zone offset, computed from the site time zone.
+- **Organization:** the properties of `SiteIdentity`, with `sameAs` from links that have `sameAs` set and resolve to https URLs. `sameAs` is never set on `WebSite`.
+- **ProfilePage:** `mainEntity` points at the author node, with `dateCreated` and `dateModified` from the byline ([Profile page structured data](https://developers.google.com/search/docs/appearance/structured-data/profile-page)).
+- **BreadcrumbList:** `ListItem` entries with `position`, `name` and `item`. The last item may omit `item` ([Breadcrumb structured data](https://developers.google.com/search/docs/appearance/structured-data/breadcrumb)). Google shows breadcrumbs on desktop results only. Core emits the node on every page with breadcrumbs, because it also describes the page's position in the site.
+- **Paywalled content:** a template that gates part of a page passes `access: { free: false, selector: ".paywall" }` in the page context. The article then gets `isAccessibleForFree: false` and a `hasPart` `WebPageElement` with that CSS selector ([Subscription and paywalled content](https://developers.google.com/search/docs/appearance/structured-data/paywalled-content)). Without `access`, core emits nothing for paywalls.
+- **Images:** the graph's primary image and `og:image` resolve to the same URL, because Google uses both as sources for thumbnails in Search and Discover (Search Central documentation update of March 2, 2026, in [Search Central documentation updates](https://developers.google.com/search/updates)). Both use the original file URL. If the [readable image URLs RFC](https://github.com/emdash-cms/emdash/pull/4844) adds a readable original URL, both switch to it together.
+
+Each collection gets an optional `seo.schemaType` in its admin config: `BlogPosting` (default), `Article`, `NewsArticle` or `WebPage`. Setting `WebPage` drops the article node for collections such as landing pages.
+
+#### Extending the graph
+
+`PageMetadataContribution` gains one kind:
+
+```ts
+| {
+		kind: "jsonld-node";
+		/** Node key from the table above, or a new key for an added node. */
+		id: string;
+		/** Required for "replace" and "merge". */
+		node?: Record<string, unknown>;
+		mode: "replace" | "merge" | "remove";
+  }
+```
+
+- `replace` swaps the core node for the given one. The `@id` stays the core value unless the contribution sets its own.
+- `merge` shallow-merges the given properties into the core node. Arrays are replaced, not concatenated.
+- `remove` drops the node. References to a removed node are removed from the remaining nodes.
+- A new key adds a node. Plugins use this for `Service`, `Product`, `Event` or other types and reference core nodes by `@id`, for example `provider: { "@id": "https://example.com/#organization" }`. A `graphId(key)` helper returns the core `@id` for a node key so plugins don't hard-code the pattern.
+
+Contributions apply in the existing order: the first contribution for a key wins, and site-level contributions come before plugin contributions. Nodes go through the same `safeJsonLdSerialize` as today.
+
+The existing `{ kind: "jsonld", id: "primary" }` contribution keeps its meaning. A contribution with `id: "primary"` replaces the whole core graph, so themes that use the workaround from [issue #4471](https://github.com/emdash-cms/emdash/issues/4471) today keep their output. Other `jsonld` contributions are still emitted as separate script blocks.
+
+Sandboxed plugins get the same contribution kind, through the `page:metadata` hook they already have.
+
+#### Author data in the page context
+
+`createPublicPageContext` accepts `authors?: BylineSummary[]`. Templates pass `entry.data.bylines`, which `getEmDashEntry` already hydrates. When `authors` is absent, the article node falls back to `articleMeta.author` as a name-only `Person`, which is today's output. Core never queries bylines during a page render to build the graph.
+
+## Compatibility and migration
+
+### `site:social`
+
+`site:social` stays readable and writable with its six keys.
+
+- **Reading.** When `site:identity` is absent, `getSiteIdentity()` synthesizes it: type `Organization`, name from the site title, logo from `site:logo`, and one link per non-empty `site:social` key with `sameAs: true` and `relMe: false`. Today's output contains no `sameAs`, so a site that never opens the new settings starts emitting `sameAs` for its existing social links after Phase 2. The changeset says so.
+- **Writing identity.** Saving `site:identity` also writes `site:social` in the same options batch. For each of the six keys, the first link of that platform becomes the value, converted back to a handle where the registry can extract one, and keys without a link are cleared. Themes that read `settings.social` keep showing the same profiles, including themes that build the profile URL from a stored handle.
+- **Writing legacy.** A client that writes `site:social` updates the first link of each matching platform in `site:identity` and leaves every other link and switch untouched. An empty string removes that platform's first link.
+- **Rollback.** An older version ignores `site:identity`. `site:social` still holds the current six values, because every write kept it in sync.
+
+Site transfer exports `site:identity`. An older version that imports it ignores the unknown setting.
+
+### Author columns
+
+A migration adds the nullable column `profile_links` to `users` and the nullable columns `profile_links` and `job_title` to `_emdash_bylines`. Each `ALTER TABLE` first checks whether the column exists, so the migration restarts cleanly after a partial run on D1. No backfill is needed, and old code ignores the columns during a rolling deploy.
+
+### JSON-LD output
+
+Phase 2 changes the structured data of every page from one `BlogPosting` or `WebSite` object to one `@graph`. The existing `@id` values for the article and the organization stay the same.
+
+- A `jsonld` contribution with `id: "primary"` still replaces all core structured data.
+- `buildBlogPostingJsonLd` and `buildWebSiteJsonLd` stay exported with their current output. They are deprecated in favor of the graph builders, and the Maintainer who merges this RFC adds them to the [deprecations tracking issue](https://github.com/emdash-cms/emdash/issues/3917).
+- Sites with snapshot tests of their pages will see changed markup. The changeset shows the old and new shapes.
+
+### Canonical output
+
+Pages whose template passes no `canonical` start emitting a self-referencing canonical in Phase 2. Without `site:url`, it uses the request origin, as `og:url` and the sitemap do today.
+
+### Sitemaps
+
+Collection sitemaps keep their URLs. Entries whose SEO canonical points at another URL leave the sitemap, which follows Google's guidance but lowers the URL count on those sites. The changeset says so.
+
+## Security and privacy
+
+- **Untrusted input.** Profile link values, identity fields and plugin graph nodes reach HTML only through `safeJsonLdSerialize` or attribute escaping. `rel="me"` and `sameAs` accept `https:` URLs only. `jsonld-node` contributions use the same serializer as `jsonld` contributions today.
+- **Authorization.** Site identity requires `settings:manage`. A user's profile links can be written only by that user, through `POST /_emdash/api/auth/me`. Guest byline links and job titles follow the existing byline permissions.
+- **Privacy.** A personal site may publish an address, email or telephone number. Every identity field is optional and empty by default, and the admin labels the section as public.
+
+## Performance
+
+The logged-out render path keeps its query count:
+
+- `site:identity` is a `site:*` option, so it arrives with the existing `getSiteSettings()` read and its isolate cache.
+- Author nodes use `entry.data.bylines`, which entry hydration already loads. The byline columns are part of the row that query already selects, and a user's links arrive through a `LEFT JOIN` on the `users` primary key inside the same byline subquery. A prototype of that join on `main` kept the query counts of every route unchanged on SQLite and D1 (`pnpm query-counts`), and SQLite's query plan looks up `users` by primary key. The perf fixture has no bylines linked to users, so the prototype measured query counts and the plan, not render time with stored links.
+- The graph is built in memory. Building and serializing it adds CPU time per render; the implementation measures it on a representative article page on Workers and reports the numbers in the Phase 2 PR.
+- `pnpm query-counts` snapshots show no increase on logged-out routes in any phase.
+
+## Failure handling
+
+- **Invalid stored identity.** Values that fail validation on read, such as a link with an unsupported scheme written by an older client, are left out of the output and logged with the prefix `[seo]`. They stay in storage, and the admin shows them with an error so an administrator can fix them.
+- **Graph builders.** A builder that throws is skipped and logged; the rest of the graph renders. A plugin contribution that fails to serialize is dropped, as `jsonld` contributions are today.
+- **Missing site URL.** Graph and canonical output fall back to the request origin.
+
+## Verification
+
+- **Unit tests** for the platform registry, link validation, legacy synthesis, both directions of the `site:social` sync, link resolution for bylines linked to a user and for guest bylines, each canonical rule, graph assembly per page type, `@id` stability, and the three contribution modes.
+- **Dialect tests** with `describeEachDialect` for the migration, including a restart after the first completed statement.
+- **Real D1 tests** in `tests/workerd` for the migration and for the options batch that writes `site:identity` and `site:social` together.
+- **Render tests** in `tests/repro` for an article, an author archive, a translation and page 2 of an archive. Each checks that canonical, `og:url`, sitemap `<loc>` and graph URLs agree for the same entry.
+- **External validation.** The demo site's article, author and home pages checked with Google's Rich Results Test and the Schema.org validator, with results linked from the implementation PRs.
+- **Query counts.** `pnpm query-counts` on SQLite and D1 shows no increase on logged-out routes.
+- **Admin.** Playwright tests for editing site identity, a user's own profile links and guest byline links, including the Arabic layout, and screenshots in every UI PR.
+
+## Rollout and implementation
+
+Kevin Kyburz (@swissky) and Evgenii Zinner (@Evgenii-Zinner) implement the phases. Each phase is one or more implementation PRs that link this RFC.
+
+Phase 1 starts from Evgenii's prototype on the [`feat/dynamic-social-links`](https://github.com/Evgenii-Zinner/emdash/tree/feat/dynamic-social-links) branch of his fork. It already synthesizes the link list from `site:social` on read, converts stored handles to profile URLs with `relMe: false`, merges legacy writes without dropping custom links, and keeps `site:social` in sync on every write, with unit and render tests. The implementation PR keeps that engine, moves the list into `site:identity.links`, adds handle-only platforms and the separate `sameAs` switch, and moves `sameAs` from `WebSite` to the publisher node. The admin editor is rebuilt for the identity screen.
+
+- **Phase 1:** profile link types and platform registry, `site:identity` with legacy sync, user and byline columns, the SEO settings screen and the Profile screen, `rel="me"`, `getSiteIdentity()`.
+- **Phase 2:** `resolveEntryUrl`, canonical rules, graph builders and `jsonld-node`, `authors` in the page context. The templates in `templates/` pass `authors` and pagination in the same PR.
+
+Phase 2 can begin before Phase 1's admin screens are finished, because it reads synthesized identity when none is stored. No feature flag is needed: Phase 1 adds data without changing output until Phase 2, and Phase 2's output changes are covered by the compatibility rules above. The deprecated builders are removed in the next major release.
+
+### Follow-up proposals
+
+These build on `resolveEntryUrl`, the `@id` scheme and the SEO settings screen from this RFC, and are reviewed separately:
+
+- **Robots controls:** separate `noindex` and `nofollow` per entry and site-wide robots defaults such as `max-image-preview`. A separate feature plan.
+- **IndexNow:** notify participating search engines when public URLs change ([issue #4529](https://github.com/emdash-cms/emdash/issues/4529)). A separate RFC.
+- **Sitemap providers, news and video sitemaps:** a follow-up to design [#4341](https://github.com/emdash-cms/emdash/pull/4341) once it is accepted.
+- **Editorial tooling:** search and social previews, redirect import and export ([issue #2291](https://github.com/emdash-cms/emdash/issues/2291)), and content checks, each as its own feature plan.
+
+## Alternatives
+
+- **Feature plan for social links only.** Design [#4714](https://github.com/emdash-cms/emdash/pull/4714) fixes the closed list, but the links feed `sameAs`, which belongs to the publisher and author model. Designing them apart would fix one data shape now and change it again for authors and the graph. Its author co-authors this RFC, and #4714 is superseded by Phase 1.
+- **Everything in a plugin.** A plugin can't change the closed settings schema, the byline table or canonical defaults. Core keeps the shared data and output; plugins extend it through `jsonld-node`.
+- **Custom byline fields for profile links.** They would work without a migration, but group-shared custom fields need the hydration queries on every render that shows bylines, and each site would define the field differently.
+- **`sameAs` on `WebSite`.** Schema.org allows it on any `Thing`, but Google documents profile links on `Organization` and on authors, so the RFC puts them on the publisher and author nodes.
+- **Separate script blocks per type.** This is how core works today. Unconnected blocks repeat the publisher and author and can't express that the article belongs to the page and the page to the site.
+
+## Drawbacks
+
+- Phase 2 changes structured data and canonical output on every existing site, which can move search appearance for better or worse during recrawling.
+- Keeping `site:social` and `site:identity` in sync adds write logic that stays until a major release removes `site:social`.
+- Sites gain more settings. The admin keeps rarely used fields (policies, identifiers, address) collapsed.
+
+## Open questions
+
+None at the moment. Questions settled during review:
+
+1. Synthesized identity emits `sameAs` for legacy `site:social` values by default, so upgrading sites get the links without saving the settings again.
+2. Profile links live on the user and are shared across locales; guest bylines keep their own links. Job titles stay per locale. A per-locale override for a linked user's links is left out until a site needs one.
+3. `seo.schemaType` belongs in collection admin config, because it maps a collection to a Schema.org type rather than enabling a capability.
+4. Robots, IndexNow, sitemap providers and editorial tooling are separate proposals that build on this RFC.
+
+The author of #4714 co-authors this RFC.
