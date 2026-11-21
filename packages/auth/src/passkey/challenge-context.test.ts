@@ -2,6 +2,7 @@ import { describe, expect, expectTypeOf, it } from "vitest";
 
 import {
 	bindChallengeContext,
+	createContextBoundChallenge,
 	decodeChallengeContext,
 	defineChallengeContext,
 	encodeChallengeContext,
@@ -110,6 +111,19 @@ describe("challenge context", () => {
 
 		expect(() => decodeChallengeContext(invalid, approvalContext)).toThrow(
 			/Invalid approval context/,
+		);
+	});
+});
+
+describe("context-bound challenge", () => {
+	it("embeds the SHA-256 of the serialized context", () => {
+		expect(
+			createContextBoundChallenge(
+				"dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+				"eyJjb250ZXh0Ijp7fX0",
+			),
+		).toBe(
+			"eyJjb250ZXh0RGlnZXN0IjoieV92ZlEtMC1HdTNtaFAweExVemRKVUpJazcxMWRMcUtjRXNPcjFRYlNQQSIsIm5vbmNlIjoiZEJqZnRKZVo0Q1ZQLW1COTJLMjd1aGJVSlUxcDFyX3dXMWdGV0ZPRWpYayIsInZlcnNpb24iOjF9",
 		);
 	});
 });

@@ -1,4 +1,4 @@
-import { sha256 } from "@oslojs/crypto/sha2";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { encodeHexLowerCase } from "@oslojs/encoding";
 
 export function storageIndexHash(pluginId: string, collection: string, fields: string[]): string {

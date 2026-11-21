@@ -1,14 +1,11 @@
 /**
  * Secure token utilities
  *
- * Crypto via Oslo.js (@oslojs/crypto). Base64url via @oslojs/encoding.
- *
  * Tokens are opaque random values. We store only the SHA-256 hash in the database.
  */
 
-import { hmac } from "@oslojs/crypto/hmac";
-import { sha256, SHA256 } from "@oslojs/crypto/sha2";
-import { constantTimeEqual } from "@oslojs/crypto/subtle";
+import { hmac } from "@noble/hashes/hmac.js";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { encodeBase64urlNoPadding, decodeBase64urlIgnorePadding } from "@oslojs/encoding";
 
 const TOKEN_BYTES = 32; // 256 bits of entropy
@@ -178,8 +175,6 @@ export function generateAuthSecret(): string {
  * Generate a prefixed API token and its hash.
  * Returns the raw token (shown once to the user), the hash (stored server-side),
  * and a display prefix (for identification in UIs/logs).
- *
- * Uses oslo/crypto for SHA-256 hashing.
  */
 export function generatePrefixedToken(prefix: string): {
 	raw: string;
@@ -230,9 +225,18 @@ export function computeS256Challenge(codeVerifier: string): string {
 export function secureCompare(a: string, b: string): boolean {
 	const text = new TextEncoder();
 	const salt = crypto.getRandomValues(new Uint8Array(TOKEN_BYTES));
-	const hash = (str: string) => hmac(SHA256, salt, text.encode(str));
+	const hash = (str: string) => hmac(sha256, salt, text.encode(str));
 
 	return constantTimeEqual(hash(a), hash(b));
+}
+
+function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {
+	if (a.length !== b.length) return false;
+	let diff = 0;
+	for (let i = 0; i < a.length; i++) {
+		diff |= (a[i] ?? 0) ^ (b[i] ?? 0);
+	}
+	return diff === 0;
 }
 
 // ============================================================================
