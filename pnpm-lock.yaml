@@ -2187,9 +2187,6 @@ importers:
       '@tiptap/extension-code-block-lowlight':
         specifier: 'catalog:'
         version: 3.20.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/extension-code-block@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0)(highlight.js@11.11.2)(lowlight@3.3.0)
-      '@tiptap/extension-focus':
-        specifier: 'catalog:'
-        version: 3.32.0(@tiptap/extensions@3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))(@tiptap/pm@3.32.0))
       '@tiptap/extension-image':
         specifier: 'catalog:'
         version: 3.32.0(@tiptap/core@3.32.0(@tiptap/pm@3.32.0))

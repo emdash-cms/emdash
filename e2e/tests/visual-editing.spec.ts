@@ -290,6 +290,156 @@ test.describe("Image Rendering (Static)", () => {
 	});
 });
 
+test.describe("First click in an image-first body", () => {
+	let postId: string | undefined;
+
+	test.beforeEach(async ({ page, serverInfo }) => {
+		await enableEditMode(page);
+		await stubSaves(page);
+
+		const slug = `first-click-${crypto.randomUUID()}`;
+		const headers = {
+			Authorization: `Bearer ${serverInfo.token}`,
+			"X-EmDash-Request": "1",
+		};
+		const imageId = serverInfo.mediaIds.testImage;
+		const media = await page.request.get(`/_emdash/api/media/${imageId}`, { headers });
+		expect(media.ok(), await media.text()).toBe(true);
+		const mediaData = (await media.json()) as { data: { item: { storageKey: string } } };
+		const created = await page.request.post("/_emdash/api/content/posts", {
+			headers,
+			data: {
+				slug,
+				data: {
+					title: "First click caret",
+					body: [
+						{
+							_type: "image",
+							_key: "image-first",
+							asset: {
+								_ref: imageId,
+								url: `/_emdash/api/media/file/${mediaData.data.item.storageKey}`,
+							},
+							alt: "Test image",
+							width: 160,
+							height: 90,
+						},
+						{
+							_type: "block",
+							_key: "first-paragraph",
+							style: "normal",
+							children: [{ _type: "span", _key: "first-text", text: "Text under the image." }],
+							markDefs: [],
+						},
+						{
+							_type: "block",
+							_key: "second-paragraph",
+							style: "normal",
+							children: [
+								{
+									_type: "span",
+									_key: "second-text",
+									text: "Click in the middle of this line.",
+								},
+							],
+							markDefs: [],
+						},
+					],
+				},
+			},
+		});
+		expect(created.ok(), await created.text()).toBe(true);
+		const createdData = (await created.json()) as {
+			data: { item?: { id: string }; id?: string };
+		};
+		postId = createdData.data.item?.id ?? createdData.data.id;
+		expect(postId).toBeTruthy();
+
+		const published = await page.request.post(`/_emdash/api/content/posts/${postId}/publish`, {
+			headers,
+			data: {},
+		});
+		expect(published.ok(), await published.text()).toBe(true);
+
+		await gotoWithRetry(page, `/posts/${slug}`);
+		await page.waitForLoadState("networkidle");
+		await expect(page.locator(".emdash-inline-editor")).toBeVisible({ timeout: 15000 });
+		await expect
+			.poll(() =>
+				page
+					.locator(".emdash-inline-editor img")
+					.evaluate((image: HTMLImageElement) => image.naturalWidth),
+			)
+			.toBeGreaterThan(0);
+	});
+
+	test.afterEach(async ({ page, serverInfo }) => {
+		if (!postId) return;
+		const headers = {
+			Authorization: `Bearer ${serverInfo.token}`,
+			"X-EmDash-Request": "1",
+		};
+		await page.request.delete(`/_emdash/api/content/posts/${postId}?locale=en`, { headers });
+		await page.request.delete(`/_emdash/api/content/posts/${postId}/permanent`, { headers });
+		postId = undefined;
+	});
+
+	test("places the first typed character at the clicked position", async ({ page }) => {
+		const editor = page.locator(".emdash-inline-editor");
+		const paragraphs = editor.locator("p");
+		const first = paragraphs.nth(0);
+		const second = paragraphs.nth(1);
+
+		await second.click({
+			position: await positionBeforeCharacter(
+				second,
+				"Click in the middle of this line.".indexOf("middle") + 3,
+			),
+		});
+		await expect(editor).toBeFocused();
+		// Let the browser deliver selectionchange before sending a keyboard event.
+		await page.evaluate(
+			() => new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))),
+		);
+		await page.keyboard.type("X");
+		await expect(first).toHaveText("Text under the image.");
+		await expect(second).toHaveText("Click in the midXdle of this line.");
+
+		await second.click({ position: await positionBeforeCharacter(second, -1) });
+		await page.keyboard.type("Y");
+		await expect(second).toHaveText("Click in the midXdle of this lineY.");
+	});
+
+	test("keeps caption focus until Escape selects the image", async ({ page }) => {
+		const editor = page.locator(".emdash-inline-editor");
+		const caption = editor.getByRole("textbox", { name: "Caption" });
+		await caption.click();
+		await expect(caption).toBeFocused();
+		await page.keyboard.type("A caption");
+		await expect(caption).toHaveValue("A caption");
+		await page.keyboard.press("Escape");
+		await expect(editor).toBeFocused();
+		await page.keyboard.press("Delete");
+		await expect(editor.locator("img")).toHaveCount(0);
+		await expect(editor.locator("p")).toHaveText([
+			"Text under the image.",
+			"Click in the middle of this line.",
+		]);
+	});
+
+	test("focuses the editor when the image is clicked", async ({ page }) => {
+		const editor = page.locator(".emdash-inline-editor");
+		await editor.getByRole("img", { name: "Test image" }).click();
+		await expect(page.getByRole("toolbar", { name: "Image controls" })).toBeVisible();
+		await expect(editor).toBeFocused();
+
+		await page.keyboard.press("Delete");
+		await expect(editor.getByRole("img", { name: "Test image" })).toBeHidden();
+		await expect(editor).toContainText("Text under the image.");
+		await expect(editor).toContainText("Click in the middle of this line.");
+	});
+});
+
 test.describe("Inline Editor", () => {
 	test.beforeEach(async ({ page }) => {
 		await enableEditMode(page);

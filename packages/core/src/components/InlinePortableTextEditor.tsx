@@ -12,7 +12,6 @@
 
 import { htmlBlockFields } from "@emdash-cms/admin/html-block";
 import { Node, mergeAttributes, type JSONContent } from "@tiptap/core";
-import Focus from "@tiptap/extension-focus";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import Subscript from "@tiptap/extension-subscript";
@@ -1258,10 +1257,6 @@ export function InlinePortableTextEditor({
 			}),
 			TextAlign.configure({
 				types: ["heading", "paragraph"],
-			}),
-			Focus.configure({
-				className: "has-focus",
-				mode: "all",
 			}),
 			Typography,
 			HtmlBlockNode,
