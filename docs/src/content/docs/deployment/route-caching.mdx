@@ -45,7 +45,7 @@ export default defineConfig({
 - `swr` lets the cache keep serving a stale entry while it revalidates in the background, so visitors rarely wait on a render once a page is cached.
 - `tags` name the entry for invalidation. Tag each route with the collections it renders, using the collection names: EmDash's built-in invalidation uses collection names, so matching tags are invalidated automatically. A broad extra tag on every cached route (here `all`, which is not a collection name, so EmDash never invalidates it on its own) works as an emergency switch: invalidating it, for example with `context.cache.invalidate({ tags: ["all"] })` in an endpoint you protect yourself, clears everything at once.
 
-The query helpers also return a `cacheHint` you can pass to `Astro.cache.set()` inside the page. Its tags name the exact entry (`getEmDashEntry`), the collection (`getEmDashCollection`), or the chrome resource (`getMenuWithCacheHint`, `getSiteSettingsWithCacheHint`, `getTaxonomyTermsWithCacheHint`, `getWidgetAreaWithCacheHint`). These are the same tags EmDash invalidates on writes, so a page that passes its hints is invalidated when an entry or chrome resource it renders is written, including ones its route rule doesn't name:
+The query helpers also return a `cacheHint` you can pass to `Astro.cache.set()` inside the page. Its tags name the exact entry and its references (`getEmDashEntry`; an entry from a fallback locale or stored under a locale alias also carries the collection, and a miss carries only the collection), the collection (`getEmDashCollection`), or the chrome resource (`getMenuWithCacheHint`, `getSiteSettingsWithCacheHint`, `getTaxonomyTermsWithCacheHint`, `getWidgetAreaWithCacheHint`). These are the same tags EmDash invalidates on writes, so a page that passes its hints is invalidated when an entry or chrome resource it renders is written, including ones its route rule doesn't name:
 
 ```astro title="src/pages/blog/[slug].astro"
 ---
@@ -54,10 +54,19 @@ import { getEmDashEntry } from "emdash";
 const { slug } = Astro.params;
 if (!slug) return Astro.rewrite("/404");
 
-const { entry, cacheHint } = await getEmDashEntry("posts", slug);
+const { entry, error, cacheHint } = await getEmDashEntry("posts", slug);
+if (error) {
+	if (Astro.cache?.enabled) Astro.cache.set(false);
+	return new Response("Could not load the post", { status: 500 });
+}
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+if (!entry) return Astro.rewrite("/404");
 ---
 ```
+
+Set the hint before handling a miss, so that a cached 404 carries the collection tag and publishing the missing entry purges it.
+
+An entry served from a fallback locale, or stored under a legacy locale code such as `en-US` while the site uses `en`, carries the collection tag, because publishing the entry in the requested locale replaces it. On a site where most entries are stored under such a code, publishing any entry purges those pages. Saving the entries under the locale codes the site is configured with avoids this.
 
 `Astro.cache.set()` merges with the route rule, and tags accumulate across calls. The cache hints carry tags but no `maxAge`, so the route rule decides how long a page is cached.
 
@@ -119,7 +128,7 @@ EmDash's middleware opts these responses out of the route cache itself, so no te
 
 For public page paths handled by the redirect middleware, a 404 with active cache options is cached for at most 60 seconds, with no stale-while-revalidate window. A shorter `maxAge`, including zero, is preserved. This covers content misses answered with `Astro.rewrite("/404")`. The options can come from a route rule, the page, or the 404 page and its layout: a tags-only hint available when middleware checks the rendered response is enough, even without a route rule. Hints set later while the body streams may arrive too late; use an explicit route rule for predictable caching and purge tags.
 
-Tag the route with the collection or taxonomy it looks up, even when no entry or term is found. For example, use `tags: ["posts"]` on `/posts/[slug]` and `tags: ["emdash:taxonomy:category"]` on `/category/[slug]`. Publishing an entry invalidates its collection tag, saving a taxonomy term invalidates its taxonomy tag, and adding a redirect invalidates its source path. Without a matching tag, or if a purge fails, new content can keep returning the cached 404 until its short lifetime expires. Shipped template layouts set settings and menu hints, so their content-miss 404s can become cacheable without a route rule, but those hints alone do not purge the miss when new content is published.
+A miss needs the tag of the collection or taxonomy the route looks up. `getEmDashEntry` returns the collection tag in its `cacheHint` when no entry is found, so a detail page that passes the hint before rewriting to `/404` needs no collection tag in its route rule for the miss to be purged. Keep the collection tags for lists the page renders, such as related posts or widgets. For taxonomy archives, tag the route, for example `tags: ["emdash:taxonomy:category"]` on `/category/[slug]`. Publishing an entry invalidates its collection tag, saving a taxonomy term invalidates its taxonomy tag, and adding a redirect invalidates its source path. Without a matching tag, or if a purge fails, new content can keep returning the cached 404 until its short lifetime expires. Shipped template layouts set settings and menu hints, so their content-miss 404s can become cacheable without a route rule, but those hints alone do not purge the miss when new content is published.
 
 Cache hits skip rendering and writing to the 404 log, so the admin's 404 hit counts record origin misses rather than every request. Each distinct missing URL occupies its own cache entry; scanners requesting random slugs get no reuse and can evict useful pages from a size-limited cache such as `memoryCache()`. To keep a miss uncached, call `Astro.cache.set(false)` in the 404 page's frontmatter (or in the miss branch for a directly returned 404), and keep later layout code from re-enabling caching.
 

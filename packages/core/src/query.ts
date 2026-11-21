@@ -1233,6 +1233,19 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 	const localeChain =
 		requestedLocale && isI18nEnabled() ? getFallbackChain(requestedLocale) : [requestedLocale];
 
+	const missCacheHint: CacheHint = { tags: [type] };
+
+	/**
+	 * A slug hit stored under another locale spelling, or served from a fallback
+	 * locale, is superseded when a row in the requested locale is published.
+	 */
+	function servedForAnotherLocale(entry: ContentEntry<D>, fallbackLocale?: string): boolean {
+		if (fallbackLocale) return true;
+		if (!requestedLocale || entryDatabaseId(entry) === id) return false;
+		const stored = dataStr(entryData(entry), "locale");
+		return stored.toLowerCase() !== requestedLocale.toLowerCase();
+	}
+
 	/** Return a successful EntryResult with bylines, taxonomy terms and references hydrated */
 	async function successResult(
 		wrapped: ContentEntry<D>,
@@ -1265,7 +1278,10 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 			entry: wrapped,
 			isPreview: opts.isPreview,
 			fallbackLocale: opts.fallbackLocale,
-			cacheHint: mergeCacheHints(opts.cacheHint, referenceHint),
+			cacheHint: mergeCacheHints(
+				mergeCacheHints(opts.cacheHint, referenceHint),
+				servedForAnotherLocale(wrapped, opts.fallbackLocale) ? missCacheHint : {},
+			),
 		};
 	}
 
@@ -1384,7 +1400,7 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 		}
 
 		// No entry found in any locale
-		return { entry: null, isPreview: serveDrafts, cacheHint: {} };
+		return { entry: null, isPreview: serveDrafts, cacheHint: missCacheHint };
 	}
 
 	// Normal mode: try each locale in the fallback chain, only return published
@@ -1421,7 +1437,7 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 			}
 			// Entry not found or not visible in this locale — try next
 		}
-		return { entry: null, isPreview: false, cacheHint: {} };
+		return { entry: null, isPreview: false, cacheHint: missCacheHint };
 	};
 
 	// A snapshot carries whatever references the caller asked for, so both the
@@ -1474,7 +1490,11 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 		entry: revived,
 		isPreview: snapshot.value.isPreview,
 		fallbackLocale: snapshot.value.fallbackLocale,
-		cacheHint: snapshot.value.cacheHint,
+		// Older snapshots can lack the collection tag on misses and fallback or alias hits.
+		cacheHint:
+			revived && !servedForAnotherLocale(revived, snapshot.value.fallbackLocale)
+				? snapshot.value.cacheHint
+				: mergeCacheHints(snapshot.value.cacheHint, missCacheHint),
 	};
 }
 
