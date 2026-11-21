@@ -1728,7 +1728,7 @@ msgstr "Aggiungi elemento al campo {label}"
 #: packages/admin/src/components/PortableTextEditor.tsx:4711
 #: packages/admin/src/components/PortableTextEditor.tsx:5160
 msgid "Add link"
-msgstr "Aggiungi collegamento"
+msgstr "Aggiungi link"
 
 #: packages/admin/src/components/MenuEditor.tsx:718
 msgid "Add links to build your navigation menu"
@@ -1754,7 +1754,7 @@ msgstr "Aggiungi meta tag noindex"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2409
 msgid "Add one or more link buttons"
-msgstr "Aggiungi uno o più pulsanti di collegamento"
+msgstr "Aggiungi uno o più pulsanti con link"
 
 #: packages/admin/src/components/settings/SecuritySettings.tsx:198
 msgid "Add Passkey"
@@ -2150,7 +2150,7 @@ msgstr "Un'importazione precedente di questo pacchetto ha scritto su questo sito
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:236
 msgid "An encrypted digital key you unlock using your fingerprint, face, PIN, or device password."
-msgstr "Una chiave digitale che puoi sbloccare usando impronta, viso, PIN, o password del dispositivo."
+msgstr "Una chiave digitale crittografata che puoi sbloccare usando impronta, viso, PIN o password del dispositivo."
 
 #: packages/admin/src/components/DialogError.tsx:15
 #: packages/admin/src/components/MarketplaceBrowse.tsx:135
@@ -2331,7 +2331,7 @@ msgstr "Applica modifiche"
 #: packages/admin/src/components/PortableTextEditor.tsx:3867
 #: packages/admin/src/components/PortableTextEditor.tsx:4664
 msgid "Apply link"
-msgstr "Applica collegamento"
+msgstr "Applica link"
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:52
 msgid "Approval requests"
@@ -3424,7 +3424,7 @@ msgstr "Scegli di nuovo lo stesso file del pacchetto per completarne il caricame
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:187
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
-msgstr "Scegli Touch ID o un altro gestore delle credenziali disponibile, poi conferma con l'impronta o la password del Mac"
+msgstr "Scegli Touch ID o un altro gestore delle credenziali disponibile, poi conferma con l'impronta o la password del Mac."
 
 #: packages/admin/src/components/FieldEditor.tsx:1014
 msgid "Choose what kind of content the field holds."
@@ -3973,7 +3973,7 @@ msgstr "Continua con un altro dispositivo"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:710
 msgid "Continue with security key"
-msgstr "Continua con chiave di sicurezza"
+msgstr "Continua con una chiave di sicurezza"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:24
 #: packages/admin/src/components/WelcomeModal.tsx:29
@@ -9363,7 +9363,7 @@ msgstr "Lingua"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:176
 msgid "Locales will use this site’s capitalization"
-msgstr "I codici lingua useranno la combinazione di maiuscole e minuscole di questo sito."
+msgstr "I codici lingua useranno la combinazione di maiuscole e minuscole di questo sito"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1460
 #: packages/admin/src/components/MediaDetailPanel.tsx:1488
@@ -11205,7 +11205,7 @@ msgstr "Le passkey sono un metodo sicuro per accedere al tuo account senza passw
 
 #: packages/admin/src/locales/emails.ts:75
 msgid "Passkeys from the old address don't work there. Sign in with an email link, then add a passkey in Security settings."
-msgstr "Le passkey del vecchio indirizzo non funzionano al nuovo indirizzo. Accedi tramite un link ricevuto via email, poi aggiungi una passkey nelle impostazioni di sicurezza."
+msgstr "Le passkey del vecchio indirizzo non funzionano sul nuovo indirizzo. Accedi tramite un link ricevuto via email, poi aggiungi una passkey nelle impostazioni di sicurezza."
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:297
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:475
@@ -14060,16 +14060,16 @@ msgstr "Accedi con {0}"
 #: packages/admin/src/components/LoginPage.tsx:250
 #: packages/admin/src/components/MagicLinkConfirmPage.tsx:63
 msgid "Sign in with email"
-msgstr "Accedi con email"
+msgstr "Accedi con l'email"
 
 #: packages/admin/src/components/LoginPage.tsx:311
 msgid "Sign in with email link"
-msgstr "Link tramite email"
+msgstr "Accedi con un link via email"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:134
 #: packages/admin/src/components/LoginPage.tsx:273
 msgid "Sign in with Passkey"
-msgstr "Accedi con Passkey"
+msgstr "Accedi con la passkey"
 
 #: packages/auth-atproto/src/admin.tsx:174
 msgid "Sign in with your Bluesky/Atmosphere handle"
@@ -14473,7 +14473,7 @@ msgstr "Avvia importazione"
 
 #: packages/admin/src/components/SetupWizard.tsx:175
 msgid "Start with the template’s content types and no content."
-msgstr "Inizia con i tipi di contenuto del template, senza contenuti"
+msgstr "Inizia con i tipi di contenuto del template, senza contenuti."
 
 #: packages/admin/src/components/SetupWizard.tsx:169
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
@@ -16088,11 +16088,11 @@ msgstr "Attivare il monitoraggio dell'utilizzo dei media?"
 
 #: packages/admin/src/components/revisions/change-labels.ts:170
 msgid "Turned off {label}"
-msgstr "Disattivazione di {label}"
+msgstr "Disattivata l'opzione {label}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:170
 msgid "Turned on {label}"
-msgstr "Attivazione di {label}"
+msgstr "Attivata l'opzione {label}"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:579
 msgid "Turning on…"
@@ -16668,7 +16668,7 @@ msgstr "Usa URL"
 
 #: packages/admin/src/components/auth/PasskeyLogin.tsx:333
 msgid "Use your device's biometric authentication, security key, or PIN to sign in."
-msgstr "Usa l'autenticazione biometrica, chiave di sicurezza o PIN del tuo dispositivo per accedere."
+msgstr "Usa l'autenticazione biometrica, la chiave di sicurezza o il PIN del tuo dispositivo per accedere."
 
 #: packages/admin/src/components/LoginPage.tsx:227
 msgid "Use your registered passkey to sign in securely."
@@ -17446,7 +17446,7 @@ msgstr "Le tue modifiche non vengono più salvate. Partecipa alla modifica condi
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:202
 msgid "Your credential manager, such as Google Password Manager, saves it and may sync it to your other devices."
-msgstr "Il tuo gestore delle credenziali, come Google Password Manager, la salva e potrebbe sincronizzarla su altri tuoi dispositivi"
+msgstr "Il tuo gestore delle credenziali, come Google Password Manager, la salva e potrebbe sincronizzarla con gli altri tuoi dispositivi."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:188
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:195
@@ -17489,7 +17489,7 @@ msgstr "Impossibile salvare le modifiche, quindi l'operazione non è stata esegu
 
 #: packages/admin/src/components/SetupWizard.tsx:262
 msgid "Your Email"
-msgstr "Indirizzo Email"
+msgstr "Indirizzo email"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:161
 msgid "Your Facebook page or profile username"
