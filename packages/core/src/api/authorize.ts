@@ -129,3 +129,11 @@ export function requireAnyPerm(
 	}
 	return null;
 }
+
+/**
+ * Editorial threads discuss unpublished content, so every editorial route needs
+ * `content:read_drafts` as well as `editorial:comment`.
+ */
+export function requireEditorialPerm(user: UserLike | null | undefined): Response | null {
+	return requirePerm(user, "content:read_drafts") ?? requirePerm(user, "editorial:comment");
+}
