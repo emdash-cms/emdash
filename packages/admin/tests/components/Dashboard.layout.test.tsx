@@ -5,6 +5,7 @@ import { page } from "vitest/browser";
 import "../../dist/styles.css";
 import type { AdminManifest } from "../../src/lib/api";
 import type { DashboardStats } from "../../src/lib/api/dashboard";
+import { PluginAdminProvider } from "../../src/lib/plugin-context";
 import { render } from "../utils/render.js";
 
 vi.mock("@tanstack/react-router", async () => {
@@ -107,5 +108,57 @@ describe("Dashboard layout", () => {
 			(element) => element.getBoundingClientRect().right > limit + 0.5,
 		);
 		expect(overflowing.map((element) => element.outerHTML.slice(0, 80))).toEqual([]);
+	});
+
+	it("places plugin widgets by size, keeping Content above them on narrow screens", async () => {
+		mockFetchDashboardStats.mockResolvedValue({
+			collections: [
+				{
+					slug: "case_studies",
+					label: "Case studies",
+					total: 1,
+					published: 1,
+					draft: 0,
+					scheduled: 0,
+				},
+			],
+			mediaCount: 1,
+			userCount: 1,
+			recentItems: [],
+		});
+		const withWidgets: AdminManifest = {
+			...manifest,
+			plugins: {
+				forms: {
+					enabled: true,
+					dashboardWidgets: [
+						{ id: "submissions", title: "Submissions", size: "half" },
+						{ id: "status", title: "Status", size: "third" },
+					],
+				},
+			},
+		};
+		const card = (name: string) =>
+			screen.getByRole("heading", { name }).element().parentElement!.parentElement!;
+		const left = (name: string) => card(name).getBoundingClientRect().left;
+		const top = (name: string) => card(name).getBoundingClientRect().top;
+
+		await page.viewport(1440, 900);
+		const screen = await render(
+			<PluginAdminProvider
+				pluginAdmins={{ forms: { widgets: { submissions: () => null, status: () => null } } }}
+			>
+				<Dashboard manifest={withWidgets} />
+			</PluginAdminProvider>,
+		);
+		await expect.element(screen.getByRole("heading", { name: "Submissions" })).toBeInTheDocument();
+
+		expect(left("Submissions")).toBeCloseTo(left("Overview"), 0);
+		expect(left("Status")).toBeCloseTo(left("Content"), 0);
+		expect(left("Content")).toBeGreaterThan(left("Overview"));
+
+		await page.viewport(900, 900);
+		await expect.poll(() => left("Content")).toBeCloseTo(left("Overview"), 0);
+		expect(top("Content")).toBeLessThan(top("Submissions"));
 	});
 });

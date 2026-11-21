@@ -66,6 +66,18 @@ vi.mock("../../src/lib/api/current-user", async (importOriginal) => ({
 	useCurrentUser: () => mockUseCurrentUser(),
 }));
 
+const NeverLoadingIcon = React.lazy(() => new Promise<never>(() => {}));
+
+vi.mock("../../src/components/admin-navigation-icons.js", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import("../../src/components/admin-navigation-icons.js")>();
+	return {
+		...actual,
+		getCollectionNavIcon: (name: string, iconName?: string) =>
+			iconName === "slow-chunk" ? NeverLoadingIcon : actual.getCollectionNavIcon(name, iconName),
+	};
+});
+
 const { Dashboard } = await import("../../src/components/Dashboard");
 
 const manifest: AdminManifest = {
@@ -752,40 +764,6 @@ describe("Dashboard", () => {
 		await expect.element(mixed.getByRole("link", { name: /About.*Notes/ })).toBeInTheDocument();
 	});
 
-	it("puts third-width plugin widgets in the side column and the rest in the main column", async () => {
-		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
-		const withWidgets: AdminManifest = {
-			...manifest,
-			plugins: {
-				forms: {
-					enabled: true,
-					dashboardWidgets: [
-						{ id: "submissions", title: "Submissions", size: "half" },
-						{ id: "status", title: "Status", size: "third" },
-					],
-				},
-			},
-		};
-
-		const screen = await render(
-			<PluginAdminProvider
-				pluginAdmins={{ forms: { widgets: { submissions: () => null, status: () => null } } }}
-			>
-				<Dashboard manifest={withWidgets} />
-			</PluginAdminProvider>,
-		);
-
-		const content = screen.getByRole("heading", { name: "Content" });
-		await expect.element(content).toBeInTheDocument();
-		const follows = (name: string) =>
-			Boolean(
-				content.element().compareDocumentPosition(screen.getByRole("heading", { name }).element()) &
-				Node.DOCUMENT_POSITION_FOLLOWING,
-			);
-		expect(follows("Submissions")).toBe(false);
-		expect(follows("Status")).toBe(true);
-	});
-
 	it("moves quick actions past three collections into a More menu", async () => {
 		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
 		const collection = manifest.collections.pages!;
@@ -803,6 +781,27 @@ describe("Dashboard", () => {
 
 		await expect.element(screen.getByRole("link", { name: "Post" })).toBeInTheDocument();
 		await expect.element(screen.getByRole("link", { name: "FAQ" })).not.toBeInTheDocument();
+		await screen.getByRole("button", { name: "More" }).click();
+		await expect
+			.element(screen.getByRole("menuitem", { name: "Team member" }))
+			.toHaveAttribute("href", "/content/team/new");
+	});
+
+	it("keeps the More menu usable while a collection icon is still loading", async () => {
+		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
+		const collection = manifest.collections.pages!;
+		const manyCollections: AdminManifest = {
+			...manifest,
+			collections: {
+				pages: collection,
+				posts: { ...collection, label: "Posts", labelSingular: "Post" },
+				faq: { ...collection, label: "FAQ", labelSingular: "FAQ" },
+				team: { ...collection, label: "Team", labelSingular: "Team member", icon: "slow-chunk" },
+			},
+		};
+
+		const screen = await render(<Dashboard manifest={manyCollections} />);
+
 		await screen.getByRole("button", { name: "More" }).click();
 		await expect
 			.element(screen.getByRole("menuitem", { name: "Team member" }))

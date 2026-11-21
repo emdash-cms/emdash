@@ -23,6 +23,7 @@ import { RouterLinkButton } from "./RouterLinkButton";
 import { SandboxedPluginWidget } from "./SandboxedPluginWidget";
 import {
 	declaredLabelTranslator,
+	NavIcon,
 	resolvePluginWidgetTitle,
 	visibleCollectionEntries,
 } from "./Sidebar.js";
@@ -69,6 +70,9 @@ export function Dashboard({ manifest }: DashboardProps) {
 	});
 	const hasDashboardData = stats !== undefined;
 	const showDashboardData = !isError || hasDashboardData;
+	const widgets = dashboardWidgets(manifest);
+	const mainWidgets = widgets.filter((widget) => widget.size !== "third");
+	const sideWidgets = widgets.filter((widget) => widget.size === "third");
 
 	return (
 		<div className="space-y-6">
@@ -89,37 +93,51 @@ export function Dashboard({ manifest }: DashboardProps) {
 				<SchedulerWarning stats={stats} canDismissPolicy={(user?.role ?? 0) >= ROLE_EDITOR} />
 			)}
 
-			<div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-3">
-				<div className="min-w-0 space-y-6 xl:col-span-2">
-					{showDashboardData && (
-						<>
-							<SummaryMetrics
-								stats={stats}
-								loading={isLoading}
-								linkCalendar={
-									(user?.role ?? 0) >= ROLE_CONTRIBUTOR &&
-									!manifest.admin?.hiddenNavItems?.includes("calendar")
-								}
-							/>
-							<RecentActivity
-								items={stats?.recentItems ?? []}
-								loading={isLoading}
-								multipleCollections={visibleCollectionEntries(manifest.collections).length > 1}
-							/>
-						</>
-					)}
-					<PluginWidgets manifest={manifest} placement="main" />
-				</div>
-				<div className="min-w-0 space-y-6">
-					{showDashboardData && (
-						<CollectionList
-							collections={stats?.collections ?? []}
-							manifest={manifest}
+			<div
+				className={cn(
+					"grid grid-cols-1 items-start gap-6 xl:grid-cols-3",
+					mainWidgets.length > 0 && "xl:grid-rows-[auto_1fr]",
+				)}
+			>
+				{showDashboardData && (
+					<div className="min-w-0 space-y-6 xl:col-span-2">
+						<SummaryMetrics
+							stats={stats}
 							loading={isLoading}
+							linkCalendar={
+								(user?.role ?? 0) >= ROLE_CONTRIBUTOR &&
+								!manifest.admin?.hiddenNavItems?.includes("calendar")
+							}
 						/>
-					)}
-					<PluginWidgets manifest={manifest} placement="side" />
-				</div>
+						<RecentActivity
+							items={stats?.recentItems ?? []}
+							loading={isLoading}
+							multipleCollections={visibleCollectionEntries(manifest.collections).length > 1}
+						/>
+					</div>
+				)}
+				{(showDashboardData || sideWidgets.length > 0) && (
+					<div
+						className={cn(
+							"min-w-0 space-y-6 xl:col-start-3 xl:row-start-1",
+							mainWidgets.length > 0 && "xl:row-span-2",
+						)}
+					>
+						{showDashboardData && (
+							<CollectionList
+								collections={stats?.collections ?? []}
+								manifest={manifest}
+								loading={isLoading}
+							/>
+						)}
+						<PluginWidgetCards widgets={sideWidgets} />
+					</div>
+				)}
+				{mainWidgets.length > 0 && (
+					<div className="min-w-0 space-y-6 xl:col-span-2 xl:col-start-1">
+						<PluginWidgetCards widgets={mainWidgets} />
+					</div>
+				)}
 			</div>
 		</div>
 	);
@@ -437,7 +455,9 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 									<DropdownMenu.LinkItem
 										key={slug}
 										closeOnClick
-										icon={<Icon className="size-4 text-kumo-subtle" aria-hidden="true" />}
+										icon={
+											<NavIcon icon={Icon} className="size-4 text-kumo-subtle" isActive={false} />
+										}
 										render={
 											<Link
 												to="/content/$collection/new"
@@ -784,26 +804,21 @@ function StatusDot({ status }: { status: string }) {
 
 // --- Plugin widgets ---
 
-function PluginWidgets({
-	manifest,
-	placement,
-}: {
-	manifest: AdminManifest;
-	placement: "main" | "side";
-}) {
-	const widgets: Array<{
-		id: string;
-		pluginId: string;
-		title?: string;
-		size?: "full" | "half" | "third";
-	}> = [];
+interface DashboardWidget {
+	id: string;
+	pluginId: string;
+	title?: string;
+	size?: "full" | "half" | "third";
+}
+
+function dashboardWidgets(manifest: AdminManifest): DashboardWidget[] {
+	const widgets: DashboardWidget[] = [];
 
 	for (const [pluginId, plugin] of Object.entries(manifest.plugins || {})) {
 		if (plugin.enabled === false) continue;
 
 		if ("dashboardWidgets" in plugin && Array.isArray(plugin.dashboardWidgets)) {
 			for (const widget of plugin.dashboardWidgets) {
-				if ((widget.size === "third") !== (placement === "side")) continue;
 				widgets.push({
 					id: widget.id,
 					pluginId,
@@ -814,17 +829,13 @@ function PluginWidgets({
 		}
 	}
 
-	if (widgets.length === 0) {
-		return null;
-	}
+	return widgets;
+}
 
-	return (
-		<>
-			{widgets.map((widget) => (
-				<PluginWidgetCard key={`${widget.pluginId}:${widget.id}`} widget={widget} />
-			))}
-		</>
-	);
+function PluginWidgetCards({ widgets }: { widgets: DashboardWidget[] }) {
+	return widgets.map((widget) => (
+		<PluginWidgetCard key={`${widget.pluginId}:${widget.id}`} widget={widget} />
+	));
 }
 
 function PluginWidgetCard({
