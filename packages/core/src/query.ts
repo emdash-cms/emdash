@@ -1061,8 +1061,19 @@ export async function getEmDashEntry<
 	id: string,
 	options?: { locale?: string; references?: S },
 ): Promise<EntryResult<D, SelectedReferences<T, S>>> {
+	const ctx = getRequestContext();
+	const rawLocale = options?.locale ?? ctx?.locale;
+	const key = `entry:${JSON.stringify([
+		type,
+		id,
+		rawLocale === undefined ? null : resolveConfiguredLocale(rawLocale),
+		options?.references === undefined ? null : stableOrder(options.references),
+		ctx?.editMode ?? false,
+		ctx?.preview?.collection ?? null,
+		ctx?.preview?.id ?? null,
+	])}`;
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the resolver returns one page per field the selection named, which is what SelectedReferences picks out
-	return resolveEmDashEntry<T, D>(type, id, options) as Promise<
+	return requestCached(key, () => resolveEmDashEntry<T, D>(type, id, options)) as Promise<
 		EntryResult<D, SelectedReferences<T, S>>
 	>;
 }
