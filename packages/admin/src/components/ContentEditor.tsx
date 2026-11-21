@@ -22,6 +22,7 @@ import {
 	FloppyDisk,
 	Paperclip,
 	X,
+	ChatCircleText,
 	CaretUp,
 	CaretDown,
 	PencilSimple,
@@ -461,11 +462,15 @@ function resolveEditorBylines(item?: ContentItem | null): {
 import type { ContentSeoInput } from "../lib/api";
 import { findUnsupportedPortableTextMarks } from "../lib/portable-text-marks.js";
 import { openBlankPreviewWindow, openPreviewWindow } from "../lib/preview-window.js";
+import { FieldCommentsButton, fieldThreadsByName } from "./editorial/FieldCommentsButton.js";
+import { MarginComments } from "./editorial/MarginComments.js";
+import { useEditorialComments } from "./editorial/useEditorialComments.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import {
 	PortableTextEditor,
 	type PluginBlockDef,
 	type BlockSidebarPanel,
+	type PortableTextEditorProps,
 } from "./PortableTextEditor";
 
 export interface FieldDescriptor {
@@ -636,10 +641,34 @@ function buildReferencesPayload(
 	return any ? out : undefined;
 }
 
+/**
+ * The lowest role with `editorial:comment` and `content:read_drafts`, which is all
+ * commenting needs: someone who can't edit the entry may still comment on it.
+ */
+const EDITORIAL_COMMENT_MIN_ROLE = 20;
+/** Narrower than this, the comments margin and the settings panel leave too little room to write. */
+const MARGIN_AND_SETTINGS_QUERY = "(min-width: 1680px)";
+
+function useMediaQuery(query: string): boolean {
+	const [matches, setMatches] = React.useState(
+		() => typeof window !== "undefined" && window.matchMedia(query).matches,
+	);
+	React.useEffect(() => {
+		const mq = window.matchMedia(query);
+		const onChange = () => setMatches(mq.matches);
+		onChange();
+		mq.addEventListener("change", onChange);
+		return () => mq.removeEventListener("change", onChange);
+	}, [query]);
+	return matches;
+}
+
 /** Simplified user info for current user context */
 export interface CurrentUserInfo {
 	id: string;
 	role: number;
+	name?: string | null;
+	avatarUrl?: string | null;
 }
 
 export interface ContentEditorProps {
@@ -849,6 +878,8 @@ export interface ContentEditorProps {
 	 * server has all of them.
 	 */
 	sendReferencesRef?: React.RefObject<(() => Promise<boolean>) | null>;
+	/** Editorial thread to open on load, from a `?thread=` link. */
+	initialThreadId?: string;
 }
 
 /**
@@ -892,6 +923,7 @@ export function ContentEditor({
 	supportsPreview = false,
 	currentUser,
 	adminLayout,
+	initialThreadId,
 	users,
 	onAuthorChange,
 	availableBylines,
@@ -1156,15 +1188,49 @@ export function ContentEditor({
 	// Track portableText editor for document outline. Only the "content"
 	// field wires its editor into this slot (see onEditorReady below).
 	const [portableTextEditor, setPortableTextEditor] = React.useState<Editor | null>(null);
+	/** Every Portable Text field's editor, by field slug, for editorial comments. */
+	const [editorialEditors, setEditorialEditors] = React.useState<ReadonlyMap<string, Editor>>(
+		() => new Map(),
+	);
+	const editorReadyCallbacks = React.useRef(new Map<string, (editor: Editor | null) => void>());
+	const editorReadyFor = React.useCallback((name: string, isDocumentBody: boolean) => {
+		const key = `${name}:${isDocumentBody}`;
+		let callback = editorReadyCallbacks.current.get(key);
+		if (!callback) {
+			callback = (editor) => {
+				if (isDocumentBody) setPortableTextEditor(editor);
+				setEditorialEditors((current) => {
+					if ((current.get(name) ?? null) === editor) return current;
+					const next = new Map(current);
+					if (editor) next.set(name, editor);
+					else next.delete(name);
+					return next;
+				});
+			};
+			editorReadyCallbacks.current.set(key, callback);
+		}
+		return callback;
+	}, []);
 
 	// Block sidebar state – when a block (e.g. image) requests sidebar space, this holds
 	// the panel data. When non-null the sidebar shows the block panel instead of the
 	// default content settings sections.
 	const [blockSidebarPanel, setBlockSidebarPanel] = React.useState<BlockSidebarPanel | null>(null);
+	const canComment = !isNew && !!item && (currentUser?.role ?? 0) >= EDITORIAL_COMMENT_MIN_ROLE;
+	const [commentsOpen, setCommentsOpen] = React.useState(Boolean(initialThreadId));
+	const threadLink = initialThreadId ? `${editorIdentity}:${initialThreadId}` : null;
+	const [shownThreadLink, setShownThreadLink] = React.useState(threadLink);
+	if (shownThreadLink !== threadLink) {
+		setShownThreadLink(threadLink);
+		if (threadLink) setCommentsOpen(true);
+	}
+	const roomForMarginAndSettings = useMediaQuery(MARGIN_AND_SETTINGS_QUERY);
+	const closeComments = React.useCallback(() => setCommentsOpen(false), []);
 
-	const handleBlockSidebarOpen = React.useCallback((panel: BlockSidebarPanel) => {
+	const handleBlockSidebarOpen = useStableCallback((panel: BlockSidebarPanel) => {
 		setBlockSidebarPanel(panel);
-	}, []);
+		if (!roomForMarginAndSettings) setCommentsOpen(false);
+	});
 
 	const handleBlockSidebarClose = React.useCallback(() => {
 		setBlockSidebarPanel((previous) => {
@@ -1178,6 +1244,7 @@ export function ContentEditor({
 		isBelowLg,
 		blockPanel: blockSidebarPanel,
 		closeBlockPanel: handleBlockSidebarClose,
+		yieldTo: canComment && commentsOpen && !roomForMarginAndSettings ? closeComments : null,
 	});
 
 	const [settingsOpenToken, setSettingsOpenToken] = React.useState(0);
@@ -1587,6 +1654,70 @@ export function ContentEditor({
 	// A new entry is always "dirty" so it can be saved, but one nobody has
 	// touched has nothing to lose on leaving.
 	const [newEntryInitialState] = React.useState(currentData);
+
+	const editorialEntry = React.useMemo(
+		() =>
+			canComment && item ? { collection, id: item.id, locale: entryLocale ?? undefined } : null,
+		[canComment, collection, item?.id, entryLocale],
+	);
+	const editorial = useEditorialComments({
+		entry: editorialEntry,
+		editors: editorialEditors,
+		rev: item?._rev,
+		isDirty,
+		open: commentsOpen,
+		canEdit: !readOnly,
+		initialThreadId,
+	});
+	const showComments = canComment && commentsOpen;
+	const showMargin = showComments && !isBelowLg && !isViewing;
+	const startEditorialComment = editorial.startComment;
+	const openEditorialThread = React.useCallback(
+		(threadId: string) => {
+			setCommentsOpen(true);
+			editorial.setActiveThreadId(threadId);
+		},
+		// oxlint-disable-next-line react-hooks/exhaustive-deps -- setActiveThreadId is a stable state setter
+		[],
+	);
+	const setActiveEditorialThread = editorial.setActiveThreadId;
+	const editorialBridges = React.useMemo(() => {
+		const bridges = new Map<string, PortableTextEditorProps["editorialComments"]>();
+		if (!canComment) return bridges;
+		for (const [name, field] of Object.entries(fields)) {
+			if (field.kind !== "portableText") continue;
+			bridges.set(name, {
+				onComment: () => {
+					setCommentsOpen(true);
+					startEditorialComment(name);
+				},
+				onActivate: openEditorialThread,
+				onDeactivate: () => setActiveEditorialThread(null),
+			});
+		}
+		return bridges;
+	}, [canComment, fields, startEditorialComment, openEditorialThread, setActiveEditorialThread]);
+	const setEditorialDraft = editorial.setDraft;
+	const startFieldComment = React.useCallback(
+		(field: string) => {
+			setCommentsOpen(true);
+			editorial.setActiveThreadId(null);
+			setEditorialDraft({ anchor: { type: "field", field }, range: null });
+		},
+		// oxlint-disable-next-line react-hooks/exhaustive-deps -- setActiveThreadId is a stable state setter
+		[setEditorialDraft],
+	);
+	const fieldThreads = React.useMemo(
+		() => fieldThreadsByName(editorial.threads),
+		[editorial.threads],
+	);
+	const fieldLabels = React.useMemo(
+		() =>
+			Object.fromEntries(
+				Object.entries(fields).map(([name, field]) => [name, field.label ?? name]),
+			),
+		[fields],
+	);
 	const hasUnsavedNewEntry =
 		Boolean(isNew) && (referencesDirty || currentData !== newEntryInitialState);
 	const isDirtyRef = React.useRef(isDirty);
@@ -2874,6 +3005,23 @@ export function ContentEditor({
 							disabled={readOnly}
 						/>
 					)}
+					{canComment && (
+						<Button
+							variant="ghost"
+							size="sm"
+							type="button"
+							aria-pressed={showComments}
+							onClick={() => setCommentsOpen(!showComments)}
+							aria-label={showComments ? t`Hide comments` : t`Show comments`}
+							title={showComments ? t`Hide comments` : t`Show comments`}
+							className="gap-1 px-2"
+						>
+							<ChatCircleText className="h-4 w-4" aria-hidden="true" />
+							{editorial.openCount > 0 && (
+								<span className="tabular-nums">{editorial.openCount}</span>
+							)}
+						</Button>
+					)}
 					{settingsPanel.toggle && <SettingsPanelToggle {...settingsPanel.toggle} />}
 				</div>
 			</div>
@@ -2951,173 +3099,227 @@ export function ContentEditor({
 							    to fit its widest field. */}
 							<ScrollArea.Content className="flex min-h-full flex-col" style={{ minWidth: 0 }}>
 								{!pinEditorBar && editorBar}
-								<div
-									className={cn(
-										"emdash-editor-page mx-auto w-full max-w-[52rem] space-y-6 pt-8 sm:pt-12",
-										// The revision bar settles under the last block, and stays at the bottom of
-										// the canvas when the version is too short to fill it.
-										isViewing ? "flex flex-1 flex-col pb-0" : "pb-16",
-									)}
-								>
-									{notice}
-									{refusedFieldLabel && !isViewing ? (
-										<Banner
-											variant="error"
-											role="alert"
-											title={t`Your change to ${refusedFieldLabel} wasn’t saved`}
-											description={t`It has formatting this editor can’t keep.`}
-										/>
-									) : null}
-									{/* Hidden, not unmounted, while a version is shown, so unsaved edits,
-									    undo history and the outline survive. */}
-									<fieldset disabled={readOnly} hidden={isViewing} className="contents">
-										{unsupportedFields.length > 0 && (
+								<div className={showMargin ? "flex flex-1 items-stretch gap-6 pe-6" : "contents"}>
+									<div
+										className={cn(
+											"emdash-editor-page mx-auto w-full max-w-[52rem] space-y-6 pt-8 sm:pt-12",
+											showMargin && "min-w-0 flex-1",
+											// The revision bar settles under the last block, and stays at the bottom of
+											// the canvas when the version is too short to fill it.
+											isViewing ? "flex flex-1 flex-col pb-0" : "pb-16",
+										)}
+									>
+										{notice}
+										{refusedFieldLabel && !isViewing ? (
 											<Banner
 												variant="error"
 												role="alert"
-												title={t`This entry is read-only because its schema uses field types this version of EmDash does not support.`}
-												description={unsupportedFields
-													.map(
-														([name, field]) =>
-															`${field.label ?? name}: ${field.unsupportedType?.type ?? field.kind}`,
-													)
-													.join(", ")}
+												title={t`Your change to ${refusedFieldLabel} wasn’t saved`}
+												description={t`It has formatting this editor can’t keep.`}
 											/>
-										)}
-										{hasSaveConflict && (
-											<Banner
-												variant="error"
-												role="alert"
-												title={t`This entry changed somewhere else after you opened it.`}
-												description={t`What you typed is still here. Saving replaces the newer version.`}
-												action={
-													<Button size="sm" variant="secondary" type="button" onClick={submitSave}>
-														{t`Save anyway`}
-													</Button>
-												}
-											/>
-										)}
-										<div
-											ref={fieldsRef}
-											className="space-y-6 [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base"
-											style={
-												fieldsLoading && roomFieldsHeightRef.current !== null
-													? { minHeight: roomFieldsHeightRef.current }
-													: undefined
-											}
-										>
-											{fieldsLoading && (
-												<div className="sticky top-24 flex justify-center py-16">
-													<Loader aria-label={t`Loading`} />
-												</div>
-											)}
-											{(fieldsLoading ? [] : Object.entries(fields)).map(([name, field]) => {
-												// Key by item id so all field editors remount cleanly when the
-												// underlying content item changes (e.g. switching translations).
-												// PortableTextEditor in particular freezes its initial content on
-												// mount; without this key, navigating between translations leaves
-												// the previous locale's body in the editor and silently overwrites
-												// the new translation on the next edit.
-												const fieldKey = `${name}:${item?.id ?? "new"}:${fieldsGeneration}:${fieldGenerations[name] ?? 0}`;
-												const isDocumentBody = field.kind === "portableText" && name === "content";
-												const fieldProps: Omit<FieldRendererProps, "value"> = {
-													name,
-													field,
-													onChange: handleFieldChange,
-													onEditorReady: isDocumentBody ? setPortableTextEditor : undefined,
-													isDocumentTitle: name === documentTitleField,
-													titleInputRef: name === documentTitleField ? documentTitleRef : undefined,
-													onDocumentTitleExit: portableTextEditor ? focusDocumentBody : undefined,
-													isDocumentBody,
-													onArrowUpAtStart:
-														isDocumentBody && hasDocumentTitle ? focusDocumentTitle : undefined,
-													pluginBlocks,
-													onBlockSidebarOpen:
-														field.kind === "portableText" ? handleBlockSidebarOpen : undefined,
-													onBlockSidebarClose:
-														field.kind === "portableText" ? handleBlockSidebarClose : undefined,
-													manifest,
-													readOnly,
-													timezone,
-													blockReveal: field.kind === "blocks" ? blockReveal : undefined,
-													focusField: field.kind === "blocks" ? focusField : undefined,
-													onFieldFocused: field.kind === "blocks" ? onFieldFocused : undefined,
-													referenceState,
-													onReferenceChange: handleReferenceCurrentChange,
-													onLoadMoreReferences: handleLoadMoreReferences,
-													onRetryReferences: handleRetryReferences,
-													// Existing entries carry their locale on `item`; new entries only
-													// have the URL-derived `entryLocale`. Mirror ContentSettingsPanel.
-													entryLocale: item?.locale ?? entryLocale,
-												};
-												const fieldEl = room ? (
-													<RoomFieldRenderer
-														key={`${name}:${item?.id ?? "new"}:${room.id}`}
-														room={room}
-														{...fieldProps}
-													/>
-												) : (
-													<FieldRenderer key={fieldKey} value={formData[name]} {...fieldProps} />
-												);
-												return fieldEl;
-											})}
-										</div>
-									</fieldset>
-									{isViewing ? (
-										<RevisionViewErrorBoundary resetKey={revisionView.viewingId}>
-											{revisionView.diff ? (
-												<RevisionViewCanvas
-													diff={revisionView.diff}
-													fields={fields}
-													titleField={documentTitleField}
-													showChanges={revisionView.showChanges}
-													authorColor={revisionView.authorColor}
-													label={revisionView.label}
-													timezone={timezone}
+										) : null}
+										{/* Hidden, not unmounted, while a version is shown, so unsaved edits,
+									    undo history and the outline survive. Comment controls stay enabled
+									    while the entry is read-only, so each field disables itself. */}
+										<fieldset hidden={isViewing} className="contents">
+											{unsupportedFields.length > 0 && (
+												<Banner
+													variant="error"
+													role="alert"
+													title={t`This entry is read-only because its schema uses field types this version of EmDash does not support.`}
+													description={unsupportedFields
+														.map(
+															([name, field]) =>
+																`${field.label ?? name}: ${field.unsupportedType?.type ?? field.kind}`,
+														)
+														.join(", ")}
 												/>
-											) : revisionView.diffFailed ? (
-												<RevisionViewError />
-											) : (
-												<div className="flex justify-center py-16">
-													<Loader />
-												</div>
 											)}
-										</RevisionViewErrorBoundary>
-									) : null}
-									{item && revisionView.revision ? (
-										<RevisionViewBar
-											collection={collection}
-											entryId={item.id}
-											revision={revisionView.revision}
-											authorColor={revisionView.authorColor}
-											isCurrent={revisionView.isCurrent}
-											isPublished={revisionView.isPublished}
-											sameAsCurrent={revisionView.sameAsCurrent}
-											hasDraft={
-												Boolean(item.draftRevisionId) &&
-												item.draftRevisionId !== item.liveRevisionId
-											}
-											scheduled={hasSchedule}
-											canShowChanges={revisionView.diff?.hasPrevious ?? false}
-											showChanges={revisionView.showChanges}
-											onShowChangesChange={revisionView.setShowChanges}
-											onExit={revisionView.exit}
-											showStepper={!listVisible}
-											hasOlder={revisionView.hasOlder}
-											hasNewer={revisionView.hasNewer}
-											onStep={revisionView.step}
-											readOnly={readOnly}
-											saveBusy={Boolean(isSaving || isAutosaving)}
-											isDirty={isDirty}
-											restorePending={revisionView.restorePending}
-											onRestoreStart={revisionView.beginRestore}
-											onRestoreFailed={revisionView.cancelRestore}
-											onRestoreSettled={revisionView.completeRestore}
-											onRevisionRestored={onRevisionRestored}
-											titleRef={revisionView.barTitleRef}
-											dockRef={revisionView.dockRef}
-										/>
-									) : null}
+											{hasSaveConflict && (
+												<Banner
+													variant="error"
+													role="alert"
+													title={t`This entry changed somewhere else after you opened it.`}
+													description={t`What you typed is still here. Saving replaces the newer version.`}
+													action={
+														<Button
+															size="sm"
+															variant="secondary"
+															type="button"
+															disabled={readOnly}
+															onClick={submitSave}
+														>
+															{t`Save anyway`}
+														</Button>
+													}
+												/>
+											)}
+											<div
+												ref={fieldsRef}
+												className="space-y-6 [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base"
+												style={
+													fieldsLoading && roomFieldsHeightRef.current !== null
+														? { minHeight: roomFieldsHeightRef.current }
+														: undefined
+												}
+											>
+												{fieldsLoading && (
+													<div className="sticky top-24 flex justify-center py-16">
+														<Loader aria-label={t`Loading`} />
+													</div>
+												)}
+												{(fieldsLoading ? [] : Object.entries(fields)).map(([name, field]) => {
+													// Key by item id so all field editors remount cleanly when the
+													// underlying content item changes (e.g. switching translations).
+													// PortableTextEditor in particular freezes its initial content on
+													// mount; without this key, navigating between translations leaves
+													// the previous locale's body in the editor and silently overwrites
+													// the new translation on the next edit.
+													const fieldKey = `${name}:${item?.id ?? "new"}:${fieldsGeneration}:${fieldGenerations[name] ?? 0}`;
+													const isDocumentBody =
+														field.kind === "portableText" && name === "content";
+													const fieldProps: Omit<FieldRendererProps, "value"> = {
+														name,
+														field,
+														onChange: handleFieldChange,
+														onEditorReady:
+															field.kind === "portableText"
+																? editorReadyFor(name, isDocumentBody)
+																: undefined,
+														editorialComments: editorialBridges.get(name),
+														isDocumentTitle: name === documentTitleField,
+														titleInputRef:
+															name === documentTitleField ? documentTitleRef : undefined,
+														onDocumentTitleExit: portableTextEditor ? focusDocumentBody : undefined,
+														isDocumentBody,
+														onArrowUpAtStart:
+															isDocumentBody && hasDocumentTitle ? focusDocumentTitle : undefined,
+														pluginBlocks,
+														onBlockSidebarOpen:
+															field.kind === "portableText" ? handleBlockSidebarOpen : undefined,
+														onBlockSidebarClose:
+															field.kind === "portableText" ? handleBlockSidebarClose : undefined,
+														manifest,
+														readOnly,
+														timezone,
+														blockReveal: field.kind === "blocks" ? blockReveal : undefined,
+														focusField: field.kind === "blocks" ? focusField : undefined,
+														onFieldFocused: field.kind === "blocks" ? onFieldFocused : undefined,
+														referenceState,
+														onReferenceChange: handleReferenceCurrentChange,
+														onLoadMoreReferences: handleLoadMoreReferences,
+														onRetryReferences: handleRetryReferences,
+														// Existing entries carry their locale on `item`; new entries only
+														// have the URL-derived `entryLocale`. Mirror ContentSettingsPanel.
+														entryLocale: item?.locale ?? entryLocale,
+													};
+													const fieldEl = room ? (
+														<RoomFieldRenderer
+															key={`${name}:${item?.id ?? "new"}:${room.id}`}
+															room={room}
+															{...fieldProps}
+														/>
+													) : (
+														<FieldRenderer key={fieldKey} value={formData[name]} {...fieldProps} />
+													);
+													const showFieldComments = canComment && !isViewing && !isDocumentBody;
+													return (
+														<div
+															key={name}
+															data-editorial-field={name}
+															className={showFieldComments ? "group/field relative" : undefined}
+														>
+															{showFieldComments && (
+																<FieldCommentsButton
+																	label={fieldLabels[name] ?? name}
+																	threads={fieldThreads.get(name) ?? []}
+																	activeThreadId={editorial.activeThreadId}
+																	onOpen={openEditorialThread}
+																	onStart={() => startFieldComment(name)}
+																/>
+															)}
+															<fieldset disabled={readOnly} className="contents">
+																{fieldEl}
+															</fieldset>
+														</div>
+													);
+												})}
+											</div>
+										</fieldset>
+										{isViewing ? (
+											<RevisionViewErrorBoundary resetKey={revisionView.viewingId}>
+												{revisionView.diff ? (
+													<RevisionViewCanvas
+														diff={revisionView.diff}
+														fields={fields}
+														titleField={documentTitleField}
+														showChanges={revisionView.showChanges}
+														authorColor={revisionView.authorColor}
+														label={revisionView.label}
+														timezone={timezone}
+													/>
+												) : revisionView.diffFailed ? (
+													<RevisionViewError />
+												) : (
+													<div className="flex justify-center py-16">
+														<Loader />
+													</div>
+												)}
+											</RevisionViewErrorBoundary>
+										) : null}
+										{item && revisionView.revision ? (
+											<RevisionViewBar
+												collection={collection}
+												entryId={item.id}
+												revision={revisionView.revision}
+												authorColor={revisionView.authorColor}
+												isCurrent={revisionView.isCurrent}
+												isPublished={revisionView.isPublished}
+												sameAsCurrent={revisionView.sameAsCurrent}
+												hasDraft={
+													Boolean(item.draftRevisionId) &&
+													item.draftRevisionId !== item.liveRevisionId
+												}
+												scheduled={hasSchedule}
+												canShowChanges={revisionView.diff?.hasPrevious ?? false}
+												showChanges={revisionView.showChanges}
+												onShowChangesChange={revisionView.setShowChanges}
+												onExit={revisionView.exit}
+												showStepper={!listVisible}
+												hasOlder={revisionView.hasOlder}
+												hasNewer={revisionView.hasNewer}
+												onStep={revisionView.step}
+												readOnly={readOnly}
+												saveBusy={Boolean(isSaving || isAutosaving)}
+												isDirty={isDirty}
+												restorePending={revisionView.restorePending}
+												onRestoreStart={revisionView.beginRestore}
+												onRestoreFailed={revisionView.cancelRestore}
+												onRestoreSettled={revisionView.completeRestore}
+												onRevisionRestored={onRevisionRestored}
+												titleRef={revisionView.barTitleRef}
+												dockRef={revisionView.dockRef}
+											/>
+										) : null}
+									</div>
+									{showComments && !isViewing && (
+										<div
+											className={cn(
+												isBelowLg
+													? "mx-auto w-full max-w-[52rem] px-4 pb-16"
+													: "flex w-72 shrink-0 flex-col pt-8 pb-16 sm:pt-12",
+											)}
+										>
+											<MarginComments
+												comments={editorial}
+												currentUser={currentUser}
+												fieldLabels={fieldLabels}
+												fieldsRef={fieldsRef}
+												positioned={!isBelowLg}
+												canComment={canComment}
+											/>
+										</div>
+									)}
 								</div>
 							</ScrollArea.Content>
 						</ScrollArea.Viewport>
@@ -3591,6 +3793,8 @@ interface FieldRendererProps {
 	/** Callback when a portableText editor is ready.
 	 * Called with the editor on mount, and with `null` on unmount. */
 	onEditorReady?: (editor: Editor | null) => void;
+	/** Editorial comment hooks for a Portable Text field's editor. */
+	editorialComments?: PortableTextEditorProps["editorialComments"];
 	/** Minimal chrome - hides toolbar, fades labels, removes borders */
 	minimal?: boolean;
 	/** Plugin block types available for insertion in Portable Text fields */
@@ -3736,6 +3940,7 @@ function FieldRenderer({
 	value,
 	onChange,
 	onEditorReady,
+	editorialComments,
 	minimal,
 	pluginBlocks,
 	onBlockSidebarOpen,
@@ -3980,6 +4185,7 @@ function FieldRenderer({
 							className="bg-kumo-control [--emdash-editor-surface:var(--color-kumo-control)] focus-within:border-kumo-focus/50"
 							pluginBlocks={pluginBlocks}
 							onEditorReady={onEditorReady}
+							editorialComments={editorialComments}
 							onBlockSidebarOpen={onBlockSidebarOpen}
 							onBlockSidebarClose={onBlockSidebarClose}
 							editable={!readOnly}
@@ -4009,6 +4215,7 @@ function FieldRenderer({
 						)}
 						pluginBlocks={pluginBlocks}
 						onEditorReady={onEditorReady}
+						editorialComments={editorialComments}
 						minimal={minimal}
 						onBlockSidebarOpen={onBlockSidebarOpen}
 						onBlockSidebarClose={onBlockSidebarClose}
