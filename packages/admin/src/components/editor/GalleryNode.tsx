@@ -179,7 +179,7 @@ function GalleryNodeView({
 			) : (
 				<div
 					className="grid gap-2 rounded-lg"
-					style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, 1fr)` }}
+					style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, minmax(0, 1fr))` }}
 				>
 					{images.map((image, index) => (
 						<figure key={image._key} className="m-0">
