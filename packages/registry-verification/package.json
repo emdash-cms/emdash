@@ -55,6 +55,7 @@
 		"@sigstore/protobuf-specs": "0.5.1",
 		"@sigstore/verify": "4.1.0",
 		"publint": "catalog:",
+		"rolldown": "1.0.0-rc.3",
 		"tsdown": "catalog:",
 		"typescript": "catalog:",
 		"vitest": "catalog:"

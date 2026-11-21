@@ -1,17 +1,5 @@
+import { esmExternalRequirePlugin } from "rolldown/plugins";
 import { defineConfig } from "tsdown";
-
-// Consumers rebundle this artifact, where import.meta.url may no longer name a file.
-// The generated require only resolves Node builtins, so a stable absolute base is sufficient.
-// A drive letter keeps the synthetic URL valid on Windows.
-const rebundleSafeRequire = {
-	name: "rebundle-safe-require",
-	renderChunk(code: string) {
-		return code.replace(
-			"createRequire(import.meta.url)",
-			'createRequire("file:///C:/emdash-registry-verification.js")',
-		);
-	},
-};
 
 export default defineConfig([
 	{
@@ -39,8 +27,12 @@ export default defineConfig([
 		clean: false,
 		platform: "node",
 		target: "es2024",
-		plugins: [rebundleSafeRequire],
-		outputOptions: { codeSplitting: false },
+		// Workers adapters can shim createRequire with an unsupported implementation.
+		plugins: [esmExternalRequirePlugin({ external: [/^(?:node:)?(?:crypto|util)$/] })],
+		outputOptions: {
+			codeSplitting: false,
+			paths: { crypto: "node:crypto", util: "node:util" },
+		},
 		// Sigstore is bundled so the published workerd path carries our pinned
 		// @sigstore/core algorithm-selection fix instead of resolving a pristine copy.
 		inlineOnly: false,

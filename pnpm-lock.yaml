@@ -3120,6 +3120,9 @@ importers:
       publint:
         specifier: 'catalog:'
         version: 0.3.17
+      rolldown:
+        specifier: 1.0.0-rc.3
+        version: 1.0.0-rc.3
       tsdown:
         specifier: 'catalog:'
         version: 0.20.3(@arethetypeswrong/core@0.18.2)(@typescript/native-preview@7.0.0-dev.20260421.2)(oxc-resolver@11.16.4(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3))(publint@0.3.17)(typescript@6.0.3)
