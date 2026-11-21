@@ -13,6 +13,7 @@ import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleTermDelete, handleTermGet, handleTermUpdate } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery, updateTermBody } from "#api/schemas.js";
+import { getTermSlug } from "#api/term-slug.js";
 import { taxonomyTag } from "#cache/chrome-tags.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
 
@@ -23,8 +24,8 @@ export const prerender = false;
  */
 export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
-	const { name, slug } = params;
-	if (!name || !slug) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
+	const { name } = params;
+	if (!name) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -37,6 +38,8 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	if (isParseError(query)) return query;
 
 	try {
+		const slug = getTermSlug(request);
+		if (!slug) return apiError("VALIDATION_ERROR", "Valid term slug required", 400);
 		const result = await handleTermGet(emdash.db, name, slug, { locale: query.locale });
 		return unwrapResult(result);
 	} catch (error) {
@@ -49,8 +52,8 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
  */
 export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
-	const { name, slug } = params;
-	if (!name || !slug) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
+	const { name } = params;
+	if (!name) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -63,6 +66,8 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	if (isParseError(query)) return query;
 
 	try {
+		const slug = getTermSlug(request);
+		if (!slug) return apiError("VALIDATION_ERROR", "Valid term slug required", 400);
 		const body = await parseBody(request, updateTermBody);
 		if (isParseError(body)) return body;
 
@@ -80,8 +85,8 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
  */
 export const DELETE: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
-	const { name, slug } = params;
-	if (!name || !slug) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
+	const { name } = params;
+	if (!name) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -94,6 +99,8 @@ export const DELETE: APIRoute = async ({ params, request, locals, cache }) => {
 	if (isParseError(query)) return query;
 
 	try {
+		const slug = getTermSlug(request);
+		if (!slug) return apiError("VALIDATION_ERROR", "Valid term slug required", 400);
 		const result = await handleTermDelete(emdash.db, name, slug, { locale: query.locale });
 		if (!result.success) return unwrapResult(result);
 		await invalidateRouteCache(cache, [taxonomyTag(name)]);

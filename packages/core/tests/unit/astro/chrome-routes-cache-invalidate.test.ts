@@ -334,7 +334,11 @@ describe("Chrome write routes — edge cache invalidation", () => {
 		it("invalidates on term update", async () => {
 			const { slug } = await termFixture();
 			const { cache, invalidate } = makeContext({ name: "topics", slug });
-			const request = await makeRequest("PUT", { label: "Updated" });
+			const request = await makeRequest(
+				"PUT",
+				{ label: "Updated" },
+				`http://localhost/_emdash/api/taxonomies/topics/terms/${encodeURIComponent(slug)}`,
+			);
 
 			const response = await putTerm({
 				request,
@@ -368,7 +372,11 @@ describe("Chrome write routes — edge cache invalidation", () => {
 		it("invalidates on term delete", async () => {
 			const { slug } = await termFixture();
 			const { cache, invalidate } = makeContext({ name: "topics", slug });
-			const request = await makeRequest("DELETE", {});
+			const request = await makeRequest(
+				"DELETE",
+				{},
+				`http://localhost/_emdash/api/taxonomies/topics/terms/${encodeURIComponent(slug)}`,
+			);
 
 			const response = await deleteTerm({
 				request,
