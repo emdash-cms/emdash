@@ -9,6 +9,7 @@ import {
 	validateContent,
 	generateTypeScript,
 	generateTypesFile,
+	generateCollectionsTypeScript,
 	clearSchemaCache,
 } from "../../../src/schema/zod-generator.js";
 
@@ -771,6 +772,83 @@ describe("Zod Generator", () => {
 				'import type { BylineSummary, ContentBylineCredit, TaxonomyTerm } from "emdash";',
 			);
 			expect(ts).toContain("byline?: BylineSummary | null;");
+		});
+
+		describe("block declaration names", () => {
+			const now = new Date().toISOString();
+
+			function heroBlocksField(slug: string): Field {
+				return {
+					id: slug,
+					collectionId: "c",
+					slug,
+					label: slug,
+					type: "blocks",
+					columnType: "JSON",
+					required: false,
+					unique: false,
+					searchable: false,
+					indexed: false,
+					translatable: true,
+					sortOrder: 0,
+					createdAt: now,
+					blockTypes: [
+						{
+							id: "hero",
+							slug: "hero",
+							label: "Hero",
+							currentVersion: 1,
+							source: "user",
+							createdAt: now,
+							updatedAt: now,
+							versions: [
+								{
+									id: "hero-v1",
+									blockTypeId: "hero",
+									version: 1,
+									fingerprint: "v1",
+									active: true,
+									createdAt: now,
+									updatedAt: now,
+									fields: [{ slug: "body", label: "Body", type: "portableText", required: true }],
+								},
+							],
+						},
+					],
+				};
+			}
+
+			function declaredNamesOf(ts: string): string[] {
+				return Array.from(ts.matchAll(/^export (?:interface|type) (\w+)/gm), (m) => m[1]!);
+			}
+
+			it.each([
+				["emdash-env.d.ts", generateTypesFile],
+				["emdash types", generateCollectionsTypeScript],
+			])(
+				"suffixes a block name taken by a collection, an import or another block (%s)",
+				(_, generate) => {
+					const ts = generate([
+						makeCollection("pages", {
+							fields: [heroBlocksField("content"), heroBlocksField("content_hero")],
+						}),
+						makeCollection("page_content_blocks"),
+						makeCollection("page_contents", { fields: [heroBlocksField("hero")] }),
+						makeCollection("portables", { fields: [heroBlocksField("text")] }),
+					]);
+
+					const names = declaredNamesOf(ts);
+					expect(new Set(names).size).toBe(names.length);
+					expect(names).not.toContain("PortableTextBlock");
+					expect(ts).toContain("export interface PageContentBlock {");
+					expect(ts).toContain("export type PageContentBlock2 = PageContentHeroBlock;");
+					expect(ts).toContain("  content?: PageContentBlock2[];");
+					expect(ts).toContain("export type PageContentHeroBlock2 = PageContentHeroHeroBlock;");
+					expect(ts).toContain("  content_hero?: PageContentHeroBlock2[];");
+					expect(ts).toContain("export type PortableTextBlock2 = PortableTextHeroBlock;");
+					expect(ts).toContain("  text?: PortableTextBlock2[];");
+				},
+			);
 		});
 	});
 

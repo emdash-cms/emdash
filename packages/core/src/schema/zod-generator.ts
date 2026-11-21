@@ -390,9 +390,22 @@ export function generateTypeScript(
 	return lines.join("\n");
 }
 
+/**
+ * The types the generated files import from `emdash`. A block declaration must
+ * not take one of these names.
+ */
+const IMPORTED_TYPE_NAMES = [
+	"BylineSummary",
+	"ContentBylineCredit",
+	"TaxonomyTerm",
+	"PortableTextBlock",
+	"ReferencePage",
+];
+
 function generateBlockTypeDeclarations(
 	collection: CollectionWithFields,
 	interfaceName: string,
+	usedNames: Set<string>,
 ): { lines: string[]; fieldTypes: Map<string, string> } {
 	const lines: string[] = [];
 	const fieldTypes = new Map<string, string>();
@@ -404,7 +417,7 @@ function generateBlockTypeDeclarations(
 			const typeName = `${fieldName}${pascalCase(blockType.slug)}`;
 			const versionNames: string[] = [];
 			for (const version of blockType.versions) {
-				const versionName = `${typeName}V${version.version}Block`;
+				const versionName = claimName(`${typeName}V${version.version}Block`, usedNames);
 				versionNames.push(versionName);
 				lines.push(`export interface ${versionName} {`);
 				lines.push(`  _type: ${JSON.stringify(blockType.slug)};`);
@@ -425,17 +438,47 @@ function generateBlockTypeDeclarations(
 				lines.push(`}`);
 				lines.push(``);
 			}
-			const unionName = `${typeName}Block`;
+			const unionName = claimName(`${typeName}Block`, usedNames);
 			lines.push(`export type ${unionName} = ${versionNames.join(" | ") || "never"};`);
 			lines.push(``);
 			typeNames.push(unionName);
 		}
-		const fieldUnion = `${fieldName}Block`;
+		const fieldUnion = claimName(`${fieldName}Block`, usedNames);
 		lines.push(`export type ${fieldUnion} = ${typeNames.join(" | ") || "never"};`);
 		lines.push(``);
 		fieldTypes.set(field.slug, `${fieldUnion}[]`);
 	}
 	return { lines, fieldTypes };
+}
+
+function generateCollectionDeclarations(
+	collection: CollectionWithFields,
+	interfaceName: string,
+	usedNames: Set<string>,
+): string {
+	const blocks = generateBlockTypeDeclarations(collection, interfaceName, usedNames);
+	return [...blocks.lines, generateTypeScript(collection, interfaceName, blocks.fieldTypes)].join(
+		"\n",
+	);
+}
+
+/**
+ * Generate the interface of every collection, with the block types its blocks
+ * fields hold. Blocks fields must be expanded with `expandCollectionBlockFields`
+ * first, or each one is typed as an array of `never`.
+ */
+export function generateCollectionsTypeScript(collections: CollectionWithFields[]): string {
+	const interfaceNames = uniqueInterfaceNames(collections);
+	const usedNames = new Set([...IMPORTED_TYPE_NAMES, ...interfaceNames.values()]);
+	return collections
+		.map((collection) =>
+			generateCollectionDeclarations(
+				collection,
+				interfaceNames.get(collection.slug) ?? getInterfaceName(collection),
+				usedNames,
+			),
+		)
+		.join("\n\n");
 }
 
 /**
@@ -493,11 +536,10 @@ export function generateTypesFile(collections: CollectionWithFields[]): string {
 	]);
 
 	// Generate individual interfaces
+	const usedNames = new Set([...IMPORTED_TYPE_NAMES, ...interfaceNames.values()]);
 	for (const collection of collections) {
 		const interfaceName = interfaceNames.get(collection.slug) ?? getInterfaceName(collection);
-		const blocks = generateBlockTypeDeclarations(collection, interfaceName);
-		lines.push(...blocks.lines);
-		lines.push(generateTypeScript(collection, interfaceName, blocks.fieldTypes));
+		lines.push(generateCollectionDeclarations(collection, interfaceName, usedNames));
 		lines.push(``);
 	}
 
@@ -727,15 +769,18 @@ export function uniqueInterfaceNames(collections: CollectionWithFields[]): Map<s
 	const used = new Set<string>();
 	const names = new Map<string, string>();
 	for (const collection of collections) {
-		const base = getInterfaceName(collection);
-		let name = base;
-		let suffix = 2;
-		while (used.has(name)) {
-			name = `${base}${suffix}`;
-			suffix++;
-		}
-		used.add(name);
-		names.set(collection.slug, name);
+		names.set(collection.slug, claimName(getInterfaceName(collection), used));
 	}
 	return names;
+}
+
+function claimName(base: string, used: Set<string>): string {
+	let name = base;
+	let suffix = 2;
+	while (used.has(name)) {
+		name = `${base}${suffix}`;
+		suffix++;
+	}
+	used.add(name);
+	return name;
 }
