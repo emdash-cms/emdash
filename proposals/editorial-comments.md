@@ -145,19 +145,23 @@ The `type` discriminator lets later work add anchor types, such as Yjs relative 
 
 ### Shared anchor module
 
-A pure module exported from `@emdash-cms/admin/editorial-anchors` creates and resolves anchors. Core already imports `@emdash-cms/admin/html-block`, and the admin cannot import from core, so both packages can use a module in this location. It provides:
+A pure module exported from `@emdash-cms/admin/internal/editorial-anchors` creates and resolves anchors. Core already imports `@emdash-cms/admin/html-block`, and the admin cannot import from core, so both packages can use a module in this location. The `internal/` subpath keeps it out of the public API. It provides:
 
-- `createTextAnchor(fieldValue, field, blockKey, start, end)`, which derives `quote`, `prefix`, and `suffix` from a Portable Text value.
-- `resolveAnchor(fieldValue, anchor)`, which returns `{ state: "attached", blockKey, start, end }` or `{ state: "orphaned" }`.
+- `createTextAnchor(fieldValue, field, blockKey, start, end)`, which derives `quote`, `prefix`, and `suffix` from a Portable Text value. It returns `null` for a range that is empty, out of bounds, longer than a quote may be, or splits a surrogate pair.
+- `resolveAnchor(fieldValue, anchor)`, which returns `{ state: "attached", anchor }` or `{ state: "orphaned" }`. The attached `anchor` holds the current `blockKey`, `start`, and `end`, with `prefix` and `suffix` taken again from the current text, so callers can store it and compare it with the stored anchor.
+- `locateQuote(fieldValue, field, quote, { prefix, suffix })`, which finds a quote without a stored position, for the MCP tools. It returns `found` with an anchor, `missing`, or `ambiguous` when the best occurrences tie on context.
 - Conversion between ProseMirror positions and block-relative offsets.
 
 `resolveAnchor` resolves a text anchor in this order and stops at the first success:
 
-1. The block with `blockKey`, if the text from `start` to `end` equals `quote`.
-2. Occurrences of `quote` in that block.
-3. Occurrences of `quote` in every text block of the field.
+1. Occurrences of `quote` in the block with `blockKey`.
+2. Occurrences of `quote` in every text block of the field.
 
-When a step finds several occurrences, it ranks them by the length of matching `prefix` and `suffix`, then by distance from the original `start`. A block anchor resolves when a block with `blockKey` exists in the field. Entry anchors always resolve. Field anchors resolve while the field exists in the collection schema.
+Each step ranks its occurrences by the length of matching `prefix` and `suffix`, then by distance from the original `start`. The stored range has distance zero, so it wins a tie, but an occurrence that kept more of its context beats it: when text is replaced around the stored range, the quote that still has its surroundings is more likely the one the comment was about.
+
+A match in another block attaches only if it is the field's only occurrence of `quote`, or if it keeps at least half of the stored `prefix` and `suffix`. Otherwise the anchor is orphaned, because a common phrase found elsewhere in the field is more likely a different passage than the commented one.
+
+A block anchor resolves when a block with `blockKey` exists in the field. Entry anchors always resolve. Field anchors resolve while the field exists in the collection schema; callers check the schema.
 
 ### Data model
 
@@ -322,7 +326,7 @@ Each implementation slice adds a changeset for `emdash` and `@emdash-cms/admin` 
 
 ## Verification
 
-- **Unit tests** for `@emdash-cms/admin/editorial-anchors`: unchanged position, text inserted before the anchor, block moved, block key changed with the quote intact, quote deleted, duplicate quotes ranked by context and distance, surrogate pairs and combining characters, right-to-left text, and ProseMirror position conversion including hard breaks.
+- **Unit tests** for `@emdash-cms/admin/internal/editorial-anchors`: unchanged position, text inserted before the anchor, block moved, block key changed with the quote intact, quote deleted, duplicate quotes ranked by context and distance, surrogate pairs and combining characters, right-to-left text, and ProseMirror position conversion including hard breaks.
 - **Integration tests** with `describeEachDialect`: thread and comment CRUD; the permission matrix for each role; resolution by creator, entry owner, and editor; mention validation; IDOR attempts using a thread from another entry; `CONFLICT` on a stale `_rev`, including an entry saved between the check and the write; writes to trashed entries; cascade on permanent deletion; null authors after user deletion.
 - **Query counts:** `pnpm query-counts` shows no change for logged-out routes.
 - **Playwright:** create a text comment, edit text before it, save, reload, and confirm the highlight covers the same text; comment as a second user while the first holds the lock; resolve and reopen; follow a deep link; repeat the panel checks in Arabic.
