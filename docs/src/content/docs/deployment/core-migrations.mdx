@@ -95,7 +95,7 @@ Creating a D1 database and migrating its schema are separate operations. `emdash
 
 3. Build the site so the D1 binding is recorded in `.emdash/migrations.json`.
 
-4. Set the account ID and a scoped API token with D1 Edit permission. Inspect the selected target, then run the interactive migration. Confirm the prompt only when the account and database match the intended production database.
+4. Set the account ID and a scoped API token that can deploy the Worker and has D1 Edit permission. While `CLOUDFLARE_API_TOKEN` is set, Wrangler uses it instead of your `wrangler login` credentials, so `pnpm wrangler deploy` from the same shell deploys with this token. Inspect the selected target, then run the interactive migration. Confirm the prompt only when the account and database match the intended production database.
 
    ```bash
    export CLOUDFLARE_ACCOUNT_ID="..."
@@ -119,12 +119,12 @@ EmDash holds a migration lock in the D1 database while it applies migrations, fr
 
 Set the following secret and variables in the CI environment:
 
-- Secret `CLOUDFLARE_API_TOKEN`: a scoped token with D1 Edit permission.
-- Variable `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID that owns the database.
+- Secret `CLOUDFLARE_API_TOKEN`: a scoped token that can deploy the Worker and has D1 Edit permission. Create it as described in Cloudflare's [GitHub Actions guide](https://developers.cloudflare.com/workers/ci-cd/external-cicd/github-actions/#api-token), then add D1 Edit.
+- Variable `CLOUDFLARE_ACCOUNT_ID`: the Cloudflare account ID that owns the database and the Worker.
 - Variable `D1_DATABASE_ID`: the production D1 database UUID.
 - Variable `EMDASH_TARGET_FINGERPRINT`: the fingerprint printed by `emdash migrate --status` after you have reviewed the account and database locally.
 
-The following GitHub Actions workflow uses those values and keys the concurrency group by both immutable D1 identifiers. Its apply step is non-interactive, so it supplies the reviewed target fingerprint explicitly.
+The following GitHub Actions workflow uses those values and keys the concurrency group by both immutable D1 identifiers. Its apply step is non-interactive, so it supplies the reviewed target fingerprint explicitly. Each step that calls the Cloudflare API gets the token in its own `env`, which keeps the token out of the install and build steps.
 
 ```yaml title=".github/workflows/deploy.yml"
 name: Deploy
@@ -164,7 +164,11 @@ jobs:
             --account-id "${{ vars.CLOUDFLARE_ACCOUNT_ID }}" \
             --d1 "${{ vars.D1_DATABASE_ID }}" \
             --expected-target-fingerprint "$EMDASH_TARGET_FINGERPRINT"
-      - run: pnpm wrangler deploy
+      - name: Deploy the Worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: pnpm wrangler deploy
       - name: Check EmDash migrations
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
