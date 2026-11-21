@@ -8,7 +8,7 @@ import type {
 	UnknownRow,
 } from "kysely";
 import { sql } from "kysely";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { MediaUsageWorkRepository } from "../../../src/database/repositories/media-usage-work.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
@@ -333,6 +333,48 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 			}),
 		);
 	});
+
+	it.each(["immediate", "bulk"] as const)(
+		"logs the projection error when retry transition fails (%s)",
+		async (mode) => {
+			const fixture = await createActiveFixture(ctx, `retry_transition_${mode}`);
+			await insertEntry(ctx, fixture, "entry-1", "media-1");
+			await installProjectionFailureTrigger(ctx);
+			await installRetryTransitionFailureTrigger(ctx);
+			const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+			try {
+				const processing =
+					mode === "immediate"
+						? processMediaUsageWorkAfterWrite(ctx.db, fixture.collectionSlug, "entry-1")
+						: processDueMediaUsageWork(ctx.db);
+				await expect(processing).rejects.toThrow("forced media usage retry failure");
+
+				expect(errorSpy).toHaveBeenCalledWith(
+					mode === "immediate"
+						? "[media-usage:work] Immediate processing failed:"
+						: "[media-usage:work] Collection processing failed:",
+					expect.objectContaining({
+						message: "forced media usage projection failure",
+						cause: undefined,
+						stack: expect.stringContaining("forced media usage projection failure"),
+					}),
+				);
+
+				expect(await findWork(ctx.db)).toEqual(
+					expect.objectContaining({
+						state: "leased",
+						attempt_count: 0,
+						lease_token: expect.any(String),
+					}),
+				);
+			} finally {
+				await removeRetryTransitionFailureTrigger(ctx);
+				await removeProjectionFailureTrigger(ctx);
+				errorSpy.mockRestore();
+			}
+		},
+	);
 
 	it("does not retry healthy collections when one collection fails", async () => {
 		const broken = await createActiveFixture(ctx, "broken_collection");
@@ -777,6 +819,50 @@ async function installProjectionFailureTrigger(
 			SELECT RAISE(ABORT, 'forced media usage projection failure');
 		END
 	`.execute(ctx.db);
+}
+
+async function installRetryTransitionFailureTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE OR REPLACE FUNCTION emdash_test_fail_media_usage_retry_transition()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				IF NEW.state IN ('retry', 'failed') THEN
+					RAISE EXCEPTION 'forced media usage retry failure';
+				END IF;
+				RETURN NEW;
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER emdash_test_fail_media_usage_retry_transition
+			BEFORE UPDATE ON _emdash_media_usage_work
+			FOR EACH ROW EXECUTE FUNCTION emdash_test_fail_media_usage_retry_transition()
+		`.execute(ctx.db);
+		return;
+	}
+	await sql`
+		CREATE TRIGGER emdash_test_fail_media_usage_retry_transition
+		BEFORE UPDATE ON _emdash_media_usage_work
+		WHEN NEW.state IN ('retry', 'failed')
+		BEGIN
+			SELECT RAISE(ABORT, 'forced media usage retry failure');
+		END
+	`.execute(ctx.db);
+}
+
+async function removeRetryTransitionFailureTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			DROP TRIGGER emdash_test_fail_media_usage_retry_transition
+			ON _emdash_media_usage_work
+		`.execute(ctx.db);
+		await sql`DROP FUNCTION emdash_test_fail_media_usage_retry_transition()`.execute(ctx.db);
+		return;
+	}
+	await sql`DROP TRIGGER emdash_test_fail_media_usage_retry_transition`.execute(ctx.db);
 }
 
 async function removeProjectionFailureTrigger(ctx: DialectTestContext): Promise<void> {
