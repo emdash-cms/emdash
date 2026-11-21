@@ -1023,6 +1023,14 @@ function validateFormField(
 		return;
 	}
 
+	if (value.type === "repeater") {
+		errors.push({
+			path: `${path}.type`,
+			message: "Repeater elements cannot be used as form fields",
+		});
+		return;
+	}
+
 	if (value.condition !== undefined) {
 		const cond = value.condition;
 		if (!isRecord(cond)) {
