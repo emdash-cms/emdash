@@ -3,6 +3,7 @@ import { createContext, runInContext, runInNewContext } from "node:vm";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { renderToolbar as renderToolbarWithLabels } from "../../../src/visual-editing/toolbar.js";
+import { EDITORIAL_TOOLBAR_LABELS } from "../../utils/toolbar-labels.js";
 
 const TEST_LABELS = {
 	publish: "Publicar",
@@ -33,6 +34,7 @@ const TEST_LABELS = {
 	noImagesFound: "No se encontraron imágenes",
 	mediaLoadFailed: "No se pudieron cargar los medios",
 	uploadingFile: "Subiendo {filename}…",
+	...EDITORIAL_TOOLBAR_LABELS,
 };
 
 function renderToolbar(
