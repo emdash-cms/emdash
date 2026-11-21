@@ -23,7 +23,9 @@ export interface TargetRoute {
  * `cache` runs with Astro's experimental cache provider enabled; `do` runs on
  * the Durable Objects SQL backend with read replicas; `do-solo` runs the same
  * DO backend with a single primary (no replica routing), isolating the
- * DO-architecture cost from the replica-routing win.
+ * DO-architecture cost from the replica-routing win. The four `replay-*`
+ * sites are two Workers sharing one D1 database, each serving replay on and
+ * off from separate hostnames of the same deployment.
  */
 export interface Site {
 	/** Stable slug stored in `perf_results.site`. */
@@ -58,6 +60,30 @@ export const SITES: readonly Site[] = [
 		label: "DO single primary",
 		targetUrl: "https://do-solo-demo.emdashcms.com",
 		workerName: "emdash-demo-do-solo",
+	},
+	{
+		id: "replay-placed",
+		label: "D1 replay, placed",
+		targetUrl: "https://replay-placed.emdashcms.com",
+		workerName: "emdash-replay-placed",
+	},
+	{
+		id: "replay-placed-off",
+		label: "D1 replay off, placed",
+		targetUrl: "https://replay-placed-off.emdashcms.com",
+		workerName: "emdash-replay-placed",
+	},
+	{
+		id: "replay-unplaced",
+		label: "D1 replay, unplaced",
+		targetUrl: "https://replay-unplaced.emdashcms.com",
+		workerName: "emdash-replay-unplaced",
+	},
+	{
+		id: "replay-unplaced-off",
+		label: "D1 replay off, unplaced",
+		targetUrl: "https://replay-unplaced-off.emdashcms.com",
+		workerName: "emdash-replay-unplaced",
 	},
 ] as const;
 
