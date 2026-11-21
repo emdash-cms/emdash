@@ -2760,7 +2760,7 @@ const searchPaths = {
 					},
 				},
 				...authErrors,
-				...standardErrors(500),
+				...standardErrors(500, 503),
 			},
 		},
 	},

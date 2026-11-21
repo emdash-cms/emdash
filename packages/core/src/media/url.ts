@@ -14,6 +14,7 @@ import { INTERNAL_MEDIA_PREFIX } from "./normalize.js";
 // portable-text `asset.url` cannot traverse or reroute on the CDN origin.
 const SAFE_STORAGE_KEY = /^[A-Za-z0-9._-]+$/;
 const QUERY_OR_FRAGMENT = /[?#]/;
+const ABSOLUTE_HTTP_URL = /^https?:\/\//i;
 
 /**
  * Build the internal file route URL for a storage key, encoding each path
@@ -31,10 +32,22 @@ export function localMediaFileUrl(key: string): string {
 }
 
 /**
- * The storage key named by a root-relative internal file route URL, the
- * inverse of {@link localMediaFileUrl}. Returns `null` for any other URL.
+ * The storage key named by an internal file route URL, the inverse of
+ * {@link localMediaFileUrl}. Absolute URLs require a matching trusted site
+ * origin. Returns `null` for other URLs.
  */
-export function storageKeyFromLocalMediaFileUrl(url: string): string | null {
+export function storageKeyFromLocalMediaFileUrl(url: string, siteOrigin?: string): string | null {
+	if (!url.startsWith(INTERNAL_MEDIA_PREFIX)) {
+		if (!siteOrigin || !ABSOLUTE_HTTP_URL.test(url)) return null;
+		try {
+			const parsed = new URL(url);
+			const site = new URL(siteOrigin);
+			if (parsed.origin !== site.origin || parsed.username || parsed.password) return null;
+			url = parsed.pathname;
+		} catch {
+			return null;
+		}
+	}
 	if (!url.startsWith(INTERNAL_MEDIA_PREFIX)) return null;
 	const path = url.slice(INTERNAL_MEDIA_PREFIX.length).split(QUERY_OR_FRAGMENT, 1)[0] ?? "";
 	try {

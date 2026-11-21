@@ -17,13 +17,15 @@
  * auth token that encodes its ID and capabilities.
  */
 
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { rmSync } from "node:fs";
 import { writeFile, mkdir, rm, unlink } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { createRequire } from "node:module";
+import type { Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -52,6 +54,13 @@ import type { BackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig, pluginSocketName } from "./capnp.js";
 import type { LoadedPlugin } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
+import {
+	killWorkerdChildren,
+	signalWorkerd,
+	spawnWorkerd,
+	supportsWorkerdWatchdog,
+	unrefWorkerd,
+} from "./workerd-process.js";
 import { waitForWorkerdReady } from "./workerd-startup.js";
 import { generatePluginWrapper, parseRouteTransport, stringifyRouteTransport } from "./wrapper.js";
 
@@ -103,24 +112,93 @@ export function minimalWorkerdEnv(): NodeJS.ProcessEnv {
  * Falls back to TCP on Windows where Unix sockets are not available. */
 const USE_UNIX_SOCKET = process.platform !== "win32";
 
-const activeRunners = new Set<WorkerdSandboxRunner>();
-let sigHandlerRegistered = false;
+const LIFECYCLE_KEY = Symbol.for("emdash.workerd-runner-lifecycle");
+const lifecycleGlobal = globalThis as typeof globalThis & {
+	[LIFECYCLE_KEY]?: {
+		runners: Set<WorkerdSandboxRunner>;
+		removedSignalHandlers: Set<"SIGTERM" | "SIGINT">;
+		onRemoveListener: typeof onRemoveListener;
+		onSigterm: () => void;
+		onSigint: () => void;
+		onExit: () => void;
+	};
+};
+const lifecycle = (lifecycleGlobal[LIFECYCLE_KEY] ??= {
+	runners: new Set<WorkerdSandboxRunner>(),
+	removedSignalHandlers: new Set<"SIGTERM" | "SIGINT">(),
+	onRemoveListener,
+	onSigterm,
+	onSigint,
+	onExit: onHostExit,
+});
+const activeRunners = lifecycle.runners;
+
+function handleSignal(signal: "SIGTERM" | "SIGINT"): void {
+	const handler = signal === "SIGTERM" ? lifecycle.onSigterm : lifecycle.onSigint;
+	const hasOtherHandlers =
+		lifecycle.removedSignalHandlers.has(signal) ||
+		process.listeners(signal).some((listener) => listener !== handler);
+	if (hasOtherHandlers) {
+		for (const runner of activeRunners) runner["allowHostDrain"]();
+		if (process.platform !== "win32" && !supportsWorkerdWatchdog()) {
+			// A native re-raise skips JavaScript exit handlers; without the EOF
+			// watchdog, cleanup must complete before application handlers run.
+			for (const runner of activeRunners) {
+				void runner.terminateAll();
+				runner["cleanupExitFiles"]();
+			}
+			killWorkerdChildren();
+		}
+		process.off(signal, handler);
+		return;
+	}
+	for (const runner of activeRunners) void runner.terminateAll();
+	killWorkerdChildren();
+	onHostExit();
+	process.off(signal, handler);
+	process.kill(process.pid, signal);
+}
+
+function onRemoveListener(event: string | symbol, listener: (...args: never[]) => unknown): void {
+	if (event !== "SIGTERM" && event !== "SIGINT") return;
+	const handler = event === "SIGTERM" ? lifecycle.onSigterm : lifecycle.onSigint;
+	if (listener === handler) return;
+	// A once-listener removes itself before later signal listeners run. Keep
+	// its ownership until the synchronous dispatch has finished.
+	lifecycle.removedSignalHandlers.add(event);
+	queueMicrotask(() => lifecycle.removedSignalHandlers.delete(event));
+}
+
+function onSigterm(): void {
+	handleSignal("SIGTERM");
+}
+
+function onSigint(): void {
+	handleSignal("SIGINT");
+}
+
+function onHostExit(): void {
+	for (const runner of activeRunners) runner["cleanupExitFiles"]();
+}
 
 function registerSigHandler(runner: WorkerdSandboxRunner): void {
-	activeRunners.add(runner);
-	if (!sigHandlerRegistered) {
-		sigHandlerRegistered = true;
-		process.on("SIGTERM", () => {
-			for (const r of activeRunners) {
-				r["shuttingDown"] = true;
-				void r.terminateAll();
-			}
-		});
+	if (activeRunners.size === 0) {
+		process.on("removeListener", lifecycle.onRemoveListener);
+		process.prependListener("SIGTERM", lifecycle.onSigterm);
+		process.prependListener("SIGINT", lifecycle.onSigint);
+		process.on("exit", lifecycle.onExit);
 	}
+	activeRunners.add(runner);
 }
 
 function unregisterSigHandler(runner: WorkerdSandboxRunner): void {
 	activeRunners.delete(runner);
+	if (activeRunners.size === 0) {
+		process.off("SIGTERM", lifecycle.onSigterm);
+		process.off("SIGINT", lifecycle.onSigint);
+		process.off("exit", lifecycle.onExit);
+		process.off("removeListener", lifecycle.onRemoveListener);
+	}
 }
 
 /**
@@ -244,12 +322,12 @@ export function waitForProcessExit(
 		proc.once("exit", () => resolve());
 	});
 	if (options.force) {
-		proc.kill("SIGKILL");
+		signalWorkerd(proc, "SIGKILL");
 	} else {
-		proc.kill("SIGTERM");
+		signalWorkerd(proc, "SIGTERM");
 		killTimer = setTimeout(() => {
 			killTimer = null;
-			if (proc.exitCode === null) proc.kill("SIGKILL");
+			if (proc.exitCode === null && proc.signalCode == null) signalWorkerd(proc, "SIGKILL");
 		}, timeoutMs);
 	}
 	return exitPromise.finally(() => {
@@ -310,6 +388,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Backing service HTTP server (runs in Node) */
 	private backingServer: Server | null = null;
+	private backingConnections = new Set<Socket>();
+	private hostDraining = false;
 	private backingPort = 0;
 	private backingService: BackingServiceHandler | null = null;
 	private backingSocketPath: string | null = null;
@@ -400,7 +480,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			);
 		}
 
-		// Forward SIGTERM to workerd child for clean shutdown
+		// Preserve host signal behavior while stopping sandbox children.
 		registerSigHandler(this);
 	}
 
@@ -636,6 +716,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			this.eagerStartTimer = null;
 			this.ensureRunning().catch(() => {});
 		}, 50);
+		if (this.hostDraining) this.eagerStartTimer.unref();
 	}
 
 	/**
@@ -652,14 +733,37 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			clearTimeout(this.eagerStartTimer);
 			this.eagerStartTimer = null;
 		}
-		unregisterSigHandler(this);
 		this.plugins.clear();
 		this.configurationVersion++;
+		await this.stopWorkerd();
+		await this.startupPromise?.catch(() => {});
 		await this.stopWorkerd();
 		await this.stopBackingServer();
 		if (this.configDir) {
 			await rm(this.configDir, { recursive: true, force: true }).catch(() => {});
 			this.configDir = null;
+		}
+		unregisterSigHandler(this);
+	}
+
+	private allowHostDrain(): void {
+		this.hostDraining = true;
+		this.backingServer?.unref();
+		for (const connection of this.backingConnections) connection.unref();
+		if (this.workerdProcess) unrefWorkerd(this.workerdProcess);
+		this.eagerStartTimer?.unref();
+		this.restartTimer?.unref();
+		for (const timer of this.timeoutWatchdogs) timer.unref();
+	}
+
+	private cleanupExitFiles(): void {
+		for (const path of [this.configDir, this.backingSocketPath]) {
+			if (!path) continue;
+			try {
+				rmSync(path, { recursive: true, force: true });
+			} catch {
+				// Exit handlers cannot await filesystem cleanup or abort other runners' cleanup.
+			}
 		}
 	}
 
@@ -720,6 +824,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			this.needsRestart = true;
 			this.resolveRestartWaiters();
 		}, delayMs);
+		if (this.hostDraining) this.restartTimer.unref();
 	}
 
 	/**
@@ -836,11 +941,14 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		// and ignore late exits from a previous workerd if another restart()
 		// has already reassigned this.workerdProcess.
 		const workerdBin = this.resolveWorkerdBinary();
-		const proc = spawn(workerdBin, ["serve", configPath, "--control-fd=3"], {
-			stdio: ["ignore", "pipe", "pipe", "pipe"],
-			env: minimalWorkerdEnv(),
-		});
+		if (this.shuttingDown) return;
+		const proc = spawnWorkerd(
+			workerdBin,
+			["serve", configPath, "--control-fd=3"],
+			minimalWorkerdEnv(),
+		);
 		this.workerdProcess = proc;
+		if (this.hostDraining) unrefWorkerd(proc);
 
 		this.epoch++;
 
@@ -903,7 +1011,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		// A timeout must bypass SIGTERM: a spinning isolate may never handle it.
 		const completion =
-			proc.exitCode === null && !proc.signalCode
+			proc.exitCode === null && proc.signalCode == null
 				? waitForProcessExit(proc, 5000, { force })
 				: Promise.resolve();
 		this.stoppingPromise = completion;
@@ -921,6 +1029,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		return new Promise((resolve, reject) => {
 			this.backingServer = createServer(this.backingService!.handler);
+			this.backingServer.on("connection", (connection) => {
+				this.backingConnections.add(connection);
+				connection.once("close", () => this.backingConnections.delete(connection));
+				if (this.hostDraining) connection.unref();
+			});
 
 			if (USE_UNIX_SOCKET) {
 				const socketPath = join(
@@ -929,11 +1042,13 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 				);
 				this.backingSocketPath = socketPath;
 				this.backingServer.listen(socketPath, () => {
+					if (this.hostDraining) this.backingServer?.unref();
 					resolve();
 				});
 			} else {
 				// Windows fallback: TCP on localhost
 				this.backingServer.listen(0, "127.0.0.1", () => {
+					if (this.hostDraining) this.backingServer?.unref();
 					const addr = this.backingServer!.address();
 					if (addr && typeof addr === "object") {
 						this.backingPort = addr.port;
@@ -1083,6 +1198,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 				});
 		}, this.limits.wallTimeMs);
 		this.timeoutWatchdogs.add(watchdog);
+		if (this.hostDraining) watchdog.unref();
 		const clearWatchdog = () => {
 			clearTimeout(watchdog);
 			this.timeoutWatchdogs.delete(watchdog);

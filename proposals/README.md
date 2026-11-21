@@ -99,6 +99,6 @@ Add a row for each accepted proposal in its design pull request, keeping the row
 | [Customizable admin sidebars](customizable-admin-sidebars.md)            | Feature plan | [#4513](https://github.com/emdash-cms/emdash/pull/4513) | [#4628](https://github.com/emdash-cms/emdash/pull/4628)                                                          |
 | [Cache media files in the route cache](media-route-cache.md)             | Feature plan | [#4735](https://github.com/emdash-cms/emdash/pull/4735) | [#4911](https://github.com/emdash-cms/emdash/pull/4911)                                                          |
 | [Readable revision history](readable-revision-history.md)                | Feature plan | [#4127](https://github.com/emdash-cms/emdash/pull/4127) | [#4136](https://github.com/emdash-cms/emdash/pull/4136)                                                          |
-| [Draft access for trusted editor panels](trusted-editor-panel-drafts.md) | RFC          | [#4502](https://github.com/emdash-cms/emdash/pull/4502) |                                                                                                                  |
+| [Draft access for trusted editor panels](trusted-editor-panel-drafts.md) | RFC          | [#4502](https://github.com/emdash-cms/emdash/pull/4502) | [#4626](https://github.com/emdash-cms/emdash/pull/4626)                                                          |
 
 The numbered RFCs under [`rfcs/`](../rfcs/) predate this process and keep their existing paths as historical records.
