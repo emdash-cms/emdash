@@ -344,3 +344,38 @@ describe("D1 replay: hosts listed in EMDASH_REPLAY_OFF_HOSTS", () => {
 		expect(mocks.trips).toEqual([["select a", "select b where id = ?"]]);
 	});
 });
+
+describe("D1 replay learning: params listed in EMDASH_REPLAY_IGNORE_PARAMS", () => {
+	beforeEach(() => {
+		mocks.trips.length = 0;
+		mocks.waitUntil.mockClear();
+		mocks.flags.failBatch = false;
+		mocks.env.EMDASH_REPLAY_IGNORE_PARAMS = "_perf_cold, utm_source";
+	});
+
+	afterEach(() => {
+		delete mocks.env.EMDASH_REPLAY_IGNORE_PARAMS;
+	});
+
+	it("learns from a request whose query string has only listed params", async () => {
+		const state = freshState();
+		const scoped = anonymousPage("/posts/a?_perf_cold=123&utm_source=x");
+		await render(scoped!);
+		scoped!.close?.(PAGE);
+		await settleStoreWrites();
+		expect(state.memory.peek(COLD_KEY)?.statements.map((s) => s.sql)).toEqual([
+			"select a",
+			"select b where id = ?",
+		]);
+	});
+
+	it("does not learn when any param is unlisted", async () => {
+		const state = freshState();
+		const scoped = anonymousPage("/posts/a?_perf_cold=123&page=2");
+		await render(scoped!);
+		scoped!.close?.(PAGE);
+		await settleStoreWrites();
+		expect(state.memory.size).toBe(0);
+		expect(mocks.waitUntil).not.toHaveBeenCalled();
+	});
+});

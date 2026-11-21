@@ -547,7 +547,7 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 		log: kyselyLogOption(),
 	});
 
-	// Learning: only a request without a query string may change the stored
+	// Learning: only a request without a query string (see learnsFrom) may change the stored
 	// plan, and only from a fully streamed 2xx HTML page. A 404/410 that
 	// replayed a plan deletes it (the path is gone, so the plan only predicts
 	// wasted reads); redirects, 5xx, thrown renders and cut-off streams leave
@@ -601,7 +601,8 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
  * null for every other request. The plan key ignores the query string; the
  * locale is part of the path (or host), so it needs no component of its own.
  *
- * Only requests without a query string learn (`learns`): a page that reads
+ * Only requests without a query string learn (`learns`; see learnsFrom for
+ * params that don't count): a page that reads
  * the query string (search, `?page=`) would otherwise rewrite its one plan for
  * every new value. Requests with one still replay the path's plan, serving
  * whatever matches, but never write or delete it.
@@ -626,7 +627,7 @@ function startReplay(opts: RequestScopedDbOpts, buildId: string) {
 	};
 	const counters: ReplayCounters = { hits: 0, misses: 0, waste: 0 };
 	attachReplayMetrics(counters);
-	const learns = opts.url.search === "";
+	const learns = learnsFrom(opts.url);
 	return {
 		key,
 		state,
@@ -658,9 +659,31 @@ function replayBuildIdFor(opts: RequestScopedDbOpts): string | undefined {
  * warm, or a replaying host on the same isolate would keep using cold plans.
  */
 function isReplayOffHost(hostname: string): boolean {
-	const list: unknown = Reflect.get(env, "EMDASH_REPLAY_OFF_HOSTS");
-	if (typeof list !== "string" || list === "") return false;
-	return list.split(",").some((host) => host.trim().toLowerCase() === hostname);
+	return envList("EMDASH_REPLAY_OFF_HOSTS", true).includes(hostname);
+}
+
+/**
+ * Whether a request may change the stored plan: its query string is empty, or
+ * holds only params named in the comma-separated `EMDASH_REPLAY_IGNORE_PARAMS`
+ * Worker var (cache busters and tracking params the page never reads).
+ */
+function learnsFrom(url: URL): boolean {
+	if (url.search === "") return true;
+	const ignored = envList("EMDASH_REPLAY_IGNORE_PARAMS", false);
+	if (ignored.length === 0) return false;
+	for (const name of url.searchParams.keys()) {
+		if (!ignored.includes(name)) return false;
+	}
+	return true;
+}
+
+function envList(name: string, lowercase: boolean): string[] {
+	const value: unknown = Reflect.get(env, name);
+	if (typeof value !== "string") return [];
+	return value
+		.split(",")
+		.map((item) => (lowercase ? item.trim().toLowerCase() : item.trim()))
+		.filter((item) => item !== "");
 }
 
 function isSessionEnabled(config: D1Config): boolean {
