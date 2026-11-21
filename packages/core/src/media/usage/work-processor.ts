@@ -17,7 +17,7 @@ import {
 } from "./content-refresh.js";
 
 export const MEDIA_USAGE_WORK_PROCESSING_LIMITS = Object.freeze({
-	candidatesPerTick: 1_000,
+	candidatesPerTick: 100,
 	leaseDurationSeconds: 20 * 60,
 	maxAttempts: 5,
 	retryBaseSeconds: 30,
@@ -79,6 +79,16 @@ export async function processMediaUsageWorkAfterWrite(
 		const processed = await runClaimedBatch(db, [claimed]);
 		return processed.get(workResultKey(claimed)) ?? { outcome: "claim_lost", claimed: false };
 	} catch (error) {
+		console.error(
+			"[media-usage:work] Immediate processing failed:",
+			error instanceof Error
+				? {
+						message: error.message,
+						cause: error.cause instanceof Error ? error.cause.message : error.cause,
+						stack: error.stack,
+					}
+				: error,
+		);
 		const transitioned = await repo.retryClaimedWorkBatch({
 			work: [workLease(claimed)],
 			errorCode: "MEDIA_USAGE_PROCESSING_FAILED",
@@ -95,7 +105,6 @@ export async function processMediaUsageWorkAfterWrite(
 				errorCode: "MEDIA_USAGE_PROCESSING_FAILED",
 			});
 		}
-		console.error("[media-usage:work] Immediate processing failed:", error);
 		return { outcome, claimed: true };
 	}
 }
@@ -166,10 +175,19 @@ async function processClaimedCollections(
 				processed.set(key, result);
 			}
 		} catch (error) {
+			console.error(
+				"[media-usage:work] Collection processing failed:",
+				error instanceof Error
+					? {
+							message: error.message,
+							cause: error.cause instanceof Error ? error.cause.message : error.cause,
+							stack: error.stack,
+						}
+					: error,
+			);
 			for (const [key, result] of await retryFailedClaimedCollection(db, collection)) {
 				processed.set(key, result);
 			}
-			console.error("[media-usage:work] Collection processing failed:", error);
 		}
 	}
 	return processed;

@@ -837,6 +837,7 @@ export class MediaUsageRepository {
 			)
 		`.execute(this.db);
 
+		let publicationSucceeded = false;
 		try {
 			await this.insertBatchOccurrences(occurrenceRows);
 			const tableName = `ec_${collectionSlug}`;
@@ -906,6 +907,7 @@ export class MediaUsageRepository {
 				`.execute(this.db);
 				for (const row of result.rows) inserted.add(row.source_key);
 			}
+			publicationSucceeded = true;
 			return inserted;
 		} finally {
 			await sql`
@@ -918,7 +920,14 @@ export class MediaUsageRepository {
 						AND input.generation = writer.generation
 						AND input.lease_token = writer.lease_token
 				)
-			`.execute(this.db);
+			`
+				.execute(this.db)
+				.catch((error: unknown) => {
+					// PostgreSQL cleanup also fails after a statement aborts the transaction.
+					// Keep the publication error when it is already propagating.
+					if (publicationSucceeded) throw error;
+					console.error("[media-usage] Failed to release generation write leases:", error);
+				});
 		}
 	}
 
@@ -1021,6 +1030,7 @@ export class MediaUsageRepository {
 			)
 		`.execute(this.db);
 
+		let publicationSucceeded = false;
 		try {
 			await this.insertBatchOccurrences(occurrenceRows);
 			const tableName = `ec_${collectionSlug}`;
@@ -1109,6 +1119,7 @@ export class MediaUsageRepository {
 				`.execute(this.db);
 				for (const row of result.rows) replaced.add(row.source_key);
 			}
+			publicationSucceeded = true;
 			return replaced;
 		} finally {
 			await sql`
@@ -1121,7 +1132,14 @@ export class MediaUsageRepository {
 						AND input.generation = writer.generation
 						AND input.lease_token = writer.lease_token
 				)
-			`.execute(this.db);
+			`
+				.execute(this.db)
+				.catch((error: unknown) => {
+					// PostgreSQL cleanup also fails after a statement aborts the transaction.
+					// Keep the publication error when it is already propagating.
+					if (publicationSucceeded) throw error;
+					console.error("[media-usage] Failed to release generation write leases:", error);
+				});
 		}
 	}
 

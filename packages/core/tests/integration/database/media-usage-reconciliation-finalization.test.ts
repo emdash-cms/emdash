@@ -132,7 +132,11 @@ describeEachDialect("media usage reconciliation finalization", (dialect) => {
 		await activateCollection(ctx, collection);
 
 		await expect(processDueMediaUsageReconciliation(ctx.db)).resolves.toBe("advanced");
-		await expect(processDueMediaUsageWork(ctx.db)).resolves.toMatchObject({ completedCount: 500 });
+		for (let batch = 0; batch < 5; batch++) {
+			await expect(processDueMediaUsageWork(ctx.db)).resolves.toMatchObject({
+				completedCount: 100,
+			});
+		}
 		await expect(processDueMediaUsageReconciliation(ctx.db)).resolves.toBe("advanced");
 		await expect(processDueMediaUsageReconciliation(ctx.db)).resolves.toBe("completed");
 
