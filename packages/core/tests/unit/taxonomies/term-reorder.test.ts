@@ -12,6 +12,7 @@ import {
 	handleTermCreate,
 	handleTermList,
 	handleTermReorder,
+	handleTermUpdate,
 } from "../../../src/api/handlers/taxonomies.js";
 import {
 	down as dropSortOrder,
@@ -478,6 +479,25 @@ describeEachDialect("taxonomy term reorder", (dialect) => {
 		const rows = await repo.findTranslations(beta!.translationGroup!);
 		expect(rows.map((row) => row.parentId)).toEqual([alphaGroup, alphaGroup]);
 		expect(new Set(rows.map((row) => row.sortOrder)).size).toBe(1);
+	});
+
+	it("brings every locale to the top level when an update sends a null parent for a root row", async () => {
+		const [alpha, beta] = await createCategories(["Alpha", "Beta"]);
+		const alphaGroup = alpha!.translationGroup ?? alpha!.id;
+		const esId = await translate(beta!, "es", "Beta ES");
+		// One locale under another parent than the rest, as earlier versions could write.
+		await ctx.db
+			.updateTable("taxonomies")
+			.set({ parent_id: alphaGroup, sort_order: 0 })
+			.where("id", "=", esId)
+			.execute();
+
+		const updated = await handleTermUpdate(ctx.db, "category", "beta", { parentId: null });
+		if (!updated.success) throw new Error(updated.error.message);
+
+		const rows = await repo.findTranslations(beta!.translationGroup!);
+		expect(rows.map((row) => row.parentId)).toEqual([null, null]);
+		expect(rows.map((row) => row.sortOrder)).toEqual([beta!.sortOrder, beta!.sortOrder]);
 	});
 
 	it("rejects a translation under a child of the term it translates", async () => {
