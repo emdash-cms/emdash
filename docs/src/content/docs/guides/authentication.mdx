@@ -375,6 +375,12 @@ If you see this error on login, your passkey may have been deleted from your pas
 
 This usually means the passkey was created for a different domain. Passkeys are domain-bound — a passkey for `localhost:4321` won't work on `example.com`. Register a new passkey for each domain.
 
+The server logs the reason for each rejected passkey sign-in as a line such as `[passkey] sign-in rejected: invalid_origin`. On Cloudflare, run `pnpm wrangler tail` while you sign in to see it. The following codes point to a cause you can fix:
+
+- `credential_not_found`: the site has no record of this passkey. It was removed from the site, or it belongs to another site.
+- `invalid_origin` or `invalid_rp_id_hash`: the address in the browser doesn't match the address the site expects. Check [`siteUrl`](/reference/configuration/#siteurl) and [`allowedOrigins`](/reference/configuration/#allowedorigins).
+- `challenge_not_found` or `challenge_expired`: the sign-in took longer than five minutes or was sent twice. Start the sign-in again.
+
 ### Lost all passkeys
 
 If you've lost access to all your registered passkeys:
