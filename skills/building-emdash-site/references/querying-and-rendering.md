@@ -39,7 +39,8 @@ Fetch a single entry by slug. Returns `{ entry, error, isPreview, cacheHint }`.
 ```typescript
 import { getEmDashEntry } from "emdash";
 
-const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
+if (error) throw error;
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 if (!post) {
@@ -267,7 +268,8 @@ import Base from "../../layouts/Base.astro";
 const { slug } = Astro.params;
 if (!slug) return Astro.rewrite("/404");
 
-const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
+if (error) throw error;
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 if (!post) return Astro.rewrite("/404");
 

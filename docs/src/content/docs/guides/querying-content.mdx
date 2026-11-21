@@ -27,10 +27,7 @@ const { entries: posts, error, cacheHint } = await getEmDashCollection("posts", 
   limit: 7,
 });
 
-if (error) {
-  console.error("Failed to load posts:", error);
-  return new Response("Unable to load posts", { status: 500 });
-}
+if (error) throw error;
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
@@ -156,7 +153,7 @@ const { entries: posts, nextCursor, error } = await getEmDashCollection("posts",
   orderBy: { published_at: "desc" },
 });
 
-if (error) return new Response("Unable to load posts", { status: 500 });
+if (error) throw error;
 ---
 
 <ul>
@@ -193,7 +190,7 @@ const { entries: posts, hasMore, error } = await getEmDashCollection("posts", {
   orderBy: { published_at: "desc" },
 });
 
-if (error) return new Response("Unable to load posts", { status: 500 });
+if (error) throw error;
 ---
 
 <ul>
@@ -225,10 +222,7 @@ if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error, isPreview, cacheHint } = await getEmDashEntry("posts", slug);
 
-if (error) {
-  console.error("Failed to load post:", error);
-  return new Response("Unable to load post", { status: 500 });
-}
+if (error) throw error;
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 if (!post) return Astro.rewrite("/404");
@@ -278,10 +272,11 @@ A [`reference` field](/reference/field-types/#reference) links an entry to entri
 ---
 import { getEmDashEntry } from "emdash";
 
-const { entry: post } = await getEmDashEntry("posts", Astro.params.slug, {
+const { entry: post, error } = await getEmDashEntry("posts", Astro.params.slug, {
   references: { author: true, related_posts: { limit: 6 } },
 });
 
+if (error) throw error;
 if (!post) return Astro.rewrite("/404");
 
 const author = post.references?.author.entries[0];

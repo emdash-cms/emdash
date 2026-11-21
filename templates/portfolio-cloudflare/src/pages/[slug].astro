@@ -26,7 +26,7 @@ const slug = decodeSlug(Astro.params.slug);
 if (!slug || slug.includes(".")) return Astro.rewrite("/404");
 
 const { entry: page, error, cacheHint } = await getEmDashEntry("pages", slug);
-if (error) return new Response("Could not load the page", { status: 500 });
+if (error) throw error;
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 async function menuLinksTo(path: string): Promise<boolean> {

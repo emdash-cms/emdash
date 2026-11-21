@@ -1040,6 +1040,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
  *
  * // Simple usage — preview just works via middleware
  * const { entry: post, isPreview, error } = await getEmDashEntry("posts", "my-slug");
+ * if (error) throw error;
  * if (!post) return Astro.rewrite("/404");
  * ```
  *

@@ -48,7 +48,7 @@ const { entries: posts, error } = await getEmDashCollection("posts", {
   limit: 10,
 });
 
-if (error) return new Response("Could not load posts", { status: 500 });
+if (error) throw error;
 ---
 
 {posts.map((post) => (
