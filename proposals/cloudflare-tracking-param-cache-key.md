@@ -49,7 +49,7 @@ export default {
 - The default entrypoint runs on every request. For `GET` and `HEAD` it removes known tracking parameters from the URL and forwards the request to `EmDashSite` through `ctx.exports`. `EmDashSite` runs the existing EmDash fetch handler and is the only cached entrypoint.
 - The removed set is fixed: `utm_*`, `fbclid`, `gclid`, `gbraid`, `wbraid`, `dclid`, `msclkid`, `mc_cid`, `mc_eid`, `_ga`, `_gl`, `igshid`, `ttclid`, `twclid`, `li_fat_id` and `yclid`, matched case-insensitively by name. Other parameters keep their order and values, so `?cursor=` still gets its own entry.
 - Page code sees the stripped URL, so `Astro.url` never contains tracking parameters and cached HTML can't contain a visitor's click ID. The browser keeps the full URL, so client-side analytics still read the parameters.
-- Purges and invalidations reach `EmDashSite`'s cache. Request handlers already run inside it. For work that runs in the default entrypoint, such as the `scheduled()` publishing sweep, `EmDashSite` exposes an RPC method that performs the purge, and `createScheduledHandler()` uses it when the gateway is enabled.
+- Purges and invalidations reach `EmDashSite`'s cache. Request handlers already run inside it. The `scheduled()` sweep runs in the default entrypoint, so with the gateway enabled `createScheduledHandler()` calls an `EmDashSite` RPC method that runs the whole sweep there, including plugin cron and its purges.
 - Without the gateway nothing changes: the default export stays the cached entrypoint.
 
 A prototype ran on a lab Worker with the same build and the same D1 database as a stock comparison Worker; only the gateway differed. After warming the clean URLs, 6 regions each sent 60 requests per variant, in two runs:
@@ -62,7 +62,12 @@ A prototype ran on a lab Worker with the same build and the same D1 database as 
 | Clean cached URLs, TTFB p50 / p99 (2 x 1200 requests) | 5 / 31 to 43 ms                       | 7 to 8 / 203 to 274 ms   |
 | Billed Worker requests per page view                  | 1                                     | 2                        |
 
-Publishing a post through the content API on the gateway Worker refreshed the cached detail, list and home pages, and a tracked URL of the detail page then served the new content from cache. The scheduled-publishing purge was not part of the prototype.
+Publishing a post through the content API on the gateway Worker refreshed the cached detail, list and home pages, and a tracked URL of the detail page then served the new content from cache.
+
+Scheduled publishing was checked on the same Worker with a one-minute Cron Trigger. A post was published with one title, then a new title was scheduled about 45 seconds ahead while the detail, list and tracked detail URLs were cached:
+
+- With the stock `createScheduledHandler()` in the default entrypoint, the sweep published the new title, but all cached pages stayed `HIT` with the old title.
+- With the default entrypoint calling an RPC method on the cached entrypoint that runs the same sweep, the detail and list pages were `MISS` with the new title right after the sweep, and the tracked detail URL was then a `HIT` with the new title.
 
 ## Goals
 
@@ -86,7 +91,7 @@ Publishing a post through the content API on the gateway Worker refreshed the ca
 
 ## Errors and edge cases
 
-- Workers Cache purges only reach the entrypoint that issues them. A purge from the default entrypoint would leave stale pages in `EmDashSite`'s cache, so every purge path must run inside `EmDashSite`.
+- Workers Cache purges only reach the entrypoint that issues them. A purge from the default entrypoint leaves stale pages in `EmDashSite`'s cache (seen in the prototype for scheduled publishing), so every purge path must run inside `EmDashSite`. A site that enables the gateway but keeps a hand-written `scheduled()` that purges in the default entrypoint gets this failure silently; the docs call it out.
 - Every request, including cache hits, is billed twice (gateway and loopback). The gateway adds about 2 to 3 ms at p50; in the prototype about 2% of hits took more than 100 ms because the uncached gateway runs on every request.
 - Other methods such as `POST` pass through with their query intact. Authenticated and preview requests keep bypassing the cache; the gateway forwards headers and cookies unchanged.
 - Server code that reads tracking parameters, such as a plugin that stores `utm_source` with a form submission made by `GET`, no longer sees them. This is one reason the option is off by default.
@@ -102,4 +107,4 @@ Publishing a post through the content API on the gateway Worker refreshed the ca
 ## Open questions
 
 - Should the gateway live in `@astrojs/cloudflare` instead, since the adapter owns the Worker entry and the same problem affects every Astro site on Workers Cache? EmDash would then only document it and route its scheduled purges.
-- Besides the `scheduled()` sweep (`onPublished` and `invalidateContentCache`), which purge paths run outside `EmDashSite`? Sandboxed plugin callbacks flush purges on the host invocation, which is `EmDashSite` for requests but the default entrypoint for plugin cron work. Each such path needs the same RPC route, or the gateway can't ship.
+- Running the whole sweep in `EmDashSite` covers scheduled publishing and plugin cron. Which other paths purge outside a request, such as queue consumers that use `withEmDashRuntime()`? Each needs the same RPC route, or the docs must say that such purges don't reach the cache.
