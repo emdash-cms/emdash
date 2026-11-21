@@ -4,7 +4,7 @@ This is an EmDash site -- a CMS built on Astro with a full admin UI.
 
 ```bash
 pnpm dev              # Start the Astro dev server
-npx emdash types      # Regenerate TypeScript types from a running site
+npx emdash types      # Write standalone types to .emdash/types.ts from a running site
 ```
 
 The admin UI is at `http://localhost:4321/_emdash/admin`.
@@ -19,6 +19,8 @@ The admin UI is at `http://localhost:4321/_emdash/admin`.
 | `emdash-env.d.ts`        | Generated types for collections (auto-regenerated on dev server start)             |
 | `src/layouts/Base.astro` | Base layout with EmDash wiring (menus, search, page contributions)                 |
 | `src/pages/`             | Astro pages -- all server-rendered                                                 |
+
+Not every template ships `seed/seed.json` or `src/layouts/Base.astro`; "This Template" below says what this one includes.
 
 ## Skills
 
