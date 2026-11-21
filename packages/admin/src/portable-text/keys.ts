@@ -8,9 +8,10 @@
 import { Extension } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey, type EditorState, type Transaction } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 
 import { PORTABLE_TEXT_KEY_ATTR } from "../components/editor/portableTextIdentity.js";
-import { changedRanges, localOnly, rootOf, type ChangedRange } from "./normalize.js";
+import { changedRanges, isRemote, localOnly, rootOf, type ChangedRange } from "./normalize.js";
 
 export function generateKey(): string {
 	return Math.random().toString(36).substring(2, 11);
@@ -126,8 +127,6 @@ function assignPortableTextKeys(
 	return transaction;
 }
 
-const composes = (transaction: Transaction) => Boolean(rootOf(transaction).getMeta("composition"));
-
 export const portableTextKeysPluginKey = new PluginKey<ChangedRange[]>("emdashPortableTextKeys");
 
 /**
@@ -140,7 +139,19 @@ export const portableTextKeysPluginKey = new PluginKey<ChangedRange[]>("emdashPo
  * plugin's state until it has ended.
  */
 export function portableTextKeysPlugin(): Plugin<ChangedRange[]> {
+	let activeView: EditorView | undefined;
+	// Menu updates can dispatch untagged transactions while the browser is still composing.
+	const composes = (transaction: Transaction) =>
+		activeView?.composing || Boolean(rootOf(transaction).getMeta("composition"));
 	const plugin = new Plugin<ChangedRange[]>({
+		view(view) {
+			activeView = view;
+			return {
+				destroy() {
+					if (activeView === view) activeView = undefined;
+				},
+			};
+		},
 		key: portableTextKeysPluginKey,
 		state: {
 			init: () => [],
@@ -150,7 +161,9 @@ export function portableTextKeysPlugin(): Plugin<ChangedRange[]> {
 					from: transaction.mapping.map(from, -1),
 					to: transaction.mapping.map(to, 1),
 				}));
-				return composes(transaction) ? [...mapped, ...changedRanges([transaction])] : mapped;
+				return composes(transaction) && !isRemote(transaction)
+					? [...mapped, ...changedRanges([transaction])]
+					: mapped;
 			},
 		},
 		appendTransaction(transactions, _oldState, newState) {
