@@ -834,11 +834,14 @@ export class EmDashClient {
 	/**
 	 * Get a single content item. Returns the item with a `_rev` token
 	 * that can be passed to update() for optimistic concurrency.
+	 *
+	 * For callers who can read drafts, `data` holds a pending draft's values.
+	 * Pass `published: true` to get the published values instead.
 	 */
 	async get(
 		collection: string,
 		id: string,
-		options?: { raw?: boolean; locale?: string },
+		options?: { raw?: boolean; locale?: string; published?: boolean },
 	): Promise<ContentItem> {
 		const params = new URLSearchParams();
 		if (options?.locale) params.set("locale", options.locale);
@@ -851,13 +854,20 @@ export class EmDashClient {
 			await this.assertOk(result);
 		}
 
-		const raw = (await result.json()) as { data: { item: ContentItem; _rev?: string } };
+		const raw = (await result.json()) as {
+			data: { item: ContentItem & { liveData?: Record<string, unknown> }; _rev?: string };
+		};
 		const json = raw.data;
 		const item = json.item;
 
 		// Attach _rev to the item so callers can pass it back on update
 		if (json._rev) {
 			item._rev = json._rev;
+		}
+
+		if (options?.published && item.liveData) {
+			item.data = item.liveData;
+			delete item.liveData;
 		}
 
 		// Convert PT fields to markdown unless raw is requested

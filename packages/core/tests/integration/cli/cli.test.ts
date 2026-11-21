@@ -258,6 +258,75 @@ describe("CLI Integration", () => {
 			// Clean up
 			await cli("content", "delete", "posts", item.id);
 		});
+
+		it("returns published data with --published while a draft is pending", async () => {
+			await ctx.client.createCollection({
+				slug: "cli_revisions",
+				label: "CLI Revisions",
+				supports: ["drafts", "revisions"],
+			});
+			try {
+				await ctx.client.createField("cli_revisions", {
+					slug: "title",
+					type: "string",
+					label: "Title",
+				});
+				await ctx.client.createField("cli_revisions", {
+					slug: "body",
+					type: "portableText",
+					label: "Body",
+				});
+
+				const created = await cliJson<{ id: string; _rev: string }>(
+					"content",
+					"create",
+					"cli_revisions",
+					"--data",
+					JSON.stringify({ title: "Live title", body: "Live body" }),
+				);
+				await cli(
+					"content",
+					"update",
+					"cli_revisions",
+					created.id,
+					"--rev",
+					created._rev,
+					"--draft",
+					"--data",
+					JSON.stringify({ title: "Draft title", body: "Draft body" }),
+				);
+
+				const latest = await cliJson<{ data: { title: string } }>(
+					"content",
+					"get",
+					"cli_revisions",
+					created.id,
+				);
+				expect(latest.data.title).toBe("Draft title");
+
+				const published = await cliJson<{
+					data: { title: string; body: string };
+					liveData?: unknown;
+				}>("content", "get", "cli_revisions", created.id, "--published");
+				expect(published.data.title).toBe("Live title");
+				expect(published.data.body.trim()).toBe("Live body");
+				expect(published).not.toHaveProperty("liveData");
+
+				const publishedRaw = await cliJson<{ data: { title: string; body: unknown } }>(
+					"content",
+					"get",
+					"cli_revisions",
+					created.id,
+					"--published",
+					"--raw",
+				);
+				expect(publishedRaw.data.title).toBe("Live title");
+				expect(Array.isArray(publishedRaw.data.body)).toBe(true);
+				expect(JSON.stringify(publishedRaw.data.body)).toContain("Live body");
+			} finally {
+				await ctx.client.deleteCollection("cli_revisions", { force: true });
+			}
+		});
 	});
 
 	// -----------------------------------------------------------------------
