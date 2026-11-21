@@ -87,6 +87,16 @@ function isFts5SyntaxError(error: unknown): boolean {
 	return message.includes("fts5: syntax error") || message.includes("unknown special query");
 }
 
+// All queries must start before awaiting, but collection order determines tie
+// ordering and which error is surfaced when several collections fail.
+async function inCollectionOrder<T>(pending: Promise<T>[]): Promise<T[]> {
+	const settled = await Promise.allSettled(pending);
+	return settled.map((outcome) => {
+		if (outcome.status === "rejected") throw outcome.reason;
+		return outcome.value;
+	});
+}
+
 /**
  * Search across multiple collections
  *
@@ -143,29 +153,25 @@ export async function searchWithDb(
 	// row detects whether a further page exists.
 	const perCollectionLimit = offset + limit + 1;
 
-	// Search each collection and merge results
-	const allResults: SearchResult[] = [];
-	for (const collection of collections) {
-		const collectionMetadata = metadata.get(collection);
-		if (!collectionMetadata) {
-			continue;
-		}
-
-		const collectionResults = await searchSingleCollection(
-			db,
-			collection,
-			query,
-			{
-				status,
-				locale: options.locale,
-				limit: perCollectionLimit,
-				scope: options.scope,
-			},
-			collectionMetadata,
-		);
-
-		allResults.push(...collectionResults);
-	}
+	const collectionResults = await inCollectionOrder(
+		collections.map(async (collection) => {
+			const collectionMetadata = metadata.get(collection);
+			if (!collectionMetadata) return [];
+			return searchSingleCollection(
+				db,
+				collection,
+				query,
+				{
+					status,
+					locale: options.locale,
+					limit: perCollectionLimit,
+					scope: options.scope,
+				},
+				collectionMetadata,
+			);
+		}),
+	);
+	const allResults = collectionResults.flat();
 
 	// Sort by score descending
 	allResults.sort((a, b) => b.score - a.score);
@@ -427,42 +433,41 @@ export async function getSuggestions(
 	const ftsManager = new FTSManager(db);
 	const metadata = await ftsManager.getSearchMetadata(options.collections);
 	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
-	const suggestions: Suggestion[] = [];
+	const collectionSuggestions = await inCollectionOrder(
+		collections.map(async (collection): Promise<Suggestion[]> => {
+			const collectionMetadata = metadata.get(collection);
+			if (!collectionMetadata) return [];
+			const { config, hasTitle } = collectionMetadata;
 
-	for (const collection of collections) {
-		const collectionMetadata = metadata.get(collection);
-		if (!collectionMetadata) continue;
-		const { config, hasTitle } = collectionMetadata;
+			// Suggestions are title-based (Suggestion.title is required). A configured
+			// titleField supplies it -- a validated existing column -- so it
+			// takes precedence and keeps autocomplete consistent with search results.
+			// Otherwise fall back to the optional `title` field; collections with
+			// neither can't produce a suggestion and are skipped (selecting a missing
+			// column would error).
+			let titleExpr;
+			if (config.titleField) {
+				validateIdentifier(config.titleField, "title field");
+				titleExpr = sql`c.${sql.ref(config.titleField)}`;
+			} else if (hasTitle) {
+				titleExpr = sql`c.title`;
+			} else {
+				return [];
+			}
 
-		// Suggestions are title-based (Suggestion.title is required). A configured
-		// titleField supplies it -- a validated existing column -- so it
-		// takes precedence and keeps autocomplete consistent with search results.
-		// Otherwise fall back to the optional `title` field; collections with
-		// neither can't produce a suggestion and are skipped (selecting a missing
-		// column would error).
-		let titleExpr;
-		if (config.titleField) {
-			validateIdentifier(config.titleField, "title field");
-			titleExpr = sql`c.${sql.ref(config.titleField)}`;
-		} else if (hasTitle) {
-			titleExpr = sql`c.title`;
-		} else {
-			continue;
-		}
+			// Validate before raw SQL interpolation
+			validateIdentifier(collection, "collection slug");
 
-		// Validate before raw SQL interpolation
-		validateIdentifier(collection, "collection slug");
+			const ftsTable = ftsManager.getFtsTableName(collection);
+			const contentTable = ftsManager.getContentTableName(collection);
 
-		const ftsTable = ftsManager.getFtsTableName(collection);
-		const contentTable = ftsManager.getContentTableName(collection);
-
-		let results;
-		try {
-			results = await sql<{
-				id: string;
-				slug: string | null;
-				title: string;
-			}>`
+			let results;
+			try {
+				results = await sql<{
+					id: string;
+					slug: string | null;
+					title: string;
+				}>`
 				SELECT
 					c.id,
 					c.slug,
@@ -477,26 +482,26 @@ export async function getSuggestions(
 				ORDER BY bm25("${sql.raw(ftsTable)}")
 				LIMIT ${limit}
 			`.execute(db);
-		} catch (error) {
-			// Same swallow as searchSingleCollection: malformed prefix
-			// queries should yield no suggestions, not surface DB errors.
-			// Intentionally not logged (anonymous-triggerable, echoes
-			// user input -- see searchSingleCollection for rationale).
-			if (isFts5SyntaxError(error)) {
-				continue;
+			} catch (error) {
+				// Same swallow as searchSingleCollection: malformed prefix
+				// queries should yield no suggestions, not surface DB errors.
+				// Intentionally not logged (anonymous-triggerable, echoes
+				// user input -- see searchSingleCollection for rationale).
+				if (isFts5SyntaxError(error)) {
+					return [];
+				}
+				throw error;
 			}
-			throw error;
-		}
 
-		for (const row of results.rows) {
-			suggestions.push({
+			return results.rows.map((row) => ({
 				collection,
 				id: row.id,
 				slug: row.slug,
 				title: row.title,
-			});
-		}
-	}
+			}));
+		}),
+	);
+	const suggestions = collectionSuggestions.flat();
 
 	return suggestions.slice(0, limit);
 }
