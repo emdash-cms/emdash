@@ -97,6 +97,24 @@ After the deploy, open the admin, load at least one public page, edit and publis
 
 Most releases need nothing beyond the steps above. The entries below cover releases that change data EmDash already stored, or cannot repair it, and say when that needs an action from you.
 
+### Fixed: media URL link usage
+
+Media usage tracking now counts links to `/_emdash/api/media/file/` URLs in Portable Text paragraph link marks, HTML block `href` and `src` attributes, and whole string or URL field values, including fields inside blocks and repeaters. Both root-relative URLs and full same-site media URLs from **Copy URL** are recognized. Full URLs must match the configured site origin or, if unset, the **Site URL** setting or the URL recorded during setup. The **Site URL** setting is used only for HTTPS or loopback HTTP addresses (`localhost`, `127.0.0.1`, or `[::1]`); for other HTTP sites, set `siteUrl` instead (or `EMDASH_SITE_URL` on Node.js). If the site has moved, update its origin before running the repair.
+
+Existing entries are not re-indexed automatically. If tracking was already enabled before this fix, coverage can still report complete while omitting these links, and a linked file can show **No tracked references found**. Do not use that result to decide whether a file is safe to delete until the index is repaired or the affected entries are saved again.
+
+After deploying the upgraded application, run a repair against that instance:
+
+```bash
+npx emdash media repair-usage --all --url https://your-site.example --json
+```
+
+Replace the URL with your site's URL. Remote repair requires an Admin user and an auth token with the `admin` scope; see [CLI authentication](/reference/cli/#authentication) and [`media repair-usage`](/reference/cli/#media-repair-usage). On large sites, repair can take time; use `--collection posts` instead of `--all` to repair one collection at a time.
+
+You can also use the [`media_usage_repair` MCP tool](/reference/mcp-server/#media-tools) or send `POST /_emdash/api/admin/media-usage/repair` with a JSON body of `{ "scope": "all" }`. The REST request requires authorization and the `X-EmDash-Request: 1` header; see [REST authentication](/reference/rest-api/#authentication-and-authorization).
+
+Inspect the returned status and counts: a CLI exit code of `0` can also mean `partial` or `stale`. After repair reports `complete`, open a linked file's **Used in** tab and check that its content entry appears. Usage tracking does not prevent deletion; review references before deleting a file.
+
 ### Fixed: plugin storage uniqueness
 
 Plugin storage `uniqueIndexes` now enforce uniqueness only in the plugin and collection that declares them. Migration `095_plugin_storage_unique_scope` repairs tracked indexes, including those left by plugins removed from configuration, without deleting data.

@@ -161,6 +161,11 @@ describe("coalesced D1 search", () => {
 		await createCollection(db, "first");
 		await createCollection(db, "second");
 		await createCollection(db, "third");
+		// Ranking uses the entry ID as its final tie-breaker across collections.
+		for (const slug of ["first", "second", "third"]) {
+			await sql`UPDATE ${sql.ref(`ec_${slug}`)} SET id = 'shared-id'`.execute(db);
+			await sql`UPDATE ${sql.ref(`_emdash_fts_${slug}`)} SET id = 'shared-id'`.execute(db);
+		}
 		resetCounter(counter);
 
 		const result = await searchWithDb(db, "same", {

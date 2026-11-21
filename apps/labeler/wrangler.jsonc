@@ -57,6 +57,18 @@
 			"binding": "REGISTRY_BLOB_CACHE",
 			"service": "blob-proxy",
 		},
+		{
+			"binding": "PLUGIN_REVIEW",
+			"service": "emdash-plugin-review",
+		},
+	],
+	// Operator notifications to publishers' security contacts. Replies to the
+	// sender address are routed to the shared inbox with Email Routing.
+	"send_email": [
+		{
+			"name": "PUBLISHER_EMAIL",
+			"allowed_sender_addresses": ["plugin-notify@emdashcms.com"],
+		},
 	],
 	"vars": {
 		"LABELER_DID": "did:web:labels.emdashcms.com",
@@ -68,6 +80,7 @@
 		"JETSTREAM_URL": "wss://jetstream2.us-east.bsky.network/subscribe",
 		"EVAL_TEXT_CONFIGURED_UNITS": "1",
 		"EVAL_IMAGE_CONFIGURED_UNITS": "1",
+		"LABELER_CODE_REVIEW_MODELS": "workers-ai/@cf/thinkingmachines/inkling-2-small,openai/gpt-6.1-sol",
 	},
 	"secrets": {
 		"required": [

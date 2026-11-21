@@ -31,6 +31,25 @@ export function isModerationFindingCategory(value: unknown): value is Moderation
 	return MODERATION_FINDING_CATEGORIES.some((category) => category === value);
 }
 
+/**
+ * Categories for findings about a release's package bundle. They are kept apart
+ * from {@link MODERATION_FINDING_CATEGORIES}, which lists the listing-metadata
+ * categories that text and image models assess.
+ */
+export const CODE_FINDING_CATEGORIES = [
+	"malicious-code",
+	"vulnerability",
+	"reviewer-manipulation",
+	"package-integrity",
+	"review-declined",
+] as const;
+
+export type CodeFindingCategory = (typeof CODE_FINDING_CATEGORIES)[number];
+
+export function isCodeFindingCategory(value: unknown): value is CodeFindingCategory {
+	return CODE_FINDING_CATEGORIES.some((category) => category === value);
+}
+
 export const STATE_LABEL_VALUES: readonly ListingLabelValue[] = [
 	LISTING_LABELS.passed,
 	LISTING_LABELS.pending,

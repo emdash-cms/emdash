@@ -29,7 +29,7 @@ import {
 } from "kysely";
 
 import { D1Introspector } from "./d1-introspector.js";
-import type { DOSqlDialectConfig } from "./do-sql-dialect.js";
+import { DOSqlAdapter, type DOSqlDialectConfig } from "./do-sql-dialect.js";
 import type { DOQueryOptions, EmDashDBStub } from "./do-sql-types.js";
 import { isReadStatement } from "./do-sql-types.js";
 
@@ -285,7 +285,7 @@ class CoalescingDOSqlDriver implements Driver {
  * `executeQuery` calls (that is the point), so report `true`. Transactions are
  * rejected by the driver regardless.
  */
-class CoalescingDOSqlAdapter extends SqliteAdapter {
+class CoalescingDOSqlAdapter extends DOSqlAdapter {
 	override get supportsMultipleConnections(): boolean {
 		return true;
 	}
@@ -299,7 +299,7 @@ export class CoalescingDOSqlDialect implements Dialect {
 	}
 
 	createAdapter(): SqliteAdapter {
-		return new CoalescingDOSqlAdapter();
+		return new CoalescingDOSqlAdapter(this.#config);
 	}
 
 	createDriver(): Driver {

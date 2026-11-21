@@ -119,6 +119,22 @@ describeEachDialect("media folder storage and repositories", (dialect) => {
 		expect(await folders.findMany()).toEqual({ items: [], nextCursor: undefined });
 	});
 
+	it("searches long normalized names and treats LIKE characters literally", async () => {
+		const asciiPrefix = "folder-common-prefix-".repeat(3);
+		const multibytePrefix = "æøå".repeat(18);
+		const ascii = await folders.create(`${asciiPrefix}target`);
+		await folders.create(`${asciiPrefix}other`);
+		const multibyte = await folders.create(`${multibytePrefix}target`);
+		await folders.create(`${multibytePrefix}other`);
+		const literal = await folders.create("literal%_\\\\name");
+		const fullWidth = await folders.create("Ｎｆｋｃ Folder");
+
+		expect((await folders.findMany({ q: ascii.name })).items).toEqual([ascii]);
+		expect((await folders.findMany({ q: multibyte.name })).items).toEqual([multibyte]);
+		expect((await folders.findMany({ q: literal.name })).items).toEqual([literal]);
+		expect((await folders.findMany({ q: "nfkc folder" })).items).toEqual([fullWidth]);
+	});
+
 	it("composes folder, readiness, filename, and MIME filters in both list modes", async () => {
 		const photos = await folders.create("Photos");
 		const archive = await folders.create("Archive");

@@ -19,8 +19,9 @@ import {
 } from "../../src/lib/api";
 import { RoomOperationsContext, type RoomOperations } from "../../src/lib/co-editing/operations";
 import { RoomSaveError, type RoomEditing } from "../../src/lib/co-editing/types";
+import type { ContentEditorDraft } from "../../src/lib/content-editor-panels";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
-import { createRoom, SAVED, SAVING, UNSAVED } from "../co-editing/fake-room";
+import { createRoom, SAVED, SAVING, UNSAVED, type FakeRoom } from "../co-editing/fake-room";
 import { LoopbackRoom, settle } from "../co-editing/loopback-room";
 import {
 	resetTransportHealth,
@@ -1577,6 +1578,82 @@ describe("ContentEditor's editor-draft plugins in a room", () => {
 		expect(screen.getByRole("dialog", { name: "Review proposed changes" }).elements()).toHaveLength(
 			0,
 		);
+		expect(fake.applyPatch).not.toHaveBeenCalled();
+	});
+});
+
+describe("a trusted panel's editor draft in a room", () => {
+	const DRAFT_FIELDS: Record<string, FieldDescriptor> = {
+		title: { kind: "string", type: "string", label: "Title" },
+		summary: { kind: "string", type: "string", label: "Summary" },
+	};
+
+	/** Renders the editor with a trusted panel, and returns the `editorDraft` it last received. */
+	async function renderDraftPanel(fake: FakeRoom) {
+		let editorDraft: ContentEditorDraft | undefined;
+		const pluginAdmins: PluginAdmins = {
+			drafts: {
+				contentEditorPanels: [
+					{
+						id: "draft-tools",
+						title: "Draft tools",
+						component: (context) => {
+							editorDraft = context.editorDraft;
+							return <p data-testid="draft-tools">Draft tools</p>;
+						},
+					},
+				],
+			},
+		};
+		const screen = await render(
+			<PluginAdminProvider pluginAdmins={pluginAdmins}>
+				<ContentEditor {...editorProps(fake.room, { fields: DRAFT_FIELDS })} />
+			</PluginAdminProvider>,
+		);
+		unmounts.push(() => screen.unmount());
+		await expect.element(screen.getByTestId("draft-tools")).toBeInTheDocument();
+		return editorDraft!;
+	}
+
+	it("reads the room's values and writes a patch to the room in one step", async () => {
+		const fake = createRoom({ title: "My Post", summary: "Room summary", slug: "my-post" });
+		const draft = await renderDraftPanel(fake);
+
+		const snapshot = draft.get();
+		expect(snapshot.fields).toMatchObject({
+			title: "My Post",
+			summary: "Room summary",
+			slug: "my-post",
+		});
+		const result = draft.patch(
+			[
+				{ op: "set", field: "summary", value: "Suggested summary" },
+				{ op: "set", field: "slug", value: "suggested" },
+			],
+			{ expectedRevision: snapshot.revision },
+		);
+
+		expect(result).toEqual({ ok: true });
+		expect(fake.applyPatch).toHaveBeenCalledExactlyOnceWith({
+			summary: "Suggested summary",
+			slug: "suggested",
+		});
+		expect(fake.set).not.toHaveBeenCalled();
+		expect(draft.get().fields).toMatchObject({ summary: "Suggested summary", slug: "suggested" });
+	});
+
+	it("refuses a patch after someone else edits the room", async () => {
+		const fake = createRoom({ title: "My Post", summary: "Room summary", slug: "my-post" });
+		const draft = await renderDraftPanel(fake);
+		const { revision } = draft.get();
+
+		fake.remote({ summary: "Edited elsewhere" });
+
+		expect(
+			draft.patch([{ op: "set", field: "title", value: "Suggested title" }], {
+				expectedRevision: revision,
+			}),
+		).toMatchObject({ ok: false, code: "EDITOR_DRAFT_STALE" });
 		expect(fake.applyPatch).not.toHaveBeenCalled();
 	});
 });

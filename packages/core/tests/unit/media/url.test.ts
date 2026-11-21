@@ -4,6 +4,7 @@ import {
 	buildRenderMediaUrl,
 	createPublicMediaUrlResolver,
 	resolvePublicMediaUrl,
+	storageKeyFromLocalMediaFileUrl,
 } from "../../../src/media/url.js";
 import type { Storage } from "../../../src/storage/types.js";
 
@@ -129,5 +130,29 @@ describe("buildRenderMediaUrl", () => {
 				url: "/_emdash/api/media/file/01%2FABC.jpg",
 			}),
 		).toBe("/_emdash/api/media/file/01%2FABC.jpg");
+	});
+});
+
+describe("storageKeyFromLocalMediaFileUrl", () => {
+	it("accepts absolute Copy URL links only for the trusted site origin", () => {
+		const url =
+			"https://SITE.example:443/_emdash/api/media/file/uploads/a%20file.pdf?download=1#page=2";
+		expect(storageKeyFromLocalMediaFileUrl(url, "https://site.example")).toBe("uploads/a file.pdf");
+		expect(storageKeyFromLocalMediaFileUrl(url)).toBeNull();
+		expect(storageKeyFromLocalMediaFileUrl("/_emdash/api/media/file/a.pdf?x#y")).toBe("a.pdf");
+	});
+
+	it.each([
+		"https://elsewhere.example/_emdash/api/media/file/a.pdf",
+		"https://site.example.evil.test/_emdash/api/media/file/a.pdf",
+		"https://site.example:8443/_emdash/api/media/file/a.pdf",
+		"http://site.example/_emdash/api/media/file/a.pdf",
+		"//site.example/_emdash/api/media/file/a.pdf",
+		"https://user:password@site.example/_emdash/api/media/file/a.pdf",
+		"https://site.example/not-media/a.pdf",
+		"https://site.example/_emdash/api/media/file/%ZZ",
+		"See https://site.example/_emdash/api/media/file/a.pdf",
+	])("rejects unrelated or malformed URLs: %s", (url) => {
+		expect(storageKeyFromLocalMediaFileUrl(url, "https://site.example")).toBeNull();
 	});
 });

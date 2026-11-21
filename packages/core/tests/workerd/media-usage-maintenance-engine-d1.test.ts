@@ -7,6 +7,7 @@ import { kyselyLogOption } from "../../src/database/instrumentation.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import { MediaUsageRepository } from "../../src/database/repositories/media-usage.js";
 import type { Database } from "../../src/database/types.js";
+import { extractMediaUsageOccurrences } from "../../src/media/usage/extractor.js";
 import {
 	MEDIA_USAGE_MAINTENANCE_LIMITS,
 	runMediaUsageMaintenanceStep,
@@ -46,6 +47,41 @@ beforeAll(async () => {
 
 afterAll(async () => {
 	await adminDb.destroy();
+});
+
+it("extracts HTML media links in workerd with attributes, entities, and deduped indices", () => {
+	const occurrences = extractMediaUsageOccurrences({
+		fields: [{ slug: "body", type: "portableText" }],
+		data: {
+			body: [
+				{
+					_type: "htmlBlock",
+					_key: "html-links",
+					html:
+						'<a class="download" href="/_emdash/api/media/file/01KHTMLPDF.pdf?download=1&amp;source=body">PDF &amp; details</a>' +
+						'<img class="preview" src="/_emdash/api/media/file/01KHTMLIMAGE.png" alt="A &amp; B">' +
+						'<img src="/_emdash/api/media/file/01KHTMLIMAGE.png">',
+				},
+			],
+		},
+	});
+
+	expect(occurrences).toEqual([
+		expect.objectContaining({
+			fieldPath: "body[0].html",
+			occurrenceIndex: 0,
+			referenceType: "link",
+			providerAssetId: "01KHTMLPDF.pdf",
+			storageKey: "01KHTMLPDF.pdf",
+		}),
+		expect.objectContaining({
+			fieldPath: "body[0].html",
+			occurrenceIndex: 1,
+			referenceType: "link",
+			providerAssetId: "01KHTMLIMAGE.png",
+			storageKey: "01KHTMLIMAGE.png",
+		}),
+	]);
 });
 
 it("keeps full-repair source lookups within D1 value limits", async () => {
