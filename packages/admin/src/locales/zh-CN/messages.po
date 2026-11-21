@@ -6440,7 +6440,7 @@ msgstr "与插件通信失败"
 msgid "Failed to compare revisions"
 msgstr "比较修订版本失败"
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "确认上传失败"
 
@@ -6507,7 +6507,7 @@ msgstr "创建内容失败"
 msgid "Failed to create field"
 msgstr "创建字段失败"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "创建媒体文件夹失败"
 
@@ -6601,15 +6601,15 @@ msgstr "删除内容失败"
 msgid "Failed to delete field"
 msgstr "删除字段失败"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "从提供商处删除失败"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "删除媒体失败"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "删除媒体文件夹失败"
 
@@ -6806,27 +6806,27 @@ msgstr "获取字段失败"
 msgid "Failed to fetch manifest"
 msgstr "获取清单失败"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "获取媒体失败"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "获取媒体文件夹失败"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "获取媒体文件夹失败"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "获取媒体项失败"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "获取媒体提供者失败"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "获取媒体使用详情失败"
 
@@ -6864,7 +6864,7 @@ msgstr "获取插件设置失败"
 msgid "Failed to fetch plugins"
 msgstr "获取插件失败"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "获取提供者媒体失败"
 
@@ -6990,7 +6990,7 @@ msgstr "获取身份验证选项失败"
 msgid "Failed to get registration options"
 msgstr "获取注册选项失败"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "获取上传 URL 失败"
 
@@ -7190,7 +7190,7 @@ msgstr "释放条目锁定失败"
 msgid "Failed to remove passkey"
 msgstr "移除通行密钥失败"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "重命名媒体文件夹失败"
 
@@ -7224,7 +7224,7 @@ msgstr "重新排序分类项失败"
 msgid "Failed to reorder widgets"
 msgstr "重新排序小部件失败"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "替换媒体图片失败"
 
@@ -7397,7 +7397,7 @@ msgstr "更新域名失败"
 msgid "Failed to update field"
 msgstr "更新字段失败"
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "更新媒体失败"
 
@@ -7459,15 +7459,15 @@ msgstr "更新小部件失败"
 msgid "Failed to upload a package file"
 msgstr "上传包文件失败"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "上传文件失败"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "上传媒体失败"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "上传到提供者失败"
 

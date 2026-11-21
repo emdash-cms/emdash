@@ -73,7 +73,7 @@ interface FieldDiscoveryRow {
 }
 
 const DISPLAY_FIELD_SLUGS = ["title", "name"] as const;
-const SUPPORTED_TOP_LEVEL_TYPES = ["file", "image", "portableText"] as const;
+const SUPPORTED_TOP_LEVEL_TYPES = ["file", "image", "portableText", "string", "url"] as const;
 
 type SupportedTopLevelType = (typeof SUPPORTED_TOP_LEVEL_TYPES)[number];
 
@@ -108,7 +108,7 @@ export async function loadContentMediaUsageFields(
 
 		if (row.type === "repeater") {
 			validateIdentifier(row.slug, "media usage field slug");
-			const subFields = normalizeRepeaterImageSubFields(row.validation);
+			const subFields = normalizeRepeaterMediaSubFields(row.validation);
 			if (subFields.length > 0) {
 				extractionFields.push({
 					slug: row.slug,
@@ -175,7 +175,7 @@ function resolveMediaBlockTypes(
 	});
 }
 
-function normalizeRepeaterImageSubFields(
+function normalizeRepeaterMediaSubFields(
 	rawValidation: string | null,
 ): MediaUsageExtractionSubField[] {
 	const validation = parseValidation(rawValidation, "repeater");
@@ -183,10 +183,12 @@ function normalizeRepeaterImageSubFields(
 
 	const subFields: MediaUsageExtractionSubField[] = [];
 	for (const subField of validation.subFields) {
-		if (!isRecord(subField) || subField.type !== "image") continue;
+		if (!isRecord(subField)) continue;
+		if (subField.type !== "image" && subField.type !== "string" && subField.type !== "url")
+			continue;
 		if (typeof subField.slug !== "string") continue;
 		validateIdentifier(subField.slug, "media usage repeater sub-field slug");
-		subFields.push({ slug: subField.slug, type: "image" });
+		subFields.push({ slug: subField.slug, type: subField.type });
 	}
 
 	return subFields.toSorted((a, b) => a.slug.localeCompare(b.slug));

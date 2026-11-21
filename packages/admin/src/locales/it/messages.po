@@ -6440,7 +6440,7 @@ msgstr "Impossibile comunicare con il plugin"
 msgid "Failed to compare revisions"
 msgstr "Impossibile confrontare le revisioni"
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "Impossibile confermare il caricamento"
 
@@ -6507,7 +6507,7 @@ msgstr "Impossibile creare il contenuto"
 msgid "Failed to create field"
 msgstr "Impossibile creare il campo"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "Impossibile creare la cartella dei media"
 
@@ -6601,15 +6601,15 @@ msgstr "Impossibile eliminare il contenuto"
 msgid "Failed to delete field"
 msgstr "Impossibile eliminare il campo"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "Impossibile eliminare dal fornitore del servizio"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "Impossibile eliminare il media"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "Impossibile eliminare la cartella dei media"
 
@@ -6806,27 +6806,27 @@ msgstr "Impossibile recuperare i campi"
 msgid "Failed to fetch manifest"
 msgstr "Impossibile recuperare il manifest"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "Impossibile recuperare i media"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "Impossibile recuperare la cartella dei media"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "Impossibile recuperare le cartelle dei media"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "Impossibile recuperare l'elemento multimediale"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "Impossibile recuperare i fornitori di media"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "Impossibile recuperare i dettagli sull'utilizzo dei media"
 
@@ -6864,7 +6864,7 @@ msgstr "Impossibile recuperare le impostazioni del plugin"
 msgid "Failed to fetch plugins"
 msgstr "Impossibile recuperare i plugin"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "Impossibile recuperare i media del fornitore"
 
@@ -6990,7 +6990,7 @@ msgstr "Impossibile ottenere le opzioni di autenticazione"
 msgid "Failed to get registration options"
 msgstr "Impossibile ottenere le opzioni di registrazione"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "Impossibile ottenere l'URL di caricamento"
 
@@ -7190,7 +7190,7 @@ msgstr "Impossibile rilasciare il blocco dell'elemento"
 msgid "Failed to remove passkey"
 msgstr "Impossibile rimuovere la passkey"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "Impossibile rinominare la cartella dei media"
 
@@ -7224,7 +7224,7 @@ msgstr "Impossibile riordinare i termini"
 msgid "Failed to reorder widgets"
 msgstr "Impossibile riordinare i widget"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "Impossibile sostituire l'immagine multimediale"
 
@@ -7397,7 +7397,7 @@ msgstr "Impossibile aggiornare il dominio"
 msgid "Failed to update field"
 msgstr "Impossibile aggiornare il campo"
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "Impossibile aggiornare i media"
 
@@ -7459,15 +7459,15 @@ msgstr "Impossibile aggiornare il widget"
 msgid "Failed to upload a package file"
 msgstr "Impossibile caricare un file di pacchetto"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "Impossibile caricare il file"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "Impossibile caricare i media"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "Impossibile caricare sul fornitore"
 

@@ -6440,7 +6440,7 @@ msgstr "Không thể giao tiếp với plugin"
 msgid "Failed to compare revisions"
 msgstr "Không thể so sánh các bản sửa đổi"
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "Không thể xác nhận tải lên"
 
@@ -6507,7 +6507,7 @@ msgstr "Không thể tạo nội dung"
 msgid "Failed to create field"
 msgstr "Không thể tạo trường"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "Không thể tạo thư mục trong thư viện"
 
@@ -6601,15 +6601,15 @@ msgstr "Không thể xoá nội dung"
 msgid "Failed to delete field"
 msgstr "Không thể xoá trường"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "Không thể xoá khỏi nhà cung cấp"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "Không thể xoá tệp trong thư viện"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "Không thể xoá thư mục trong thư viện"
 
@@ -6806,27 +6806,27 @@ msgstr "Không thể tải các trường"
 msgid "Failed to fetch manifest"
 msgstr "Không thể tải tệp kê khai"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "Không thể tải tệp trong thư viện"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "Không thể tải thư mục trong thư viện"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "Không thể tải các thư mục trong thư viện"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "Không thể tải mục trong thư viện"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "Không thể tải danh sách nhà cung cấp dịch vụ lưu trữ đa phương tiện"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "Không thể tải chi tiết nơi dùng tệp trong thư viện"
 
@@ -6864,7 +6864,7 @@ msgstr "Không thể tải cài đặt plugin"
 msgid "Failed to fetch plugins"
 msgstr "Không thể tải các plugin"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "Không thể tải tệp đa phương tiện từ nhà cung cấp"
 
@@ -6990,7 +6990,7 @@ msgstr "Không thể lấy tuỳ chọn xác thực"
 msgid "Failed to get registration options"
 msgstr "Không thể lấy tuỳ chọn đăng ký"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "Không thể lấy URL tải lên"
 
@@ -7190,7 +7190,7 @@ msgstr "Không thể mở khoá mục này"
 msgid "Failed to remove passkey"
 msgstr "Không thể xoá khoá truy cập"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "Không thể đổi tên thư mục trong thư viện"
 
@@ -7224,7 +7224,7 @@ msgstr "Không thể sắp xếp các mục phân loại"
 msgid "Failed to reorder widgets"
 msgstr "Không thể sắp xếp lại các tiện ích"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "Không thể thay ảnh trong thư viện"
 
@@ -7397,7 +7397,7 @@ msgstr "Không thể cập nhật tên miền"
 msgid "Failed to update field"
 msgstr "Không thể cập nhật trường"
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "Không thể cập nhật tệp trong thư viện"
 
@@ -7459,15 +7459,15 @@ msgstr "Không thể cập nhật tiện ích"
 msgid "Failed to upload a package file"
 msgstr "Không thể tải lên một tệp của gói"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "Không thể tải lên tệp"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "Không thể tải lên tệp vào thư viện"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "Không thể tải lên nhà cung cấp"
 

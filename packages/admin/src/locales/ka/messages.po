@@ -6440,7 +6440,7 @@ msgstr "პლაგინთან კომუნიკაცია ვერ 
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "ატვირთვის დადასტურება ვერ მოხერხდა"
 
@@ -6507,7 +6507,7 @@ msgstr ""
 msgid "Failed to create field"
 msgstr "ველის შექმნა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "მედია საქაღალდის შექმნა ვერ მოხერხდა"
 
@@ -6601,15 +6601,15 @@ msgstr "შიგთავსის წაშლა ვერ მოხერხ
 msgid "Failed to delete field"
 msgstr "ველის წაშლა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "პროვაიდერიდან წაშლა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "მედიის წაშლა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "მედია საქაღალდის წაშლა ვერ მოხერხდა"
 
@@ -6806,27 +6806,27 @@ msgstr ""
 msgid "Failed to fetch manifest"
 msgstr "მანიფესტის ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "მედიის ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "მედია საქაღალდის ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "მედია საქაღალდეების ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "მედია ელემენტის ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "მედია პროვაიდერების ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "მედიის გამოყენების დეტალების ჩატვირთვა ვერ მოხერხდა"
 
@@ -6864,7 +6864,7 @@ msgstr "პლაგინის პარამეტრების ჩატ�
 msgid "Failed to fetch plugins"
 msgstr "პლაგინების ჩატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "პროვაიდერის მედიის ჩატვირთვა ვერ მოხერხდა"
 
@@ -6990,7 +6990,7 @@ msgstr "ავტორიზაციის ვარიანტების �
 msgid "Failed to get registration options"
 msgstr "რეგისტრაციის ვარიანტების მიღება ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "ატვირთვის URL-ის მიღება ვერ მოხერხდა"
 
@@ -7190,7 +7190,7 @@ msgstr "ჩანაწერის ჩაკეტვის მოხსნა 
 msgid "Failed to remove passkey"
 msgstr "პასკის მოცილება ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "მედია საქაღალდის სახელის შეცვლა ვერ მოხერხდა"
 
@@ -7224,7 +7224,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "ვიჯეტების გადალაგება ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "მედია სურათის ჩანაცვლება ვერ მოხერხდა"
 
@@ -7397,7 +7397,7 @@ msgstr "დომენის განახლება ვერ მოხე
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "მედიის განახლება ვერ მოხერხდა"
 
@@ -7459,15 +7459,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "ფაილის ატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "მედიის ატვირთვა ვერ მოხერხდა"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "პროვაიდერზე ატვირთვა ვერ მოხერხდა"
 

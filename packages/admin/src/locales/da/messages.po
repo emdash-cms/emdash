@@ -6440,7 +6440,7 @@ msgstr "Kunne ikke kommunikere med plugin"
 msgid "Failed to compare revisions"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "Uploaden kunne ikke bekræftes"
 
@@ -6507,7 +6507,7 @@ msgstr ""
 msgid "Failed to create field"
 msgstr "Feltet kunne ikke oprettes"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "Mediemappen kunne ikke oprettes"
 
@@ -6601,15 +6601,15 @@ msgstr "Indholdet kunne ikke slettes"
 msgid "Failed to delete field"
 msgstr "Feltet kunne ikke slettes"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "Kunne ikke slette fra udbyderen"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "Mediet kunne ikke slettes"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "Mediemappen kunne ikke slettes"
 
@@ -6806,27 +6806,27 @@ msgstr ""
 msgid "Failed to fetch manifest"
 msgstr "Manifestet kunne ikke hentes"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "Media kunne ikke hentes"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "Mediemappen kunne ikke hentes"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "Mediemapperne kunne ikke hentes"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "Mediet kunne ikke hentes"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "Medieudbyderne kunne ikke hentes"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "Detaljer om mediebrug kunne ikke hentes"
 
@@ -6864,7 +6864,7 @@ msgstr "Pluginindstillingerne kunne ikke hentes"
 msgid "Failed to fetch plugins"
 msgstr "Plugins kunne ikke hentes"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "Udbyderens media kunne ikke hentes"
 
@@ -6990,7 +6990,7 @@ msgstr "Loginmulighederne kunne ikke hentes"
 msgid "Failed to get registration options"
 msgstr "Registreringsindstillingerne kunne ikke hentes"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "Upload URL'en kunne ikke hentes"
 
@@ -7190,7 +7190,7 @@ msgstr "Låsen på indlægget kunne ikke frigives"
 msgid "Failed to remove passkey"
 msgstr "Passkey kunne ikke fjernes"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "Mediemappen kunne ikke omdøbes"
 
@@ -7224,7 +7224,7 @@ msgstr ""
 msgid "Failed to reorder widgets"
 msgstr "Widgetternes rækkefølge kunne ikke ændres"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "Mediebilledet kunne ikke erstattes"
 
@@ -7397,7 +7397,7 @@ msgstr "Domænet kunne ikke opdateres"
 msgid "Failed to update field"
 msgstr ""
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "Mediet kunne ikke opdateres"
 
@@ -7459,15 +7459,15 @@ msgstr ""
 msgid "Failed to upload a package file"
 msgstr "En pakkefil kunne ikke uploades"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "Filen kunne ikke uploades"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "Media kunne ikke uploades"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "Kunne ikke uploade til udbyderen"
 

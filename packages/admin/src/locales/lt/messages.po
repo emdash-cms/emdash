@@ -6440,7 +6440,7 @@ msgstr "Nepavyko susisiekti su įskiepiu"
 msgid "Failed to compare revisions"
 msgstr "Nepavyko palyginti versijų"
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "Nepavyko patvirtinti įkėlimo"
 
@@ -6507,7 +6507,7 @@ msgstr "Nepavyko sukurti turinio"
 msgid "Failed to create field"
 msgstr "Nepavyko sukurti lauko"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "Nepavyko sukurti medijos aplanko"
 
@@ -6601,15 +6601,15 @@ msgstr "Nepavyko ištrinti turinio"
 msgid "Failed to delete field"
 msgstr "Nepavyko ištrinti lauko"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "Nepavyko ištrinti iš paslaugos teikėjo sistemos"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "Nepavyko ištrinti medijos failo"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "Nepavyko ištrinti medijos aplanko"
 
@@ -6806,27 +6806,27 @@ msgstr "Nepavyko gauti laukų"
 msgid "Failed to fetch manifest"
 msgstr "Nepavyko gauti manifesto"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "Nepavyko gauti medijos failų"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "Nepavyko gauti medijos aplanko"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "Nepavyko gauti medijos aplankų"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "Nepavyko gauti medijos elemento"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "Nepavyko gauti medijos paslaugų teikėjų sąrašo"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "Nepavyko gauti medijos failo naudojimo informacijos"
 
@@ -6864,7 +6864,7 @@ msgstr "Nepavyko gauti įskiepio nustatymų"
 msgid "Failed to fetch plugins"
 msgstr "Nepavyko gauti įskiepių"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "Nepavyko gauti paslaugos teikėjo medijos failų"
 
@@ -6990,7 +6990,7 @@ msgstr "Nepavyko gauti tapatybės patvirtinimo parinkčių"
 msgid "Failed to get registration options"
 msgstr "Nepavyko gauti registracijos parinkčių"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "Nepavyko gauti įkėlimo URL adreso"
 
@@ -7190,7 +7190,7 @@ msgstr "Nepavyko atrakinti įrašo"
 msgid "Failed to remove passkey"
 msgstr "Nepavyko pašalinti prieigos rakto"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "Nepavyko pervadinti medijos aplanko"
 
@@ -7224,7 +7224,7 @@ msgstr "Nepavyko pakeisti terminų eilės tvarkos"
 msgid "Failed to reorder widgets"
 msgstr "Nepavyko pakeisti valdiklių eilės tvarkos"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "Nepavyko pakeisti medijos paveikslėlio"
 
@@ -7397,7 +7397,7 @@ msgstr "Nepavyko atnaujinti domeno"
 msgid "Failed to update field"
 msgstr "Nepavyko atnaujinti lauko"
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "Nepavyko atnaujinti medijos failo"
 
@@ -7459,15 +7459,15 @@ msgstr "Nepavyko atnaujinti valdiklio"
 msgid "Failed to upload a package file"
 msgstr "Nepavyko įkelti paketo failo"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "Nepavyko įkelti failo"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "Nepavyko įkelti medijos failo"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "Nepavyko įkelti į paslaugos teikėjo saugyklą"
 
