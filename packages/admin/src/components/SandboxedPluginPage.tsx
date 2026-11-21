@@ -10,7 +10,7 @@ import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
 import { WarningCircle } from "@phosphor-icons/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type FocusEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
 import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
@@ -29,11 +29,32 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 	const [toast, setToast] = useState<BlockResponse["toast"] | null>(null);
 	const requestGeneration = useRef(0);
 	const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const contentRef = useRef<HTMLDivElement>(null);
+	const focusWithinRef = useRef(false);
+	const restoreFocusRef = useRef(false);
+
+	const handleFocusCapture = useCallback(() => {
+		focusWithinRef.current = true;
+	}, []);
+
+	const handleBlurCapture = useCallback((event: FocusEvent<HTMLDivElement>) => {
+		if (!event.currentTarget.contains(event.relatedTarget)) {
+			focusWithinRef.current = false;
+		}
+	}, []);
 
 	// Send an interaction to the plugin admin route
 	const sendInteraction = useCallback(
 		async (interaction: BlockInteraction, showLoading = false) => {
 			const generation = ++requestGeneration.current;
+			const preserveFocus = () => {
+				if (
+					!showLoading &&
+					(focusWithinRef.current || Boolean(contentRef.current?.contains(document.activeElement)))
+				) {
+					restoreFocusRef.current = true;
+				}
+			};
 			if (toastTimer.current) clearTimeout(toastTimer.current);
 			toastTimer.current = null;
 			setToast(null);
@@ -56,6 +77,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				if (!response.ok) {
 					const text = await response.text();
 					if (generation !== requestGeneration.current) return;
+					preserveFocus();
 					setError(t`Plugin responded with ${response.status}: ${text}`);
 					return;
 				}
@@ -63,6 +85,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				const body = (await response.json()) as { data: BlockResponse };
 				if (generation !== requestGeneration.current) return;
 				const data = body.data;
+				preserveFocus();
 				setBlocks(data.blocks);
 				setError(null);
 
@@ -75,6 +98,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 				}
 			} catch (err) {
 				if (generation === requestGeneration.current) {
+					preserveFocus();
 					setError(err instanceof Error ? err.message : t`Failed to communicate with plugin`);
 				}
 			} finally {
@@ -89,12 +113,36 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 
 	// Initial page load
 	useEffect(() => {
+		focusWithinRef.current = false;
+		restoreFocusRef.current = false;
 		void sendInteraction({ type: "page_load", page }, true);
 		return () => {
 			requestGeneration.current++;
 			if (toastTimer.current) clearTimeout(toastTimer.current);
 		};
 	}, [sendInteraction, page]);
+
+	useLayoutEffect(() => {
+		const container = contentRef.current;
+		if (restoreFocusRef.current) {
+			restoreFocusRef.current = false;
+			const active = document.activeElement;
+			if (
+				container &&
+				!container.contains(active) &&
+				(active === null ||
+					active === document.body ||
+					active === document.documentElement ||
+					!active.isConnected)
+			) {
+				container.focus({ preventScroll: true });
+			}
+		}
+		if (!container?.contains(document.activeElement)) {
+			focusWithinRef.current =
+				focusWithinRef.current && Boolean(document.activeElement?.closest("[data-base-ui-portal]"));
+		}
+	}, [blocks, error]);
 
 	// Handle block actions
 	const handleAction = useCallback(
@@ -114,7 +162,13 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 
 	if (error) {
 		return (
-			<div className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/5 p-6">
+			<div
+				ref={contentRef}
+				tabIndex={-1}
+				onFocusCapture={handleFocusCapture}
+				onBlurCapture={handleBlurCapture}
+				className="rounded-lg border border-kumo-danger/50 bg-kumo-danger/5 p-6 outline-none"
+			>
 				<div className="flex items-start gap-3">
 					<WarningCircle className="h-5 w-5 shrink-0 text-kumo-danger" />
 					<div>
@@ -144,8 +198,14 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 			)}
 
 			<div
+				ref={contentRef}
+				tabIndex={-1}
 				aria-busy={pending || undefined}
-				className={pending ? "opacity-60 transition-opacity" : "transition-opacity"}
+				onFocusCapture={handleFocusCapture}
+				onBlurCapture={handleBlurCapture}
+				className={
+					pending ? "opacity-60 outline-none transition-opacity" : "outline-none transition-opacity"
+				}
 			>
 				<BlockRenderer
 					blocks={blocks}

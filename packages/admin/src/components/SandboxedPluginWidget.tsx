@@ -9,7 +9,7 @@ import { Loader, SkeletonLine } from "@cloudflare/kumo";
 import { BlockRenderer } from "@emdash-cms/blocks";
 import type { Block, BlockInteraction, BlockResponse } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { type FocusEvent, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
 import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
@@ -27,10 +27,35 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 	const [error, setError] = useState<string | null>(null);
 	const page = `widget:${widgetId}`;
 	const requestGeneration = useRef(0);
+	const contentRef = useRef<HTMLElement | null>(null);
+	const focusWithinRef = useRef(false);
+	const restoreFocusRef = useRef(false);
+
+	const setContentNode = useCallback((node: HTMLElement | null) => {
+		contentRef.current = node;
+	}, []);
+
+	const handleFocusCapture = useCallback(() => {
+		focusWithinRef.current = true;
+	}, []);
+
+	const handleBlurCapture = useCallback((event: FocusEvent<HTMLElement>) => {
+		if (!event.currentTarget.contains(event.relatedTarget)) {
+			focusWithinRef.current = false;
+		}
+	}, []);
 
 	const sendInteraction = useCallback(
 		async (interaction: BlockInteraction, showLoading = false) => {
 			const generation = ++requestGeneration.current;
+			const preserveFocus = () => {
+				if (
+					!showLoading &&
+					(focusWithinRef.current || Boolean(contentRef.current?.contains(document.activeElement)))
+				) {
+					restoreFocusRef.current = true;
+				}
+			};
 			if (showLoading) {
 				setLoading(true);
 				setError(null);
@@ -48,6 +73,7 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 				if (generation !== requestGeneration.current) return;
 
 				if (!response.ok) {
+					preserveFocus();
 					setError(t`Plugin error (${response.status})`);
 					return;
 				}
@@ -55,10 +81,14 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 				const body = (await response.json()) as { data: BlockResponse };
 				if (generation !== requestGeneration.current) return;
 				const data = body.data;
+				preserveFocus();
 				setBlocks(data.blocks);
 				setError(null);
 			} catch {
-				if (generation === requestGeneration.current) setError(t`Failed to load widget`);
+				if (generation === requestGeneration.current) {
+					preserveFocus();
+					setError(t`Failed to load widget`);
+				}
 			} finally {
 				if (generation === requestGeneration.current) {
 					if (showLoading) setLoading(false);
@@ -71,11 +101,35 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 
 	// Initial widget load
 	useEffect(() => {
+		focusWithinRef.current = false;
+		restoreFocusRef.current = false;
 		void sendInteraction({ type: "page_load", page }, true);
 		return () => {
 			requestGeneration.current++;
 		};
 	}, [page, sendInteraction]);
+
+	useLayoutEffect(() => {
+		const container = contentRef.current;
+		if (restoreFocusRef.current) {
+			restoreFocusRef.current = false;
+			const active = document.activeElement;
+			if (
+				container &&
+				!container.contains(active) &&
+				(active === null ||
+					active === document.body ||
+					active === document.documentElement ||
+					!active.isConnected)
+			) {
+				container.focus({ preventScroll: true });
+			}
+		}
+		if (!container?.contains(document.activeElement)) {
+			focusWithinRef.current =
+				focusWithinRef.current && Boolean(document.activeElement?.closest("[data-base-ui-portal]"));
+		}
+	}, [blocks, error]);
 
 	const handleAction = useCallback(
 		(interaction: BlockInteraction) => {
@@ -95,18 +149,44 @@ export function SandboxedPluginWidget({ pluginId, widgetId }: SandboxedPluginWid
 	}
 
 	if (error) {
-		return <p className="text-sm text-kumo-subtle">{error}</p>;
+		return (
+			<p
+				ref={setContentNode}
+				tabIndex={-1}
+				onFocusCapture={handleFocusCapture}
+				onBlurCapture={handleBlurCapture}
+				className="text-sm text-kumo-subtle outline-none"
+			>
+				{error}
+			</p>
+		);
 	}
 
 	if (blocks.length === 0) {
-		return <p className="text-sm text-kumo-subtle">{t`No content`}</p>;
+		return (
+			<p
+				ref={setContentNode}
+				tabIndex={-1}
+				onFocusCapture={handleFocusCapture}
+				onBlurCapture={handleBlurCapture}
+				className="text-sm text-kumo-subtle outline-none"
+			>
+				{t`No content`}
+			</p>
+		);
 	}
 
 	return (
 		<div className="relative">
 			<div
+				ref={setContentNode}
+				tabIndex={-1}
 				aria-busy={pending || undefined}
-				className={pending ? "opacity-60 transition-opacity" : "transition-opacity"}
+				onFocusCapture={handleFocusCapture}
+				onBlurCapture={handleBlurCapture}
+				className={
+					pending ? "opacity-60 outline-none transition-opacity" : "outline-none transition-opacity"
+				}
 			>
 				<BlockRenderer
 					blocks={blocks}

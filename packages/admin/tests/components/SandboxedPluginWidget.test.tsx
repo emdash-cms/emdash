@@ -78,4 +78,55 @@ describe("SandboxedPluginWidget while an action is answered", () => {
 		await expect.element(screen.getByRole("heading", { name: "Updated" })).toBeVisible();
 		await expect.element(screen.getByRole("status")).toHaveTextContent("");
 	});
+
+	it("keeps keyboard focus on the widget when an action replaces its blocks", async () => {
+		const fetchMock = vi
+			.fn<() => Promise<Response>>()
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{ type: "header", text: "Traffic breakdown" },
+							{
+								type: "actions",
+								block_id: "details",
+								elements: [{ type: "button", action_id: "back", label: "Back to summary" }],
+							},
+						],
+					},
+				}),
+			)
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{
+								type: "actions",
+								elements: [{ type: "button", action_id: "inspect", label: "Inspect traffic" }],
+							},
+							{ type: "section", text: "1,240 visits today" },
+						],
+					},
+				}),
+			);
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<div>
+				<SandboxedPluginWidget pluginId="analytics" widgetId="traffic" />
+				<a href="/_emdash/admin/content">Next widget</a>
+			</div>,
+		);
+
+		const back = screen.getByRole("button", { name: "Back to summary" });
+		await expect.element(back).toBeVisible();
+		back.element().focus();
+
+		await userEvent.keyboard("{Enter}");
+		const inspect = screen.getByRole("button", { name: "Inspect traffic" });
+		await expect.element(inspect).toBeVisible();
+
+		expect(document.activeElement).not.toBe(document.body);
+		await userEvent.tab();
+		expect(document.activeElement).toBe(inspect.element());
+	});
 });
