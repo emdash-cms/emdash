@@ -334,12 +334,35 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		);
 	});
 
-	it.each(["immediate", "bulk"] as const)(
-		"logs the projection error when retry transition fails (%s)",
-		async (mode) => {
-			const fixture = await createActiveFixture(ctx, `retry_transition_${mode}`);
+	it.each([
+		["immediate", "new"],
+		["bulk", "new"],
+		["immediate", "existing"],
+		["bulk", "existing"],
+	] as const)(
+		"logs the projection error when retry transition fails (%s, %s)",
+		async (mode, sourceState) => {
+			const fixture = await createActiveFixture(ctx, `retry_transition_${mode}_${sourceState}`);
 			await insertEntry(ctx, fixture, "entry-1", "media-1");
-			await installProjectionFailureTrigger(ctx);
+			if (sourceState === "existing") {
+				const initial = await processMediaUsageWorkAfterWrite(
+					ctx.db,
+					fixture.collectionSlug,
+					"entry-1",
+				);
+				expect(initial.outcome).toBe("completed");
+				await sql`
+					UPDATE ${sql.ref(fixture.tableName)}
+					SET hero = ${JSON.stringify({ id: "media-2", provider: "local", mimeType: "image/webp" })},
+						version = version + 1
+					WHERE id = 'entry-1'
+				`.execute(ctx.db);
+			}
+			await installProjectionFailureTrigger(
+				ctx,
+				undefined,
+				sourceState === "existing" ? "update" : "insert",
+			);
 			await installRetryTransitionFailureTrigger(ctx);
 			const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -371,6 +394,39 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 			} finally {
 				await removeRetryTransitionFailureTrigger(ctx);
 				await removeProjectionFailureTrigger(ctx);
+				errorSpy.mockRestore();
+			}
+		},
+	);
+
+	it.each(["immediate", "bulk"] as const)(
+		"retries when generation-write cleanup fails after publication (%s)",
+		async (mode) => {
+			const fixture = await createActiveFixture(ctx, `cleanup_failure_${mode}`);
+			await insertEntry(ctx, fixture, "entry-1", "media-1");
+			await installGenerationCleanupFailureTrigger(ctx);
+			const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+			try {
+				const processing =
+					mode === "immediate"
+						? processMediaUsageWorkAfterWrite(ctx.db, fixture.collectionSlug, "entry-1")
+						: processDueMediaUsageWork(ctx.db);
+				const result = await processing;
+				expect(result).toMatchObject(
+					mode === "immediate" ? { outcome: "retry" } : { retryCount: 1 },
+				);
+				expect(errorSpy).toHaveBeenCalledWith(
+					mode === "immediate"
+						? "[media-usage:work] Immediate processing failed:"
+						: "[media-usage:work] Collection processing failed:",
+					expect.objectContaining({ message: "forced generation cleanup failure" }),
+				);
+				expect(await findWork(ctx.db)).toEqual(
+					expect.objectContaining({ state: "retry", attempt_count: 1 }),
+				);
+			} finally {
+				await removeGenerationCleanupFailureTrigger(ctx);
 				errorSpy.mockRestore();
 			}
 		},
@@ -786,10 +842,12 @@ async function removeProjectionSupersessionTrigger(ctx: DialectTestContext): Pro
 async function installProjectionFailureTrigger(
 	ctx: DialectTestContext,
 	collectionId?: string,
+	operation: "insert" | "update" = "insert",
 ): Promise<void> {
 	const collectionMatches = collectionId
 		? sql<boolean>`NEW.collection_id = ${sql.lit(collectionId)}`
 		: sql<boolean>`TRUE`;
+	const operationSql = operation === "update" ? sql`UPDATE` : sql`INSERT`;
 	if (ctx.dialect === "postgres") {
 		await sql`
 			CREATE OR REPLACE FUNCTION emdash_test_fail_media_usage_projection()
@@ -806,19 +864,59 @@ async function installProjectionFailureTrigger(
 		`.execute(ctx.db);
 		await sql`
 			CREATE TRIGGER emdash_test_fail_media_usage_projection
-			BEFORE INSERT ON _emdash_media_usage_sources
+			BEFORE ${operationSql} ON _emdash_media_usage_sources
 			FOR EACH ROW EXECUTE FUNCTION emdash_test_fail_media_usage_projection()
 		`.execute(ctx.db);
 		return;
 	}
 	await sql`
 		CREATE TRIGGER emdash_test_fail_media_usage_projection
-		BEFORE INSERT ON _emdash_media_usage_sources
+		BEFORE ${operationSql} ON _emdash_media_usage_sources
 		WHEN ${collectionMatches}
 		BEGIN
 			SELECT RAISE(ABORT, 'forced media usage projection failure');
 		END
 	`.execute(ctx.db);
+}
+
+async function installGenerationCleanupFailureTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			CREATE OR REPLACE FUNCTION emdash_test_fail_media_usage_generation_cleanup()
+			RETURNS trigger
+			LANGUAGE plpgsql
+			AS $$
+			BEGIN
+				RAISE EXCEPTION 'forced generation cleanup failure';
+			END;
+			$$
+		`.execute(ctx.db);
+		await sql`
+			CREATE TRIGGER emdash_test_fail_media_usage_generation_cleanup
+			BEFORE DELETE ON _emdash_media_usage_generation_writes
+			FOR EACH ROW EXECUTE FUNCTION emdash_test_fail_media_usage_generation_cleanup()
+		`.execute(ctx.db);
+		return;
+	}
+	await sql`
+		CREATE TRIGGER emdash_test_fail_media_usage_generation_cleanup
+		BEFORE DELETE ON _emdash_media_usage_generation_writes
+		BEGIN
+			SELECT RAISE(ABORT, 'forced generation cleanup failure');
+		END
+	`.execute(ctx.db);
+}
+
+async function removeGenerationCleanupFailureTrigger(ctx: DialectTestContext): Promise<void> {
+	if (ctx.dialect === "postgres") {
+		await sql`
+			DROP TRIGGER emdash_test_fail_media_usage_generation_cleanup
+			ON _emdash_media_usage_generation_writes
+		`.execute(ctx.db);
+		await sql`DROP FUNCTION emdash_test_fail_media_usage_generation_cleanup()`.execute(ctx.db);
+		return;
+	}
+	await sql`DROP TRIGGER emdash_test_fail_media_usage_generation_cleanup`.execute(ctx.db);
 }
 
 async function installRetryTransitionFailureTrigger(ctx: DialectTestContext): Promise<void> {

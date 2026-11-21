@@ -529,7 +529,7 @@ export class MediaUsageWorkRepository {
 		);
 		const leaseToken = ulid();
 		const now = this.timestampOffset(0);
-		let candidates = this.db
+		const candidates = this.db
 			.selectFrom("_emdash_media_usage_work as due")
 			.select(["due.collection_id", "due.content_id", "due.work_version"])
 			.where((eb) =>
@@ -556,9 +556,11 @@ export class MediaUsageWorkRepository {
 			.orderBy("due.collection_id", "asc")
 			.orderBy("due.content_id", "asc")
 			.limit(input.limit);
-		if (isPostgres(this.db)) candidates = candidates.forUpdate().skipLocked();
+		const postgres = isPostgres(this.db);
 		const rows = await this.db
-			.with("due_media_usage_work", () => candidates)
+			.with("due_media_usage_work", () =>
+				postgres ? candidates.forUpdate().skipLocked() : this.sqliteDueWorkCandidates(input.limit),
+			)
 			.updateTable("_emdash_media_usage_work")
 			.set({
 				state: "leased",
@@ -567,6 +569,8 @@ export class MediaUsageWorkRepository {
 				last_attempted_at: now,
 				updated_at: now,
 			})
+			// SQLite selects and updates atomically. Skip its outer state filter
+			// so the update probes selected identities by primary key.
 			.where((eb) =>
 				eb.and([
 					eb(
@@ -577,23 +581,60 @@ export class MediaUsageWorkRepository {
 							.select(["collection_id", "content_id", "work_version"])
 							.$asTuple("collection_id", "content_id", "work_version"),
 					),
-					eb.or([
-						eb.and([
-							eb("state", "in", ["pending", "retry"]),
-							this.timestampIsDue("next_attempt_at"),
-						]),
-						eb.and([
-							eb("state", "=", "leased"),
-							eb("lease_expires_at", "is not", null),
-							this.timestampIsDue("lease_expires_at"),
-						]),
-					]),
+					...(postgres
+						? [
+								eb.or([
+									eb.and([
+										eb("state", "in", ["pending", "retry"]),
+										this.timestampIsDue("next_attempt_at"),
+									]),
+									eb.and([
+										eb("state", "=", "leased"),
+										eb("lease_expires_at", "is not", null),
+										this.timestampIsDue("lease_expires_at"),
+									]),
+								]),
+							]
+						: []),
 				]),
 			)
 			.returningAll()
 			.execute();
 
 		return rows.map(rowToWork);
+	}
+
+	private sqliteDueWorkCandidates(limit: number) {
+		const selectDue = (state: "pending" | "retry" | "leased") => {
+			const timestamp = state === "leased" ? "due.lease_expires_at" : "due.next_attempt_at";
+			return this.db
+				.selectFrom("_emdash_media_usage_work as due")
+				.select(["due.collection_id", "due.content_id", "due.work_version", "due.updated_at"])
+				.select(sql<string>`${sql.ref(timestamp)}`.as("due_at"))
+				.where("due.state", "=", state)
+				.where(this.timestampIsDue(timestamp))
+				.orderBy(timestamp)
+				.orderBy("due.updated_at")
+				.orderBy("due.collection_id")
+				.orderBy("due.content_id")
+				.limit(limit);
+		};
+		// Limit each state through its due-time index before merging the candidates.
+		return this.db
+			.selectFrom(
+				this.db
+					.selectFrom(selectDue("pending").as("pending"))
+					.selectAll()
+					.unionAll(this.db.selectFrom(selectDue("retry").as("retry")).selectAll())
+					.unionAll(this.db.selectFrom(selectDue("leased").as("expired")).selectAll())
+					.as("eligible"),
+			)
+			.select(["collection_id", "content_id", "work_version"])
+			.orderBy("due_at")
+			.orderBy("updated_at")
+			.orderBy("collection_id")
+			.orderBy("content_id")
+			.limit(limit);
 	}
 
 	async hasNonterminalWork(): Promise<boolean> {

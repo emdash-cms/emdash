@@ -140,7 +140,7 @@ it("claims due work from a large mixed queue without excessive reads", async () 
 	const claimedIds = new Set(claimed.map((work) => work.contentId));
 	expect(claimed).toHaveLength(100);
 	expect(leasedIds.every((contentId) => !claimedIds.has(contentId))).toBe(true);
-	expect(measurement.rowsRead).toBeLessThan(200_000);
+	expect(measurement.rowsRead).toBeLessThan(10_000);
 
 	const leasedRows = await adminDb
 		.selectFrom("_emdash_media_usage_work")
