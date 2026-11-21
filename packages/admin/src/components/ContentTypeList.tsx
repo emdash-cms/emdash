@@ -253,6 +253,11 @@ export function ContentTypeList({
 					</tbody>
 				</DataTable>
 			</DndContext>
+			{canReorder && (
+				<p className="text-sm text-pretty text-kumo-subtle">
+					{t`Drag to set the default order in the sidebar.`}
+				</p>
+			)}
 
 			<ConfirmDialog
 				open={!!deleteTarget}

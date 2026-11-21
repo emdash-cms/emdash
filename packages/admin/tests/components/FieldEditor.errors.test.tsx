@@ -129,7 +129,7 @@ describe("FieldEditor errors", () => {
 		const screen = await openHarness({ onSave });
 		const dialog = await chooseType(screen, SHORT_TEXT);
 		await dialog.getByLabelText("Label", { exact: true }).fill("Title");
-		const maxLength = dialog.getByLabelText("Max Length");
+		const maxLength = dialog.getByLabelText("Maximum characters");
 		await maxLength.fill("2.5");
 		await dialog.getByRole("button", { name: "Add Field" }).click();
 
@@ -149,7 +149,7 @@ describe("FieldEditor errors", () => {
 		const screen = await openHarness({ onSave });
 		const dialog = await chooseType(screen, SHORT_TEXT);
 		await dialog.getByLabelText("Label", { exact: true }).fill("Title");
-		const maxLength = dialog.getByLabelText("Max Length");
+		const maxLength = dialog.getByLabelText("Maximum characters");
 		await userEvent.type(maxLength, "1e");
 		await dialog.getByRole("button", { name: "Add Field" }).click();
 

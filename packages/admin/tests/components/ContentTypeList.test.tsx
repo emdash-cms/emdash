@@ -336,6 +336,36 @@ describe("ContentTypeList", () => {
 			expect(screen.getByRole("button", { name: "Reorder Posts" }).query()).toBeNull();
 		});
 
+		it("says what dragging changes", async () => {
+			const screen = await render(
+				<ContentTypeList collections={twoCollections} onReorder={vi.fn()} />,
+			);
+
+			await expect
+				.element(screen.getByText("Drag to set the default order in the sidebar."))
+				.toBeVisible();
+		});
+
+		it("drops the drag hint when there is nothing to reorder", async () => {
+			const screen = await render(
+				<ContentTypeList collections={[twoCollections[0]!]} onReorder={vi.fn()} />,
+			);
+
+			await expect
+				.element(screen.getByRole("cell", { name: "posts", exact: true }))
+				.toBeInTheDocument();
+			expect(screen.getByText("Drag to set the default order in the sidebar.").query()).toBeNull();
+		});
+
+		it("drops the drag hint when the list can't be reordered", async () => {
+			const screen = await render(<ContentTypeList collections={twoCollections} />);
+
+			await expect
+				.element(screen.getByRole("cell", { name: "posts", exact: true }))
+				.toBeInTheDocument();
+			expect(screen.getByText("Drag to set the default order in the sidebar.").query()).toBeNull();
+		});
+
 		it("renders collections in the order given, not alphabetically", async () => {
 			// The server already returns them ordered; the list must not re-sort.
 			const screen = await render(

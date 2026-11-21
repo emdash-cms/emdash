@@ -1224,7 +1224,7 @@ export function FieldEditor({
 								<DialogSection title={t`Validation`}>
 									<div className="grid grid-cols-1 items-start gap-5 sm:grid-cols-2 sm:gap-4">
 										<Input
-											label={t`Min Length`}
+											label={t`Minimum characters`}
 											name="minLength"
 											type="number"
 											value={minLength}
@@ -1234,7 +1234,7 @@ export function FieldEditor({
 											aria-invalid={errors.minLength ? true : undefined}
 										/>
 										<Input
-											label={t`Max Length`}
+											label={t`Maximum characters`}
 											name="maxLength"
 											type="number"
 											value={maxLength}

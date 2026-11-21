@@ -932,6 +932,31 @@ describe("ContentEditor", () => {
 			await expect.element(input).toBeInTheDocument();
 		});
 
+		it("lines up empty text boxes with the page direction until text is typed", async () => {
+			const previousDir = document.documentElement.dir;
+			document.documentElement.dir = "rtl";
+			try {
+				const screen = await renderEditor({
+					fields: {
+						title: { kind: "string", label: "Title" },
+						subtitle: { kind: "string", label: "Subtitle" },
+						excerpt: { kind: "richText", label: "Excerpt" },
+					},
+				});
+				const title = screen.getByLabelText("Title", { exact: true });
+				await expect.element(title).toBeInTheDocument();
+				for (const label of ["Title", "Subtitle", "Excerpt"]) {
+					const box = screen.getByLabelText(label, { exact: true });
+					expect(box.element().matches(":dir(rtl)")).toBe(true);
+				}
+
+				await title.fill("Hello");
+				await expect.poll(() => title.element().matches(":dir(ltr)")).toBe(true);
+			} finally {
+				document.documentElement.dir = previousDir;
+			}
+		});
+
 		it("renders boolean fields as switches", async () => {
 			const screen = await renderEditor({
 				fields: { featured: { kind: "boolean", label: "Featured" } },

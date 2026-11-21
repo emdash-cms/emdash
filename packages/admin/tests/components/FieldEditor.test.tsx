@@ -167,8 +167,8 @@ describe("FieldEditor", () => {
 		it("shows min/max length validation for string type", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={stringField} />);
 			await expect.element(screen.getByText("Validation")).toBeInTheDocument();
-			await expect.element(screen.getByLabelText("Min Length")).toBeInTheDocument();
-			await expect.element(screen.getByLabelText("Max Length")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Minimum characters")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Maximum characters")).toBeInTheDocument();
 		});
 
 		it("shows pattern input for string type", async () => {
@@ -212,8 +212,8 @@ describe("FieldEditor", () => {
 
 		it("does not show min/max length for number type", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={numberField} />);
-			expect(screen.getByLabelText("Min Length").query()).toBeNull();
-			expect(screen.getByLabelText("Max Length").query()).toBeNull();
+			expect(screen.getByLabelText("Minimum characters").query()).toBeNull();
+			expect(screen.getByLabelText("Maximum characters").query()).toBeNull();
 		});
 	});
 
@@ -229,8 +229,8 @@ describe("FieldEditor", () => {
 
 		it("shows min/max length but no pattern for text type", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={textField} />);
-			await expect.element(screen.getByLabelText("Min Length")).toBeInTheDocument();
-			await expect.element(screen.getByLabelText("Max Length")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Minimum characters")).toBeInTheDocument();
+			await expect.element(screen.getByLabelText("Maximum characters")).toBeInTheDocument();
 			expect(screen.getByLabelText("Pattern (Regex)").query()).toBeNull();
 		});
 
@@ -318,7 +318,7 @@ describe("FieldEditor", () => {
 
 		it("pre-populates validation values", async () => {
 			const screen = await renderInRouter(<FieldEditor {...defaultProps} field={existingField} />);
-			await expect.element(screen.getByLabelText("Max Length")).toHaveValue(200);
+			await expect.element(screen.getByLabelText("Maximum characters")).toHaveValue(200);
 		});
 
 		it("pre-populates slug value", async () => {
