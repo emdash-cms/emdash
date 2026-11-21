@@ -67,7 +67,7 @@ The block fields control how the block appears in the slash menu and edit dialog
 | `description` | No | Adds supporting text in the slash menu. |
 | `category` | No | Groups the block in the slash menu. The default category is `Embeds`. |
 | `placeholder` | No | Sets the simple URL input's placeholder when `fields` is omitted. |
-| `fields` | No | Replaces the simple URL input with Block Kit form elements. Each `action_id` becomes a property on the saved block. |
+| `fields` | No | Replaces the simple URL input with Block Kit form elements. Each `action_id` becomes a property on the saved block. An empty array declares a block with nothing to fill in, which the editor inserts without a dialog. |
 
 Use the Block Kit element shapes documented in [Block Kit](/plugins/creating-plugins/block-kit/) for `fields`. The example stores a block shaped like the following value:
 
