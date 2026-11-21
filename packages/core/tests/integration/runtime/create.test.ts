@@ -790,6 +790,7 @@ describe("EmDashRuntime.create — cold boot", () => {
 			const singletonSql: string[] = [];
 			const coalescingSql: string[] = [];
 			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+			const onFold = vi.fn();
 			const runtime = await EmDashRuntime.create(
 				{
 					...createDeps(),
@@ -799,8 +800,11 @@ describe("EmDashRuntime.create — cold boot", () => {
 						new SqliteDialect({ database: recordingHandle(sqlite, coalescingSql) }),
 				},
 				timings,
+				onFold,
 			);
 			try {
+				expect(onFold).toHaveBeenCalledTimes(1);
+				await expect(onFold.mock.calls[0]?.[0]).resolves.toBe(MIGRATION_NAMES.length);
 				expect(coalescingSql.filter((s) => MIGRATION_COUNT_SQL.test(s))).toHaveLength(1);
 				expect(singletonSql.filter((s) => MIGRATION_COUNT_SQL.test(s))).toHaveLength(0);
 				// The cold-start reads ran once, in the batch with the count.
@@ -814,6 +818,7 @@ describe("EmDashRuntime.create — cold boot", () => {
 		it("migrates a fresh database, then repeats the cold-start reads", async () => {
 			const sqlite = sharedDatabase();
 			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
+			const onFold = vi.fn();
 			const runtime = await EmDashRuntime.create(
 				{
 					...createDeps(),
@@ -821,8 +826,11 @@ describe("EmDashRuntime.create — cold boot", () => {
 					createCoalescingDialect: () => new SqliteDialect({ database: sqlite }),
 				},
 				timings,
+				onFold,
 			);
 			try {
+				// The folded count saw no migrations table.
+				await expect(onFold.mock.calls[0]?.[0]).resolves.toBeNull();
 				const applied = await sql<{ count: number }>`
 					SELECT COUNT(*) AS count FROM _emdash_migrations
 				`.execute(runtime.db);
@@ -940,8 +948,10 @@ describe("EmDashRuntime.create — cold boot", () => {
 			coalescingSql.length = 0;
 
 			const timings: Array<{ name: string; dur: number; desc?: string }> = [];
-			const second = await EmDashRuntime.create(deps, timings);
+			const onFold = vi.fn();
+			const second = await EmDashRuntime.create(deps, timings, onFold);
 			try {
+				expect(onFold).toHaveBeenCalledExactlyOnceWith(undefined);
 				expect(coalescingSql.filter((s) => MIGRATION_COUNT_SQL.test(s))).toHaveLength(0);
 				// The cold-start reads still ran once, on the coalescing connection.
 				expect(timings.filter((t) => t.name === "rt.plugins")).toHaveLength(1);

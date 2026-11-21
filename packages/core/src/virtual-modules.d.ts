@@ -85,6 +85,13 @@ declare module "virtual:emdash/dialect" {
 		 * prefer the primary uncached binding after a publish.
 		 */
 		lastContentWriteAt?: number;
+		/**
+		 * A GET whose preferred response type is HTML: a page navigation that
+		 * renders the layout. Only set on the anonymous public-page path.
+		 */
+		htmlNavigation?: boolean;
+		/** Identifies the site build; changes with every `astro build`. */
+		buildId?: string;
 	}
 	export interface RequestScopedDb {
 		/** A per-request handle on the configured database, never a different one. */
@@ -97,8 +104,12 @@ declare module "virtual:emdash/dialect" {
 		 * it here — closing in `commit()` would cut the connection mid-render,
 		 * because Astro streams the HTML body and components issue queries while
 		 * it streams. Stateless adapters (D1) omit it.
+		 *
+		 * `outcome` describes the response (status, content type, whether the
+		 * body streamed to the end); it is absent when the render threw or
+		 * `commit()` failed. Adapters may ignore it.
 		 */
-		close?: () => void;
+		close?: (outcome?: { status: number; contentType: string | null; complete: boolean }) => void;
 	}
 	export const createRequestScopedDb: (opts: RequestScopedDbOpts) => RequestScopedDb | null;
 	export const executeCollectionDeletionGuard: ExecuteCollectionDeletionGuard | undefined;

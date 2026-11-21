@@ -7,9 +7,11 @@ import {
 import {
 	QUERY_LOG_ENV,
 	QUERY_LOG_PREFIX,
+	QUERY_SUMMARY_PREFIX,
 	createRecorder,
 	flushRecorder,
 	recordEvent,
+	recordRoundTrip,
 } from "../../../src/database/instrumentation.js";
 import {
 	createRequestMetrics,
@@ -201,6 +203,37 @@ describe("wrapBodyForStreamMetrics", () => {
 		expect(lines).toHaveLength(1);
 	});
 
+	it("emits one query summary line with dbCount and rpcCount at stream end", async () => {
+		const summaries: string[] = [];
+		const queryLines: string[] = [];
+		vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+			const line = args.map(String).join(" ");
+			if (line.startsWith(QUERY_SUMMARY_PREFIX)) summaries.push(line);
+			if (line.startsWith(QUERY_LOG_PREFIX)) queryLines.push(line);
+		});
+		const metrics = createRequestMetrics(performance.now());
+		const recorder = createRecorder("/posts/example", "GET", "cold");
+		recordEvent(recorder, "select 1", [], 1);
+		recordEvent(recorder, "select 2", [], 1);
+		metrics.dbCount = 2;
+		metrics.rpcCount = 1;
+
+		const wrapped = wrapInContext(new Response("page"), metrics, { queryRecorder: recorder });
+		await wrapped.text();
+		flushRecorder(recorder, metrics);
+
+		// The summary uses its own prefix, so query-log consumers never see it.
+		expect(queryLines).toHaveLength(2);
+		expect(summaries).toHaveLength(1);
+		expect(JSON.parse(summaries[0]!.slice(QUERY_SUMMARY_PREFIX.length + 1))).toEqual({
+			route: "/posts/example",
+			method: "GET",
+			phase: "cold",
+			dbCount: 2,
+			rpcCount: 1,
+		});
+	});
+
 	it("forwards the Astro cookies symbol and drops Content-Length", () => {
 		const metrics = createRequestMetrics(performance.now());
 		const cookiesMarker = { _marker: "astro-cookies" };
@@ -213,5 +246,43 @@ describe("wrapBodyForStreamMetrics", () => {
 		expect(wrapped).not.toBe(response);
 		expect(Reflect.get(wrapped, ASTRO_COOKIES_SYMBOL)).toBe(cookiesMarker);
 		expect(wrapped.headers.has("Content-Length")).toBe(false);
+	});
+});
+
+describe("recordRoundTrip", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("only counts on requests without a query recorder", () => {
+		const metrics = createRequestMetrics(performance.now());
+		const done = runWithContext({ editMode: false, metrics }, () => recordRoundTrip(3));
+		expect(done).toBeUndefined();
+		expect(metrics.rpcCount).toBe(1);
+		expect(metrics.rpcTrace).toBeUndefined();
+	});
+
+	it("traces statements and rows read into the summary line", () => {
+		const summaries: string[] = [];
+		vi.spyOn(console, "log").mockImplementation((...args: unknown[]) => {
+			const line = args.map(String).join(" ");
+			if (line.startsWith(QUERY_SUMMARY_PREFIX)) summaries.push(line);
+		});
+		const metrics = createRequestMetrics(performance.now());
+		const recorder = createRecorder("/", "GET", "cold");
+		runWithContext({ editMode: false, metrics, queryRecorder: recorder }, () => {
+			recordRoundTrip(5)?.(40);
+			recordRoundTrip(1)?.(undefined);
+			recordRoundTrip(2)?.(2);
+		});
+		metrics.replay = { hits: 4, misses: 1, waste: 0 };
+		flushRecorder(recorder, metrics);
+
+		const summary = JSON.parse(summaries[0]!.slice(QUERY_SUMMARY_PREFIX.length + 1));
+		expect(summary.rpcCount).toBe(3);
+		expect(summary.rpcStatements).toEqual([5, 1, 2]);
+		expect(summary.rpcSpans).toHaveLength(3);
+		expect(summary.rowsRead).toBe(42);
+		expect(summary.replay).toEqual({ hits: 4, misses: 1, waste: 0 });
 	});
 });

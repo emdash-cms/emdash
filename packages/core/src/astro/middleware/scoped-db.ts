@@ -19,9 +19,28 @@ import type { DeferredTaskTracker } from "../../deferred-tasks.js";
  */
 export const ASTRO_COOKIES_SYMBOL = Symbol.for("astro.cookies");
 
+/**
+ * How the response a request-scoped db served ended, handed to its `close()`.
+ * Facts only; what to do with them is the adapter's business (most ignore
+ * the argument). `close()` gets no outcome at all when the render threw or
+ * `commit()` failed, so absence means "no usable response".
+ */
+export interface ScopedResponseOutcome {
+	/** Final status of the response this middleware returned. */
+	status: number;
+	/** Its Content-Type header, if any. */
+	contentType: string | null;
+	/**
+	 * Whether the body streamed to the end (always true for bodyless
+	 * responses). False when the stream was cancelled or errored, e.g. a
+	 * client disconnect or a render error mid-stream.
+	 */
+	complete: boolean;
+}
+
 interface ScopedDbLifecycle {
 	commit: () => void;
-	close?: () => void;
+	close?: (outcome?: ScopedResponseOutcome) => void;
 }
 
 /**
@@ -54,9 +73,12 @@ export function coordinateScopedDbLifecycle(scoped: ScopedDbLifecycle): {
 	if (!scoped.close) return { lifecycle: scoped };
 
 	const close = scoped.close;
+	// The response settles before deferred tasks may; keep its outcome for the
+	// real close, which runs once both have.
+	let outcome: ScopedResponseOutcome | undefined;
 	const deferredTasks = createDeferredTaskTracker(() => {
 		try {
-			close();
+			close(outcome);
 		} catch (error) {
 			console.error("[emdash] request-scoped db close failed:", error);
 		}
@@ -64,7 +86,13 @@ export function coordinateScopedDbLifecycle(scoped: ScopedDbLifecycle): {
 	return {
 		closed: deferredTasks.settled,
 		deferredTasks,
-		lifecycle: { commit: scoped.commit, close: deferredTasks.settle },
+		lifecycle: {
+			commit: scoped.commit,
+			close: (settledOutcome) => {
+				outcome = settledOutcome;
+				deferredTasks.settle();
+			},
+		},
 	};
 }
 
@@ -75,29 +103,36 @@ export function coordinateScopedDbLifecycle(scoped: ScopedDbLifecycle): {
  * not be torn down until the body is flushed. Bodyless responses (redirects,
  * 304s, errors) close immediately. A guard makes close idempotent and a stream
  * `cancel` (client disconnect) still triggers it so connections never leak.
+ * `close()` receives the response's status, content type and whether the body
+ * streamed to the end (see ScopedResponseOutcome).
  *
  * No-op for adapters without a `close` (D1): the response passes through.
  */
-export function wrapResponseForScopedClose(response: Response, close: () => void): Response {
+export function wrapResponseForScopedClose(
+	response: Response,
+	close: (outcome?: ScopedResponseOutcome) => void,
+): Response {
 	let closed = false;
-	const runClose = () => {
+	const { status } = response;
+	const contentType = response.headers.get("content-type");
+	const runClose = (complete: boolean) => {
 		if (closed) return;
 		closed = true;
 		try {
-			close();
+			close({ status, contentType, complete });
 		} catch (error) {
 			console.error("[emdash] request-scoped db close failed:", error);
 		}
 	};
 
 	if (!response.body) {
-		runClose();
+		runClose(true);
 		return response;
 	}
 
 	// The DOM lib's `Transformer` predates the Streams `cancel` callback, so an
 	// inline literal fails its excess-property check.
-	const transformer = { flush: runClose, cancel: runClose };
+	const transformer = { flush: () => runClose(true), cancel: () => runClose(false) };
 	const transform = new TransformStream<Uint8Array, Uint8Array>(transformer);
 	const wrapped = new Response(response.body.pipeThrough(transform), response);
 	const astroCookies = Reflect.get(response, ASTRO_COOKIES_SYMBOL);
@@ -173,7 +208,7 @@ function commitSafely(commit: () => void): void {
  * where another exception is the one the caller must see; a throwing teardown
  * must not replace it.
  */
-function closeSafely(close: (() => void) | undefined): void {
+function closeSafely(close: ((outcome?: ScopedResponseOutcome) => void) | undefined): void {
 	if (!close) return;
 	try {
 		close();

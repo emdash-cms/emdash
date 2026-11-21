@@ -376,3 +376,87 @@ describe("finishScoped", () => {
 		errorSpy.mockRestore();
 	});
 });
+
+describe("close outcome", () => {
+	it("reports status, content type and completion for a fully streamed body", async () => {
+		const close = vi.fn();
+		const response = await finishScoped({ commit: vi.fn(), close }, async () =>
+			streamingResponse(["page"], { status: 200, headers: { "content-type": "text/html" } }),
+		);
+		await drain(response);
+		expect(close).toHaveBeenCalledWith({ status: 200, contentType: "text/html", complete: true });
+	});
+
+	it("reports a bodyless redirect as complete with its status", async () => {
+		const close = vi.fn();
+		await finishScoped(
+			{ commit: vi.fn(), close },
+			async () => new Response(null, { status: 302, headers: { location: "/" } }),
+		);
+		expect(close).toHaveBeenCalledWith({ status: 302, contentType: null, complete: true });
+	});
+
+	it("reports a cancelled stream as incomplete", async () => {
+		const close = vi.fn();
+		const response = await finishScoped({ commit: vi.fn(), close }, async () =>
+			streamingResponse(["x"], { headers: { "content-type": "text/html" } }),
+		);
+		await response.body!.cancel();
+		expect(close).toHaveBeenCalledWith({
+			status: 200,
+			contentType: "text/html",
+			complete: false,
+		});
+	});
+
+	it("passes no outcome when the render throws", async () => {
+		const close = vi.fn();
+		await expect(
+			finishScoped({ commit: vi.fn(), close }, async () => {
+				throw new Error("render failed");
+			}),
+		).rejects.toThrow("render failed");
+		expect(close).toHaveBeenCalledTimes(1);
+		expect(close.mock.calls[0]?.[0]).toBeUndefined();
+	});
+
+	it("passes no outcome when commit fails", async () => {
+		const close = vi.fn();
+		await expect(
+			finishScoped(
+				{
+					commit: () => {
+						throw new Error("commit failed");
+					},
+					close,
+				},
+				async () => streamingResponse(["body"]),
+			),
+		).rejects.toThrow("commit failed");
+		expect(close.mock.calls[0]?.[0]).toBeUndefined();
+	});
+
+	it("carries the outcome through deferred work to the real close", async () => {
+		let settleWork!: () => void;
+		const close = vi.fn();
+		const { deferredTasks, lifecycle } = coordinateScopedDbLifecycle({ commit: vi.fn(), close });
+		const response = await runWithContext({ editMode: false, deferredTasks }, async () => {
+			after(
+				() =>
+					new Promise<void>((resolve) => {
+						settleWork = resolve;
+					}),
+			);
+			await Promise.resolve();
+			return finishScoped(lifecycle, async () =>
+				streamingResponse(["nf"], { status: 404, headers: { "content-type": "text/html" } }),
+			);
+		});
+		await drain(response);
+		expect(close).not.toHaveBeenCalled();
+		settleWork();
+		await vi.waitFor(() =>
+			expect(close).toHaveBeenCalledWith({ status: 404, contentType: "text/html", complete: true }),
+		);
+	});
+});

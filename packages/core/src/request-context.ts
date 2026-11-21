@@ -48,6 +48,36 @@ export interface RequestMetrics {
 	 * adapter, not the Kysely log hook.
 	 */
 	rpcCount: number;
+	/**
+	 * Per-round-trip detail, in issue order. Only collected on requests with a
+	 * query recorder (EMDASH_QUERY_LOG=1); undefined otherwise.
+	 */
+	rpcTrace?: RpcTraceEntry[];
+	/**
+	 * Speculative query replay counters, for backends that replay a learned
+	 * query plan (D1 `replay`). Undefined when the request did not replay.
+	 */
+	replay?: ReplayMetrics;
+}
+
+export interface RpcTraceEntry {
+	/** Statements carried by the round trip. */
+	statements: number;
+	/** Start offset from request start, ms. */
+	at: number;
+	/** Duration, ms, once settled. */
+	dur?: number;
+	/** Summed `rows_read`, when the backend reports it. */
+	rowsRead?: number;
+}
+
+export interface ReplayMetrics {
+	/** Queries served from the replayed batch. */
+	hits: number;
+	/** SELECTs executed that the plan did not predict. */
+	misses: number;
+	/** Planned statements never consumed. Final only once the request ends. */
+	waste: number;
 }
 
 export function createRequestMetrics(start: number): RequestMetrics {

@@ -16,6 +16,17 @@
  *                                          so a count change shows which
  *                                          query moved, not just the total.
  *
+ * Physical round trips are tracked separately, because they depend on the
+ * backend's batching config (e.g. d1({ coalesce })) rather than on which
+ * queries the code issues. Each request's recorder flush emits one
+ * `[emdash-query-summary]` line ({ route, method, phase, dbCount, rpcCount });
+ * the harness prints logical queries vs round trips per route+phase, and
+ * compares against (informational, never fails) or writes:
+ *   query-counts.rpc.{target}.json       — per route+phase round-trip count
+ * Write it with --update-rpc, which leaves the two snapshots above alone.
+ * --rpc-snapshot <path> points at a different file (e.g. to keep one per
+ * coalesce setting). A build without the summary line just skips this.
+ *
  * The recorder is flushed when the response body finishes streaming (not
  * when middleware returns), so queries issued by components *during*
  * streaming are captured. Before that fix the counts only saw queries that
@@ -49,6 +60,12 @@
  *   node scripts/query-counts.mjs --target d1 --update
  *   node scripts/query-counts.mjs --skip-seed           # reuse existing db
  *   node scripts/query-counts.mjs --skip-build          # reuse existing build
+ *   node scripts/query-counts.mjs --target d1 --update-rpc  # rewrite rpc file only
+ *   node scripts/query-counts.mjs --target d1 --route /     # only these routes (repeatable;
+ *                                                           # snapshot diffs then fail)
+ *
+ * Set QUERY_COUNTS_SPANS=1 to also print each round trip's [start-end] ms
+ * offsets from request start.
  *
  * --skip-seed and --skip-build compose. Passing both gives the fastest
  * local iteration loop once the fixture is set up.
@@ -101,6 +118,9 @@ const QUERY_LOG_PREFIX = "[emdash-query-log] ";
 // streaming, including queries that Server-Timing headers can't see.
 // Deferred work that outlives the response body is not included.
 const STREAM_END_PREFIX = "[emdash-stream-end] ";
+// One line per request from flushRecorder: logical query count and physical
+// round trips. Older builds don't emit it; everything below tolerates that.
+const QUERY_SUMMARY_PREFIX = "[emdash-query-summary] ";
 
 /**
  * Resolve once a TCP connection to (host, port) succeeds, or reject on
@@ -163,12 +183,24 @@ function waitForPortFree(host, port, timeoutMs = 5_000) {
 }
 
 function parseArgs(argv) {
-	const out = { target: "sqlite", update: false, skipBuild: false, skipSeed: false };
+	const out = {
+		target: "sqlite",
+		update: false,
+		updateRpc: false,
+		rpcSnapshot: undefined,
+		skipBuild: false,
+		skipSeed: false,
+		onlyRoutes: [],
+	};
 	for (let i = 0; i < argv.length; i++) {
 		const a = argv[i];
 		if (a === "--update") out.update = true;
+		else if (a === "--update-rpc") out.updateRpc = true;
+		else if (a === "--rpc-snapshot") out.rpcSnapshot = argv[++i];
+		else if (a.startsWith("--rpc-snapshot=")) out.rpcSnapshot = a.slice("--rpc-snapshot=".length);
 		else if (a === "--skip-build") out.skipBuild = true;
 		else if (a === "--skip-seed") out.skipSeed = true;
+		else if (a === "--route") out.onlyRoutes.push(argv[++i]);
 		else if (a === "--target") {
 			out.target = argv[++i];
 		} else if (a.startsWith("--target=")) {
@@ -183,11 +215,23 @@ function parseArgs(argv) {
 	return out;
 }
 
-const { target, update, skipBuild, skipSeed } = parseArgs(process.argv.slice(2));
+const { target, update, updateRpc, rpcSnapshot, skipBuild, skipSeed, onlyRoutes } = parseArgs(
+	process.argv.slice(2),
+);
+if (onlyRoutes.length > 0 && (update || updateRpc)) {
+	throw new Error("--route cannot be combined with --update or --update-rpc");
+}
+const selectedRoutes =
+	onlyRoutes.length > 0 ? ROUTES.filter(([, p]) => onlyRoutes.includes(p.split("?")[0])) : ROUTES;
 const snapshotPath = resolve(__dirname, `query-counts.snapshot.${target}.json`);
 // Companion snapshot of the actual SQL per route+phase, so a count change
 // shows *which* query appeared/vanished, not just that the number moved.
 const querySnapshotPath = resolve(__dirname, `query-counts.queries.${target}.json`);
+// Physical round trips per route+phase. Separate file: it varies with backend
+// batching config, so it must not gate the logical snapshots above.
+const rpcSnapshotPath = rpcSnapshot
+	? resolve(process.cwd(), rpcSnapshot)
+	: resolve(__dirname, `query-counts.rpc.${target}.json`);
 
 function resetSqliteState() {
 	for (const f of ["data.db", "data.db-wal", "data.db-shm"]) {
@@ -287,8 +331,8 @@ async function seedD1ViaDevBypass(events) {
 			}
 			return;
 		}
-		// Stream-end snapshots from seeding aren't measurements; swallow them.
-		if (line.includes(STREAM_END_PREFIX)) return;
+		// Stream-end snapshots and summaries from seeding aren't measurements.
+		if (line.includes(STREAM_END_PREFIX) || line.includes(QUERY_SUMMARY_PREFIX)) return;
 		process.stdout.write(line + "\n");
 	});
 	const exited = new Promise((res) => child.once("exit", res));
@@ -322,7 +366,7 @@ async function seedD1ViaDevBypass(events) {
  * `ready` resolves on a successful TCP connection — no HTTP probing,
  * so a fresh workerd isolate stays cold until our first tagged request.
  */
-async function startServer({ collectedEvents, streamEndSnapshots = [] }) {
+async function startServer({ collectedEvents, streamEndSnapshots = [], summaries = [] }) {
 	let cmd;
 	let args;
 	if (target === "sqlite") {
@@ -361,6 +405,18 @@ async function startServer({ collectedEvents, streamEndSnapshots = [] }) {
 				collectedEvents.push(JSON.parse(payload));
 			} catch {
 				process.stderr.write(`bad query-log line: ${payload}\n`);
+			}
+			return;
+		}
+		const sumIdx = line.indexOf(QUERY_SUMMARY_PREFIX);
+		if (sumIdx !== -1) {
+			const before = line.slice(0, sumIdx);
+			if (before.trim().length > 0) process.stdout.write(before + "\n");
+			const payload = line.slice(sumIdx + QUERY_SUMMARY_PREFIX.length);
+			try {
+				summaries.push(JSON.parse(payload));
+			} catch {
+				process.stderr.write(`bad query-summary line: ${payload}\n`);
 			}
 			return;
 		}
@@ -535,19 +591,19 @@ function diffQuerySnapshot(actual) {
 // SQLite: seed the file DB via CLI, build, then run one long-lived node
 // entry. Warmup hit absorbs runtime init queries (filtered as "default"
 // phase). Tagged cold = first visit to route (runtime warm); warm = second.
-async function runSqlite(events, streamEndSnapshots) {
+async function runSqlite(events, streamEndSnapshots, summaries) {
 	if (!skipSeed) {
 		resetSqliteState();
 		seedSqliteCli();
 	}
 	if (skipBuild) assertExistingBuildMatchesTarget();
 	else buildFixture();
-	const server = await startServer({ collectedEvents: events, streamEndSnapshots });
+	const server = await startServer({ collectedEvents: events, streamEndSnapshots, summaries });
 	try {
 		await server.ready;
 		await warmup();
-		for (const [m, p, accept] of ROUTES) await hit(m, p, accept, "cold");
-		for (const [m, p, accept] of ROUTES) await hit(m, p, accept, "warm");
+		for (const [m, p, accept] of selectedRoutes) await hit(m, p, accept, "cold");
+		for (const [m, p, accept] of selectedRoutes) await hit(m, p, accept, "warm");
 	} finally {
 		await server.stop();
 	}
@@ -562,7 +618,7 @@ async function runSqlite(events, streamEndSnapshots) {
 // Seed must precede build: `astro dev` leaves `.wrangler/deploy/`
 // without the build-time `config.json` that `astro preview` requires,
 // so building afterwards is what makes the subsequent previews work.
-async function runD1(events, streamEndSnapshots) {
+async function runD1(events, streamEndSnapshots, summaries) {
 	if (!skipSeed) {
 		resetD1State();
 		// seeding uses its own event sink; we don't want to commingle
@@ -573,9 +629,9 @@ async function runD1(events, streamEndSnapshots) {
 	if (skipBuild) assertExistingBuildMatchesTarget();
 	else buildFixture();
 
-	for (const [m, p, accept] of ROUTES) {
+	for (const [m, p, accept] of selectedRoutes) {
 		process.stdout.write(`--- fresh isolate for ${m} ${p} ---\n`);
-		const server = await startServer({ collectedEvents: events, streamEndSnapshots });
+		const server = await startServer({ collectedEvents: events, streamEndSnapshots, summaries });
 		try {
 			await server.ready;
 			await hit(m, p, accept, "cold");
@@ -609,17 +665,97 @@ function reportStreamEnd(snapshots) {
 	}
 }
 
+/**
+ * Per route+phase physical round trips, from the per-request summary lines.
+ * Returns null when the build emitted none (older core), so callers can skip.
+ */
+function aggregateRpc(summaries) {
+	const tracked = summaries.filter((s) => TRACKED_PHASES.has(s.phase));
+	if (tracked.length === 0) return null;
+	const rpc = {};
+	for (const s of tracked) {
+		const key = `${s.method} ${s.route} (${s.phase})`;
+		rpc[key] = (rpc[key] ?? 0) + (s.rpcCount ?? 0);
+	}
+	return Object.fromEntries(Object.entries(rpc).toSorted(([a], [b]) => a.localeCompare(b)));
+}
+
+function reportRpc(counts, rpc) {
+	process.stdout.write("\nLogical queries vs physical round trips:\n");
+	for (const [key, trips] of Object.entries(rpc)) {
+		process.stdout.write(`  ${key}: queries=${counts[key] ?? 0} round-trips=${trips}\n`);
+	}
+}
+
+// Per-request round-trip detail, when the build traces it: statements per
+// round trip, [start,end] ms spans, summed rows_read and replay counters.
+function reportRpcDetail(summaries) {
+	const tracked = summaries
+		.filter((s) => TRACKED_PHASES.has(s.phase) && (s.rpcStatements || s.replay))
+		.toSorted((a, b) =>
+			`${a.method} ${a.route} ${a.phase}`.localeCompare(`${b.method} ${b.route} ${b.phase}`),
+		);
+	if (tracked.length === 0) return;
+	process.stdout.write("\nRound-trip detail (statements per trip; rows read; replay):\n");
+	for (const s of tracked) {
+		const shape = s.rpcStatements ? `[${s.rpcStatements.join(", ")}]` : "?";
+		const rows = typeof s.rowsRead === "number" ? ` rows_read=${s.rowsRead}` : "";
+		const replay = s.replay
+			? ` replay hit=${s.replay.hits} miss=${s.replay.misses} waste=${s.replay.waste}`
+			: "";
+		process.stdout.write(`  ${s.method} ${s.route} (${s.phase}): ${shape}${rows}${replay}\n`);
+		if (s.rpcSpans && process.env.QUERY_COUNTS_SPANS === "1") {
+			const spans = s.rpcSpans.map(([a, b], i) => `${s.rpcStatements[i]}@${a}-${b ?? "?"}`);
+			process.stdout.write(`      spans: ${spans.join(" ")}\n`);
+		}
+	}
+}
+
+// Informational only: round trips depend on backend batching config, so a
+// mismatch is reported but never fails the run.
+function diffRpcSnapshot(actual) {
+	if (!existsSync(rpcSnapshotPath)) return;
+	const expected = JSON.parse(readFileSync(rpcSnapshotPath, "utf8"));
+	const keys = [...new Set([...Object.keys(expected), ...Object.keys(actual)])].toSorted();
+	const diffs = keys.filter((k) => expected[k] !== actual[k]);
+	if (diffs.length === 0) {
+		process.stdout.write(`OK: round trips match ${rpcSnapshotPath}\n`);
+		return;
+	}
+	process.stdout.write(`Note: round trips differ from ${rpcSnapshotPath} (informational):\n`);
+	for (const k of diffs) {
+		process.stdout.write(
+			`  ${k}: expected=${expected[k] ?? "(missing)"} actual=${actual[k] ?? "(missing)"}\n`,
+		);
+	}
+}
+
 async function main() {
 	await waitForPortFree(HOST, PORT);
 	const events = [];
 	const streamEndSnapshots = [];
-	if (target === "sqlite") await runSqlite(events, streamEndSnapshots);
-	else await runD1(events, streamEndSnapshots);
+	const summaries = [];
+	if (target === "sqlite") await runSqlite(events, streamEndSnapshots, summaries);
+	else await runD1(events, streamEndSnapshots, summaries);
 
 	reportStreamEnd(streamEndSnapshots);
 
 	const counts = aggregate(events);
 	const queries = aggregateQueries(events);
+	const rpc = aggregateRpc(summaries);
+	if (rpc) {
+		reportRpc(counts, rpc);
+		reportRpcDetail(summaries);
+	} else process.stdout.write("\n(no [emdash-query-summary] lines; round trips not reported)\n");
+
+	if (updateRpc) {
+		if (!rpc) throw new Error("--update-rpc: the build emitted no query summary lines");
+		writeFileSync(rpcSnapshotPath, JSON.stringify(rpc, null, "\t") + "\n");
+		process.stdout.write(`Wrote ${Object.keys(rpc).length} entries to ${rpcSnapshotPath}\n`);
+	} else if (rpc) {
+		diffRpcSnapshot(rpc);
+	}
+
 	if (update) {
 		// Use tab indent so the output matches oxfmt's default and
 		// doesn't thrash under `pnpm format`. Space-indented output

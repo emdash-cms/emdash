@@ -40,7 +40,11 @@ vi.mock(
 );
 vi.mock(
 	"virtual:emdash/dialect",
-	() => ({ createDialect: vi.fn(), createRequestScopedDb: vi.fn().mockReturnValue(null) }),
+	() => ({
+		createDialect: vi.fn(),
+		createRequestScopedDb: vi.fn().mockReturnValue(null),
+		createCoalescingDialect: undefined,
+	}),
 	{ virtual: true },
 );
 vi.mock("virtual:emdash/media-providers", () => ({ mediaProviders: [] }), { virtual: true });

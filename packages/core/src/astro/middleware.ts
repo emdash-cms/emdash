@@ -85,6 +85,7 @@ import {
 	coordinateScopedDbLifecycle,
 	finishScoped,
 	requestEndedAuthenticated,
+	type ScopedResponseOutcome,
 } from "./middleware/scoped-db.js";
 import { wrapBodyForStreamMetrics } from "./middleware/stream-end-metrics.js";
 import { prefetchLayoutData } from "./prefetch.js";
@@ -228,6 +229,9 @@ function buildDependencies(
 	/* eslint-enable typescript-eslint/no-unsafe-type-assertion */
 }
 
+/** First call wins: see EmDashRuntime.create's `onFoldedMigrationCount`. */
+type FoldedMigrationCountSink = (count: Promise<number | null | undefined> | undefined) => void;
+
 /**
  * Get or create the runtime instance.
  *
@@ -240,6 +244,7 @@ async function getRuntime(
 	config: EmDashConfig,
 	migrationMode: RuntimeMigrationMode,
 	initTimings?: Array<{ name: string; dur: number; desc?: string }>,
+	onFoldedMigrationCount?: FoldedMigrationCountSink,
 ): Promise<EmDashRuntime> {
 	// Waiters poll rather than awaiting the initializing request's promise —
 	// workerd flags cross-request promise resolution (warnings + potential
@@ -249,7 +254,13 @@ async function getRuntime(
 	// failing that, the stale lock is reclaimed after a deadline instead of
 	// hanging every subsequent request in the isolate until eviction.
 	const holder = getRuntimeHolder();
-	return initWithLock(
+	// Only a request that claims the init sees its folded count. One that finds
+	// a runtime or another request's claim reports none straight away, so its
+	// caller can probe without waiting for that init.
+	if (onFoldedMigrationCount && (holder.instance || holder.lock.ownerStartedAt !== null)) {
+		onFoldedMigrationCount(undefined);
+	}
+	const pending = initWithLock(
 		holder.lock,
 		() => {
 			if (holder.closed) throw new Error("EmDash dev server has closed");
@@ -258,7 +269,7 @@ async function getRuntime(
 		async (isCurrentClaim) => {
 			if (holder.closed) throw new Error("EmDash dev server has closed");
 			const deps = buildDependencies(config, migrationMode);
-			const runtime = await EmDashRuntime.create(deps, initTimings);
+			const runtime = await EmDashRuntime.create(deps, initTimings, onFoldedMigrationCount);
 			// A restart can close the server while the first request is initializing.
 			if (holder.closed) {
 				await runtime.shutdown();
@@ -288,6 +299,14 @@ async function getRuntime(
 			anchor: (promise) => after(() => promise),
 		},
 	);
+	if (onFoldedMigrationCount) {
+		// Covers an init that settles without reaching the fold decision.
+		pending.then(
+			() => onFoldedMigrationCount(undefined),
+			() => onFoldedMigrationCount(undefined),
+		);
+	}
+	return pending;
 }
 
 /**
@@ -600,6 +619,11 @@ function pushMetricsTimings(
 	if (metrics.rpcCount > 0) {
 		timings.push({ name: "rpc.count", dur: metrics.rpcCount, desc: "DB round trips" });
 	}
+	if (metrics.replay) {
+		timings.push({ name: "replay.hit", dur: metrics.replay.hits, desc: "Replayed queries" });
+		timings.push({ name: "replay.miss", dur: metrics.replay.misses, desc: "Unplanned queries" });
+		timings.push({ name: "replay.waste", dur: metrics.replay.waste, desc: "Unused so far" });
+	}
 	if (metrics.cacheHits + metrics.cacheMisses > 0) {
 		timings.push({ name: "cache.hit", dur: metrics.cacheHits, desc: "Cache hits" });
 		timings.push({ name: "cache.miss", dur: metrics.cacheMisses, desc: "Cache misses" });
@@ -691,14 +715,18 @@ async function runImageRequest(
  * request flags, registers the returned handle as a view of the configured
  * database, and wraps next() in ALS if a scope was returned.
  */
-function createRequestScopedDb(
-	opts: RequestScopedDbOpts,
-): { db: Kysely<Database>; commit: () => void; close?: () => void } | null {
+function createRequestScopedDb(opts: RequestScopedDbOpts): {
+	db: Kysely<Database>;
+	commit: () => void;
+	close?: (outcome?: ScopedResponseOutcome) => void;
+} | null {
 	if (typeof virtualCreateRequestScopedDb !== "function") return null;
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- adapter returns Kysely<unknown>; cast to Database since core owns that type
-	const fn = virtualCreateRequestScopedDb as (
-		o: RequestScopedDbOpts,
-	) => { db: Kysely<Database>; commit: () => void; close?: () => void } | null;
+	const fn = virtualCreateRequestScopedDb as (o: RequestScopedDbOpts) => {
+		db: Kysely<Database>;
+		commit: () => void;
+		close?: (outcome?: ScopedResponseOutcome) => void;
+	} | null;
 	const scoped = fn(opts);
 	if (scoped) markRequestScopedDb(scoped.db);
 	return scoped;
@@ -927,13 +955,32 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// requests hit the cached runtime and leave this empty.
 			const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 			const runtimeInitStart = performance.now();
-			const runtimeInit = config ? getRuntime(config, migrationMode, initSubTimings) : undefined;
+			const needsProbe = migrationMode === "auto" && !isSetupVerified() && !context.isPrerendered;
+			// Where runtime init folds its cold-start reads into one batch (adapters
+			// with a coalescing dialect), the applied-migration count it reads there
+			// answers the probe too: a count means the table exists, null means it
+			// doesn't. Anything else falls back to the probe below.
+			let reportFoldedCount: FoldedMigrationCountSink | undefined;
+			const foldedCount =
+				needsProbe && config && virtualCreateCoalescingDialect
+					? new Promise<number | null | undefined>((resolve) => {
+							reportFoldedCount = resolve;
+						})
+					: undefined;
+			const runtimeInit = config
+				? getRuntime(config, migrationMode, initSubTimings, reportFoldedCount)
+				: undefined;
 			// Awaited below unless the probe fails; then it settles in the background.
 			runtimeInit?.catch(() => {});
 
 			let unmigrated = false;
 			let probeFailed = false;
-			if (migrationMode === "auto" && !isSetupVerified() && !context.isPrerendered) {
+			const folded = await foldedCount;
+			if (needsProbe && typeof folded === "number") {
+				markSetupVerified();
+			} else if (needsProbe && folded === null) {
+				unmigrated = true;
+			} else if (needsProbe) {
 				const t0 = performance.now();
 				try {
 					const { getDb } = await import("../loader.js");
@@ -1021,6 +1068,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				canUseCachedBinding && config?.database?.needsLastContentWriteAt
 					? await getLastContentWriteAt()
 					: undefined;
+			// Gate on the CLIENT'S PREFERRED type (leading media range), not a
+			// substring -- browser navigations lead with `text/html`, while feed
+			// readers lead with `application/rss+xml` etc. and only list
+			// `text/html;q=0.8` later, so a substring match would leak onto feeds.
+			// Read lazily: prerendering must not touch request headers.
+			const acceptsHtml = () =>
+				(request.headers.get("accept") ?? "").split(",", 1)[0]!.trim().startsWith("text/html");
 			const anonScoped = createRequestScopedDb({
 				config: config?.database?.config,
 				isAuthenticated,
@@ -1030,6 +1084,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				cookies,
 				url,
 				lastContentWriteAt,
+				htmlNavigation: !context.isPrerendered && request.method === "GET" && acceptsHtml(),
+				buildId: virtualBuildTime ? String(virtualBuildTime) : undefined,
 			});
 			const runAnon = async () => {
 				const t0 = performance.now();
@@ -1075,17 +1131,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				//    layout, so prefetching their chrome is pure waste.
 				//  - the work starts immediately, then after() keeps both it and the
 				//    request-scoped connection alive until the response also finishes.
-				// Gate on the CLIENT'S PREFERRED type (leading media range), not a
-				// substring -- browser navigations lead with `text/html`, while feed
-				// readers lead with `application/rss+xml` etc. and only list
-				// `text/html;q=0.8` later, so a substring match would leak onto feeds.
-				const acceptsHtml = (request.headers.get("accept") ?? "")
-					.split(",", 1)[0]!
-					.trim()
-					.startsWith("text/html");
 				return runWithContext(ctx, async () => {
 					if (
-						acceptsHtml &&
+						acceptsHtml() &&
 						anonScoped.db.getExecutor().adapter.supportsMultipleConnections !== false
 					) {
 						after(() => prefetchLayoutData(context.currentLocale));
@@ -1375,7 +1423,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// the body renders. Only flush here for responses that were not
 		// wrapped (no body: redirects, 304s, bodyless errors), where all
 		// queries have already run by the time middleware returns.
-		if (queryRecorder && !queryRecorder.deferredFlush) flushRecorder(queryRecorder);
+		if (queryRecorder && !queryRecorder.deferredFlush) flushRecorder(queryRecorder, metrics);
 	}
 });
 
