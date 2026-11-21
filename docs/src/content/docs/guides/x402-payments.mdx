@@ -145,7 +145,8 @@ When using EmDash, add a regular `number` field to your collection for per-page 
 import { getEmDashEntry } from "emdash";
 
 const { slug } = Astro.params;
-const { entry } = await getEmDashEntry("posts", slug);
+const { entry, error } = await getEmDashEntry("posts", slug);
+if (error) throw error;
 
 if (!entry) return Astro.rewrite("/404");
 

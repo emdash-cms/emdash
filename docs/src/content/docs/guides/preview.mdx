@@ -46,9 +46,7 @@ const { slug } = Astro.params;
 
 const { entry, isPreview, error } = await getEmDashEntry("posts", slug);
 
-if (error) {
-  return new Response("Server error", { status: 500 });
-}
+if (error) throw error;
 
 if (!entry) {
   return Astro.rewrite("/404");
@@ -295,9 +293,7 @@ const { slug } = Astro.params;
 
 const { entry, isPreview, error } = await getEmDashEntry("posts", slug);
 
-if (error) {
-  return new Response("Server error", { status: 500 });
-}
+if (error) throw error;
 
 if (!entry) {
   return Astro.rewrite("/404");

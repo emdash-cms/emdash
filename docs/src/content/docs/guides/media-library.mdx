@@ -330,7 +330,7 @@ import { getEmDashEntry } from "emdash";
 import { Image } from "emdash/ui";
 
 const { entry: post, error } = await getEmDashEntry("posts", Astro.params.slug);
-if (error) return new Response("Unable to load post", { status: 500 });
+if (error) throw error;
 if (!post) return Astro.rewrite("/404");
 ---
 
@@ -396,7 +396,7 @@ The following page renders a video stored in a `video` file field:
 import { getEmDashEntry } from "emdash";
 
 const { entry, error } = await getEmDashEntry("videos", Astro.params.slug);
-if (error) return new Response("Unable to load video", { status: 500 });
+if (error) throw error;
 if (!entry) return Astro.rewrite("/404");
 
 const file = entry.data.video;
