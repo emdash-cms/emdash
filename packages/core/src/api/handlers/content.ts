@@ -56,6 +56,7 @@ import { isStoragelessFieldRow } from "../../schema/types.js";
 import { FTSManager } from "../../search/fts-manager.js";
 import { invalidateTermCache } from "../../taxonomies/index.js";
 import { isMissingColumnError, isMissingTableError } from "../../utils/db-errors.js";
+import { normalizeIncomingSlug } from "../../utils/slugify.js";
 import { decodeRev, encodeRev, validateRev } from "../rev.js";
 import type { ApiResult, ContentListResponse, ContentResponse } from "../types.js";
 import {
@@ -119,9 +120,12 @@ function throwIfReferenceLimitRefused(rejected: string[], farSide: "parent" | "c
 	);
 }
 
-/** The slug a draft revision stages, when it stages one. */
-function readStagedSlug(data: Record<string, unknown> | undefined): string | null {
-	return typeof data?._slug === "string" ? data._slug : null;
+/** The slug a draft revision stages, when it stages one, as publishing writes it. */
+function readStagedSlug(
+	data: Record<string, unknown> | undefined,
+	liveSlug: string | null,
+): string | null {
+	return typeof data?._slug === "string" ? normalizeIncomingSlug(data._slug, liveSlug) : null;
 }
 
 /**
@@ -1389,7 +1393,7 @@ export async function handleContentCreate(
 				? resolveConfiguredLocale(body.locale)
 				: getI18nConfig()?.defaultLocale;
 
-			let slug: string | null | undefined = body.slug;
+			let slug = normalizeIncomingSlug(body.slug);
 			if (!slug) {
 				const slugSource = getSlugSource(body.data, await getCollectionTitleField(trx, collection));
 				if (slugSource) {
@@ -1519,7 +1523,7 @@ export async function handleContentCreate(
 				success: false,
 				error: {
 					code: "SLUG_CONFLICT",
-					message: `Slug '${body.slug ?? "(auto-generated)"}' already exists in collection '${collection}'`,
+					message: `Slug '${normalizeIncomingSlug(body.slug) || "(auto-generated)"}' already exists in collection '${collection}'`,
 				},
 			};
 		}
@@ -1561,7 +1565,7 @@ export async function handleContentCreate(
 					success: false,
 					error: {
 						code: "SLUG_CONFLICT",
-						message: `Slug '${body.slug ?? "(auto-generated)"}' already exists in collection '${collection}'`,
+						message: `Slug '${normalizeIncomingSlug(body.slug) || "(auto-generated)"}' already exists in collection '${collection}'`,
 					},
 				};
 			}
@@ -1678,9 +1682,11 @@ export async function handleContentUpdate(
 				}
 			}
 
+			const slug = normalizeIncomingSlug(body.slug, existing?.slug);
+
 			// Capture old slug before update for auto-redirect
 			let oldSlug: string | undefined;
-			if (body.slug && existing?.slug && existing.slug !== body.slug) {
+			if (slug && existing?.slug && existing.slug !== slug) {
 				oldSlug = existing.slug;
 			}
 
@@ -1692,7 +1698,7 @@ export async function handleContentUpdate(
 					});
 				}
 				const publishConfig = await getCollectionPublishConfig(trx, collection);
-				const intendedSlug = body.slug !== undefined ? body.slug : existing.slug;
+				const intendedSlug = slug !== undefined ? slug : existing.slug;
 				requireRoutablePublishSlug(publishConfig.routable, intendedSlug);
 			}
 
@@ -1727,7 +1733,7 @@ export async function handleContentUpdate(
 				resolvedId,
 				{
 					data: body.data,
-					slug: body.slug,
+					slug,
 					locale: existing?.locale ?? body.locale,
 					status: body.status,
 					authorId: body.authorId,
@@ -1750,12 +1756,12 @@ export async function handleContentUpdate(
 			// tokens in the URL pattern resolve from the publish date, so the old
 			// URL uses the pre-update date (the URL that was actually live) and the
 			// new URL the post-update one.
-			if (oldSlug && body.slug && existing?.status === "published") {
+			if (oldSlug && slug && existing?.status === "published") {
 				redirectChanged = await createSlugChangeRedirect(
 					trx,
 					collection,
 					oldSlug,
-					body.slug,
+					slug,
 					resolvedId,
 					existing?.publishedAt ?? null,
 					updated.publishedAt ?? null,
@@ -1858,7 +1864,7 @@ export async function handleContentUpdate(
 				success: false,
 				error: {
 					code: "SLUG_CONFLICT",
-					message: `Slug '${body.slug ?? id}' already exists in collection '${collection}'`,
+					message: `Slug '${normalizeIncomingSlug(body.slug) || id}' already exists in collection '${collection}'`,
 				},
 			};
 		}
@@ -1869,7 +1875,7 @@ export async function handleContentUpdate(
 					success: false,
 					error: {
 						code: "SLUG_CONFLICT",
-						message: `Slug '${body.slug ?? id}' already exists in collection '${collection}'`,
+						message: `Slug '${normalizeIncomingSlug(body.slug) || id}' already exists in collection '${collection}'`,
 					},
 				};
 			}
@@ -2555,7 +2561,7 @@ export async function handleContentPublish(
 				// write it guards.
 				if (stagedReferences) {
 					await assertPublishWillNotBeRefused(trx, collection, resolvedId, existing, {
-						stagedSlug: readStagedSlug(draftRevision?.data),
+						stagedSlug: readStagedSlug(draftRevision?.data, existing.slug),
 						requireSlug: publishConfig.routable,
 						requireDue: options.requireScheduledDue,
 						expectedScheduledAt: options.expectedScheduledAt,
