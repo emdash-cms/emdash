@@ -136,24 +136,70 @@ describe("CoalescingDOSqlDialect", () => {
 		expect(batchQuery).toHaveBeenCalledWith(expect.any(Array), { primary: true });
 	});
 
-	it("falls back to individual query() calls when the batch RPC fails", async () => {
-		const batchQuery = vi.fn().mockRejectedValue(new Error("batch boom"));
-		const query = vi
+	it.each([
+		["Error", new Error("batch boom")],
+		["overloaded: false", { overloaded: false }],
+		['overloaded: "true"', { overloaded: "true" }],
+		["null", null],
+		["string", "batch boom"],
+	])(
+		"falls back to individual query() calls for a non-overload error: %s",
+		async (_name, batchError) => {
+			const batchQuery = vi.fn().mockRejectedValue(batchError);
+			const query = vi
+				.fn()
+				.mockResolvedValueOnce({ rows: [{ id: "a" }] })
+				.mockResolvedValueOnce({ rows: [{ id: "b" }] });
+			const { dialect } = setup({ query, batchQuery });
+			const conn = await dialect.createDriver().acquireConnection();
+
+			const [r1, r2] = await Promise.all([
+				conn.executeQuery(CompiledQuery.raw("SELECT * FROM a")),
+				conn.executeQuery(CompiledQuery.raw("SELECT * FROM b")),
+			]);
+
+			expect(batchQuery).toHaveBeenCalledTimes(1);
+			expect(query).toHaveBeenCalledTimes(2);
+			expect(r1.rows).toEqual([{ id: "a" }]);
+			expect(r2.rows).toEqual([{ id: "b" }]);
+		},
+	);
+
+	it.each([
+		["Error", Object.assign(new Error("batch unavailable"), { overloaded: true })],
+		["plain object", { overloaded: true }],
+	])("does not retry an overloaded batch rejected with %s", async (_name, error) => {
+		const batchQuery = vi
 			.fn()
-			.mockResolvedValueOnce({ rows: [{ id: "a" }] })
-			.mockResolvedValueOnce({ rows: [{ id: "b" }] });
-		const { dialect } = setup({ query, batchQuery });
+			.mockRejectedValueOnce(error)
+			.mockResolvedValue([{ rows: [{ id: "c" }] }, { rows: [{ id: "d" }] }]);
+		const onRpc = vi.fn();
+		const { query, dialect } = setup({ batchQuery, onRpc });
 		const conn = await dialect.createDriver().acquireConnection();
 
-		const [r1, r2] = await Promise.all([
+		const results = await Promise.allSettled([
 			conn.executeQuery(CompiledQuery.raw("SELECT * FROM a")),
 			conn.executeQuery(CompiledQuery.raw("SELECT * FROM b")),
 		]);
 
+		expect(query).not.toHaveBeenCalled();
 		expect(batchQuery).toHaveBeenCalledTimes(1);
-		expect(query).toHaveBeenCalledTimes(2);
-		expect(r1.rows).toEqual([{ id: "a" }]);
-		expect(r2.rows).toEqual([{ id: "b" }]);
+		expect(onRpc).toHaveBeenCalledTimes(1);
+		for (const result of results) {
+			expect(result.status).toBe("rejected");
+			if (result.status === "rejected") expect(result.reason).toBe(error);
+		}
+
+		const [r1, r2] = await Promise.all([
+			conn.executeQuery(CompiledQuery.raw("SELECT * FROM c")),
+			conn.executeQuery(CompiledQuery.raw("SELECT * FROM d")),
+		]);
+
+		expect(r1.rows).toEqual([{ id: "c" }]);
+		expect(r2.rows).toEqual([{ id: "d" }]);
+		expect(batchQuery).toHaveBeenCalledTimes(2);
+		expect(onRpc).toHaveBeenCalledTimes(2);
+		expect(query).not.toHaveBeenCalled();
 	});
 
 	it("rejects only the missing statement if the batch returns too few results", async () => {

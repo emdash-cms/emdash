@@ -201,7 +201,16 @@ class CoalescingDOSqlConnection implements DatabaseConnection {
 					pending.map((p) => ({ sql: p.sql, params: p.params })),
 					opts,
 				);
-			} catch {
+			} catch (batchError) {
+				if (
+					typeof batchError === "object" &&
+					batchError !== null &&
+					"overloaded" in batchError &&
+					batchError.overloaded === true
+				) {
+					for (const p of pending) p.reject(batchError);
+					return;
+				}
 				// The batch RPC failed as a unit. Fall back to running each buffered
 				// statement individually (all SELECTs, safe to re-run) so innocent
 				// queries still resolve and only a genuinely failing one rejects with
