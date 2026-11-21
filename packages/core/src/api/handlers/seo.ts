@@ -68,7 +68,7 @@ export interface SitemapIndexEntry {
 	collection: string;
 	/** 1-based page number */
 	page: number;
-	/** Most recent updated_at across the page's entries */
+	/** Most recent content or SEO update across the page's entries */
 	lastmod: string;
 }
 
@@ -104,6 +104,12 @@ function toW3CDate(value: string): string {
 	}
 	const parsed = Date.parse(normalized);
 	return Number.isNaN(parsed) ? value : new Date(parsed).toISOString();
+}
+
+function latestModification(contentUpdatedAt: string, seoUpdatedAt: string | null): string {
+	const content = toW3CDate(contentUpdatedAt);
+	const seo = seoUpdatedAt ? toW3CDate(seoUpdatedAt) : null;
+	return seo && Date.parse(seo) > Date.parse(content) ? seo : content;
 }
 
 interface SitemapCollectionRow {
@@ -175,10 +181,15 @@ export async function handleSitemapIndexData(
 			// A missing or broken table skips that collection instead of failing
 			// the whole index.
 			try {
-				const rows = await sql<{ page: number | string; lastmod: string }>`
-					SELECT p.page AS page, MAX(p.updated_at) AS lastmod
+				const rows = await sql<{
+					page: number | string;
+					lastmod: string;
+					seo_lastmod: string | null;
+				}>`
+					SELECT p.page AS page, MAX(p.updated_at) AS lastmod,
+						MAX(p.seo_updated_at) AS seo_lastmod
 					FROM (
-						SELECT c.updated_at,
+						SELECT c.updated_at, s.updated_at AS seo_updated_at,
 							(ROW_NUMBER() OVER (ORDER BY c.id) - 1) / CAST(${pageSize} AS INTEGER) AS page
 						${indexableRows(col.slug)}
 					) p
@@ -190,7 +201,7 @@ export async function handleSitemapIndexData(
 					sitemaps.push({
 						collection: col.slug,
 						page: Number(row.page) + 1,
-						lastmod: toW3CDate(row.lastmod),
+						lastmod: latestModification(row.lastmod, row.seo_lastmod),
 					});
 				}
 			} catch (err) {
@@ -242,6 +253,7 @@ export async function handleSitemapData(
 					locale: string;
 					translation_group: string | null;
 					seo_image: string | null;
+					seo_updated_at: string | null;
 					on_page: number | string;
 				}>`
 					WITH page AS (
@@ -251,7 +263,7 @@ export async function handleSitemapData(
 						LIMIT ${pageSize} OFFSET ${(page - 1) * pageSize}
 					)
 					SELECT c.slug, c.id, c.updated_at, c.published_at, c.locale, c.translation_group,
-						s.seo_image,
+						s.seo_image, s.updated_at AS seo_updated_at,
 						CASE WHEN c.id IN (SELECT id FROM page) THEN 1 ELSE 0 END AS on_page
 					${from}
 					AND (
@@ -267,7 +279,7 @@ export async function handleSitemapData(
 					const entry: SitemapContentEntry = {
 						id: row.id,
 						slug: row.slug,
-						updatedAt: toW3CDate(row.updated_at),
+						updatedAt: latestModification(row.updated_at, row.seo_updated_at),
 						publishedAt: row.published_at ?? null,
 						locale: row.locale,
 						translationGroup: row.translation_group,

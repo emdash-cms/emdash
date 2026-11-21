@@ -10,6 +10,7 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { searchRebuildBody } from "#api/schemas.js";
+import { requireSearchSupport } from "#api/search.js";
 import { FTSManager } from "#search/index.js";
 
 export const prerender = false;
@@ -32,6 +33,9 @@ export const POST: APIRoute = async ({ request, locals }) => {
 
 	const body = await parseBody(request, searchRebuildBody);
 	if (isParseError(body)) return body;
+
+	const unavailable = requireSearchSupport(emdash.db);
+	if (unavailable) return unavailable;
 
 	const ftsManager = new FTSManager(emdash.db);
 

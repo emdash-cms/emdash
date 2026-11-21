@@ -235,12 +235,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// Post-response work must not re-run the route either. Swallow errors here
 		// and return the response the route already produced.
 		try {
-			// Keep a 404 out of the route cache: publishing the missing entry later
-			// purges content tags, not the missed path, so a cached 404 would outlive
-			// the fix. Astro has no cache handle for URLs that match no route, but a
-			// page answering a content miss with Astro.rewrite("/404") has one.
-			if (response.status === 404) {
-				routeCache?.set(false);
+			// Missing entries have no entry tag to purge on publish. Retain the
+			// route's collection tags, but bound staleness even without a matching
+			// tag or when a purge fails. Do not re-enable a route's explicit opt-out.
+			if (response.status === 404 && routeCacheStores(routeCache)) {
+				routeCache?.set({
+					maxAge: Math.min(routeCache.options.maxAge ?? 60, 60),
+					swr: 0,
+				});
 			}
 
 			if (!verified && routeCacheStores(routeCache) && source && cached) {

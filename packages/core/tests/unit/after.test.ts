@@ -4,12 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 // any adapter that doesn't implement the virtual) sees at runtime.
 vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
 
-// The waitUntil-handoff path is exercised end-to-end by the cron
-// integration in emdash-runtime.ts; testing it here would require
-// swapping out a module that's already bound at load time, which
-// fights vitest's module cache. These unit tests cover the three
-// behaviors that don't need a real waitUntil: the callback fires,
-// errors don't escape, and the caller doesn't block.
+// Host binding resolution is covered in after-host.test.ts. These tests
+// exercise task execution and teardown without a host lifetime extender.
 import { after } from "../../src/after.js";
 import { waitForDeferredTasks } from "../../src/deferred-tasks.js";
 
