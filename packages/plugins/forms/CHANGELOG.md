@@ -1,5 +1,33 @@
 # @emdash-cms/plugin-forms
 
+## 0.2.13
+
+### Patch Changes
+
+- [#4521](https://github.com/emdash-cms/emdash/pull/4521) [`c22e634`](https://github.com/emdash-cms/emdash/commit/c22e63492968cfff31f13ac40c10e1e80c6f4c52) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes the Recent Submissions widget and Submissions page opening on a newer, empty form when another form has received submissions. Both now select the form with the latest submission, skipping forms with no remaining submissions.
+
+- [#4488](https://github.com/emdash-cms/emdash/pull/4488) [`c29f10b`](https://github.com/emdash-cms/emdash/commit/c29f10bec063fb1cddf75e742bb34b3b8e99b44b) Thanks [@Chiji1108](https://github.com/Chiji1108)! - Fixes a form saving its fields to session storage again after a successful submission had cleared them, when the visitor submitted within half a second of typing. The next page in that tab that showed the form restored those stale values.
+
+- [#4466](https://github.com/emdash-cms/emdash/pull/4466) [`239e9d2`](https://github.com/emdash-cms/emdash/commit/239e9d2763a48a7acb4bfe1cd92890a894d49cd8) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Adds the missing form editor controls for daily digests, autoresponder emails, webhooks, field conditions, placeholders, help text, and default values. These existing options can now be viewed and changed in the admin instead of through the API. To disable a saved autoresponder through the update API, send `settings.autoresponder: null`.
+  
+  The editor now uses `@lingui/react` as a peer dependency for translations. On older EmDash hosts that do not share the admin's Lingui context, the new controls fall back to English.
+  
+  Fixes public form conditions controlled by a single checkbox or radio so unchecked controls count as empty. Dependents using "Is empty" now appear when the controller is unchecked, allowing required fields to be completed before submission. Placeholder and default-value inputs are only shown for field types that support them; file fields and checkbox groups are not offered as new condition controllers.
+
+- [#4544](https://github.com/emdash-cms/emdash/pull/4544) [`b53900a`](https://github.com/emdash-cms/emdash/commit/b53900a3350df391f635e47c193244fa0324e731) Thanks [@danielmlr](https://github.com/danielmlr)! - Fixes the Required checkbox on each field in the form editor sitting higher than the Type and Width dropdowns beside it. It now lines up with the dropdowns.
+
+- [#4489](https://github.com/emdash-cms/emdash/pull/4489) [`8abdd39`](https://github.com/emdash-cms/emdash/commit/8abdd399066cf973cf04b071a1601226ecd68dff) Thanks [@Chiji1108](https://github.com/Chiji1108)! - Fixes screen readers announcing an English "required" on forms in other languages. The required asterisk is now hidden from assistive technology, which already announces required fields from the input itself in the reader's language.
+
+- [#4762](https://github.com/emdash-cms/emdash/pull/4762) [`afac393`](https://github.com/emdash-cms/emdash/commit/afac3935261c65800d59c9a7f5b915113395ad7d) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes the Forms Submissions page showing Editors controls that return permission errors. Star, status, delete, and CSV/JSON export controls now appear only for administrators; Editors can still view submissions, filter them, and open their details.
+
+- [#4505](https://github.com/emdash-cms/emdash/pull/4505) [`bd04c5f`](https://github.com/emdash-cms/emdash/commit/bd04c5fff521b20948b2f692630f8c543bc74eb1) Thanks [@eisenbruch](https://github.com/eisenbruch)! - Fixes the autoresponder and the notification Reply-To using a form's first email field even when it is optional. On a form with an optional business address before the submitter's own, the confirmation went to the business address, or nowhere when that field was left empty. They now use the first required email field that has a value, then any filled email field.
+
+- [#4552](https://github.com/emdash-cms/emdash/pull/4552) [`35183ee`](https://github.com/emdash-cms/emdash/commit/35183ee4b83a3029c1ad6fc221755ee9b5378cbc) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes telephone fields rejecting numbers that start with a parenthesized area code, such as `(555) 123-4567` or `(11) 90000-0000`.
+
+- [#4308](https://github.com/emdash-cms/emdash/pull/4308) [`4df65eb`](https://github.com/emdash-cms/emdash/commit/4df65eba3e4dd2f990c92f65a4748117182949d5) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates `@cloudflare/kumo` to 2.15.0. These packages now require exactly `@cloudflare/kumo@2.15.0`, so sites and plugins that install Kumo themselves should upgrade to that version to match the admin's prebuilt styles. Update `emdash` and the Forms, Field Kit, AI Moderation and AI Search plugins together: their earlier releases require Kumo 2.6.0, and these plugin releases need an `emdash` release with this change. Updating only one side leaves Kumo 2.15 next to an admin built for 2.6.
+  
+  In the admin, Select menus now open below their field instead of over it, and text sized `text-base` or `text-lg` has a taller line (1.5), so labels and headings take slightly more height. Kumo's `DropdownMenu` now spaces item icons itself, so plugin admin pages should remove any margin classes such as `me-2` from the elements they pass as an item's `icon`.
+
 ## 0.2.12
 
 ### Patch Changes

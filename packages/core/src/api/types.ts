@@ -55,6 +55,7 @@ export interface ManifestCollectionDescriptor {
 	urlPattern?: string;
 	routable?: boolean;
 	titleField?: string;
+	/** Field slug or system timestamp (`publishedAt`, `createdAt`, or `updatedAt`) for the admin list Date column. */
 	dateField?: string;
 	hidden?: boolean;
 	/** Phosphor icon name for the admin sidebar entry */
@@ -69,6 +70,8 @@ export interface ManifestCollectionDescriptor {
 
 export interface ManifestFieldDescriptor extends FieldDescriptor {
 	id?: string;
+	/** Schema type. Absent for unsupported types and for descriptors derived from Zod schemas. */
+	type?: FieldType;
 	widget?: string;
 	validation?: Record<string, unknown>;
 	unsupportedType?: { type: string; path: string };
@@ -109,6 +112,8 @@ export type ApiResult<T, E extends string = string> =
 	| {
 			success: false;
 			error: { code: E; message: string; details?: Record<string, unknown> };
+			/** The HTTP status, where the error code alone doesn't decide it. */
+			status?: number;
 	  };
 
 /**
@@ -119,3 +124,4 @@ export interface ApiContext {
 	userRole?: string;
 }
 import type { BlockType } from "../schema/block-types.js";
+import type { FieldType } from "../schema/types.js";

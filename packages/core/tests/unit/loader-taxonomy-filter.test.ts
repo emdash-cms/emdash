@@ -4,7 +4,7 @@ import { it, expect, beforeEach, afterEach } from "vitest";
 import { handleContentCreate } from "../../src/api/index.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
-import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
+import { emdashLoader, LARGE_TERM_ASSIGNMENTS, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import {
@@ -235,6 +235,61 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		expect(titles).toHaveLength(2);
 		expect(titles).toContain("News + Featured");
 		expect(titles).toContain("Sports + Featured");
+	});
+
+	it("gives the same result whichever taxonomy is written first (#3259)", async () => {
+		const news = await term("category", "news");
+		const featured = await term("tag", "featured");
+
+		// Many posts carry the category and few carry the tag, so the two key orders
+		// drive the pivot from different sides; the answer must not depend on it.
+		const both = await createPost("News + Featured");
+		await tag(both.id, news);
+		await tag(both.id, featured);
+		for (let i = 0; i < 12; i++) {
+			const p = await createPost(`News ${i}`);
+			await tag(p.id, news);
+		}
+
+		const a = await load({ category: ["news"], tag: ["featured"] });
+		const b = await load({ tag: ["featured"], category: ["news"] });
+
+		expect(a.entries.map((e) => e.id)).toEqual(b.entries.map((e) => e.id));
+		expect(a.entries).toHaveLength(1);
+		expect(a.entries[0]!.data.title).toBe("News + Featured");
+	});
+
+	it("drives from the smaller taxonomy without an extra query (#3259)", async () => {
+		const news = await term("category", "news");
+		const featured = await term("tag", "featured");
+		const both = await createPost("News + Featured");
+		await tag(both.id, news);
+		await tag(both.id, featured);
+		for (let i = 0; i < 12; i++) {
+			const p = await createPost(`News ${i}`);
+			await tag(p.id, news);
+		}
+
+		// Warm the per-isolate taxonomy definitions so both reads count the same work.
+		await load({ category: ["news"] });
+		const one = await captureReads((target) => load({ category: ["news"] }, undefined, target));
+		const two = await captureReads((target) =>
+			load({ category: ["news"], tag: ["featured"] }, undefined, target),
+		);
+
+		// The second taxonomy costs its own term lookup and nothing more: the size
+		// count rides in that lookup.
+		expect(two.queries).toHaveLength(one.queries.length + 1);
+		// Both term lookups carry the size count, capped so a large term is not
+		// read in full just to rank it.
+		for (const lookup of two.queries.slice(-3, -1)) {
+			expect(lookup.parameters).toContain(LARGE_TERM_ASSIGNMENTS);
+		}
+		// The content query binds the driving set first, so the tag (1 entry) leads
+		// the category (13 entries) although `category` was written first.
+		const content = two.queries.at(-1)!.parameters;
+		expect(content.indexOf(featured)).toBeGreaterThanOrEqual(0);
+		expect(content.indexOf(featured)).toBeLessThan(content.indexOf(news));
 	});
 
 	it("returns no entries when any one taxonomy filter is an empty array", async () => {

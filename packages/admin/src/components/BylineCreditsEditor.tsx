@@ -459,11 +459,12 @@ export function BylineCreditsEditor({
 								render={
 									<Button
 										ref={chooserTriggerRef}
+										data-settings-field="bylines"
 										type="button"
 										variant="ghost"
 										shape="square"
 										icon={<Plus aria-hidden="true" />}
-										className="absolute end-14 top-2"
+										className="absolute end-4 top-2"
 										aria-label={t`Add another byline`}
 										data-keep-mobile-sidebar-open
 									/>
@@ -559,6 +560,7 @@ export function BylineCreditsEditor({
 								render={
 									<Button
 										ref={chooserTriggerRef}
+										data-settings-field="bylines"
 										type="button"
 										variant="secondary"
 										className="w-full"
@@ -574,6 +576,7 @@ export function BylineCreditsEditor({
 							render={
 								<Button
 									ref={chooserTriggerRef}
+									data-settings-field="bylines"
 									type="button"
 									variant="secondary"
 									className="w-full"

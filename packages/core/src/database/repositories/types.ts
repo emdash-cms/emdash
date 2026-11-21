@@ -358,7 +358,7 @@ export function decodeCursor(cursor: string): {
 	};
 }
 
-export interface ContentItem {
+export type ContentItem = {
 	id: string;
 	type: string;
 	slug: string | null;
@@ -416,7 +416,7 @@ export interface ContentItem {
 			nextCursor?: string;
 		}
 	>;
-}
+};
 
 export class EmDashValidationError extends Error {
 	constructor(

@@ -18,6 +18,7 @@ import * as React from "react";
 
 import { ThemeProvider } from "./components/ThemeProvider";
 import { AdminBrandingProvider, type AdminBranding } from "./lib/admin-branding-context";
+import { refetchCurrentUserOnForbidden } from "./lib/api/current-user";
 import { AuthProviderProvider, type AuthProviders } from "./lib/auth-provider-context";
 import { PluginAdminProvider, type PluginAdmins } from "./lib/plugin-context";
 import { getLoadedDateLocale, waitForDateLocale } from "./locales/date-locale.js";
@@ -34,6 +35,8 @@ const queryClient = new QueryClient({
 		},
 	},
 });
+
+refetchCurrentUserOnForbidden(queryClient);
 
 // Create the router with query client context
 const router = createAdminRouter(queryClient);
@@ -64,7 +67,7 @@ function getAnchorHref(destination: string, routerDestination: string): string {
 	return destination;
 }
 
-const KumoRouterLink = React.forwardRef<HTMLAnchorElement, LinkComponentProps>(
+export const KumoRouterLink = React.forwardRef<HTMLAnchorElement, LinkComponentProps>(
 	({ href, to, target, download, children, ...props }, ref) => {
 		const destination = href ?? to ?? "";
 		const hasSearchOrHash = destination.includes("?") || destination.includes("#");
@@ -74,6 +77,7 @@ const KumoRouterLink = React.forwardRef<HTMLAnchorElement, LinkComponentProps>(
 		const linkProps = props as LinkComponentProps & {
 			"aria-current"?: React.AriaAttributes["aria-current"];
 			"data-active"?: boolean | string;
+			"data-kumo-component"?: string;
 		};
 		const ariaCurrent =
 			linkProps["aria-current"] ?? (linkProps["data-active"] ? "page" : undefined);
@@ -98,6 +102,10 @@ const KumoRouterLink = React.forwardRef<HTMLAnchorElement, LinkComponentProps>(
 				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Kumo provides runtime hrefs; TanStack requires literal route types.
 				to={routerDestination as "/"}
 				aria-current={ariaCurrent}
+				// A parent crumb's path contains the current page, which the router counts as active.
+				activeOptions={
+					linkProps["data-kumo-component"] === "Breadcrumbs" ? { exact: true } : undefined
+				}
 			>
 				{children}
 			</Link>

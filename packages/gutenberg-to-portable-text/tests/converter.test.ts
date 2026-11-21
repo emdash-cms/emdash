@@ -1365,10 +1365,11 @@ describe("htmlToPortableText", () => {
 			`<span>${Array.from({ length: 20_000 }, (_, i) => `<a href="https://example.com/${i}">x</a>\n\n`).join("")}</span>`,
 		],
 	])("splits paragraphs after %s within a second", (_shape, html) => {
-		const started = performance.now();
+		const start = process.cpuUsage();
 		htmlToPortableText(html);
+		const { user, system } = process.cpuUsage(start);
 
-		expect(performance.now() - started).toBeLessThan(1000);
+		expect((user + system) / 1000).toBeLessThan(1000);
 	});
 });
 
@@ -1745,10 +1746,11 @@ describe("WordPress.com classic editor content", () => {
 		["an image tag with a long run of tabs outside a paragraph", `<img${"\t".repeat(100_000)}`],
 		["repeated paragraph start tags without a closing bracket", "<p ".repeat(100_000)],
 	])("converts %s within a second", (_shape, html) => {
-		const started = performance.now();
+		const start = process.cpuUsage();
 		const result = htmlToPortableText(html);
+		const { user, system } = process.cpuUsage(start);
 
-		expect(performance.now() - started).toBeLessThan(1000);
+		expect((user + system) / 1000).toBeLessThan(1000);
 		expect(result).toEqual([]);
 	});
 

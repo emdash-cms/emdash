@@ -10,7 +10,7 @@ import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, handleError, unwrapResult } from "#api/error.js";
 import {
 	handleTermCreate,
 	handleTermGet,
@@ -36,8 +36,9 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { name, slug } = params;
 	if (!name || !slug) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "taxonomies:read");
 	if (denied) return denied;
@@ -60,8 +61,9 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { name, slug } = params;
 	if (!name || !slug) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "taxonomies:manage");
 	if (denied) return denied;

@@ -3,6 +3,7 @@
  * Release screenshots. Each thumbnail links to the full image; with
  * JavaScript, it opens in a lightbox instead.
  */
+import { PUBLISHER_LINK_REL } from "../../lib/registry.js";
 import { detailIcons } from "./icons.js";
 
 interface Props {
@@ -22,7 +23,12 @@ const count = screenshots.length;
 		{
 			screenshots.map((screenshot, index) => (
 				<li>
-					<a class="gallery-thumb" href={screenshot} data-gallery-thumb={index}>
+					<a
+						class="gallery-thumb"
+						href={screenshot}
+						rel={PUBLISHER_LINK_REL}
+						data-gallery-thumb={index}
+					>
 						<img
 							src={screenshot}
 							alt={`${name} screenshot ${index + 1}`}

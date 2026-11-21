@@ -16,6 +16,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { setupAdminBody } from "#api/schemas.js";
+import { getSiteTitle } from "#api/site-title.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { SETUP_NONCE_COOKIE, SETUP_NONCE_MAX_AGE_SECONDS } from "#auth/setup-nonce.js";
@@ -70,7 +71,7 @@ export const POST: APIRoute = async ({ cookies, request, locals }) => {
 
 		// Get passkey config
 		const url = new URL(request.url);
-		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
+		const siteName = await getSiteTitle(options);
 		const siteUrl = getPublicOrigin(url, emdash?.config);
 		const passkeyConfig = getPasskeyConfig(url, siteName, siteUrl);
 

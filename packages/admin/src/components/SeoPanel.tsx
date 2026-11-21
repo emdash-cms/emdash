@@ -14,14 +14,74 @@ import type { ContentSeo, ContentSeoInput } from "../lib/api";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { SeoImageField } from "./SeoImageField";
 
+/** The SEO title and description as SeoPanel holds them: "" for none. */
+export interface SeoText {
+	title: string;
+	description: string;
+}
+
+/**
+ * The editor's copy of one entry's SEO title and description, which outlives SeoPanel.
+ * ContentEditor creates one per entry, reads `text`, and reports the entry's saved text
+ * through `adoptSavedSeoText`. A mounted SeoPanel keeps `text` current and attaches
+ * `setText`. Text in `text` while no panel is attached has been sent: the panel sends
+ * pending text when it detaches, and the editor saves at once any text it writes while
+ * no panel is attached.
+ */
+export interface SeoTextBridge {
+	text: SeoText;
+	/** The entry's saved text as last reported. */
+	base: SeoText;
+	/** Set while a SeoPanel shows the entry: writes text the way typing does. */
+	setText: ((text: Partial<SeoText>) => void) | null;
+}
+
+export function createSeoTextBridge(seo: ContentSeo | undefined): SeoTextBridge {
+	const text = { title: seo?.title ?? "", description: seo?.description ?? "" };
+	return { text, base: text, setText: null };
+}
+
+/**
+ * Records the entry's saved text. While no panel is attached, `text` follows it only if `text`
+ * still matches the previous saved text, the rule SeoPanel uses to adopt a new `seo` prop.
+ * Other text has been sent and may not be saved yet.
+ */
+export function adoptSavedSeoText(bridge: SeoTextBridge, saved: SeoText): void {
+	const previous = bridge.base;
+	bridge.base = saved;
+	if (
+		!bridge.setText &&
+		bridge.text.title === previous.title &&
+		bridge.text.description === previous.description
+	) {
+		bridge.text = saved;
+	}
+}
+
+/** The SEO save for text written while no panel is attached. Columns it leaves out keep their stored value. */
+export function seoTextInput(text: Partial<SeoText>): ContentSeoInput {
+	return {
+		...(text.title !== undefined && { title: text.title || null }),
+		...(text.description !== undefined && { description: text.description || null }),
+	};
+}
+
 export interface SeoPanelProps {
 	contentKey: string;
 	seo?: ContentSeo;
-	onChange: (seo: ContentSeoInput) => void;
+	/** May resolve to whether the change saved. A room sends a value that didn't with the next change. */
+	onChange: (seo: ContentSeoInput) => void | Promise<boolean>;
 	/** Title `getSeoMeta` uses when this panel has none, shown as placeholder text. */
 	defaultTitle?: string | null;
 	/** Description `getSeoMeta` uses when this panel has none, shown as placeholder text. */
 	defaultDescription?: string | null;
+	/** The editor's copy of this entry's title and description. The panel starts from it and keeps it current. */
+	textBridge?: SeoTextBridge;
+	/**
+	 * In a co-editing room, `onChange` gets only the values changed since this panel last sent or
+	 * loaded them, and a value saved elsewhere replaces each one not changed here since.
+	 */
+	inRoom?: boolean;
 }
 
 const SEO_TEXT_DEBOUNCE_MS = 500;
@@ -55,12 +115,31 @@ function serializeDraft(draft: SeoDraft): string {
 	return JSON.stringify(draft);
 }
 
+function withBridgeText(draft: SeoDraft, bridge: SeoTextBridge | undefined): SeoDraft {
+	return bridge ? { ...draft, ...bridge.text } : draft;
+}
+
+const DRAFT_KEYS = ["title", "description", "canonical", "noIndex"] as const;
+
+function copyKey<K extends keyof SeoDraft>(target: SeoDraft, source: SeoDraft, key: K): void {
+	target[key] = source[key];
+}
+
+function changedInput(draft: SeoDraft, sent: SeoDraft): ContentSeoInput {
+	const input = toInput(draft);
+	return Object.fromEntries(
+		DRAFT_KEYS.filter((key) => draft[key] !== sent[key]).map((key) => [key, input[key]]),
+	);
+}
+
 export function SeoPanel({
 	contentKey,
 	seo,
 	onChange,
 	defaultTitle,
 	defaultDescription,
+	textBridge,
+	inRoom = false,
 }: SeoPanelProps) {
 	const { t } = useLingui();
 	const titleId = React.useId();
@@ -68,22 +147,34 @@ export function SeoPanel({
 	const canonicalId = React.useId();
 	const propDraft = React.useMemo(() => toDraft(seo), [seo]);
 	const propSnapshot = React.useMemo(() => serializeDraft(propDraft), [propDraft]);
-	const [draft, setDraft] = React.useState<SeoDraft>(propDraft);
+	const [draft, setDraft] = React.useState<SeoDraft>(() => withBridgeText(propDraft, textBridge));
 	const currentDraftRef = React.useRef(draft);
 	currentDraftRef.current = draft;
-	const lastPropSnapshotRef = React.useRef(propSnapshot);
-	const lastEmittedSnapshotRef = React.useRef(propSnapshot);
+	const lastPropDraftRef = React.useRef(propDraft);
+	// Text the panel starts from has been sent, whether it came from the entry or the bridge.
+	const lastEmittedDraftRef = React.useRef(draft);
 	const activeContentKeyRef = React.useRef(contentKey);
 	const activeOnChangeRef = React.useRef(onChange);
+	const inRoomRef = React.useRef(inRoom);
+	inRoomRef.current = inRoom;
 	const pendingTextFlushTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
 	const emitChange = React.useCallback((nextDraft: SeoDraft) => {
-		const nextSnapshot = serializeDraft(nextDraft);
-		if (nextSnapshot === lastEmittedSnapshotRef.current) {
+		const lastEmitted = lastEmittedDraftRef.current;
+		if (serializeDraft(nextDraft) === serializeDraft(lastEmitted)) {
 			return;
 		}
-		lastEmittedSnapshotRef.current = nextSnapshot;
-		activeOnChangeRef.current(toInput(nextDraft));
+		lastEmittedDraftRef.current = nextDraft;
+		const sent = inRoomRef.current ? changedInput(nextDraft, lastEmitted) : toInput(nextDraft);
+		void activeOnChangeRef.current(sent)?.then((saved) => {
+			if (saved) return undefined;
+			const emitted = { ...lastEmittedDraftRef.current };
+			for (const key of DRAFT_KEYS) {
+				if (key in sent && emitted[key] === nextDraft[key]) copyKey(emitted, lastEmitted, key);
+			}
+			lastEmittedDraftRef.current = emitted;
+			return undefined;
+		});
 	}, []);
 
 	const clearPendingTextFlush = React.useCallback(() => {
@@ -97,35 +188,75 @@ export function SeoPanel({
 		const nextDraft = currentDraftRef.current;
 		const nextSnapshot = serializeDraft(nextDraft);
 		clearPendingTextFlush();
-		if (nextSnapshot === lastEmittedSnapshotRef.current) {
+		if (nextSnapshot === serializeDraft(lastEmittedDraftRef.current)) {
 			return;
 		}
 		emitChange(nextDraft);
 	}, [clearPendingTextFlush, emitChange]);
 
+	const updateDraft = React.useCallback(
+		(patch: Partial<SeoDraft>) => {
+			const nextDraft = { ...currentDraftRef.current, ...patch };
+			currentDraftRef.current = nextDraft;
+			if (textBridge) {
+				textBridge.text = { title: nextDraft.title, description: nextDraft.description };
+			}
+			setDraft(nextDraft);
+			return nextDraft;
+		},
+		[textBridge],
+	);
+
+	// Runs before the effect below, so pending text goes to the entry and through the onChange it
+	// was typed under. An onChange that changes for the same entry takes over the pending text.
+	React.useLayoutEffect(() => flushPendingDraft, [contentKey, flushPendingDraft]);
+
+	// The entry reset and the bridge attachment run in one layout effect, so text the editor
+	// writes can't land between them and go to the wrong entry or skip the panel.
+	React.useLayoutEffect(() => {
+		activeOnChangeRef.current = onChange;
+		if (activeContentKeyRef.current !== contentKey) {
+			activeContentKeyRef.current = contentKey;
+			const next = withBridgeText(propDraft, textBridge);
+			setDraft(next);
+			currentDraftRef.current = next;
+			lastPropDraftRef.current = propDraft;
+			lastEmittedDraftRef.current = next;
+		}
+		const setText = (text: Partial<SeoText>) => void updateDraft(text);
+		if (textBridge) textBridge.setText = setText;
+		return () => {
+			if (textBridge?.setText === setText) textBridge.setText = null;
+		};
+	}, [contentKey, onChange, textBridge, updateDraft]);
+
 	React.useEffect(() => {
-		if (activeContentKeyRef.current === contentKey) {
-			activeOnChangeRef.current = onChange;
+		const previousPropDraft = lastPropDraftRef.current;
+		const previousPropSnapshot = serializeDraft(previousPropDraft);
+		if (propSnapshot === previousPropSnapshot) {
 			return;
 		}
-		flushPendingDraft();
-		activeContentKeyRef.current = contentKey;
-		activeOnChangeRef.current = onChange;
-		setDraft(propDraft);
-		currentDraftRef.current = propDraft;
-		lastPropSnapshotRef.current = propSnapshot;
-		lastEmittedSnapshotRef.current = propSnapshot;
-	}, [contentKey, flushPendingDraft, onChange, propDraft, propSnapshot]);
+		lastPropDraftRef.current = propDraft;
 
-	React.useEffect(() => {
-		return () => {
-			flushPendingDraft();
+		const adopt = (nextDraft: SeoDraft) => {
+			currentDraftRef.current = nextDraft;
+			setDraft(nextDraft);
+			if (textBridge) {
+				textBridge.text = { title: nextDraft.title, description: nextDraft.description };
+			}
 		};
-	}, [flushPendingDraft]);
 
-	React.useEffect(() => {
-		const previousPropSnapshot = lastPropSnapshotRef.current;
-		if (propSnapshot === previousPropSnapshot) {
+		if (inRoomRef.current) {
+			const current = currentDraftRef.current;
+			const nextDraft = { ...current };
+			const emitted = { ...lastEmittedDraftRef.current };
+			for (const key of DRAFT_KEYS) {
+				if (propDraft[key] === previousPropDraft[key]) continue;
+				if (current[key] === emitted[key]) copyKey(nextDraft, propDraft, key);
+				if (nextDraft[key] === propDraft[key]) copyKey(emitted, propDraft, key);
+			}
+			lastEmittedDraftRef.current = emitted;
+			adopt(nextDraft);
 			return;
 		}
 
@@ -134,19 +265,16 @@ export function SeoPanel({
 			currentDraftSnapshot === previousPropSnapshot || currentDraftSnapshot === propSnapshot;
 
 		if (shouldSync) {
-			setDraft(propDraft);
-			currentDraftRef.current = propDraft;
-			lastEmittedSnapshotRef.current = propSnapshot;
+			adopt(propDraft);
+			lastEmittedDraftRef.current = propDraft;
 		}
-
-		lastPropSnapshotRef.current = propSnapshot;
-	}, [propDraft, propSnapshot]);
+	}, [propDraft, propSnapshot, textBridge]);
 
 	React.useEffect(() => {
 		clearPendingTextFlush();
 
 		const nextSnapshot = serializeDraft(currentDraftRef.current);
-		if (nextSnapshot === lastEmittedSnapshotRef.current) {
+		if (nextSnapshot === serializeDraft(lastEmittedDraftRef.current)) {
 			return;
 		}
 
@@ -157,13 +285,6 @@ export function SeoPanel({
 
 		return clearPendingTextFlush;
 	}, [clearPendingTextFlush, draft.canonical, draft.description, draft.title, emitChange]);
-
-	const updateDraft = (patch: Partial<SeoDraft>) => {
-		const nextDraft = { ...currentDraftRef.current, ...patch };
-		currentDraftRef.current = nextDraft;
-		setDraft(nextDraft);
-		return nextDraft;
-	};
 
 	return (
 		<div className="space-y-4">
@@ -179,6 +300,7 @@ export function SeoPanel({
 				</FieldHelpLabel>
 				<Input
 					id={titleId}
+					data-settings-field="seo"
 					aria-label={t`SEO Title`}
 					className="w-full"
 					value={draft.title}

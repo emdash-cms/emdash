@@ -200,6 +200,35 @@ it("centres each day under its weekday heading", async () => {
 	});
 });
 
+it("spreads the weeks across the picker and fills the chosen day", async () => {
+	const screen = await render(
+		<div style={{ width: 480 }}>
+			<PublishingDateTimeFields
+				date={new Date(2035, 5, 15, 12)}
+				time="09:00"
+				dateAriaLabel="Publication date"
+				onDateChange={vi.fn()}
+				onTimeChange={vi.fn()}
+			/>
+		</div>,
+	);
+	await expect.element(screen.getByText("June 2035", { exact: true })).toBeVisible();
+
+	const grid = screen.container.querySelector('[role="grid"]')!.getBoundingClientRect();
+	const headings = Array.from(screen.container.querySelectorAll('[role="grid"] thead th'), (th) =>
+		th.getBoundingClientRect(),
+	);
+	expect(grid.width).toBe(480);
+	expect(headings[0]!.left).toBeCloseTo(grid.left, 0);
+	expect(headings[6]!.right).toBeCloseTo(grid.right, 0);
+
+	const chosen = screen.getByRole("button", { name: /June 15/ }).element();
+	const other = screen.getByRole("button", { name: /June 16/ }).element();
+	expect(getComputedStyle(chosen).backgroundColor).not.toBe(
+		getComputedStyle(other).backgroundColor,
+	);
+});
+
 const scheduleDialogProps = {
 	entryKey: "post-1:en",
 	isLive: false,

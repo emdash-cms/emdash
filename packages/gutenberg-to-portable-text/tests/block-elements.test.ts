@@ -38,10 +38,11 @@ describe("createBlockScanner", () => {
 		["paragraphs without end tags", `<p>${"<p>a".repeat(100_000)}`],
 		["an image tag with a long run of tabs", `<img${"\t".repeat(100_000)}`],
 	])("scans %s within a second", (_shape, html) => {
-		const started = performance.now();
+		const start = process.cpuUsage();
 		const elements = scanAll(html);
+		const { user, system } = process.cpuUsage(start);
 
-		expect(performance.now() - started).toBeLessThan(1000);
+		expect((user + system) / 1000).toBeLessThan(1000);
 		expect(elements).toEqual([]);
 	});
 });

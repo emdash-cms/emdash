@@ -26,6 +26,13 @@ declare module "cloudflare:workers" {
 	}
 }
 
+declare module "virtual:emdash/room-engine" {
+	/** Imports the co-editing room engine, or null when co-editing is off. */
+	export const loadRoomEngine:
+		| (() => Promise<typeof import("emdash/internal/co-editing/room")>)
+		| null;
+}
+
 declare module "cloudflare:email" {
 	// Email worker types if needed
 }

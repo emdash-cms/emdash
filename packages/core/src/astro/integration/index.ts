@@ -15,10 +15,16 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { AstroIntegration, AstroIntegrationLogger, AstroIntegrationMiddleware } from "astro";
+import type {
+	AstroConfig,
+	AstroIntegration,
+	AstroIntegrationLogger,
+	AstroIntegrationMiddleware,
+} from "astro";
 
 import { getEnvSiteUrl } from "../../api/public-url.js";
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
+import { unknownOptionWarning, validateConfigShape } from "../../config/options-schema.js";
 import { normalizeMigrationConfig } from "../../database/migrations/policy.js";
 import { normalizeAstroI18n } from "../../i18n/normalize.js";
 import { INTERNAL_MEDIA_PREFIX } from "../../media/normalize.js";
@@ -44,6 +50,7 @@ import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
+	hasUserDefinedPublicRoute,
 	injectCoreRoutes,
 	injectBuiltinAuthRoutes,
 	injectAuthProviderRoutes,
@@ -441,6 +448,21 @@ export function buildMiddlewareEntries(
 	return entries;
 }
 
+/** Astro 6 configures route caching under `experimental.cache`, Astro 7 under `cache`. */
+function routeCacheProviderName(config: AstroConfig): string | undefined {
+	const experimental: unknown = Reflect.get(config, "experimental");
+	const legacyCache: unknown =
+		typeof experimental === "object" && experimental !== null
+			? Reflect.get(experimental, "cache")
+			: undefined;
+	const cache: unknown = config.cache ?? legacyCache;
+	if (typeof cache !== "object" || cache === null) return undefined;
+	const provider: unknown = Reflect.get(cache, "provider");
+	if (typeof provider !== "object" || provider === null) return undefined;
+	const name: unknown = Reflect.get(provider, "name");
+	return typeof name === "string" ? name : undefined;
+}
+
 function assertNoRemovedRegistryOption(config: EmDashConfig): void {
 	const experimental: unknown = Reflect.get(config, "experimental");
 	if (
@@ -459,6 +481,7 @@ function assertNoRemovedRegistryOption(config: EmDashConfig): void {
  */
 export function emdash(config: EmDashConfig = {}): AstroIntegration {
 	assertNoRemovedRegistryOption(config);
+	const unknownOptions = validateConfigShape(config);
 
 	const registry = resolveRegistryConfigForSandbox({
 		registry: config.registry,
@@ -636,6 +659,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					allowLocalhost: command === "dev" || command === "sync",
 				});
 				printBanner(logger);
+				for (const key of unknownOptions) logger.warn(unknownOptionWarning(key));
 				if (command === "dev") {
 					// In Node `astro dev`, Vite loads `.env` into `import.meta.env`
 					// but not `process.env`. The plugin-secret encryption key
@@ -662,6 +686,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Expose Astro's trailingSlash routing policy so plugins can build
 				// URLs (sitemap/canonical/hreflang) that match what the site serves.
 				serializableConfig.trailingSlash = astroConfig.trailingSlash;
+				serializableConfig.robotsTxtOverridden = hasUserDefinedPublicRoute(
+					astroConfig.srcDir,
+					"robots.txt",
+				);
 				normalizedI18n = normalizeAstroI18n(astroConfig.i18n);
 				if (normalizedI18n) serializableConfig.i18n = normalizedI18n;
 
@@ -803,6 +831,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// port isn't known yet here. Nothing useful to print for build.
 			},
 			"astro:config:done": async ({ config: finalConfig, logger }) => {
+				const cookie = finalConfig.session ? finalConfig.session.cookie : undefined;
+				serializableConfig.sessionCookieName =
+					typeof cookie === "string"
+						? cookie || "astro-session"
+						: (cookie?.name ?? "astro-session");
+				serializableConfig.routeCacheProvider = routeCacheProviderName(finalConfig);
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
 				const adapterWarning = adapterVersionMismatchWarning(finalConfig.root);

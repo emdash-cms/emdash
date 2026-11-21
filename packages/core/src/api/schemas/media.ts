@@ -32,7 +32,7 @@ export const mediaListQuery = cursorPaginationQuery
 				description:
 					"Filter by a media folder ID. Use `unfiled` for the Main library; omit for all media.",
 			}),
-		/** Case-insensitive filename substring search (also matches extensions). */
+		/** Case-insensitive substring search across filename, storage key, or ID; media URLs use their last path segment. */
 		q: z.string().trim().min(1).max(200).optional(),
 		includeUsage: z.literal("1").optional().meta({
 			description: "Include a coverage-aware usage summary on each media item",

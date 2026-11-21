@@ -17,9 +17,11 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { signupCompleteBody } from "#api/schemas.js";
+import { getSiteTitle } from "#api/site-title.js";
 import { getConfiguredAllowedOrigins, validateAllowedOrigins } from "#auth/allowed-origins.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
+import { startUserSession } from "#auth/start-user-session.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 import { sessionUnavailableError } from "../../../../session-user.js";
@@ -41,7 +43,7 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 		// Get passkey config
 		const url = new URL(request.url);
 		const options = new OptionsRepository(emdash.db);
-		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
+		const siteName = await getSiteTitle(options);
 		const siteUrl = getPublicOrigin(url, emdash?.config);
 		const allowedOrigins = validateAllowedOrigins(
 			siteUrl,
@@ -65,7 +67,7 @@ export const POST: APIRoute = async ({ request, locals, session }) => {
 		// Register the passkey for the new user
 		await registerPasskey(adapter, user.id, verified, "Initial passkey");
 
-		session.set("user", { id: user.id });
+		await startUserSession(emdash.db, session, user.id);
 
 		return apiSuccess({
 			success: true,

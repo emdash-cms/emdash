@@ -11,6 +11,7 @@ import {
 	cachedQueryWithEpochs,
 	coalesceObjectCacheWrites,
 	contentNamespaces,
+	deferObjectCacheInvalidations,
 	getLastContentWriteAt,
 	invalidateCollectionCache,
 	invalidateCommentObjectCache,
@@ -36,6 +37,8 @@ function withTestDeadline<T>(promise: Promise<T>, ms = 200): Promise<T> {
 	});
 	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
+
+const globalState = globalThis as Record<symbol, unknown>;
 
 /** A simple in-memory backend with call spies, isolated per test. */
 function spyBackend(): ObjectCacheBackend & { store: Map<string, string> } {
@@ -502,6 +505,36 @@ describe("cachedQuery", () => {
 		expect(load.mock.calls.length).toBe(calls);
 	});
 
+	it("falls back to the last known epoch when a shared read rejects", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000 });
+		backend.store.set("em:posts:k", encode({ e: [7], v: { n: 7 } }));
+		const now = Date.now();
+		const epochCache = globalState[Symbol.for("emdash:object-cache:epochs")] as Map<
+			string,
+			{ value: number; at: number; promise: Promise<number>; promiseAt: number }
+		>;
+		epochCache.set("posts", {
+			value: 7,
+			at: 0,
+			promise: Promise.reject(new Error("request ended")),
+			promiseAt: now,
+		});
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		await expect(cachedQuery({ namespace: "posts", key: "k", load })).resolves.toEqual({ n: 7 });
+		expect(load).not.toHaveBeenCalled();
+	});
+
+	it("falls back when a shared backend initialization was rejected by its owner", async () => {
+		__setObjectCacheBackendForTests(null, { timeout: 20 });
+		__setObjectCacheBackendInitForTests(Promise.reject(new Error("request ended")), Date.now());
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		await expect(cachedQuery({ namespace: "t", key: "k", load })).resolves.toEqual({ n: 1 });
+		expect(load).toHaveBeenCalledTimes(1);
+	});
+
 	it("reclaims a dead backend initialization after its deadline", async () => {
 		__setObjectCacheBackendForTests(null, { timeout: 20 });
 		vi.spyOn(Date, "now").mockReturnValue(10_000);
@@ -541,6 +574,138 @@ describe("coalesceObjectCacheWrites", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 		__setObjectCacheBackendForTests(null);
+	});
+
+	it("persists an explicitly waited invalidation before a coalescing scope ends", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+
+		await withTestDeadline(
+			coalesceObjectCacheWrites(async () => {
+				invalidateObjectCache("posts");
+				await invalidateObjectCache("posts", { waitForPersist: true });
+				expect(backend.store.has("em:epoch:posts")).toBe(true);
+			}),
+		);
+		await flush();
+		expect(
+			vi.mocked(backend.set).mock.calls.filter(([key]) => key === "em:epoch:posts"),
+		).toHaveLength(1);
+	});
+
+	it("waits for an invalidation when the object cache is disabled", async () => {
+		__setObjectCacheBackendForTests(null);
+
+		await expect(
+			withTestDeadline(invalidateObjectCache("posts", { waitForPersist: true })),
+		).resolves.toBeUndefined();
+	});
+
+	it("shares same-tick waited writes while preserving the latest cache epoch", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		let value = "before";
+		const load = vi.fn(() => Promise.resolve(value));
+
+		await cachedQuery({ namespace: "posts", key: "k", load });
+		await flush();
+		const first = invalidateObjectCache("posts", { waitForPersist: true });
+		const second = invalidateObjectCache("posts", { waitForPersist: true });
+		await Promise.all([first, second]);
+
+		value = "after";
+		const epochs: (readonly number[])[] = [];
+		expect(
+			await cachedQueryWithEpochs({
+				namespace: "posts",
+				key: "k",
+				load,
+				onEpochs: (read) => epochs.push(read),
+			}),
+		).toBe("after");
+
+		const epochWrites = vi
+			.mocked(backend.set)
+			.mock.calls.filter(([key]) => key === "em:epoch:posts");
+		expect(epochWrites).toHaveLength(1);
+		expect(epochWrites[0]?.[1]).toBe(String(epochs.at(-1)?.[0]));
+		await flush();
+
+		// A fresh isolate must use the persisted epoch and hit the snapshot written
+		// under it, rather than invoking the loader again.
+		__setObjectCacheBackendForTests(backend, { revalidate: 0, defaultTtl: 3600 });
+		const readerLoad = vi.fn(() => Promise.resolve("reader load"));
+		expect(await cachedQuery({ namespace: "posts", key: "k", load: readerLoad })).toBe("after");
+		expect(readerLoad).not.toHaveBeenCalled();
+	});
+
+	it("does not wait for marker persistence when waiting for an epoch", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend);
+		let releaseMarker!: () => void;
+		const gate = new Promise<void>((resolve) => (releaseMarker = resolve));
+		let markerStarted!: () => void;
+		const markerReady = new Promise<void>((resolve) => (markerStarted = resolve));
+		const set = backend.set;
+		backend.set = vi.fn(async (key: string, value: string) => {
+			if (key === "em:epochs-changed") {
+				markerStarted();
+				await gate;
+			}
+			await set(key, value);
+		});
+
+		try {
+			const waited = invalidateObjectCache("widgets", { waitForPersist: true });
+			await withTestDeadline(markerReady);
+			await withTestDeadline(waited);
+		} finally {
+			releaseMarker();
+			await flush();
+		}
+	});
+
+	it("does not block a waited epoch on another namespace's write", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend);
+		let releaseMenus!: () => void;
+		const gate = new Promise<void>((resolve) => (releaseMenus = resolve));
+		const set = backend.set;
+		backend.set = vi.fn(async (key: string, value: string) => {
+			if (key === "em:epoch:menus") await gate;
+			await set(key, value);
+		});
+
+		try {
+			invalidateObjectCache("menus");
+			await flush();
+			await withTestDeadline(invalidateObjectCache("widgets", { waitForPersist: true }));
+			expect(backend.store.has("em:epoch:widgets")).toBe(true);
+			expect(backend.store.has("em:epochs-changed")).toBe(false);
+		} finally {
+			releaseMenus();
+			await flush();
+		}
+		expect(backend.store.has("em:epochs-changed")).toBe(true);
+	});
+
+	it("settles a stalled waited epoch write after the configured timeout", async () => {
+		const backend = spyBackend();
+		backend.set = vi.fn((key: string) => {
+			if (key === "em:epoch:comments") return new Promise<void>(() => {});
+			return Promise.resolve();
+		});
+		__setObjectCacheBackendForTests(backend, { timeout: 20 });
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		await expect(
+			withTestDeadline(invalidateObjectCache("comments", { waitForPersist: true })),
+		).resolves.toBeUndefined();
+		expect(errorSpy).toHaveBeenCalledWith(
+			"[object-cache] epoch bump failed for",
+			"comments",
+			expect.any(Error),
+		);
 	});
 
 	it("writes the latest held epoch once when the work throws", async () => {
@@ -586,12 +751,129 @@ describe("coalesceObjectCacheWrites", () => {
 	});
 });
 
+describe("deferObjectCacheInvalidations", () => {
+	afterEach(() => {
+		vi.restoreAllMocks();
+		__setObjectCacheBackendForTests(null);
+	});
+
+	it("holds an invalidation until the scope ends", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+
+		await deferObjectCacheInvalidations(async () => {
+			invalidateObjectCache("posts");
+			await flush();
+			expect(backend.store.has("em:epoch:posts")).toBe(false);
+		});
+		await flush();
+
+		expect(backend.store.has("em:epoch:posts")).toBe(true);
+	});
+
+	it("keeps an explicitly waited invalidation behind the transaction barrier", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		let value = "before commit";
+		const load = () => Promise.resolve(value);
+		await cachedQuery({ namespace: "widgets", key: "area", load });
+		await flush();
+
+		await withTestDeadline(
+			deferObjectCacheInvalidations(async () => {
+				await invalidateObjectCache("widgets", { waitForPersist: true });
+				expect(await cachedQuery({ namespace: "widgets", key: "area", load })).toBe(
+					"before commit",
+				);
+				await flush();
+				expect(backend.store.has("em:epoch:widgets")).toBe(false);
+				value = "after commit";
+			}),
+		);
+		await invalidateObjectCache("widgets", { waitForPersist: true });
+		expect(backend.store.has("em:epoch:widgets")).toBe(true);
+		expect(await cachedQuery({ namespace: "widgets", key: "area", load })).toBe("after commit");
+		await flush();
+	});
+
+	it("joins a nested scope to the outermost one", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+
+		await deferObjectCacheInvalidations(async () => {
+			await deferObjectCacheInvalidations(() => {
+				invalidateObjectCache("posts");
+				return Promise.resolve();
+			});
+			await flush();
+			// The inner scope ending must not release the outer scope's hold.
+			expect(backend.store.has("em:epoch:posts")).toBe(false);
+		});
+		await flush();
+
+		expect(backend.store.has("em:epoch:posts")).toBe(true);
+	});
+
+	it("applies held invalidations when the work throws", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+
+		await expect(
+			deferObjectCacheInvalidations(async () => {
+				invalidateObjectCache("posts");
+				await flush();
+				throw new Error("rolled back");
+			}),
+		).rejects.toThrow("rolled back");
+		await flush();
+
+		// Values cached from reads made through the transaction must not outlive
+		// its rollback, so the bump has to land either way.
+		expect(backend.store.has("em:epoch:posts")).toBe(true);
+	});
+
+	it("writes through invalidations made after the scope has ended", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000, defaultTtl: 3600 });
+		let release!: () => void;
+		let late!: Promise<void>;
+
+		await deferObjectCacheInvalidations(async () => {
+			const released = new Promise<void>((resolve) => {
+				release = resolve;
+			});
+			late = released.then(() => invalidateObjectCache("taxonomies"));
+			await Promise.resolve();
+		});
+		release();
+		await late;
+		await flush();
+
+		expect(backend.store.has("em:epoch:taxonomies")).toBe(true);
+	});
+});
+
 describe("last content write stamp", () => {
 	beforeEach(() => {
 		__setObjectCacheBackendForTests(spyBackend(), { revalidate: 1000, defaultTtl: 3600 });
 	});
 	afterEach(() => {
 		__setObjectCacheBackendForTests(null);
+	});
+
+	it("falls back when a shared last-content-write read was rejected by its owner", async () => {
+		const state = globalState[Symbol.for("emdash:object-cache:last-content-write")] as {
+			value: number;
+			at: number;
+			promise?: Promise<number>;
+			promiseAt?: number;
+		};
+		state.value = 11;
+		state.at = 0;
+		state.promise = Promise.reject(new Error("request ended"));
+		state.promiseAt = Date.now();
+
+		await expect(getLastContentWriteAt()).resolves.toBe(11);
 	});
 
 	it("stamps lastContentWriteAt when invalidating a content: namespace", async () => {
@@ -686,6 +968,36 @@ describe("change marker", () => {
 			.mock.calls.map(([key]) => key)
 			.filter((key) => key.includes(":epoch:") || key === MARKER);
 	}
+
+	it("falls back when a shared change-marker read was rejected by its owner", async () => {
+		const now = clock;
+		const epochCache = globalState[Symbol.for("emdash:object-cache:epochs")] as Map<
+			string,
+			{ value: number; at: number; readAt: number; token: string }
+		>;
+		epochCache.set("content:v2:listings", {
+			value: 4,
+			at: now - 2_000,
+			readAt: now,
+			token: "owner-token",
+		});
+		const markerState = globalState[Symbol.for("emdash:object-cache:change-marker")] as {
+			marker: { token: string; writtenAt: number } | null;
+			at: number;
+			failed: boolean;
+			promise?: Promise<unknown>;
+			promiseAt?: number;
+		};
+		markerState.marker = { token: "owner-token", writtenAt: now - SETTLE_MS };
+		markerState.promise = Promise.reject(new Error("request ended"));
+		markerState.promiseAt = now;
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		await expect(
+			cachedQuery({ namespace: contentNamespaces("listings"), key: "entry", load }),
+		).resolves.toEqual({ n: 1 });
+		expect(load).toHaveBeenCalledTimes(1);
+	});
 
 	async function render(load: () => Promise<unknown>): Promise<void> {
 		await cachedQuery({
