@@ -6,7 +6,4 @@ Fixes cached detail-page 404s staying stale after the missing entry is published
 
 #### Upgrading
 
-- Pass the `getEmDashEntry` hint to `Astro.cache.set()` before rewriting to `/404`.
-- Remove the collection tag from detail route rules such as `/posts/[slug]`. It purged every detail page whenever any entry in the collection was published.
-- On a detail page that lists other entries, such as recent posts, tag the ids of the entries it shows instead of passing the `getEmDashCollection` hint. A newly published entry appears in the list the next time the page renders.
-- Widgets such as Recent Posts can't tag the page themselves. Run the widget's query in the page frontmatter and tag those ids, as the blog and starter templates now do.
+Pass the `getEmDashEntry` hint to `Astro.cache.set()` before rewriting to `/404`, as the templates now do, so the cached 404 is purged when the entry is published.

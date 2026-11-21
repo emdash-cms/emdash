@@ -34,7 +34,7 @@ export default defineConfig({
 	routeRules: {
 		"/": { maxAge: 86_400, swr: 604_800, tags: ["posts", "pages", "all"] },
 		"/blog": { maxAge: 86_400, swr: 604_800, tags: ["posts", "all"] },
-		"/blog/[slug]": { maxAge: 86_400, swr: 604_800, tags: ["all"] },
+		"/blog/[slug]": { maxAge: 86_400, swr: 604_800, tags: ["posts", "all"] },
 		"/sitemap.xml": { maxAge: 86_400, swr: 604_800, tags: ["posts", "pages", "all"] },
 		"/sitemap-[collection].xml": { maxAge: 86_400, swr: 604_800, tags: ["posts", "pages", "all"] },
 	},
@@ -43,7 +43,7 @@ export default defineConfig({
 
 - `maxAge` is how long the cache serves the entry before the route renders again. EmDash invalidates stale entries on publish (below), but an invalidation can fail, so `maxAge` also bounds how long a page can stay stale, plus one stale response while `swr` revalidates it. Check [Provider differences](#provider-differences) before choosing a long value.
 - `swr` lets the cache keep serving a stale entry while it revalidates in the background, so visitors rarely wait on a render once a page is cached.
-- `tags` name the entry for invalidation. Tag index routes, such as the home page, archives and sitemaps, with the collections they list, using the collection names: EmDash's built-in invalidation uses collection names, so matching tags are invalidated automatically. Don't put a collection tag on a detail route such as `/blog/[slug]`: publishing any entry in that collection would purge every detail page. Detail pages get their tags from the `cacheHint` described below. A broad extra tag on every cached route (here `all`, which is not a collection name, so EmDash never invalidates it on its own) works as an emergency switch: invalidating it, for example with `context.cache.invalidate({ tags: ["all"] })` in an endpoint you protect yourself, clears everything at once.
+- `tags` name the entry for invalidation. Tag each route with the collections it renders, using the collection names: EmDash's built-in invalidation uses collection names, so matching tags are invalidated automatically. A broad extra tag on every cached route (here `all`, which is not a collection name, so EmDash never invalidates it on its own) works as an emergency switch: invalidating it, for example with `context.cache.invalidate({ tags: ["all"] })` in an endpoint you protect yourself, clears everything at once.
 
 The query helpers also return a `cacheHint` you can pass to `Astro.cache.set()` inside the page. Its tags name the exact entry and its references (`getEmDashEntry`; an entry from a fallback locale or stored under a locale alias also carries the collection, and a miss carries only the collection), the collection (`getEmDashCollection`), or the chrome resource (`getMenuWithCacheHint`, `getSiteSettingsWithCacheHint`, `getTaxonomyTermsWithCacheHint`, `getWidgetAreaWithCacheHint`). These are the same tags EmDash invalidates on writes, so a page that passes its hints is invalidated when an entry or chrome resource it renders is written, including ones its route rule doesn't name:
 
@@ -64,7 +64,7 @@ if (!entry) return Astro.rewrite("/404");
 ---
 ```
 
-Set the hint before handling a miss, so that a cached 404 carries the collection tag and publishing the missing entry purges it. A list on a detail page, such as "recent posts", should not pass the `getEmDashCollection` hint, because it carries the collection tag. Tag the entries it shows instead, for example `Astro.cache.set({ tags: posts.map((p) => p.data.id) })`. A newly published entry that belongs in the list appears the next time the page renders: after it expires, or after one of the listed entries changes. Widgets such as Recent Posts render after the response headers are sent, so they can't add tags to the response. Run the widget's query in the page frontmatter and tag the result there. Two identical queries in the same render share one fetch, so the widget then reuses that result. The blog templates read the `sidebar` and `footer` areas with `getWidgetArea()` and, for each Recent Posts widget, load `getEmDashCollection("posts", { orderBy: { published_at: "desc" }, limit: count, locale: Astro.currentLocale })` with that widget's `count`, defaulting to 5. A page that renders widgets in other areas needs to read those areas as well.
+Set the hint before handling a miss, so that a cached 404 carries the collection tag and publishing the missing entry purges it.
 
 An entry served from a fallback locale, or stored under a legacy locale code such as `en-US` while the site uses `en`, carries the collection tag, because publishing the entry in the requested locale replaces it. On a site where most entries are stored under such a code, publishing any entry purges those pages. Saving the entries under the locale codes the site is configured with avoids this.
 

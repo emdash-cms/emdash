@@ -1,8 +1,6 @@
 ---
 import {
 	getEmDashEntry,
-	getWidgetArea,
-	getEmDashCollection,
 	getSeoMeta,
 	decodeSlug,
 	getSiteSettings,
@@ -31,25 +29,6 @@ const seo = getSeoMeta(post, {
 	siteUrl: Astro.url.origin,
 	path: Astro.url.pathname.replace(/\/$/, ""),
 });
-
-// Recent Posts widgets render after the response headers are sent, so tag their entries
-// here. The widgets reuse these results.
-if (Astro.cache?.enabled) {
-	const sidebar = await getWidgetArea("sidebar");
-	const recentPostsWidgets = (sidebar?.widgets ?? []).filter(
-		(widget) => widget.componentId === "core:recent-posts",
-	);
-	const lists = await Promise.all(
-		recentPostsWidgets.map((widget) =>
-			getEmDashCollection("posts", {
-				orderBy: { published_at: "desc" },
-				limit: widget.componentProps?.count === undefined ? 5 : (widget.componentProps.count as number),
-				locale: Astro.currentLocale,
-			}),
-		),
-	);
-	Astro.cache.set({ tags: lists.flatMap(({ entries }) => entries.map((p) => p.data.id)) });
-}
 
 // Taxonomy terms are already hydrated onto the entry by getEmDashEntry.
 const tags = post.data.terms?.tag ?? [];

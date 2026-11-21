@@ -43,7 +43,7 @@ const olderResult = await getEmDashCollection("projects", {
 if (olderResult.error) {
 	return new Response("Could not load related projects", { status: 500 });
 }
-const { entries: olderProjects } = olderResult;
+const { entries: olderProjects, cacheHint: olderCacheHint } = olderResult;
 const currentIndex = olderProjects.findIndex((p) => p.id === project.id);
 const nextProject =
 	currentIndex >= 0
@@ -51,7 +51,7 @@ const nextProject =
 		: olderProjects.find((p) => p.id !== project.id);
 if (Astro.cache?.enabled) {
 	Astro.cache.set(projectCacheHint);
-	if (nextProject) Astro.cache.set({ tags: [nextProject.data.id] });
+	Astro.cache.set(olderCacheHint);
 }
 
 function safeExternalUrl(value: string | undefined): string | undefined {

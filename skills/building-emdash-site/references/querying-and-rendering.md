@@ -120,7 +120,7 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 When Astro's route cache is enabled, call `Astro.cache.set(cacheHint)` so publishing invalidates cached output.
 
-A collection hint carries the collection tag, so publishing any entry in the collection purges the page. Use it on index pages. On a detail page, set the `getEmDashEntry` hint before handling a miss (a miss carries the collection tag so a cached 404 is purged on publish), and tag a "recent posts" list by the ids it shows: `Astro.cache.set({ tags: posts.map((p) => p.data.id) })`. Do this in the page frontmatter: a widget, such as Recent Posts, renders after the response headers are sent and can't add tags, so run its query in the page with the same `orderBy`, `locale` and `limit` (the widget's `count`, default 5) and tag that. The widget then reuses the result.
+On a detail page, set the `getEmDashEntry` hint before handling a miss: a miss carries the collection tag, so a cached 404 is purged when the entry is published.
 
 ## Rendering Portable Text
 
