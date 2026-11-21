@@ -1001,6 +1001,41 @@ describe("FieldEditor", () => {
 			]);
 		});
 
+		it("preserves sub-field validation when an existing repeater is edited", async () => {
+			const onSave = vi.fn();
+			const field = makeField({
+				slug: "logo_cards",
+				label: "Logo cards",
+				type: "repeater",
+				validation: {
+					subFields: [
+						{
+							slug: "logo",
+							label: "Logo",
+							type: "image",
+							validation: { allowedMimeTypes: ["image/svg+xml"] },
+						},
+					],
+				} as SchemaField["validation"],
+			});
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={field} onSave={onSave} />,
+			);
+
+			await screen.getByLabelText("Label", { exact: true }).nth(1).fill("Partner logo");
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{
+					slug: "logo",
+					label: "Partner logo",
+					type: "image",
+					required: undefined,
+					validation: { allowedMimeTypes: ["image/svg+xml"] },
+				},
+			]);
+		});
+
 		it("allows a new sub-field in an existing repeater to use a manual key", async () => {
 			const onSave = vi.fn();
 			const screen = await renderInRouter(
