@@ -11,6 +11,7 @@ import { z } from "zod";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleMenuCreate, handleMenuGet, handleMenuTranslations } from "#api/handlers/menus.js";
+import { getMenuName } from "#api/menu-name.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery } from "#api/schemas.js";
 import { menuTag } from "#cache/chrome-tags.js";
@@ -25,9 +26,9 @@ const createTranslationBody = z
 	})
 	.meta({ id: "CreateMenuTranslationBody" });
 
-export const GET: APIRoute = async ({ params, request, locals }) => {
+export const GET: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
-	const name = params.name!;
+	const name = getMenuName(request);
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -50,9 +51,9 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	}
 };
 
-export const POST: APIRoute = async ({ params, request, locals, cache }) => {
+export const POST: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
-	const name = params.name!;
+	const name = getMenuName(request);
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
