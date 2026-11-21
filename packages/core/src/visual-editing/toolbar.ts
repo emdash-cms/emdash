@@ -5,7 +5,7 @@ import { VISUAL_ACTION_TOKEN_INVALID } from "./action-token.js";
  * EmDash Visual Editing Toolbar
  *
  * A floating pill injected via middleware for authenticated editors.
- * Renders as a plain HTML string with inline styles and a <script> tag.
+ * Renders as a plain HTML string with a stylesheet and a <script> tag.
  * No dependencies — works on any page with a </body> tag.
  */
 
@@ -49,51 +49,11 @@ export interface ToolbarLabels {
 	uploadingFile: string;
 }
 
-const SCRIPT_LINE_SEPARATOR_RE = /\u2028/g;
-const SCRIPT_PARAGRAPH_SEPARATOR_RE = /\u2029/g;
+export const TOOLBAR_STYLE = `
+  .emdash-img-upload-label {
+    cursor: pointer;
+  }
 
-function inlineScriptJson(value: unknown): string {
-	return JSON.stringify(value)
-		.replaceAll("<", "\\u003c")
-		.replace(SCRIPT_LINE_SEPARATOR_RE, "\\u2028")
-		.replace(SCRIPT_PARAGRAPH_SEPARATOR_RE, "\\u2029");
-}
-
-export function renderToolbar(config: ToolbarConfig): string {
-	const { editMode, isPreview, actionToken = "", labels, hidden = false } = config;
-	const recoveryBadge = `<span class="emdash-tb-badge emdash-tb-badge--error">${escapeHtml(labels.sessionExpired)}</span>`;
-
-	return `
-<!-- EmDash Visual Editing Toolbar -->
-<div id="emdash-toolbar" data-edit-mode="${editMode}" data-preview="${isPreview}"${hidden ? " hidden" : ""}>
-  <div class="emdash-tb-inner">
-    <span class="emdash-tb-logo">EmDash</span>
-
-    <div class="emdash-tb-divider"></div>
-
-    <label class="emdash-tb-toggle" title="${escapeHtml(labels.editMode)}">
-      <input type="checkbox" id="emdash-edit-toggle" ${editMode ? "checked" : ""} />
-      <span class="emdash-tb-toggle-track">
-        <span class="emdash-tb-toggle-thumb"></span>
-      </span>
-      <span class="emdash-tb-toggle-label">${escapeHtml(labels.editMode)}</span>
-    </label>
-
-    <span class="emdash-tb-status" id="emdash-tb-status"></span>
-
-    <span class="emdash-tb-save-status" id="emdash-tb-save-status"></span>
-
-    <a class="emdash-tb-admin" id="emdash-tb-admin" href="#" style="display:none" title="${escapeHtml(labels.openInAdmin)}">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
-    </a>
-
-    <button class="emdash-tb-publish" id="emdash-tb-publish" style="display:none">${escapeHtml(labels.publish)}</button>
-
-    <button class="emdash-tb-dismiss" id="emdash-tb-dismiss" title="${escapeHtml(labels.hideToolbar)}" aria-label="${escapeHtml(labels.hideToolbar)}">&times;</button>
-  </div>
-</div>
-
-<style>
   #emdash-toolbar {
     position: fixed;
     bottom: 16px;
@@ -575,9 +535,13 @@ export function renderToolbar(config: ToolbarConfig): string {
     inset: 0;
     z-index: 999999;
   }
-</style>
 
-<script>
+  #emdash-toolbar .emdash-tb-hidden {
+    display: none !important;
+  }
+`;
+
+export const TOOLBAR_SCRIPT = `
 (function() {
   var toolbar = document.getElementById("emdash-toolbar");
   var toggle = document.getElementById("emdash-edit-toggle");
@@ -598,16 +562,16 @@ export function renderToolbar(config: ToolbarConfig): string {
   }
 
   var isEditMode = toolbar.getAttribute("data-edit-mode") === "true";
-  var visualActionToken = ${inlineScriptJson(actionToken)};
-  var visualActionTokenErrorCode = ${inlineScriptJson(VISUAL_ACTION_TOKEN_INVALID)};
-  var toolbarLabels = ${inlineScriptJson(labels)};
+  var visualActionToken = toolbar.getAttribute("data-action-token") || "";
+  var visualActionTokenErrorCode = ${JSON.stringify(VISUAL_ACTION_TOKEN_INVALID)};
+  var toolbarLabels = JSON.parse(toolbar.getAttribute("data-labels") || "{}");
   var visualActionRefreshTimer = null;
 
   function showVisualActionRecovery() {
     waitingForPublish = false;
     if (visualActionRefreshTimer !== null) clearTimeout(visualActionRefreshTimer);
     visualActionRefreshTimer = null;
-    statusEl.innerHTML = ${inlineScriptJson(recoveryBadge)};
+    statusEl.innerHTML = badgeHtml("error", toolbarLabels.sessionExpired);
     publishBtn.disabled = true;
     publishBtn.textContent = toolbarLabels.refreshPage;
   }
@@ -759,7 +723,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   function updateStatus() {
     if (!isEditMode) {
       statusEl.innerHTML = "";
-      publishBtn.style.display = "none";
+      publishBtn.classList.add("emdash-tb-hidden");
       return;
     }
 
@@ -785,7 +749,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     if (adminLink && adminRef) {
       adminLink.href = "/_emdash/admin/content/" + encodeURIComponent(adminRef.collection) + "/" + encodeURIComponent(adminRef.id);
       adminLink.target = adminWindowName(adminRef.collection, adminRef.id);
-      adminLink.style.display = "";
+      adminLink.classList.remove("emdash-tb-hidden");
     }
 
     if (hasDraft) {
@@ -797,7 +761,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     } else {
       statusEl.innerHTML = "";
     }
-    publishBtn.style.display = pendingEntries.size ? "" : "none";
+    publishBtn.classList.toggle("emdash-tb-hidden", !pendingEntries.size);
   }
 
   publishBtn.onclick = function() { publish(); };
@@ -945,7 +909,7 @@ export function renderToolbar(config: ToolbarConfig): string {
   function showUnpublishedChanges(collection, id) {
     pendingEntries.set(entryKey(collection, id), { collection: collection, id: id });
     statusEl.innerHTML = badgeHtml("pending", toolbarLabels.unpublishedChanges);
-    publishBtn.style.display = "";
+    publishBtn.classList.remove("emdash-tb-hidden");
     if (!waitingForPublish) {
       publishBtn.disabled = false;
       publishBtn.textContent = toolbarLabels.publish;
@@ -1202,9 +1166,9 @@ export function renderToolbar(config: ToolbarConfig): string {
 
     html += '<div class="emdash-img-actions">';
     html += '  <button class="emdash-img-btn emdash-img-btn--primary" data-action="browse">' + escapeAttr(toolbarLabels.replaceImage) + '</button>';
-    html += '  <label class="emdash-img-btn" style="cursor:pointer">';
+    html += '  <label class="emdash-img-btn emdash-img-upload-label">';
     html += '    ' + escapeAttr(toolbarLabels.uploadImage);
-    html += '    <input type="file" accept="image/*" id="emdash-img-upload" style="display:none" />';
+    html += '    <input type="file" accept="image/*" id="emdash-img-upload" hidden />';
     html += '  </label>';
     if (currentSrc) {
       html += '  <button class="emdash-img-btn emdash-img-btn--danger" data-action="remove">' + escapeAttr(toolbarLabels.removeImage) + '</button>';
@@ -1632,6 +1596,43 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   updateStatus();
 })();
-</script>
+`;
+
+export function renderToolbar(config: ToolbarConfig): string {
+	const { editMode, isPreview, actionToken = "", labels, hidden = false } = config;
+
+	return `
+<!-- EmDash Visual Editing Toolbar -->
+<div id="emdash-toolbar" data-edit-mode="${editMode}" data-preview="${isPreview}" data-action-token="${escapeHtml(actionToken)}" data-labels="${escapeHtml(JSON.stringify(labels))}"${hidden ? " hidden" : ""}>
+  <div class="emdash-tb-inner">
+    <span class="emdash-tb-logo">EmDash</span>
+
+    <div class="emdash-tb-divider"></div>
+
+    <label class="emdash-tb-toggle" title="${escapeHtml(labels.editMode)}">
+      <input type="checkbox" id="emdash-edit-toggle" ${editMode ? "checked" : ""} />
+      <span class="emdash-tb-toggle-track">
+        <span class="emdash-tb-toggle-thumb"></span>
+      </span>
+      <span class="emdash-tb-toggle-label">${escapeHtml(labels.editMode)}</span>
+    </label>
+
+    <span class="emdash-tb-status" id="emdash-tb-status"></span>
+
+    <span class="emdash-tb-save-status" id="emdash-tb-save-status"></span>
+
+    <a class="emdash-tb-admin emdash-tb-hidden" id="emdash-tb-admin" href="#" title="${escapeHtml(labels.openInAdmin)}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+    </a>
+
+    <button class="emdash-tb-publish emdash-tb-hidden" id="emdash-tb-publish">${escapeHtml(labels.publish)}</button>
+
+    <button class="emdash-tb-dismiss" id="emdash-tb-dismiss" title="${escapeHtml(labels.hideToolbar)}" aria-label="${escapeHtml(labels.hideToolbar)}">&times;</button>
+  </div>
+</div>
+
+<style>${TOOLBAR_STYLE}</style>
+
+<script>${TOOLBAR_SCRIPT}</script>
 `;
 }

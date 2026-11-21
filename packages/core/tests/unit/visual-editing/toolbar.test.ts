@@ -59,6 +59,21 @@ function actionToolbar(): string {
 
 describe("renderToolbar", () => {
 	afterEach(() => vi.useRealTimers());
+	it("keeps executable script hashes stable across tokens and locales", () => {
+		const first = renderToolbarWithLabels({
+			editMode: false,
+			isPreview: false,
+			actionToken: "first",
+			labels: TEST_LABELS,
+		});
+		const second = renderToolbarWithLabels({
+			editMode: true,
+			isPreview: true,
+			actionToken: "second",
+			labels: { ...TEST_LABELS, sessionExpired: "Andere Sprache", publish: "Veröffentlichen" },
+		});
+		expect(toolbarScript(first)).toBe(toolbarScript(second));
+	});
 	it("renders toolbar with edit mode off", () => {
 		const html = renderToolbar({ editMode: false, isPreview: false });
 		expect(html).toContain('id="emdash-toolbar"');
@@ -95,10 +110,10 @@ describe("renderToolbar", () => {
 		expect(html).not.toContain("Hide toolbar");
 	});
 
-	it("includes publish button (hidden by default)", () => {
+	it("renders toolbar markup without inline style attributes", () => {
 		const html = renderToolbar({ editMode: true, isPreview: false });
 		expect(html).toContain('id="emdash-tb-publish"');
-		expect(html).toContain('style="display:none"');
+		expect(html).not.toContain("style=");
 	});
 
 	it("publishes through the dedicated visual-editing boundary", () => {
@@ -106,7 +121,7 @@ describe("renderToolbar", () => {
 		expect(html).toContain("/_emdash/api/visual-editing/content/");
 		expect(html).not.toContain("X-EmDash-Action-Origin");
 		expect(html).toContain('"X-EmDash-Visual-Action": visualActionToken');
-		expect(html).toContain('visualActionToken = "signed-action-token"');
+		expect(html).toContain('data-action-token="signed-action-token"');
 	});
 
 	it("renews the action token and shows recovery when attestation expires", () => {
@@ -139,6 +154,11 @@ describe("renderToolbar", () => {
 
 		runInNewContext(script.slice(refreshStart, refreshEnd), {
 			statusEl,
+			toolbar: {
+				getAttribute: (name: string) =>
+					name === "data-labels" ? JSON.stringify(TEST_LABELS) : "signed-action-token",
+			},
+			badgeHtml: (_kind: string, label: string) => label,
 			publishBtn,
 			ecFetch,
 			setTimeout,
@@ -200,6 +220,11 @@ describe("renderToolbar", () => {
 		});
 		const context = createContext({
 			statusEl,
+			toolbar: {
+				getAttribute: (name: string) =>
+					name === "data-labels" ? JSON.stringify(TEST_LABELS) : "signed-action-token",
+			},
+			badgeHtml: (_kind: string, label: string) => label,
 			publishBtn,
 			ecFetch,
 			setTimeout,
