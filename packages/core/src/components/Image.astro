@@ -196,8 +196,8 @@ const dominantColor = (node.dominantColor ??
 
 let placeholderStyle = "";
 if (placeholder && blurhash) {
-	const { blurhashToImageCssString } = await import("@unpic/placeholder");
-	placeholderStyle = blurhashToImageCssString(blurhash);
+	const { blurhashToDataUri } = await import("@unpic/placeholder");
+	placeholderStyle = `background-image: url("${blurhashToDataUri(blurhash)}"); background-size: cover;`;
 } else if (placeholder && dominantColor) {
 	placeholderStyle = `background-color: ${dominantColor};`;
 }
@@ -219,6 +219,7 @@ if (placeholder && blurhash) {
 						loading="lazy"
 						decoding="async"
 						style={placeholderStyle || undefined}
+				data-emdash-placeholder={placeholderStyle ? "" : undefined}
 					/>
 				) : (
 					<img
@@ -232,6 +233,7 @@ if (placeholder && blurhash) {
 						loading="lazy"
 						decoding="async"
 						style={placeholderStyle || undefined}
+				data-emdash-placeholder={placeholderStyle ? "" : undefined}
 					/>
 				)}
 			</a>
@@ -246,6 +248,7 @@ if (placeholder && blurhash) {
 				loading="lazy"
 				decoding="async"
 				style={placeholderStyle || undefined}
+				data-emdash-placeholder={placeholderStyle ? "" : undefined}
 			/>
 		) : (
 			<img
@@ -259,11 +262,20 @@ if (placeholder && blurhash) {
 				loading="lazy"
 				decoding="async"
 				style={placeholderStyle || undefined}
+				data-emdash-placeholder={placeholderStyle ? "" : undefined}
 			/>
 		)
 	}
 	{caption && <figcaption>{caption}</figcaption>}
 </figure>
+
+<script>
+	import { clearImagePlaceholders } from "./image-placeholder.js";
+
+	clearImagePlaceholders();
+	// Sites with Astro's client router swap pages without reloading this module.
+	document.addEventListener("astro:page-load", () => clearImagePlaceholders());
+</script>
 
 <style>
 	.emdash-image {
