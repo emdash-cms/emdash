@@ -20,7 +20,7 @@ import type { z } from "zod";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { SchemaRegistry } from "../../schema/registry.js";
-import type { Field } from "../../schema/types.js";
+import type { CollectionWithFields, Field } from "../../schema/types.js";
 import { generateZodSchema } from "../../schema/zod-generator.js";
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
@@ -150,10 +150,11 @@ export async function validateContentData(
 	db: Kysely<Database>,
 	collection: string,
 	data: Record<string, unknown>,
-	options: { partial?: boolean } = {},
+	options: { partial?: boolean; collectionWithFields?: CollectionWithFields | null } = {},
 ): Promise<ValidationResult> {
-	const registry = new SchemaRegistry(db);
-	const collectionWithFields = await registry.getCollectionWithFields(collection);
+	const collectionWithFields =
+		options.collectionWithFields ??
+		(await new SchemaRegistry(db).getCollectionWithFields(collection));
 	if (!collectionWithFields) {
 		return {
 			ok: false,

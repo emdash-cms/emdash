@@ -4291,7 +4291,7 @@ export class EmDashRuntime {
 	 */
 	private async hydrateDraftData<T>(
 		result: T,
-		options: { includeStagedSlug?: boolean; strict?: boolean } = {},
+		options: { includeStagedSlug?: boolean; strict?: boolean; stagedRevision?: Revision } = {},
 	): Promise<T> {
 		if (!result || typeof result !== "object") return result;
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- shape probed below
@@ -4304,7 +4304,10 @@ export class EmDashRuntime {
 		const draftRevisionId = typeof item.draftRevisionId === "string" ? item.draftRevisionId : null;
 		if (!draftRevisionId) return result;
 		try {
-			const revision = await new RevisionRepository(this.db).findById(draftRevisionId);
+			const revision =
+				options.stagedRevision?.id === draftRevisionId
+					? options.stagedRevision
+					: await new RevisionRepository(this.db).findById(draftRevisionId);
 			if (!revision) {
 				if (options.strict) throw new Error(`Draft revision not found: ${draftRevisionId}`);
 				return result;
@@ -4515,6 +4518,7 @@ export class EmDashRuntime {
 		const { validateContentData } = await import("./api/handlers/validation.js");
 		const validation = await validateContentData(this.db, collection, processedData, {
 			partial: false,
+			collectionWithFields: collectionInfo,
 		});
 		if (!validation.ok) {
 			return {
@@ -4598,12 +4602,23 @@ export class EmDashRuntime {
 		const repo = new ContentRepository(this.db);
 		const resolvedItem = await repo.findByIdOrSlug(collection, id, body.locale);
 		const resolvedId = resolvedItem?.id ?? id;
+		// The entry's draft revision as read before any write here, shared by the steps that read it.
+		const draftBaseReads = new Map<string, ReturnType<RevisionRepository["findDraftBase"]>>();
+		const loadFirstDraftBase = (revisionId: string) => {
+			let read = draftBaseReads.get(revisionId);
+			if (!read) {
+				read = new RevisionRepository(this.db).findDraftBase(revisionId);
+				read.catch(() => draftBaseReads.delete(revisionId));
+				draftBaseReads.set(revisionId, read);
+			}
+			return read;
+		};
 		const checksLists = Boolean(body.expected?.bylines || body.expected?.references);
 
 		// Validate _rev early — before draft revision writes which modify the version.
-		// The token is checked again against the row the draft UPDATE is conditioned
-		// on, and reaches the column handler only when no draft revision was staged,
-		// since staging advances the version the token encodes.
+		// The draft UPDATE is conditioned on the row checked here, and the token
+		// reaches the column handler only when no draft revision was staged, since
+		// staging advances the version the token encodes.
 		if (body._rev) {
 			if (!resolvedItem) {
 				return {
@@ -4700,9 +4715,7 @@ export class EmDashRuntime {
 				const hookData = collectionInfo
 					? await inferBlockTypes(collectionInfo, bodyWithoutRev.data, async () => {
 							if (resolvedItem?.draftRevisionId && collectionInfo.supports?.includes("revisions")) {
-								const draft = await new RevisionRepository(this.db).findById(
-									resolvedItem.draftRevisionId,
-								);
+								const draft = await loadFirstDraftBase(resolvedItem.draftRevisionId);
 								return draft?.data ?? resolvedItem.data;
 							}
 							return resolvedItem?.data;
@@ -4741,6 +4754,7 @@ export class EmDashRuntime {
 					processedData,
 					resolvedItem,
 					knownFieldSlugs,
+					loadFirstDraftBase,
 				);
 			}
 			if (
@@ -4782,6 +4796,7 @@ export class EmDashRuntime {
 				const { validateContentData } = await import("./api/handlers/validation.js");
 				const validation = await validateContentData(this.db, collection, processedData, {
 					partial: true,
+					collectionWithFields: collectionInfo,
 				});
 				if (!validation.ok) {
 					return {
@@ -4798,6 +4813,7 @@ export class EmDashRuntime {
 		let usesDraftRevisions = false;
 		let draftStorageChanged = false;
 		let stagedWrite: ContentWrite | undefined;
+		let stagedRevision: Revision | undefined;
 		if (processedData || bodyWithoutRev.references) {
 			if (collectionInfo?.supports?.includes("revisions")) {
 				usesDraftRevisions = true;
@@ -4835,21 +4851,16 @@ export class EmDashRuntime {
 				}
 
 				const revisionRepo = new RevisionRepository(this.db);
-				let existing = await repo.findById(collection, resolvedId);
-				if (revGuard && existing) {
-					const revCheck = validateRev(revGuard, existing);
-					if (!revCheck.valid) {
-						if (checksLists) return listConflict();
-						return {
-							success: false as const,
-							error: { code: "CONFLICT", message: revCheck.message },
-						};
-					}
-				}
+				// Staging is conditioned on the row's version and updatedAt, so the first attempt can
+				// stage against the row read above: a write since then fails it, which returns CONFLICT
+				// for a `_rev` save and otherwise retries against a fresh read.
+				let existing = resolvedItem;
 
 				for (let attempt = 0; existing && attempt < MAX_DRAFT_STAGE_ATTEMPTS; attempt++) {
 					const draftBase = existing.draftRevisionId
-						? await revisionRepo.findDraftBase(existing.draftRevisionId)
+						? await (attempt === 0
+								? loadFirstDraftBase(existing.draftRevisionId)
+								: revisionRepo.findDraftBase(existing.draftRevisionId))
 						: null;
 					const baseData = draftBase?.data ?? existing.data;
 					let attemptData = processedData ?? {};
@@ -4881,6 +4892,7 @@ export class EmDashRuntime {
 					const { validateContentData } = await import("./api/handlers/validation.js");
 					const validation = await validateContentData(this.db, collection, attemptData, {
 						partial: true,
+						collectionWithFields: collectionInfo,
 					});
 					if (!validation.ok) {
 						return { success: false as const, error: validation.error };
@@ -4962,6 +4974,7 @@ export class EmDashRuntime {
 
 					draftStorageChanged = true;
 					processedData = attemptData;
+					stagedRevision = revision;
 					stagedWrite = {
 						rev: encodeRev({ ...existing, ...staged }),
 						...overlayDraft(existing, revision.data),
@@ -5038,7 +5051,7 @@ export class EmDashRuntime {
 		// the same effective data the response surfaces — for revision-
 		// supporting collections, that's the just-saved draft, not the live
 		// columns.
-		const hydrated = await this.hydrateDraftData(result);
+		const hydrated = await this.hydrateDraftData(result, { stagedRevision });
 		if (hydrated.success && hydrated.data) {
 			const contentIdsToRefresh = [resolvedId];
 			if (!usesDraftRevisions && processedData) {
@@ -7178,14 +7191,13 @@ export class EmDashRuntime {
 		data: Record<string, unknown>,
 		existing: { data: Record<string, unknown>; draftRevisionId?: string | null } | null,
 		knownFieldSlugs: ReadonlySet<string>,
+		loadDraft: (revisionId: string) => Promise<{ data: Record<string, unknown> } | null>,
 	): Promise<Record<string, unknown>> {
 		if (!existing) return data;
 
 		let stored: Record<string, unknown> = existing.data ?? {};
 		if (existing.draftRevisionId) {
-			const draft = await new RevisionRepository(this.db)
-				.findById(existing.draftRevisionId)
-				.catch(() => null);
+			const draft = await loadDraft(existing.draftRevisionId).catch(() => null);
 			// A retired key may survive in the published row while the draft
 			// revision has already shed it, so the baseline has to cover both.
 			if (draft?.data) stored = { ...stored, ...draft.data };
