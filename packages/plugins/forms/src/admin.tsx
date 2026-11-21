@@ -26,6 +26,7 @@ import { apiFetch as baseFetch, getErrorMessage, parseApiResponse } from "emdash
 import * as React from "react";
 
 import {
+	type AdminMessage,
 	FORMS_LOAD_FAILED,
 	SUBMISSIONS_LOAD_FAILED,
 	formsLoadError,
@@ -63,18 +64,19 @@ function apiFetch(route: string, body?: unknown): Promise<Response> {
  * through `onError` (403 becomes a permission message) and returns null.
  */
 async function apiWrite(
+	i18n: AdminI18n,
 	route: string,
 	body: unknown,
-	fallback: string,
+	fallback: AdminMessage,
 	onError: (message: string) => void,
 ): Promise<Response | null> {
 	onError("");
 	try {
 		const res = await apiFetch(route, body);
 		if (res.ok) return res;
-		onError(writeError(res, fallback));
+		onError(i18n._(writeError(res, fallback)));
 	} catch {
-		onError(fallback);
+		onError(i18n._(fallback));
 	}
 	return null;
 }
@@ -189,9 +191,28 @@ function formatDateTime(iso: string): string {
 	});
 }
 
-function useEditorI18n() {
+/** The part of Lingui's `I18n` the admin pages use. */
+interface AdminI18n {
+	_(id: string): string;
+	_(descriptor: AdminMessage): string;
+}
+
+const PLACEHOLDER = /\{(\w+)\}/g;
+
+/** Renders the English source message when no Lingui context is available. */
+const sourceI18n: AdminI18n = {
+	_: (message: string | AdminMessage) => {
+		if (typeof message === "string") return message;
+		const values = message.values ?? {};
+		return message.message.replace(PLACEHOLDER, (match, key: string) =>
+			key in values ? stringifyValue(values[key]) : match,
+		);
+	},
+};
+
+function useEditorI18n(): AdminI18n {
 	// Older hosts may load a separate Lingui context for plugin source.
-	return React.useContext(LinguiContext)?.i18n ?? { _: (message: string) => message };
+	return React.useContext(LinguiContext)?.i18n ?? sourceI18n;
 }
 
 function autoName(label: string): string {
@@ -218,6 +239,7 @@ function stringifyValue(value: unknown): string {
 // =============================================================================
 
 function FormsListPage() {
+	const i18n = useEditorI18n();
 	const [forms, setForms] = React.useState<FormItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
 	const [error, setError] = React.useState<string | null>(null);
@@ -229,17 +251,17 @@ function FormsListPage() {
 		try {
 			const res = await apiFetch("forms/list");
 			if (!res.ok) {
-				setError(formsLoadError(res));
+				setError(i18n._(formsLoadError(res)));
 				return;
 			}
 			const data = await parseApiResponse<{ items: FormItem[] }>(res);
 			setForms(data.items);
 		} catch {
-			setError(FORMS_LOAD_FAILED);
+			setError(i18n._(FORMS_LOAD_FAILED));
 		} finally {
 			setLoading(false);
 		}
-	}, []);
+	}, [i18n]);
 
 	React.useEffect(() => {
 		void loadForms();
@@ -248,9 +270,10 @@ function FormsListPage() {
 	const handleToggleStatus = async (form: FormItem) => {
 		const newStatus = form.status === "active" ? "paused" : "active";
 		const res = await apiWrite(
+			i18n,
 			"forms/update",
 			{ id: form.id, status: newStatus },
-			"Failed to update form",
+			/*i18n*/ { id: "bVfpd4", message: "Failed to update form" },
 			setActionError,
 		);
 		if (res) await loadForms();
@@ -258,20 +281,27 @@ function FormsListPage() {
 
 	const handleDuplicate = async (form: FormItem) => {
 		const res = await apiWrite(
+			i18n,
 			"forms/duplicate",
 			{ id: form.id },
-			"Failed to duplicate form",
+			/*i18n*/ { id: "GZWYuE", message: "Failed to duplicate form" },
 			setActionError,
 		);
 		if (res) await loadForms();
 	};
 
 	const handleDelete = async (form: FormItem) => {
-		if (!confirm(`Delete "${form.name}" and all its submissions?`)) return;
+		const question = i18n._({
+			id: "dhF9WO",
+			message: 'Delete "{name}" and all its submissions?',
+			values: { name: form.name },
+		});
+		if (!confirm(question)) return;
 		const res = await apiWrite(
+			i18n,
 			"forms/delete",
 			{ id: form.id, deleteSubmissions: true },
-			"Failed to delete form",
+			/*i18n*/ { id: "AB1bxU", message: "Failed to delete form" },
 			setActionError,
 		);
 		if (res) await loadForms();
@@ -314,11 +344,13 @@ function FormsListPage() {
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
 				<div>
-					<h1 className="text-3xl font-bold">Forms</h1>
-					<p className="text-muted-foreground mt-1">Create and manage forms</p>
+					<h1 className="text-3xl font-bold">{i18n._({ id: "CiIFml", message: "Forms" })}</h1>
+					<p className="text-muted-foreground mt-1">
+						{i18n._({ id: "4UngCy", message: "Create and manage forms" })}
+					</p>
 				</div>
 				<Button icon={<Plus />} onClick={() => setCreating(true)}>
-					New Form
+					{i18n._({ id: "u+L9YJ", message: "New Form" })}
 				</Button>
 			</div>
 
@@ -334,11 +366,14 @@ function FormsListPage() {
 			{forms.length === 0 ? (
 				<EmptyState
 					icon={ListBullets}
-					title="No forms yet"
-					description="Create your first form to start collecting submissions."
+					title={i18n._({ id: "5gwDCX", message: "No forms yet" })}
+					description={i18n._({
+						id: "cFnka8",
+						message: "Create your first form to start collecting submissions.",
+					})}
 					action={
 						<Button icon={<Plus />} onClick={() => setCreating(true)}>
-							Create Form
+							{i18n._({ id: "SKIBv0", message: "Create Form" })}
 						</Button>
 					}
 				/>
@@ -347,12 +382,24 @@ function FormsListPage() {
 					<table className="w-full text-sm">
 						<thead>
 							<tr className="border-b bg-muted/50">
-								<th className="text-start p-3 font-medium">Name</th>
-								<th className="text-start p-3 font-medium">Slug</th>
-								<th className="text-start p-3 font-medium">Status</th>
-								<th className="text-end p-3 font-medium">Submissions</th>
-								<th className="text-start p-3 font-medium">Last Submission</th>
-								<th className="text-end p-3 font-medium">Actions</th>
+								<th className="text-start p-3 font-medium">
+									{i18n._({ id: "6YtxFj", message: "Name" })}
+								</th>
+								<th className="text-start p-3 font-medium">
+									{i18n._({ id: "L85WcV", message: "Slug" })}
+								</th>
+								<th className="text-start p-3 font-medium">
+									{i18n._({ id: "uAQUqI", message: "Status" })}
+								</th>
+								<th className="text-end p-3 font-medium">
+									{i18n._({ id: "LdA9gy", message: "Submissions" })}
+								</th>
+								<th className="text-start p-3 font-medium">
+									{i18n._({ id: "c/ECAC", message: "Last Submission" })}
+								</th>
+								<th className="text-end p-3 font-medium">
+									{i18n._({ id: "7L01XJ", message: "Actions" })}
+								</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -362,12 +409,14 @@ function FormsListPage() {
 									<td className="p-3 text-muted-foreground font-mono text-xs">{form.slug}</td>
 									<td className="p-3">
 										<Badge variant={form.status === "active" ? "success" : "warning"}>
-											{form.status}
+											{statusLabel(i18n, FORM_STATUS_LABELS, form.status)}
 										</Badge>
 									</td>
 									<td className="p-3 text-end tabular-nums">{form.submissionCount}</td>
 									<td className="p-3 text-muted-foreground">
-										{form.lastSubmissionAt ? formatDate(form.lastSubmissionAt) : "Never"}
+										{form.lastSubmissionAt
+											? formatDate(form.lastSubmissionAt)
+											: i18n._({ id: "qqeAJM", message: "Never" })}
 									</td>
 									<td className="p-3">
 										<div className="flex items-center justify-end gap-1">
@@ -375,7 +424,7 @@ function FormsListPage() {
 												variant="ghost"
 												shape="square"
 												onClick={() => setEditingForm(form)}
-												aria-label="Edit"
+												aria-label={i18n._({ id: "ePK91l", message: "Edit" })}
 											>
 												<PencilSimple className="h-4 w-4" />
 											</Button>
@@ -383,7 +432,11 @@ function FormsListPage() {
 												variant="ghost"
 												shape="square"
 												onClick={() => void handleToggleStatus(form)}
-												aria-label={form.status === "active" ? "Pause" : "Resume"}
+												aria-label={
+													form.status === "active"
+														? i18n._({ id: "IgrLD/", message: "Pause" })
+														: i18n._({ id: "v39wLo", message: "Resume" })
+												}
 											>
 												{form.status === "active" ? (
 													<Pause className="h-4 w-4" />
@@ -395,7 +448,7 @@ function FormsListPage() {
 												variant="ghost"
 												shape="square"
 												onClick={() => void handleDuplicate(form)}
-												aria-label="Duplicate"
+												aria-label={i18n._({ id: "euc6Ns", message: "Duplicate" })}
 											>
 												<Copy className="h-4 w-4" />
 											</Button>
@@ -403,7 +456,7 @@ function FormsListPage() {
 												variant="ghost"
 												shape="square"
 												onClick={() => void handleDelete(form)}
-												aria-label="Delete"
+												aria-label={i18n._({ id: "cnGeoo", message: "Delete" })}
 												className="text-destructive"
 											>
 												<Trash className="h-4 w-4" />
@@ -440,18 +493,54 @@ const FIELD_TYPES = [
 	"hidden",
 ] as const;
 
-const FIELD_TYPE_ITEMS = FIELD_TYPES.map((t) => ({ label: t, value: t }));
+const FIELD_TYPE_LABELS: Record<(typeof FIELD_TYPES)[number], AdminMessage> = {
+	text: /*i18n*/ { id: "xeiujy", message: "Text" },
+	email: /*i18n*/ { id: "O3oNi5", message: "Email" },
+	textarea: /*i18n*/ { id: "g+zzQs", message: "Long text" },
+	number: /*i18n*/ { id: "HptUxX", message: "Number" },
+	tel: /*i18n*/ { id: "zmwvG2", message: "Phone" },
+	url: /*i18n*/ { id: "IagCbF", message: "URL" },
+	date: /*i18n*/ { id: "mYGY3B", message: "Date" },
+	select: /*i18n*/ { id: "rG3WVm", message: "Select" },
+	radio: /*i18n*/ { id: "V+cKHO", message: "Radio buttons" },
+	checkbox: /*i18n*/ { id: "G1XxbZ", message: "Checkbox" },
+	"checkbox-group": /*i18n*/ { id: "nf0K9R", message: "Checkbox group" },
+	file: /*i18n*/ { id: "J2eKUI", message: "File" },
+	hidden: /*i18n*/ { id: "D+zLDD", message: "Hidden" },
+};
 
-const SPAM_ITEMS = [
-	{ label: "None", value: "none" },
+// Honeypot and Turnstile are product names, so only "None" is translated.
+const SPAM_ITEMS: Array<{ label: string | AdminMessage; value: string }> = [
+	{ label: /*i18n*/ { id: "EdQY6l", message: "None" }, value: "none" },
 	{ label: "Honeypot", value: "honeypot" },
 	{ label: "Turnstile", value: "turnstile" },
 ];
 
-const WIDTH_ITEMS = [
-	{ label: "Full", value: "full" },
-	{ label: "Half", value: "half" },
+const WIDTH_ITEMS: Array<{ label: AdminMessage; value: FormField["width"] }> = [
+	{ label: /*i18n*/ { id: "g2Tj8R", message: "Full" }, value: "full" },
+	{ label: /*i18n*/ { id: "sWlMe7", message: "Half" }, value: "half" },
 ];
+
+const FORM_STATUS_LABELS: Record<FormItem["status"], AdminMessage> = {
+	active: /*i18n*/ { id: "F6pfE9", message: "Active" },
+	paused: /*i18n*/ { id: "URAE3q", message: "Paused" },
+};
+
+const SUBMISSION_STATUS_LABELS: Record<SubmissionItem["status"], AdminMessage> = {
+	new: /*i18n*/ { id: "isRobC", message: "New" },
+	read: /*i18n*/ { id: "cQlPDN", message: "Read" },
+	archived: /*i18n*/ { id: "TdfEV7", message: "Archived" },
+};
+
+/** Label for a stored status, falling back to the raw value for unknown statuses. */
+function statusLabel<S extends string>(
+	i18n: AdminI18n,
+	labels: Record<S, AdminMessage>,
+	status: S,
+): string {
+	const label: AdminMessage | undefined = labels[status];
+	return label ? i18n._(label) : status;
+}
 
 function FormEditor({
 	form,
@@ -567,16 +656,16 @@ function FormEditor({
 
 	const handleSave = async () => {
 		if (!name.trim() || !slug.trim()) {
-			setError("Name and slug are required");
+			setError(i18n._({ id: "K1atiw", message: "Name and slug are required" }));
 			return;
 		}
 		if (fields.length === 0) {
-			setError("At least one field is required");
+			setError(i18n._({ id: "rWAciq", message: "At least one field is required" }));
 			return;
 		}
 		for (const f of fields) {
 			if (!f.label.trim() || !f.name.trim()) {
-				setError("All fields must have a label and name");
+				setError(i18n._({ id: "PhJs/l", message: "All fields must have a label and name" }));
 				return;
 			}
 		}
@@ -625,12 +714,14 @@ function FormEditor({
 			const route = form ? "forms/update" : "forms/create";
 			const res = await apiFetch(route, payload);
 			if (!res.ok) {
-				setError(await getErrorMessage(res, "Failed to save form"));
+				setError(
+					await getErrorMessage(res, i18n._({ id: "ckCX7Q", message: "Failed to save form" })),
+				);
 				return;
 			}
 			onSave();
 		} catch {
-			setError("Failed to save form");
+			setError(i18n._({ id: "ckCX7Q", message: "Failed to save form" }));
 		} finally {
 			setSaving(false);
 		}
@@ -639,12 +730,25 @@ function FormEditor({
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center gap-3">
-				<Button variant="ghost" shape="square" onClick={onCancel} aria-label="Back">
+				<Button
+					variant="ghost"
+					shape="square"
+					onClick={onCancel}
+					aria-label={i18n._({ id: "iH8pgl", message: "Back" })}
+				>
 					<ArrowLeft className="h-5 w-5 rtl:-scale-x-100" />
 				</Button>
 				<div>
-					<h1 className="text-3xl font-bold">{form ? "Edit Form" : "New Form"}</h1>
-					{form && <p className="text-muted-foreground mt-0.5 text-sm">Editing: {form.name}</p>}
+					<h1 className="text-3xl font-bold">
+						{form
+							? i18n._({ id: "dVuW4v", message: "Edit Form" })
+							: i18n._({ id: "u+L9YJ", message: "New Form" })}
+					</h1>
+					{form && (
+						<p className="text-muted-foreground mt-0.5 text-sm">
+							{i18n._({ id: "7kzmXB", message: "Editing: {name}", values: { name: form.name } })}
+						</p>
+					)}
 				</div>
 			</div>
 
@@ -657,13 +761,13 @@ function FormEditor({
 			{/* Name & Slug */}
 			<div className="grid grid-cols-2 gap-4">
 				<Input
-					label="Name"
+					label={i18n._({ id: "6YtxFj", message: "Name" })}
 					value={name}
 					onChange={(e) => handleNameChange(e.target.value)}
-					placeholder="Contact Form"
+					placeholder={i18n._({ id: "yIV1sM", message: "Contact Form" })}
 				/>
 				<Input
-					label="Slug"
+					label={i18n._({ id: "L85WcV", message: "Slug" })}
 					value={slug}
 					onChange={(e) => setSlug(e.target.value)}
 					placeholder="contact-form"
@@ -673,15 +777,15 @@ function FormEditor({
 			{/* Fields */}
 			<div>
 				<div className="flex items-center justify-between mb-3">
-					<h2 className="text-lg font-semibold">Fields</h2>
+					<h2 className="text-lg font-semibold">{i18n._({ id: "vF68cg", message: "Fields" })}</h2>
 					<Button variant="outline" icon={<Plus />} onClick={addField}>
-						Add Field
+						{i18n._({ id: "DpV70M", message: "Add Field" })}
 					</Button>
 				</div>
 
 				{fields.length === 0 ? (
 					<div className="border border-dashed rounded-lg p-8 text-center text-sm text-muted-foreground">
-						No fields yet. Click "Add Field" to get started.
+						{i18n._({ id: "xfRhsl", message: 'No fields yet. Click "Add Field" to get started.' })}
 					</div>
 				) : (
 					<div className="space-y-3">
@@ -703,10 +807,12 @@ function FormEditor({
 
 			{/* Settings */}
 			<div>
-				<h2 className="text-lg font-semibold mb-3">Settings</h2>
+				<h2 className="text-lg font-semibold mb-3">
+					{i18n._({ id: "Tz0i8g", message: "Settings" })}
+				</h2>
 				<div className="grid grid-cols-2 gap-4">
 					<Input
-						label="Confirmation Message"
+						label={i18n._({ id: "mg3VPY", message: "Confirmation Message" })}
 						value={settings.confirmationMessage ?? "Thank you for your submission."}
 						onChange={(e) =>
 							setSettings((s) => ({
@@ -716,13 +822,13 @@ function FormEditor({
 						}
 					/>
 					<Input
-						label="Submit Button Label"
+						label={i18n._({ id: "2qW+kp", message: "Submit Button Label" })}
 						value={settings.submitLabel ?? "Submit"}
 						onChange={(e) => setSettings((s) => ({ ...s, submitLabel: e.target.value }))}
 					/>
 					<div>
 						<Select
-							label="Spam Protection"
+							label={i18n._({ id: "RF16o7", message: "Spam Protection" })}
 							hideLabel={false}
 							value={spamProtection}
 							onValueChange={(v) =>
@@ -731,24 +837,37 @@ function FormEditor({
 									spamProtection: (v ?? "honeypot") as FormSettings["spamProtection"],
 								}))
 							}
-							items={SPAM_ITEMS}
+							items={SPAM_ITEMS.map((item) => ({
+								label: typeof item.label === "string" ? item.label : i18n._(item.label),
+								value: item.value,
+							}))}
 						/>
 					</div>
 					{spamProtection === "turnstile" &&
 						turnstileStatus &&
 						(!turnstileStatus.hasSiteKey || !turnstileStatus.hasSecretKey) && (
 							<div className="col-span-2 rounded-lg border border-yellow-500/50 bg-yellow-500/5 p-3 text-sm text-yellow-200">
-								Turnstile requires a site key and secret key.{" "}
 								{!turnstileStatus.hasSiteKey && !turnstileStatus.hasSecretKey
-									? "Neither is configured."
+									? i18n._({
+											id: "tRMIEC",
+											message:
+												"Turnstile requires a site key and secret key. Neither is configured. Set them in the plugin settings.",
+										})
 									: !turnstileStatus.hasSiteKey
-										? "Site key is missing."
-										: "Secret key is missing."}{" "}
-								Set them in the plugin settings.
+										? i18n._({
+												id: "JRm2sB",
+												message:
+													"Turnstile requires a site key and secret key. Site key is missing. Set them in the plugin settings.",
+											})
+										: i18n._({
+												id: "+JAyHS",
+												message:
+													"Turnstile requires a site key and secret key. Secret key is missing. Set them in the plugin settings.",
+											})}
 							</div>
 						)}
 					<Input
-						label="Retention (days, 0 = forever)"
+						label={i18n._({ id: "yOTVVa", message: "Retention (days, 0 = forever)" })}
 						type="number"
 						value={String(settings.retentionDays ?? 0)}
 						onChange={(e) =>
@@ -820,7 +939,7 @@ function FormEditor({
 					</div>
 					<div className="col-span-2">
 						<Input
-							label="Redirect URL (optional)"
+							label={i18n._({ id: "hHrp76", message: "Redirect URL (optional)" })}
 							type="url"
 							value={settings.redirectUrl ?? ""}
 							onChange={(e) => setSettings((s) => ({ ...s, redirectUrl: e.target.value }))}
@@ -834,10 +953,12 @@ function FormEditor({
 			<div className="flex items-center gap-3 pt-4 border-t">
 				<Button onClick={() => void handleSave()} disabled={saving}>
 					{saving && <Loader />}
-					{form ? "Save Changes" : "Create Form"}
+					{form
+						? i18n._({ id: "IUwGEM", message: "Save Changes" })
+						: i18n._({ id: "SKIBv0", message: "Create Form" })}
 				</Button>
 				<Button variant="outline" onClick={onCancel}>
-					Cancel
+					{i18n._({ id: "dEgA5A", message: "Cancel" })}
 				</Button>
 			</div>
 		</div>
@@ -905,34 +1026,37 @@ function FieldRow({
 				<div className="flex-1 space-y-2">
 					<div className="grid grid-cols-2 gap-2">
 						<Input
-							label="Label"
+							label={i18n._({ id: "87a/t/", message: "Label" })}
 							value={field.label}
 							onChange={(e) => handleLabelChange(e.target.value)}
 						/>
 						<Input
-							label="Name"
+							label={i18n._({ id: "6YtxFj", message: "Name" })}
 							value={field.name}
 							onChange={(e) => onChange({ name: e.target.value })}
 						/>
 					</div>
 					<div className="flex items-end gap-4">
 						<Select
-							label="Type"
+							label={i18n._({ id: "+zy2Nq", message: "Type" })}
 							hideLabel={false}
 							value={field.type}
 							onValueChange={(v) => onChange({ type: v ?? "text" })}
-							items={FIELD_TYPE_ITEMS}
+							items={FIELD_TYPES.map((type) => ({
+								label: i18n._(FIELD_TYPE_LABELS[type]),
+								value: type,
+							}))}
 						/>
 						<Select
-							label="Width"
+							label={i18n._({ id: "aFWU1n", message: "Width" })}
 							hideLabel={false}
 							value={field.width}
 							onValueChange={(v) => onChange({ width: v ?? "full" })}
-							items={WIDTH_ITEMS}
+							items={WIDTH_ITEMS.map((item) => ({ label: i18n._(item.label), value: item.value }))}
 						/>
 						<div className="flex h-9 items-center">
 							<Checkbox
-								label="Required"
+								label={i18n._({ id: "TMLAx2", message: "Required" })}
 								checked={field.required}
 								onCheckedChange={(checked) => onChange({ required: checked })}
 							/>
@@ -945,7 +1069,7 @@ function FieldRow({
 						shape="square"
 						onClick={() => onMove(-1)}
 						disabled={index === 0}
-						aria-label="Move up"
+						aria-label={i18n._({ id: "QyioBP", message: "Move up" })}
 					>
 						&#9650;
 					</Button>
@@ -954,7 +1078,7 @@ function FieldRow({
 						shape="square"
 						onClick={() => onMove(1)}
 						disabled={index === total - 1}
-						aria-label="Move down"
+						aria-label={i18n._({ id: "3Ib6FN", message: "Move down" })}
 					>
 						&#9660;
 					</Button>
@@ -962,7 +1086,7 @@ function FieldRow({
 						variant="ghost"
 						shape="square"
 						onClick={onRemove}
-						aria-label="Remove"
+						aria-label={i18n._({ id: "t/YqKh", message: "Remove" })}
 						className="text-destructive"
 					>
 						<Trash className="h-3.5 w-3.5" />
@@ -1065,6 +1189,7 @@ function OptionsEditor({
 	options: Array<{ label: string; value: string }>;
 	onChange: (options: Array<{ label: string; value: string }>) => void;
 }) {
+	const i18n = useEditorI18n();
 	const addOption = () => onChange([...options, { label: "", value: "" }]);
 	const updateOption = (index: number, updates: Partial<{ label: string; value: string }>) => {
 		const next = options.map((o, i) => {
@@ -1081,25 +1206,27 @@ function OptionsEditor({
 
 	return (
 		<div className="ms-8 space-y-1">
-			<span className="text-xs text-muted-foreground">Options:</span>
+			<span className="text-xs text-muted-foreground">
+				{i18n._({ id: "AmPPq5", message: "Options:" })}
+			</span>
 			{options.map((opt, i) => (
 				<div key={i} className="flex items-center gap-2">
 					<Input
 						value={opt.label}
 						onChange={(e) => updateOption(i, { label: e.target.value })}
-						placeholder="Label"
+						placeholder={i18n._({ id: "87a/t/", message: "Label" })}
 					/>
 					<Input
 						value={opt.value}
 						onChange={(e) => updateOption(i, { value: e.target.value })}
-						placeholder="value"
+						placeholder={i18n._({ id: "50QwC8", message: "value" })}
 					/>
 					<Button
 						variant="ghost"
 						shape="square"
 						onClick={() => removeOption(i)}
 						className="text-destructive"
-						aria-label="Remove option"
+						aria-label={i18n._({ id: "00Lxnh", message: "Remove option" })}
 					>
 						<Trash className="h-3 w-3" />
 					</Button>
@@ -1110,7 +1237,7 @@ function OptionsEditor({
 				onClick={addOption}
 				className="text-xs text-muted-foreground hover:text-foreground"
 			>
-				+ Add option
+				{i18n._({ id: "n5QwOT", message: "+ Add option" })}
 			</button>
 		</div>
 	);
@@ -1132,6 +1259,7 @@ function latestSubmittedForm(forms: FormItem[]): FormItem | undefined {
 }
 
 function SubmissionsPage() {
+	const i18n = useEditorI18n();
 	const [forms, setForms] = React.useState<FormItem[]>([]);
 	const [selectedFormId, setSelectedFormId] = React.useState<string>("");
 	const [submissions, setSubmissions] = React.useState<SubmissionItem[]>([]);
@@ -1149,7 +1277,7 @@ function SubmissionsPage() {
 			try {
 				const res = await apiFetch("forms/list");
 				if (!res.ok) {
-					setError(formsLoadError(res));
+					setError(i18n._(formsLoadError(res)));
 					return;
 				}
 				const data = await parseApiResponse<{ items: FormItem[] }>(res);
@@ -1159,12 +1287,12 @@ function SubmissionsPage() {
 					setSelectedFormId(initialForm.id);
 				}
 			} catch {
-				setError(FORMS_LOAD_FAILED);
+				setError(i18n._(FORMS_LOAD_FAILED));
 			} finally {
 				setLoading(false);
 			}
 		})();
-	}, []);
+	}, [i18n]);
 
 	React.useEffect(() => {
 		if (!selectedFormId) return;
@@ -1185,7 +1313,7 @@ function SubmissionsPage() {
 				if (stale) return;
 				if (!res.ok) {
 					setSubmissions([]);
-					setSubsError(submissionsLoadError(res));
+					setSubsError(i18n._(submissionsLoadError(res)));
 					return;
 				}
 				const data = await parseApiResponse<{
@@ -1198,7 +1326,7 @@ function SubmissionsPage() {
 			} catch {
 				if (stale) return;
 				setSubmissions([]);
-				setSubsError(SUBMISSIONS_LOAD_FAILED);
+				setSubsError(i18n._(SUBMISSIONS_LOAD_FAILED));
 			} finally {
 				if (!stale) setSubsLoading(false);
 			}
@@ -1206,13 +1334,14 @@ function SubmissionsPage() {
 		return () => {
 			stale = true;
 		};
-	}, [selectedFormId, statusFilter]);
+	}, [i18n, selectedFormId, statusFilter]);
 
 	const handleToggleStar = async (sub: SubmissionItem) => {
 		const res = await apiWrite(
+			i18n,
 			"submissions/update",
 			{ id: sub.id, starred: !sub.starred },
-			"Failed to update submission",
+			/*i18n*/ { id: "sH3BT9", message: "Failed to update submission" },
 			setActionError,
 		);
 		if (res) {
@@ -1226,9 +1355,10 @@ function SubmissionsPage() {
 	const handleMarkRead = async (sub: SubmissionItem) => {
 		const newStatus = sub.status === "new" ? "read" : sub.status === "read" ? "archived" : "new";
 		const res = await apiWrite(
+			i18n,
 			"submissions/update",
 			{ id: sub.id, status: newStatus },
-			"Failed to update submission",
+			/*i18n*/ { id: "sH3BT9", message: "Failed to update submission" },
 			setActionError,
 		);
 		if (res) {
@@ -1240,11 +1370,12 @@ function SubmissionsPage() {
 	};
 
 	const handleDelete = async (sub: SubmissionItem) => {
-		if (!confirm("Delete this submission?")) return;
+		if (!confirm(i18n._({ id: "QkTGAA", message: "Delete this submission?" }))) return;
 		const res = await apiWrite(
+			i18n,
 			"submissions/delete",
 			{ id: sub.id },
-			"Failed to delete submission",
+			/*i18n*/ { id: "6XEmGy", message: "Failed to delete submission" },
 			setActionError,
 		);
 		if (res) {
@@ -1256,9 +1387,10 @@ function SubmissionsPage() {
 	const handleExport = async (format: "csv" | "json") => {
 		if (!selectedFormId) return;
 		const res = await apiWrite(
+			i18n,
 			"submissions/export",
 			{ formId: selectedFormId, format },
-			"Failed to export submissions",
+			/*i18n*/ { id: "zfOJix", message: "Failed to export submissions" },
 			setActionError,
 		);
 		if (!res) return;
@@ -1274,7 +1406,7 @@ function SubmissionsPage() {
 			a.click();
 			URL.revokeObjectURL(url);
 		} catch {
-			setActionError("Failed to export submissions");
+			setActionError(i18n._({ id: "zfOJix", message: "Failed to export submissions" }));
 		}
 	};
 
@@ -1289,7 +1421,7 @@ function SubmissionsPage() {
 	if (error) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-3xl font-bold">Submissions</h1>
+				<h1 className="text-3xl font-bold">{i18n._({ id: "LdA9gy", message: "Submissions" })}</h1>
 				<div className="rounded-lg border border-destructive/50 bg-destructive/5 p-4 text-sm text-destructive">
 					{error}
 				</div>
@@ -1300,11 +1432,14 @@ function SubmissionsPage() {
 	if (forms.length === 0) {
 		return (
 			<div className="space-y-6">
-				<h1 className="text-3xl font-bold">Submissions</h1>
+				<h1 className="text-3xl font-bold">{i18n._({ id: "LdA9gy", message: "Submissions" })}</h1>
 				<EmptyState
 					icon={Envelope}
-					title="No forms yet"
-					description="Create a form first, then submissions will appear here."
+					title={i18n._({ id: "5gwDCX", message: "No forms yet" })}
+					description={i18n._({
+						id: "Huq8wG",
+						message: "Create a form first, then submissions will appear here.",
+					})}
 				/>
 			</div>
 		);
@@ -1313,16 +1448,16 @@ function SubmissionsPage() {
 	const selectedForm = forms.find((f) => f.id === selectedFormId);
 	const formItems = forms.map((f) => ({ label: f.name, value: f.id }));
 	const statusItems = [
-		{ label: "All Status", value: "" },
-		{ label: "New", value: "new" },
-		{ label: "Read", value: "read" },
-		{ label: "Archived", value: "archived" },
+		{ label: i18n._({ id: "qwHj/3", message: "All Status" }), value: "" },
+		{ label: i18n._(SUBMISSION_STATUS_LABELS.new), value: "new" },
+		{ label: i18n._(SUBMISSION_STATUS_LABELS.read), value: "read" },
+		{ label: i18n._(SUBMISSION_STATUS_LABELS.archived), value: "archived" },
 	];
 
 	return (
 		<div className="space-y-6">
 			<div className="flex items-center justify-between">
-				<h1 className="text-3xl font-bold">Submissions</h1>
+				<h1 className="text-3xl font-bold">{i18n._({ id: "LdA9gy", message: "Submissions" })}</h1>
 				{canManage && (
 					<div className="flex items-center gap-2">
 						<Button
@@ -1361,7 +1496,7 @@ function SubmissionsPage() {
 						value={selectedFormId}
 						onValueChange={(v) => setSelectedFormId(v ?? "")}
 						items={formItems}
-						aria-label="Select form"
+						aria-label={i18n._({ id: "+swMb1", message: "Select form" })}
 					/>
 				</div>
 				<div className="w-40">
@@ -1369,12 +1504,16 @@ function SubmissionsPage() {
 						value={statusFilter}
 						onValueChange={(v) => setStatusFilter(v ?? "")}
 						items={statusItems}
-						aria-label="Filter by status"
+						aria-label={i18n._({ id: "KwybLi", message: "Filter by status" })}
 					/>
 				</div>
 				{selectedForm && (
 					<span className="text-sm text-muted-foreground">
-						{selectedForm.submissionCount} total
+						{i18n._({
+							id: "PYD5ka",
+							message: "{count} total",
+							values: { count: selectedForm.submissionCount },
+						})}
 					</span>
 				)}
 			</div>
@@ -1396,11 +1535,14 @@ function SubmissionsPage() {
 					) : submissions.length === 0 ? (
 						<EmptyState
 							icon={Envelope}
-							title="No submissions"
+							title={i18n._({ id: "uNRdQ+", message: "No submissions" })}
 							description={
 								statusFilter
-									? "No submissions match the current filter."
-									: "This form hasn't received any submissions yet."
+									? i18n._({ id: "A1nBzx", message: "No submissions match the current filter." })
+									: i18n._({
+											id: "zGSzIi",
+											message: "This form hasn't received any submissions yet.",
+										})
 							}
 						/>
 					) : (
@@ -1409,10 +1551,20 @@ function SubmissionsPage() {
 								<thead>
 									<tr className="border-b bg-muted/50">
 										<th className="w-8 p-3" />
-										<th className="text-start p-3 font-medium">Date</th>
-										<th className="text-start p-3 font-medium">Preview</th>
-										<th className="text-start p-3 font-medium">Status</th>
-										{canManage && <th className="text-end p-3 font-medium">Actions</th>}
+										<th className="text-start p-3 font-medium">
+											{i18n._({ id: "mYGY3B", message: "Date" })}
+										</th>
+										<th className="text-start p-3 font-medium">
+											{i18n._({ id: "rdUucN", message: "Preview" })}
+										</th>
+										<th className="text-start p-3 font-medium">
+											{i18n._({ id: "uAQUqI", message: "Status" })}
+										</th>
+										{canManage && (
+											<th className="text-end p-3 font-medium">
+												{i18n._({ id: "7L01XJ", message: "Actions" })}
+											</th>
+										)}
 									</tr>
 								</thead>
 								<tbody>
@@ -1461,7 +1613,9 @@ function SubmissionsPage() {
 												</td>
 												<td className="p-3 truncate max-w-xs">
 													{previewValues || (
-														<span className="text-muted-foreground italic">Empty</span>
+														<span className="text-muted-foreground italic">
+															{i18n._({ id: "N2S1rs", message: "Empty" })}
+														</span>
 													)}
 												</td>
 												<td className="p-3">
@@ -1474,7 +1628,7 @@ function SubmissionsPage() {
 																	: "warning"
 														}
 													>
-														{sub.status}
+														{statusLabel(i18n, SUBMISSION_STATUS_LABELS, sub.status)}
 													</Badge>
 												</td>
 												{canManage && (
@@ -1487,7 +1641,7 @@ function SubmissionsPage() {
 																	e.stopPropagation();
 																	void handleMarkRead(sub);
 																}}
-																aria-label="Toggle status"
+																aria-label={i18n._({ id: "kkk4nT", message: "Toggle status" })}
 															>
 																<Eye className="h-4 w-4" />
 															</Button>
@@ -1499,7 +1653,7 @@ function SubmissionsPage() {
 																	e.stopPropagation();
 																	void handleDelete(sub);
 																}}
-																aria-label="Delete"
+																aria-label={i18n._({ id: "cnGeoo", message: "Delete" })}
 															>
 																<Trash className="h-4 w-4" />
 															</Button>
@@ -1519,7 +1673,9 @@ function SubmissionsPage() {
 				{selectedSub && (
 					<div className="w-80 shrink-0 border rounded-lg p-4 space-y-4 self-start sticky top-4">
 						<div className="flex items-center justify-between">
-							<h3 className="font-semibold">Submission Detail</h3>
+							<h3 className="font-semibold">
+								{i18n._({ id: "WcVAO+", message: "Submission Detail" })}
+							</h3>
 							<Badge
 								variant={
 									selectedSub.status === "new"
@@ -1529,7 +1685,7 @@ function SubmissionsPage() {
 											: "warning"
 								}
 							>
-								{selectedSub.status}
+								{statusLabel(i18n, SUBMISSION_STATUS_LABELS, selectedSub.status)}
 							</Badge>
 						</div>
 						<p className="text-xs text-muted-foreground">{formatDateTime(selectedSub.createdAt)}</p>
@@ -1544,12 +1700,20 @@ function SubmissionsPage() {
 						</dl>
 
 						{selectedSub.meta.country && (
-							<p className="text-xs text-muted-foreground">Country: {selectedSub.meta.country}</p>
+							<p className="text-xs text-muted-foreground">
+								{i18n._({
+									id: "yAB3Mn",
+									message: "Country: {country}",
+									values: { country: selectedSub.meta.country },
+								})}
+							</p>
 						)}
 
 						{selectedSub.notes && (
 							<div>
-								<dt className="text-xs font-medium text-muted-foreground">Notes</dt>
+								<dt className="text-xs font-medium text-muted-foreground">
+									{i18n._({ id: "1DBGsz", message: "Notes" })}
+								</dt>
 								<dd className="text-sm mt-0.5">{selectedSub.notes}</dd>
 							</div>
 						)}
@@ -1565,6 +1729,7 @@ function SubmissionsPage() {
 // =============================================================================
 
 function RecentSubmissionsWidget() {
+	const i18n = useEditorI18n();
 	const [forms, setForms] = React.useState<FormItem[]>([]);
 	const [submissions, setSubmissions] = React.useState<SubmissionItem[]>([]);
 	const [loading, setLoading] = React.useState(true);
@@ -1576,7 +1741,7 @@ function RecentSubmissionsWidget() {
 			try {
 				const formsRes = await apiFetch("forms/list");
 				if (!formsRes.ok) {
-					setError(formsLoadError(formsRes));
+					setError(i18n._(formsLoadError(formsRes)));
 					return;
 				}
 				const formsData = await parseApiResponse<{ items: FormItem[] }>(formsRes);
@@ -1590,7 +1755,7 @@ function RecentSubmissionsWidget() {
 						limit: 5,
 					});
 					if (!subsRes.ok) {
-						setError(submissionsLoadError(subsRes));
+						setError(i18n._(submissionsLoadError(subsRes)));
 						return;
 					}
 					const subsData = await parseApiResponse<{
@@ -1599,12 +1764,12 @@ function RecentSubmissionsWidget() {
 					setSubmissions(subsData.items);
 				}
 			} catch {
-				setError(failure);
+				setError(i18n._(failure));
 			} finally {
 				setLoading(false);
 			}
 		})();
-	}, []);
+	}, [i18n]);
 
 	if (loading) {
 		return (
@@ -1620,12 +1785,18 @@ function RecentSubmissionsWidget() {
 
 	if (forms.length === 0) {
 		return (
-			<div className="text-center text-sm text-muted-foreground py-4">No forms configured</div>
+			<div className="text-center text-sm text-muted-foreground py-4">
+				{i18n._({ id: "ummmI9", message: "No forms configured" })}
+			</div>
 		);
 	}
 
 	if (submissions.length === 0) {
-		return <div className="text-center text-sm text-muted-foreground py-4">No submissions yet</div>;
+		return (
+			<div className="text-center text-sm text-muted-foreground py-4">
+				{i18n._({ id: "uw7EDw", message: "No submissions yet" })}
+			</div>
+		);
 	}
 
 	const formMap = new Map(forms.map((f) => [f.id, f.name]));
@@ -1642,8 +1813,14 @@ function RecentSubmissionsWidget() {
 				return (
 					<div key={sub.id} className="flex items-center justify-between text-xs">
 						<div className="flex items-center gap-2 min-w-0">
-							<Badge variant={sub.status === "new" ? "success" : "default"}>{sub.status}</Badge>
-							<span className="truncate">{preview || formMap.get(sub.formId) || "Submission"}</span>
+							<Badge variant={sub.status === "new" ? "success" : "default"}>
+								{statusLabel(i18n, SUBMISSION_STATUS_LABELS, sub.status)}
+							</Badge>
+							<span className="truncate">
+								{preview ||
+									formMap.get(sub.formId) ||
+									i18n._({ id: "be6D0D", message: "Submission" })}
+							</span>
 						</div>
 						<span className="text-muted-foreground whitespace-nowrap ms-2">
 							{formatDate(sub.createdAt)}
