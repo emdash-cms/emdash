@@ -9,6 +9,7 @@ import { describe, expect, test } from "vitest";
 
 import EmDashImage from "../../src/components/EmDashImage.astro";
 import EmDashMedia from "../../src/components/EmDashMedia.astro";
+import Gallery from "../../src/components/Gallery.astro";
 import Image from "../../src/components/Image.astro";
 import { createMediaProvider as createLocalMediaProvider } from "../../src/media/local-runtime.js";
 import OverrideImage from "./OverrideImage.astro";
@@ -425,6 +426,91 @@ describe("faithful render of migrated image node", () => {
 		expect(attr(tag, "srcset")).toBeUndefined();
 		expect(attr(tag, "sizes")).toBeUndefined();
 		expect(attr(tag, "data-testid")).toBe("hero");
+	});
+});
+
+describe("SVG media", () => {
+	const svgUrl = "/_emdash/api/media/file/01SVGLOGO.svg";
+	const request = new Request("https://quality.example.com/");
+
+	test("Image renders an SVG as the original file without an srcset", async () => {
+		const html = await renderImage(
+			{ ...node, asset: { _ref: "01SVGLOGO", url: svgUrl }, width: 400, height: 100 },
+			locals,
+			true,
+			request,
+		);
+		const tag = imgTag(html);
+
+		expect(attr(tag, "src")).toBe(svgUrl);
+		expect(attr(tag, "srcset")).toBeUndefined();
+		expect(attr(tag, "width")).toBe("136");
+		expect(attr(tag, "height")).toBe("201");
+		expect(html).not.toContain("/_image?");
+	});
+
+	test("Image still optimizes the same media when it is a raster file", async () => {
+		const html = await renderImage({ ...node, width: 400, height: 100 }, locals, true, request);
+
+		expect(attr(imgTag(html), "src")).toContain("/_image?");
+		expect(attr(imgTag(html), "srcset")).toBeTruthy();
+	});
+
+	test("EmDashImage renders an SVG as the original file without an srcset", async () => {
+		const html = await renderEmDashImage(
+			{ image: { id: "01SVGLOGO", src: svgUrl, width: 400, height: 100 }, alt: "Logo" },
+			request,
+		);
+		const tag = imgTag(html);
+
+		expect(attr(tag, "src")).toBe(svgUrl);
+		expect(attr(tag, "srcset")).toBeUndefined();
+		expect(attr(tag, "width")).toBe("400");
+		expect(attr(tag, "height")).toBe("100");
+		expect(html).not.toContain("/_image?");
+	});
+
+	test("EmDashImage still sends an SVG with explicit formats to the image service", async () => {
+		const html = await renderEmDashImage(
+			{
+				image: { id: "01SVGLOGO", src: svgUrl, width: 400, height: 100 },
+				alt: "Logo",
+				formats: ["avif", "webp"],
+			},
+			request,
+		);
+
+		expect(html).toContain('type="image/avif"');
+		expect(attr(imgTag(html), "src")).toContain("f=webp");
+	});
+
+	test("Gallery renders an SVG as the original file without an srcset", async () => {
+		const c = await AstroContainer.create();
+		const html = await c.renderToString(Gallery, {
+			props: {
+				node: {
+					_type: "gallery",
+					_key: "g",
+					images: [
+						{
+							_type: "image",
+							_key: "logo",
+							asset: { _ref: "01SVGLOGO", url: svgUrl },
+							alt: "Logo",
+							width: 400,
+							height: 100,
+						},
+					],
+				},
+			},
+			locals,
+			request,
+		});
+		const tag = imgTag(html);
+
+		expect(attr(tag, "src")).toBe(svgUrl);
+		expect(attr(tag, "srcset")).toBeUndefined();
+		expect(html).not.toContain("/_image?");
 	});
 });
 

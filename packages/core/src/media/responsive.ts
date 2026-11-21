@@ -104,14 +104,28 @@ export type GetImage = (options: {
 	sizes?: string;
 	format?: string;
 	quality?: EmbedOptions["quality"];
-}) => Promise<{ src: string; srcSet?: { attribute?: string } | undefined }>;
+}) => Promise<{
+	src: string;
+	srcSet?: { attribute?: string } | undefined;
+	options?: { format?: string };
+}>;
+
+/**
+ * Whether `getImage` produced a URL the media endpoints actually transform.
+ * Since Astro 6.4, SVG sources stay SVG unless a format is requested, and the
+ * endpoints serve that unchanged, so every width would be a separate request
+ * for the same file.
+ */
+function isTransformed(result: Awaited<ReturnType<GetImage>>, src: string): boolean {
+	return Boolean(result.src && result.src !== src && result.options?.format !== "svg");
+}
 
 /** MIME type for a transform output format, for `<source type>`. */
 export function formatContentType(format: string): string {
 	return `image/${format === "jpg" ? "jpeg" : format}`;
 }
 
-/** Return whether the image service rewrites the URL for this transform. */
+/** Return whether the image service produces a transformed URL for this transform. */
 export async function canOptimizeImage(
 	getImage: GetImage,
 	opts: {
@@ -124,8 +138,7 @@ export async function canOptimizeImage(
 ): Promise<boolean> {
 	if (!ABSOLUTE_HTTP_URL.test(opts.src)) return false;
 	try {
-		const result = await getImage(opts);
-		return Boolean(result.src && result.src !== opts.src);
+		return isTransformed(await getImage(opts), opts.src);
 	} catch {
 		return false;
 	}
@@ -152,6 +165,7 @@ export interface ResponsiveImage {
  *  - dimensions are unknown (avoids an inferSize fetch on every render),
  *  - the URL is relative (a same-origin proxy/public asset Astro won't optimize),
  *  - the host isn't authorized (the service passed the URL through unchanged),
+ *  - the output stays SVG (served unchanged at every width),
  *  - no image service is configured / `getImage` throws.
  */
 export async function buildResponsiveImage(
@@ -179,9 +193,7 @@ export async function buildResponsiveImage(
 			format,
 			...(quality !== undefined ? { quality } : {}),
 		});
-		// Passthrough: the service returned the source unchanged (unauthorized
-		// host or no optimization available). Don't emit a no-op srcset.
-		if (!result.src || result.src === src) return null;
+		if (!isTransformed(result, src)) return null;
 		return {
 			src: result.src,
 			srcset: result.srcSet?.attribute || undefined,
