@@ -108,6 +108,22 @@ describe("admin media usage progress route", () => {
 		expect(JSON.stringify(body)).not.toContain("post");
 	});
 
+	it("logs database failure details without exposing them in the response", async () => {
+		const cause = new Error("D1 query exceeded resource limits");
+		const error = new Error("Work retry failed", { cause });
+		vi.spyOn(maintenanceEngine, "runMediaUsageMaintenanceStep").mockRejectedValue(error);
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		const response = await POST(routeContext(Role.ADMIN, ["admin"], "POST"));
+
+		await expectError(response, 500, "MEDIA_USAGE_PROGRESS_ADVANCE_ERROR");
+		expect(log).toHaveBeenCalledWith("[media-usage] progress advance failed:", {
+			message: "Work retry failed",
+			cause: "D1 query exceeded resource limits",
+			stack: error.stack,
+		});
+	});
+
 	it("returns immediate continuation after exactly one activation step", async () => {
 		await ctx!.db
 			.updateTable("_emdash_media_usage_activation")

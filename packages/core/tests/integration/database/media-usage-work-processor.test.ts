@@ -165,26 +165,36 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 		expect(await countWork(ctx.db)).toBe(0);
 	});
 
-	it("processes at most one thousand entries per bulk batch", { timeout: 30_000 }, async () => {
-		const fixture = await createActiveFixture(ctx, "large_batch");
-		for (let index = 0; index < 1_001; index++) {
-			await insertEntry(
-				ctx,
-				fixture,
-				`entry-${String(index).padStart(4, "0")}`,
-				`media-${index}`,
-				20,
+	it(
+		"processes a large queue in bounded batches until coverage is complete",
+		{ timeout: 30_000 },
+		async () => {
+			const fixture = await createActiveFixture(ctx, "large_batch");
+			for (let index = 0; index < 201; index++) {
+				await insertEntry(
+					ctx,
+					fixture,
+					`entry-${String(index).padStart(4, "0")}`,
+					`media-${index}`,
+					20,
+				);
+			}
+			const counter = new QueryCountingPlugin();
+
+			const result = await processDueMediaUsageWork(ctx.db.withPlugin(counter));
+
+			expect(result.claimedCount).toBe(100);
+			expect(result.completedCount).toBe(100);
+			expect(counter.count).toBeLessThan(50);
+			expect(await countWork(ctx.db)).toBe(101);
+			expect((await processDueMediaUsageWork(ctx.db)).completedCount).toBe(100);
+			expect((await processDueMediaUsageWork(ctx.db)).completedCount).toBe(1);
+			expect(await countWork(ctx.db)).toBe(0);
+			expect(await findCoverageStatus(ctx.db, fixture.collectionId)).toEqual(
+				expect.objectContaining({ status: "complete" }),
 			);
-		}
-		const counter = new QueryCountingPlugin();
-
-		const result = await processDueMediaUsageWork(ctx.db.withPlugin(counter));
-
-		expect(result.claimedCount).toBe(1_000);
-		expect(result.completedCount).toBe(1_000);
-		expect(counter.count).toBeLessThan(50);
-		expect(await countWork(ctx.db)).toBe(1);
-	});
+		},
+	);
 
 	it(
 		"releases untouched work when aggregate projection memory is full",
@@ -196,7 +206,7 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 					ctx,
 					fixture,
 					`entry-${String(index).padStart(3, "0")}`,
-					`media-${index}`,
+					`media-${index}-${"x".repeat(500)}`,
 					500,
 				);
 			}
@@ -204,7 +214,7 @@ describeEachDialect("media usage durable work processing", (dialect) => {
 			const first = await processDueMediaUsageWork(ctx.db);
 
 			expect(first.completedCount).toBeGreaterThan(0);
-			expect(first.completedCount).toBeLessThan(101);
+			expect(first.completedCount).toBeLessThan(100);
 			expect(first.retryCount).toBe(0);
 			expect(first.failedCount).toBe(0);
 			const remaining = await ctx.db

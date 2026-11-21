@@ -141,7 +141,16 @@ export async function handleMediaUsageProgressAdvance(
 				},
 			};
 		}
-		console.error("[media-usage] progress advance failed:", error);
+		console.error(
+			"[media-usage] progress advance failed:",
+			error instanceof Error
+				? {
+						message: error.message,
+						cause: error.cause instanceof Error ? error.cause.message : error.cause,
+						stack: error.stack,
+					}
+				: error,
+		);
 		return {
 			success: false,
 			error: {

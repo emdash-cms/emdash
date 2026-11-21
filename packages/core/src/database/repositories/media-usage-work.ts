@@ -569,13 +569,13 @@ export class MediaUsageWorkRepository {
 			})
 			.where((eb) =>
 				eb.and([
-					eb.exists(
+					eb(
+						eb.refTuple("collection_id", "content_id", "work_version"),
+						"in",
 						eb
-							.selectFrom("due_media_usage_work as due")
-							.select("due.content_id")
-							.whereRef("due.collection_id", "=", "_emdash_media_usage_work.collection_id")
-							.whereRef("due.content_id", "=", "_emdash_media_usage_work.content_id")
-							.whereRef("due.work_version", "=", "_emdash_media_usage_work.work_version"),
+							.selectFrom("due_media_usage_work")
+							.select(["collection_id", "content_id", "work_version"])
+							.$asTuple("collection_id", "content_id", "work_version"),
 					),
 					eb.or([
 						eb.and([
@@ -697,13 +697,8 @@ export class MediaUsageWorkRepository {
 			DELETE FROM _emdash_media_usage_work AS work
 			WHERE work.state = 'leased'
 				AND ${this.qualifiedLeaseIsLive("work.lease_expires_at")}
-				AND EXISTS (
-					SELECT 1
-					FROM claimed
-					WHERE claimed.collection_id = work.collection_id
-						AND claimed.content_id = work.content_id
-						AND claimed.work_version = work.work_version
-						AND claimed.lease_token = work.lease_token
+				AND (work.collection_id, work.content_id, work.work_version, work.lease_token) IN (
+					SELECT collection_id, content_id, work_version, lease_token FROM claimed
 				)
 			RETURNING collection_id, content_id, work_version
 		`.execute(this.db);
@@ -815,13 +810,8 @@ export class MediaUsageWorkRepository {
 				updated_at = ${this.timestampOffset(0)}
 			WHERE work.state = 'leased'
 				AND ${this.qualifiedLeaseIsLive("work.lease_expires_at")}
-				AND EXISTS (
-					SELECT 1
-					FROM claimed
-					WHERE claimed.collection_id = work.collection_id
-						AND claimed.content_id = work.content_id
-						AND claimed.work_version = work.work_version
-						AND claimed.lease_token = work.lease_token
+				AND (work.collection_id, work.content_id, work.work_version, work.lease_token) IN (
+					SELECT collection_id, content_id, work_version, lease_token FROM claimed
 				)
 			RETURNING collection_id, content_id, work_version, state
 		`.execute(this.db);
@@ -872,13 +862,8 @@ export class MediaUsageWorkRepository {
 				updated_at = ${this.timestampOffset(0)}
 			WHERE work.state = 'leased'
 				AND ${this.qualifiedLeaseIsLive("work.lease_expires_at")}
-				AND EXISTS (
-					SELECT 1
-					FROM claimed
-					WHERE claimed.collection_id = work.collection_id
-						AND claimed.content_id = work.content_id
-						AND claimed.work_version = work.work_version
-						AND claimed.lease_token = work.lease_token
+				AND (work.collection_id, work.content_id, work.work_version, work.lease_token) IN (
+					SELECT collection_id, content_id, work_version, lease_token FROM claimed
 				)
 			RETURNING collection_id, content_id, work_version
 		`.execute(this.db);
