@@ -16,6 +16,7 @@ import {
 	isSystemOrderField,
 	type ContentRevisionPrecondition,
 } from "../../database/repositories/content.js";
+import { EditorialThreadRepository } from "../../database/repositories/editorial-threads.js";
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
 import { RedirectRepository, redirectPathVariants } from "../../database/repositories/redirect.js";
@@ -2166,6 +2167,7 @@ export async function handleContentPermanentDelete(
 				const revisionRepo = new RevisionRepository(trx);
 				await revisionRepo.deleteByEntry(collection, resolvedId);
 				await new EntryLockRepository(trx).releaseEntry(collection, resolvedId);
+				await new EditorialThreadRepository(trx).deleteForEntry(collection, resolvedId);
 				// Credits belong to this row alone — no other row reads them, so they
 				// go with it whether or not the group survives.
 				await new BylineRepository(trx).deleteContentBylines(collection, resolvedId);
