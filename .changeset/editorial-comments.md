@@ -13,6 +13,12 @@ In the entry editor, select text in any Portable Text field and choose **Comment
 
 The API lives under each entry, at `/_emdash/api/content/{collection}/{id}/threads`, with routes to list and start threads, reply, edit and delete comments, resolve and reopen threads, and store anchors after the entry's content changes. Each thread and comment in a response carries `can` flags that say what the caller may do with it.
 
+#### Mentions and email
+
+Type `@` in a comment to mention someone who can take part in threads. A comment body stores each mention as `<@USER_ID>`, and every thread in a response lists the users it mentions under `mentions`, with their current names, so a renamed user shows the new name. `GET …/threads/mentionable?q=` returns up to 10 people to mention, matched by display name, without email addresses. A new comment, or an edit that adds a mention, fails with `VALIDATION_ERROR` when it mentions a user who doesn't exist or can't take part. Mentions already in a comment don't stop it being edited.
+
+When the site has an email provider, a new comment emails the people it mentions, the thread's creator and the authors of its earlier comments that weren't deleted, except its own author, anyone who can no longer take part, and users whose email address isn't verified. Editing a comment to mention someone new emails only that person. The email has the entry's title, an excerpt of the comment and a link to the thread. Without an email provider, nothing is sent, and the comment is still saved. See [Comment on an entry](https://docs.emdashcms.com/guides/working-with-content/#comment-on-an-entry) for mentions and comment emails.
+
 #### Permissions
 
 Two permissions are new in `@emdash-cms/auth`. Every editorial route also needs `content:read_drafts`.

@@ -493,6 +493,7 @@ export function useEditorialComments({
 	const openCount = threads.filter((thread) => thread.status === "open").length;
 
 	return {
+		entry,
 		threads,
 		isLoading: query.isLoading,
 		/** Whether the threads failed to load, or the last refresh of them failed. */

@@ -16,6 +16,7 @@ import * as React from "react";
 import type { EditorialAnchor } from "../../editorial-anchors.js";
 import type {
 	EditorialComment,
+	EditorialEntry,
 	EditorialPerson,
 	EditorialThread,
 } from "../../lib/api/editorial-threads.js";
@@ -26,10 +27,19 @@ import {
 	getEditorialHighlights,
 	locateAnchor,
 } from "../editor/EditorialCommentsExtension.js";
+import {
+	bodyToDraft,
+	draftToBody,
+	MentionText,
+	updateDraftText,
+	useMentionPicker,
+	type MentionDraft,
+} from "./mentions.js";
 import { isEditorAnchor, type EditorialCommentsState } from "./useEditorialComments.js";
 
 const CARD_GAP_PX = 8;
 const WHITESPACE = /\s+/;
+const EMPTY_DRAFT: MentionDraft = { text: "", mentions: [] };
 
 export interface EditorialCommentsUser {
 	id: string;
@@ -360,6 +370,7 @@ export function MarginComments({
 			key="draft"
 			focusKey={!draftInPlace || "draft" in tops ? JSON.stringify(draft.anchor) : null}
 			quote={draft.anchor.type === "text" ? draft.anchor.quote : null}
+			entry={comments.entry}
 			currentUser={currentUser}
 			pending={comments.actions.createThread.isPending}
 			onCancel={() => comments.setDraft(null)}
@@ -495,6 +506,7 @@ export function MarginComments({
 function DraftCard({
 	focusKey,
 	quote,
+	entry,
 	currentUser,
 	pending,
 	onCancel,
@@ -503,13 +515,14 @@ function DraftCard({
 	/** Null while the card is hidden for measuring. Each new key moves focus to the composer. */
 	focusKey: string | null;
 	quote: string | null;
+	entry: EditorialEntry | null;
 	currentUser: EditorialCommentsUser | undefined;
 	pending: boolean;
 	onCancel: () => void;
 	onSubmit: (body: string) => void;
 }) {
 	const { t } = useLingui();
-	const [body, setBody] = React.useState("");
+	const [body, setBody] = React.useState(EMPTY_DRAFT);
 	const cardRef = React.useRef<HTMLDivElement>(null);
 	// A hidden element can't take focus, so `autoFocus` would miss a card that mounts before it's placed.
 	React.useEffect(() => {
@@ -529,14 +542,15 @@ function DraftCard({
 			</div>
 			{quote && <Quote text={quote} />}
 			<CommentComposer
+				entry={entry}
 				value={body}
 				onChange={setBody}
 				label={t`Comment`}
-				placeholder={t`Add a comment`}
+				placeholder={t`Add a comment. Type @ to mention someone.`}
 				submitLabel={t`Comment`}
 				pending={pending}
 				onCancel={onCancel}
-				onSubmit={() => onSubmit(body.trim())}
+				onSubmit={() => onSubmit(draftToBody(body))}
 			/>
 		</div>
 	);
@@ -556,6 +570,7 @@ function Quote({ text, detached }: { text: string; detached?: boolean }) {
 }
 
 function CommentComposer({
+	entry,
 	value,
 	onChange,
 	label,
@@ -567,8 +582,9 @@ function CommentComposer({
 	onCancel,
 	onSubmit,
 }: {
-	value: string;
-	onChange: (value: string) => void;
+	entry: EditorialEntry | null;
+	value: MentionDraft;
+	onChange: (value: MentionDraft) => void;
 	label: string;
 	placeholder: string;
 	submitLabel: string;
@@ -580,18 +596,28 @@ function CommentComposer({
 	onSubmit: () => void;
 }) {
 	const { t } = useLingui();
-	const empty = value.trim().length === 0;
+	const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+	const picker = useMentionPicker({ entry, draft: value, onDraftChange: onChange, textareaRef });
+	const empty = value.text.trim().length === 0;
 	return (
 		<div className="flex flex-col gap-2">
 			<InputArea
+				ref={textareaRef}
 				aria-label={label}
 				placeholder={placeholder}
-				value={value}
+				value={value.text}
 				rows={compact ? 1 : 2}
 				autoFocus={autoFocus}
 				className="max-h-60 resize-none field-sizing-content"
-				onChange={(event) => onChange(event.target.value)}
+				{...picker.textareaProps}
+				onChange={(event) => {
+					onChange(updateDraftText(value, event.target.value, event.target.selectionStart));
+					picker.syncCaret(event);
+				}}
 				onKeyDown={(event) => {
+					// Keys that confirm or move through an IME candidate belong to the input method.
+					if (event.nativeEvent.isComposing || event.keyCode === 229) return;
+					if (picker.handleKeyDown(event)) return;
 					if (event.key === "Enter" && (event.metaKey || event.ctrlKey) && !empty && !pending) {
 						event.preventDefault();
 						onSubmit();
@@ -602,6 +628,7 @@ function CommentComposer({
 					}
 				}}
 			/>
+			{picker.listbox}
 			{(!compact || !empty) && (
 				<div className="flex justify-end gap-2">
 					{onCancel && (
@@ -643,7 +670,7 @@ function ThreadCard({
 	const { t, i18n } = useLingui();
 	const anchorLabel = useAnchorLabel();
 	const active = comments.activeThreadId === thread.id;
-	const [reply, setReply] = React.useState("");
+	const [reply, setReply] = React.useState(EMPTY_DRAFT);
 	const [confirmingDelete, setConfirmingDelete] = React.useState(false);
 	const resolved = thread.status === "resolved";
 	const { actions } = comments;
@@ -731,6 +758,8 @@ function ThreadCard({
 							onDeleteThread={
 								index === 0 && thread.can.delete ? () => setConfirmingDelete(true) : undefined
 							}
+							entry={comments.entry}
+							people={thread.mentions}
 							locale={i18n.locale}
 							editPending={
 								actions.editComment.isPending &&
@@ -772,6 +801,7 @@ function ThreadCard({
 				{active && canComment && (
 					<div className="mt-3" onClick={(event) => event.stopPropagation()}>
 						<CommentComposer
+							entry={comments.entry}
 							value={reply}
 							onChange={setReply}
 							compact
@@ -781,8 +811,8 @@ function ThreadCard({
 							pending={actions.reply.isPending}
 							onSubmit={() =>
 								actions.reply.mutate(
-									{ threadId: thread.id, body: reply.trim() },
-									{ onSuccess: () => setReply("") },
+									{ threadId: thread.id, body: draftToBody(reply) },
+									{ onSuccess: () => setReply(EMPTY_DRAFT) },
 								)
 							}
 						/>
@@ -816,6 +846,8 @@ function CommentItem({
 	revealed,
 	threadActions,
 	onDeleteThread,
+	entry,
+	people,
 	locale,
 	editPending,
 	onEdit,
@@ -827,6 +859,8 @@ function CommentItem({
 	/** Thread controls that sit beside the first comment's menu. */
 	threadActions?: React.ReactNode;
 	onDeleteThread?: () => void;
+	entry: EditorialEntry | null;
+	people: EditorialPerson[];
 	locale: string;
 	editPending: boolean;
 	/** Saves an edit, calling `onSaved` once it is stored. */
@@ -835,7 +869,7 @@ function CommentItem({
 }) {
 	const { t } = useLingui();
 	const [editing, setEditing] = React.useState(false);
-	const [body, setBody] = React.useState(comment.body);
+	const [body, setBody] = React.useState(EMPTY_DRAFT);
 	const deleted = comment.deletedAt !== null;
 	const name = comment.author?.name ?? (comment.author ? t`Unnamed user` : t`Deleted user`);
 
@@ -881,7 +915,7 @@ function CommentItem({
 										<DropdownMenu.Item
 											icon={<PencilSimple className="size-4" aria-hidden="true" />}
 											onClick={() => {
-												setBody(comment.body);
+												setBody(bodyToDraft(comment.body, people, t`Unknown user`));
 												setEditing(true);
 											}}
 										>
@@ -915,6 +949,7 @@ function CommentItem({
 			{editing ? (
 				<div className="ps-8" onClick={(event) => event.stopPropagation()}>
 					<CommentComposer
+						entry={entry}
 						value={body}
 						onChange={setBody}
 						autoFocus
@@ -923,14 +958,14 @@ function CommentItem({
 						submitLabel={t`Save`}
 						pending={editPending}
 						onCancel={() => setEditing(false)}
-						onSubmit={() => onEdit(body.trim(), () => setEditing(false))}
+						onSubmit={() => onEdit(draftToBody(body), () => setEditing(false))}
 					/>
 				</div>
 			) : deleted ? (
 				<p className="ps-8 text-kumo-subtle italic">{t`Comment deleted`}</p>
 			) : (
 				<p className="ps-8 whitespace-pre-wrap break-words">
-					{comment.body}
+					<MentionText body={comment.body} people={people} />
 					{comment.editedAt && <span className="ms-1 text-xs text-kumo-subtle">{t`(edited)`}</span>}
 				</p>
 			)}
