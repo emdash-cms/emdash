@@ -112,13 +112,13 @@ test.describe("Accessibility Audit", () => {
 				const metrics = Array.from(
 					main.querySelectorAll('[data-testid="dashboard-metric"]'),
 					(card) => {
-						const heading = card.querySelector("h2");
+						const label = card.querySelector("dt");
 						const value = card.querySelector('[data-testid="dashboard-metric-value"]');
-						if (!heading || !value) throw new Error("Metric label or value is missing");
+						if (!label || !value) throw new Error("Metric label or value is missing");
 
 						return {
-							headingInset: Math.abs(textStart(heading) - cardStart(card)),
-							labelValueGap: Math.abs(textStart(heading) - textStart(value)),
+							headingInset: Math.abs(textStart(label) - cardStart(card)),
+							labelValueGap: Math.abs(textStart(label) - textStart(value)),
 						};
 					},
 				);

@@ -1,7 +1,7 @@
-import { Badge, Banner, Button, LayerCard, SkeletonLine } from "@cloudflare/kumo";
+import { Banner, Button, DropdownMenu, LayerCard, SkeletonLine } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { FileArrowUp, Plus, Upload, X } from "@phosphor-icons/react";
+import { CaretDown, FileArrowUp, Plus, Upload, X } from "@phosphor-icons/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
@@ -13,12 +13,9 @@ import { dismissScheduledPolicyRejection, fetchDashboardStats } from "../lib/api
 import { fetchTransferCapabilities, TRANSFER_CAPABILITIES_QUERY_KEY } from "../lib/api/transfer.js";
 import { usePluginWidget } from "../lib/plugin-context";
 import { cn, formatRelativeTime } from "../lib/utils.js";
+import { getCollectionNavIcon } from "./admin-navigation-icons.js";
 import { ArrowNext } from "./ArrowIcons";
-import {
-	ContentStatusIcon,
-	CONTENT_STATUS_ICONS,
-	type ContentStatusState,
-} from "./ContentStatusBadge.js";
+import { ContentStatusIcon, type ContentStatusState } from "./ContentStatusBadge.js";
 import { CoreUpdateBanner } from "./CoreUpdateBanner.js";
 import { getMutationError } from "./DialogError.js";
 import { MarketplaceMigrationBanner } from "./MarketplaceMigrationBanner.js";
@@ -46,6 +43,11 @@ const ROLE_CONTRIBUTOR = 20;
 
 const SITE_IMPORT_HINT_DISMISSED_KEY = "emdash:dashboard:site-import-hint-dismissed";
 
+const QUICK_ACTION_BUTTON_LIMIT = 3;
+const REJECTION_PREVIEW_COUNT = 3;
+const COLLECTION_COLLAPSE_AFTER = 12;
+const COLLECTION_PREVIEW_COUNT = 10;
+
 export interface DashboardProps {
 	manifest: AdminManifest;
 }
@@ -72,7 +74,7 @@ export function Dashboard({ manifest }: DashboardProps) {
 		<div className="space-y-6">
 			{manifest.marketplace && (user?.role ?? 0) >= ROLE_ADMIN && <MarketplaceMigrationBanner />}
 			<div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-				<h1 className="text-2xl font-semibold leading-tight">{t`Dashboard`}</h1>
+				<h1 className="shrink-0 text-2xl font-semibold leading-tight">{t`Dashboard`}</h1>
 				<QuickActions manifest={manifest} />
 			</div>
 
@@ -80,37 +82,70 @@ export function Dashboard({ manifest }: DashboardProps) {
 
 			{isError && <DashboardDataError />}
 
-			{showDashboardData && (
-				<>
-					{stats && (user?.role ?? 0) >= ROLE_ADMIN && <SiteImportHint stats={stats} />}
-					{stats && (
-						<SchedulerWarning stats={stats} canDismissPolicy={(user?.role ?? 0) >= ROLE_EDITOR} />
-					)}
-					<SummaryMetrics
-						stats={stats}
-						loading={isLoading}
-						linkCalendar={
-							(user?.role ?? 0) >= ROLE_CONTRIBUTOR &&
-							!manifest.admin?.hiddenNavItems?.includes("calendar")
-						}
-					/>
+			{showDashboardData && stats && (user?.role ?? 0) >= ROLE_ADMIN && (
+				<SiteImportHint stats={stats} />
+			)}
+			{showDashboardData && stats && (
+				<SchedulerWarning stats={stats} canDismissPolicy={(user?.role ?? 0) >= ROLE_EDITOR} />
+			)}
 
-					{/* Collections + Recent activity */}
-					<div className="grid gap-6 lg:grid-cols-2">
+			<div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-3">
+				<div className="min-w-0 space-y-6 xl:col-span-2">
+					{showDashboardData && (
+						<>
+							<SummaryMetrics
+								stats={stats}
+								loading={isLoading}
+								linkCalendar={
+									(user?.role ?? 0) >= ROLE_CONTRIBUTOR &&
+									!manifest.admin?.hiddenNavItems?.includes("calendar")
+								}
+							/>
+							<RecentActivity
+								items={stats?.recentItems ?? []}
+								loading={isLoading}
+								multipleCollections={visibleCollectionEntries(manifest.collections).length > 1}
+							/>
+						</>
+					)}
+					<PluginWidgets manifest={manifest} placement="main" />
+				</div>
+				<div className="min-w-0 space-y-6">
+					{showDashboardData && (
 						<CollectionList
 							collections={stats?.collections ?? []}
 							manifest={manifest}
 							loading={isLoading}
 						/>
-						<RecentActivity items={stats?.recentItems ?? []} loading={isLoading} />
-					</div>
-				</>
-			)}
-
-			{/* Plugin widgets */}
-			<PluginWidgets manifest={manifest} />
+					)}
+					<PluginWidgets manifest={manifest} placement="side" />
+				</div>
+			</div>
 		</div>
 	);
+}
+
+/**
+ * Expands a list that shows only its first `previewCount` rows, then moves focus to the first
+ * revealed row, because the "Show more" button that had focus unmounts.
+ */
+function useRevealAll(previewCount: number) {
+	const [showAll, setShowAll] = React.useState(false);
+	const listRef = React.useRef<HTMLUListElement>(null);
+	const focusRevealed = React.useRef(false);
+
+	React.useEffect(() => {
+		if (!showAll || !focusRevealed.current) return;
+		focusRevealed.current = false;
+		listRef.current?.children[previewCount]?.querySelector<HTMLElement>("a, button")?.focus();
+	}, [showAll, previewCount]);
+
+	const revealAll = () => {
+		focusRevealed.current = true;
+		setShowAll(true);
+	};
+
+	return { showAll, revealAll, listRef };
 }
 
 function SchedulerWarning({
@@ -122,6 +157,11 @@ function SchedulerWarning({
 }) {
 	const { t } = useLingui();
 	const queryClient = useQueryClient();
+	const {
+		showAll: showAllRejections,
+		revealAll: revealAllRejections,
+		listRef: rejectionListRef,
+	} = useRevealAll(REJECTION_PREVIEW_COUNT);
 	const dismissMutation = useMutation({
 		mutationFn: ({
 			collection,
@@ -147,6 +187,11 @@ function SchedulerWarning({
 		stats.schedulerHealth !== undefined &&
 		stats.schedulerHealth.status !== "healthy";
 	if (policyRejected === 0 && !schedulerNeedsAttention) return null;
+
+	const visibleRejections = showAllRejections
+		? policyRejections
+		: policyRejections.slice(0, REJECTION_PREVIEW_COUNT);
+	const hiddenRejectionCount = policyRejections.length - visibleRejections.length;
 
 	const schedulerDescription = schedulerNeedsAttention
 		? stats.schedulerHealth!.status === "unknown"
@@ -177,43 +222,62 @@ function SchedulerWarning({
 						role="alert"
 					/>
 					{policyRejections.length > 0 && (
-						<ul className="space-y-2">
-							{policyRejections.map((rejection) => (
-								<li key={`${rejection.collection}:${rejection.id}`}>
-									<LayerCard.Secondary className="p-3">
-										<Link
-											to="/content/$collection/$id"
-											params={{ collection: rejection.collection, id: rejection.id }}
-											className="font-medium text-kumo-brand hover:underline"
+						<LayerCard>
+							<LayerCard.Primary className="gap-0 p-0">
+								<ul ref={rejectionListRef} className="divide-y divide-kumo-line">
+									{visibleRejections.map((rejection) => (
+										<li
+											key={`${rejection.collection}:${rejection.id}`}
+											className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4"
 										>
-											<bdi dir="ltr">
-												{rejection.collection}/{rejection.id}
-											</bdi>
-										</Link>
-										<p className="mt-1 text-sm text-kumo-subtle">{rejection.reason}</p>
-										{canDismissPolicy && (
-											<Button
-												variant="secondary"
-												size="sm"
-												className="mt-2"
-												disabled={dismissMutation.isPending}
-												onClick={() =>
-													dismissMutation.mutate({
-														collection: rejection.collection,
-														id: rejection.id,
-														revision: rejection._rev,
-													})
-												}
-											>
-												{t`Dismiss`}
+											<div className="min-w-0">
+												<Link
+													to="/content/$collection/$id"
+													params={{ collection: rejection.collection, id: rejection.id }}
+													className="font-medium wrap-anywhere text-kumo-brand hover:underline"
+												>
+													<bdi dir="ltr">
+														{rejection.collection}/{rejection.id}
+													</bdi>
+												</Link>
+												<p dir="auto" className="mt-1 text-pretty text-kumo-subtle">
+													{rejection.reason}
+												</p>
+											</div>
+											{canDismissPolicy && (
+												<Button
+													variant="secondary"
+													size="sm"
+													className="shrink-0 self-start"
+													disabled={dismissMutation.isPending}
+													onClick={() =>
+														dismissMutation.mutate({
+															collection: rejection.collection,
+															id: rejection.id,
+															revision: rejection._rev,
+														})
+													}
+												>
+													{t`Dismiss`}
+												</Button>
+											)}
+										</li>
+									))}
+									{hiddenRejectionCount > 0 && (
+										<li className="px-2 py-1.5">
+											<Button variant="ghost" size="sm" onClick={revealAllRejections}>
+												{plural(hiddenRejectionCount, {
+													one: "Show # more entry",
+													other: "Show # more entries",
+												})}
 											</Button>
-										)}
-									</LayerCard.Secondary>
-								</li>
-							))}
-						</ul>
+										</li>
+									)}
+								</ul>
+							</LayerCard.Primary>
+						</LayerCard>
 					)}
-					{policyRejected > policyRejections.length && (
+					{hiddenRejectionCount === 0 && policyRejected > policyRejections.length && (
 						<p className="text-sm text-kumo-subtle">
 							{plural(policyRejected - policyRejections.length, {
 								one: "One more entry is not shown.",
@@ -320,13 +384,9 @@ function DashboardDataError() {
 function DashboardCardHeading({ children }: { children: React.ReactNode }) {
 	return (
 		<LayerCard.Secondary>
-			<h2 className="px-3">{children}</h2>
+			<h2>{children}</h2>
 		</LayerCard.Secondary>
 	);
-}
-
-function DashboardCardInset({ className, ...props }: React.ComponentPropsWithoutRef<"div">) {
-	return <div className={cn("px-3", className)} {...props} />;
 }
 
 // --- Quick actions ---
@@ -337,9 +397,14 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 		([, config]) => config.quickCreate !== false,
 	);
 
+	const overflowing = collections.length > QUICK_ACTION_BUTTON_LIMIT;
+	const inlineCount = overflowing ? QUICK_ACTION_BUTTON_LIMIT - 1 : collections.length;
+	const inlineCollections = collections.slice(0, inlineCount);
+	const menuCollections = collections.slice(inlineCount);
+
 	return (
 		<div className="flex flex-wrap items-center gap-2">
-			{collections.map(([slug, config]) => (
+			{inlineCollections.map(([slug, config]) => (
 				<RouterLinkButton
 					key={slug}
 					to="/content/$collection/new"
@@ -351,6 +416,44 @@ function QuickActions({ manifest }: { manifest: AdminManifest }) {
 					{config.labelSingular ?? config.label}
 				</RouterLinkButton>
 			))}
+			{menuCollections.length > 0 && (
+				<DropdownMenu>
+					<DropdownMenu.Trigger
+						render={
+							<Button variant="secondary">
+								{t`More`}
+								<CaretDown className="size-3.5" aria-hidden="true" />
+							</Button>
+						}
+					/>
+					<DropdownMenu.Content align="end" className="min-w-52">
+						<DropdownMenu.Group>
+							<DropdownMenu.Label className="text-xs font-medium text-kumo-subtle">
+								{t`New entry`}
+							</DropdownMenu.Label>
+							{menuCollections.map(([slug, config]) => {
+								const Icon = getCollectionNavIcon(slug, config.icon);
+								return (
+									<DropdownMenu.LinkItem
+										key={slug}
+										closeOnClick
+										icon={<Icon className="size-4 text-kumo-subtle" aria-hidden="true" />}
+										render={
+											<Link
+												to="/content/$collection/new"
+												params={{ collection: slug }}
+												search={{ locale: undefined }}
+											/>
+										}
+									>
+										{config.labelSingular ?? config.label}
+									</DropdownMenu.LinkItem>
+								);
+							})}
+						</DropdownMenu.Group>
+					</DropdownMenu.Content>
+				</DropdownMenu>
+			)}
 			{!manifest.admin?.hiddenNavItems?.includes("media") && (
 				<RouterLinkButton to="/media" variant="secondary" icon={<Upload aria-hidden="true" />}>
 					{t`Upload Media`}
@@ -372,111 +475,117 @@ function SummaryMetrics({
 	/** Link the Scheduled count to the calendar, for roles that can open it. */
 	linkCalendar: boolean;
 }) {
-	if (loading) {
-		return (
-			<div className="grid gap-4 sm:grid-cols-3">
-				{[1, 2, 3].map((i) => (
-					<LayerCard key={i}>
-						<LayerCard.Secondary>
-							<DashboardCardInset>
-								<SkeletonLine minWidth={45} maxWidth={70} />
-							</DashboardCardInset>
-						</LayerCard.Secondary>
-						<LayerCard.Primary className="text-3xl font-semibold leading-none">
-							<DashboardCardInset>
-								<SkeletonLine minWidth={20} maxWidth={35} />
-							</DashboardCardInset>
-						</LayerCard.Primary>
-					</LayerCard>
-				))}
-			</div>
-		);
+	const { t, i18n } = useLingui();
+
+	if (!loading && !stats) return null;
+
+	let metrics: Array<{ label: string; value: number; calendar?: boolean }> = [];
+	if (stats) {
+		const totalDrafts = stats.collections.reduce((sum, c) => sum + c.draft, 0);
+		const totalScheduled = stats.collections.reduce((sum, c) => sum + c.scheduled, 0);
+		metrics = [
+			{
+				label: plural(totalDrafts, { one: "Draft", other: "Drafts" }),
+				value: totalDrafts,
+			},
+			...(totalScheduled > 0
+				? [
+						{
+							label: plural(totalScheduled, { one: "Scheduled", other: "Scheduled" }),
+							value: totalScheduled,
+							calendar: linkCalendar,
+						},
+					]
+				: []),
+			...(stats.mediaCount === undefined
+				? []
+				: [
+						{
+							label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
+							value: stats.mediaCount,
+						},
+					]),
+			...(stats.userCount === undefined
+				? []
+				: [
+						{
+							label: plural(stats.userCount, { one: "User", other: "Users" }),
+							value: stats.userCount,
+						},
+					]),
+		];
 	}
 
-	if (!stats) return null;
-
-	const totalDrafts = stats.collections.reduce((sum, c) => sum + c.draft, 0);
-	const totalScheduled = stats.collections.reduce((sum, c) => sum + c.scheduled, 0);
-	const hasScheduledContent = totalScheduled > 0;
-
-	const metrics: Array<{ label: string; value: number; calendar?: boolean }> = [
-		{
-			label: plural(totalDrafts, { one: "Draft", other: "Drafts" }),
-			value: totalDrafts,
-		},
-		...(hasScheduledContent
-			? [
-					{
-						label: plural(totalScheduled, { one: "Scheduled", other: "Scheduled" }),
-						value: totalScheduled,
-						calendar: linkCalendar,
-					},
-				]
-			: []),
-		...(stats.mediaCount === undefined
-			? []
-			: [
-					{
-						label: plural(stats.mediaCount, { one: "Media file", other: "Media files" }),
-						value: stats.mediaCount,
-					},
-				]),
-		...(stats.userCount === undefined
-			? []
-			: [
-					{
-						label: plural(stats.userCount, { one: "User", other: "Users" }),
-						value: stats.userCount,
-					},
-				]),
-	];
-
 	return (
-		<div
-			className={
-				metrics.length === 4
-					? "grid gap-4 sm:grid-cols-2 lg:grid-cols-4"
-					: metrics.length === 3
-						? "grid gap-4 sm:grid-cols-3"
-						: "grid gap-4 sm:grid-cols-2"
-			}
-		>
-			{metrics.map((metric) => (
-				<LayerCard key={metric.label} data-testid="dashboard-metric">
-					<DashboardCardHeading>
-						{metric.calendar ? (
-							<Link
-								to="/calendar"
-								className="group inline-flex items-center gap-1 rounded-sm hover:text-kumo-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
+		<LayerCard>
+			<DashboardCardHeading>{t`Overview`}</DashboardCardHeading>
+			<LayerCard.Primary className="p-0">
+				{loading ? (
+					<div className={METRIC_GRID_CLASSES}>
+						{[1, 2, 3].map((i) => (
+							<div key={i} className={METRIC_CELL_CLASSES}>
+								<SkeletonLine minWidth={45} maxWidth={70} />
+								<SkeletonLine minWidth={20} maxWidth={35} />
+							</div>
+						))}
+					</div>
+				) : (
+					<dl className={METRIC_GRID_CLASSES}>
+						{metrics.map((metric) => (
+							<div
+								key={metric.label}
+								data-testid="dashboard-metric"
+								className={METRIC_CELL_CLASSES}
 							>
-								{metric.label}
-								<ArrowNext
-									aria-hidden="true"
-									className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
-								/>
-							</Link>
-						) : (
-							metric.label
-						)}
-					</DashboardCardHeading>
-					<LayerCard.Primary className="text-3xl font-semibold leading-none tabular-nums">
-						<DashboardCardInset data-testid="dashboard-metric-value">
-							{metric.value}
-						</DashboardCardInset>
-					</LayerCard.Primary>
-				</LayerCard>
-			))}
-		</div>
+								<dt className="text-kumo-subtle">
+									{metric.calendar ? (
+										<Link
+											to="/calendar"
+											className="group inline-flex items-center gap-1 rounded-sm hover:text-kumo-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-kumo-brand"
+										>
+											{metric.label}
+											<ArrowNext
+												aria-hidden="true"
+												className="size-3.5 opacity-60 transition-opacity group-hover:opacity-100 motion-reduce:transition-none"
+											/>
+										</Link>
+									) : (
+										metric.label
+									)}
+								</dt>
+								<dd
+									data-testid="dashboard-metric-value"
+									className="text-2xl leading-none font-semibold tabular-nums"
+								>
+									{i18n.number(metric.value)}
+								</dd>
+							</div>
+						))}
+					</dl>
+				)}
+			</LayerCard.Primary>
+		</LayerCard>
 	);
 }
 
+const METRIC_GRID_CLASSES =
+	"grid divide-y divide-kumo-line sm:auto-cols-fr sm:grid-flow-col sm:divide-x sm:divide-y-0";
+
+const METRIC_CELL_CLASSES =
+	"flex items-center justify-between gap-3 px-4 py-3 sm:flex-col sm:items-start sm:justify-start sm:gap-3 sm:py-4";
+
+const ROW_INTERACTION_CLASSES =
+	"outline-none hover:bg-emdash-hover focus-visible:bg-emdash-hover focus-visible:ring-2 focus-visible:ring-kumo-focus focus-visible:ring-inset";
+
+const LIST_ROW_CLASSES = `flex h-11 items-center justify-between gap-3 px-4 ${ROW_INTERACTION_CLASSES}`;
+
 function SkeletonRows({ count }: { count: number }) {
 	return (
-		<DashboardCardInset className="space-y-3">
+		<div className="space-y-3 p-4">
 			{Array.from({ length: count }, (_, i) => (
-				<SkeletonLine key={i} blockHeight={40} minWidth={65} maxWidth={95} />
+				<SkeletonLine key={i} blockHeight={24} minWidth={65} maxWidth={95} />
 			))}
-		</DashboardCardInset>
+		</div>
 	);
 }
 
@@ -492,124 +601,164 @@ function CollectionList({
 	loading: boolean;
 }) {
 	const { t } = useLingui();
+	const { showAll, revealAll, listRef } = useRevealAll(COLLECTION_PREVIEW_COUNT);
 	const visibleCollections = collections.filter((col) => !manifest.collections[col.slug]?.hidden);
+	const shownCollections =
+		showAll || visibleCollections.length <= COLLECTION_COLLAPSE_AFTER
+			? visibleCollections
+			: visibleCollections.slice(0, COLLECTION_PREVIEW_COUNT);
+	const hiddenCount = visibleCollections.length - shownCollections.length;
 
 	return (
-		<LayerCard className="h-full">
+		<LayerCard>
 			<DashboardCardHeading>{t`Content`}</DashboardCardHeading>
-			<LayerCard.Primary className="flex-1">
+			<LayerCard.Primary className="gap-0 p-0">
 				{loading ? (
 					<SkeletonRows count={3} />
 				) : visibleCollections.length === 0 ? (
-					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
-						{t`No collections configured`}
-					</p>
+					<p className="px-4 py-3 text-pretty text-kumo-subtle">{t`No collections configured`}</p>
 				) : (
-					<div className="space-y-1">
-						{visibleCollections.map((col) => {
+					<ul ref={listRef} className="divide-y divide-kumo-line">
+						{shownCollections.map((col) => {
 							const config = manifest.collections[col.slug];
+							const label = config?.label ?? col.label;
 							return (
-								<Link
-									key={col.slug}
-									to="/content/$collection"
-									params={{ collection: col.slug }}
-									search={{ locale: undefined }}
-									className="group flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
-								>
-									<span className="text-base font-medium leading-5">
-										{config?.label ?? col.label}
-									</span>
-									<span className="flex shrink-0 items-center gap-2">
-										<CountBadge
-											icon={CONTENT_STATUS_ICONS.published}
-											count={col.published}
-											variant="success"
-											label={t`Published`}
-										/>
-										<CountBadge
-											icon={CONTENT_STATUS_ICONS.draft}
-											count={col.draft}
-											variant="warning"
-											label={t`Drafts`}
-										/>
-										<ArrowNext
-											className="h-3.5 w-3.5 text-kumo-subtle opacity-0 transition-opacity group-hover:opacity-100"
-											aria-hidden="true"
-										/>
-									</span>
-								</Link>
+								<li key={col.slug}>
+									<Link
+										to="/content/$collection"
+										params={{ collection: col.slug }}
+										search={{ locale: undefined }}
+										className={LIST_ROW_CLASSES}
+									>
+										<span dir="auto" title={label} className="truncate font-medium">
+											{label}
+										</span>
+										<span className="flex shrink-0 items-center gap-3 text-kumo-subtle tabular-nums">
+											{col.total === 0 ? (
+												t`No entries`
+											) : (
+												<>
+													<StatusCount
+														state="published"
+														count={col.published}
+														label={t`Published`}
+													/>
+													<StatusCount state="draft" count={col.draft} label={t`Drafts`} />
+												</>
+											)}
+										</span>
+									</Link>
+								</li>
 							);
 						})}
-					</div>
+						{hiddenCount > 0 && (
+							<li className="px-2 py-1.5">
+								<Button variant="ghost" size="sm" onClick={revealAll}>
+									{plural(hiddenCount, {
+										one: "Show # more collection",
+										other: "Show # more collections",
+									})}
+								</Button>
+							</li>
+						)}
+					</ul>
 				)}
 			</LayerCard.Primary>
 		</LayerCard>
 	);
 }
 
-function CountBadge({
-	icon: Icon,
+function StatusCount({
+	state,
 	count,
-	variant,
 	label,
 }: {
-	icon: React.ElementType;
+	state: ContentStatusState;
 	count: number;
-	variant: "success" | "warning";
 	label: string;
 }) {
+	const { i18n } = useLingui();
 	if (count === 0) return null;
 	return (
-		<Badge variant={variant} className="gap-1 tabular-nums">
-			<Icon className="h-3 w-3" aria-hidden="true" />
+		<span className="inline-flex items-center gap-1">
+			<ContentStatusIcon state={state} decorative />
 			<span className="sr-only">{label}</span>
-			{count}
-		</Badge>
+			{i18n.number(count)}
+		</span>
 	);
 }
 
 // --- Recent activity ---
 
-function RecentActivity({ items, loading }: { items: RecentItem[]; loading: boolean }) {
+function RecentActivity({
+	items,
+	loading,
+	multipleCollections,
+}: {
+	items: RecentItem[];
+	loading: boolean;
+	multipleCollections: boolean;
+}) {
 	const { t, i18n } = useLingui();
+	const showCollection =
+		multipleCollections || new Set(items.map((item) => item.collection)).size > 1;
 
 	return (
-		<LayerCard className="h-full">
+		<LayerCard>
 			<DashboardCardHeading>{t`Recent Activity`}</DashboardCardHeading>
-			<LayerCard.Primary className="flex-1">
+			<LayerCard.Primary className="gap-0 p-0">
 				{loading ? (
 					<SkeletonRows count={5} />
 				) : items.length === 0 ? (
-					<p className="px-3 text-sm leading-6 text-pretty text-kumo-subtle">
-						{t`No recent activity`}
-					</p>
+					<p className="px-4 py-3 text-pretty text-kumo-subtle">{t`No recent activity`}</p>
 				) : (
-					<div className="space-y-1">
-						{items.map((item) => (
-							<Link
-								key={`${item.collection}-${item.id}`}
-								to="/content/$collection/$id"
-								params={{ collection: item.collection, id: item.id }}
-								className="group flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
-							>
-								<div className="flex min-w-0 items-center gap-2">
-									<StatusDot status={item.status} />
-									<span className="truncate text-base font-medium leading-5">
-										{item.title || item.slug || t`Untitled`}
-									</span>
-									<span className="hidden shrink-0 text-xs font-normal leading-5 text-kumo-subtle sm:inline">
-										{item.collectionLabel}
-									</span>
-								</div>
-								<span
-									data-testid="activity-time"
-									className="shrink-0 text-xs font-normal leading-5 text-kumo-subtle tabular-nums"
+					<ul
+						className={cn(
+							"grid grid-cols-[minmax(0,1fr)_auto] gap-x-4 divide-y divide-kumo-line",
+							showCollection && "sm:grid-cols-[minmax(0,1fr)_auto_auto]",
+						)}
+					>
+						{items.map((item) => {
+							const title = item.title || item.slug || t`Untitled`;
+							return (
+								<li
+									key={`${item.collection}-${item.id}`}
+									className="col-span-full grid grid-cols-subgrid"
 								>
-									<bdi>{formatRelativeTime(item.updatedAt, i18n.locale)}</bdi>
-								</span>
-							</Link>
-						))}
-					</div>
+									<Link
+										to="/content/$collection/$id"
+										params={{ collection: item.collection, id: item.id }}
+										className={cn(
+											"col-span-full grid h-11 grid-cols-subgrid items-center px-4",
+											ROW_INTERACTION_CLASSES,
+										)}
+									>
+										<span className="flex min-w-0 items-center gap-2.5">
+											<StatusDot status={item.status} />
+											<span dir="auto" title={title} className="truncate font-medium">
+												{title}
+											</span>
+										</span>
+										{showCollection && (
+											<span
+												dir="auto"
+												title={item.collectionLabel}
+												className="hidden max-w-40 truncate text-kumo-subtle sm:block"
+											>
+												{item.collectionLabel}
+											</span>
+										)}
+										<span
+											data-testid="activity-time"
+											className="text-end whitespace-nowrap text-kumo-subtle tabular-nums"
+										>
+											<bdi>{formatRelativeTime(item.updatedAt, i18n.locale)}</bdi>
+										</span>
+									</Link>
+								</li>
+							);
+						})}
+					</ul>
 				)}
 			</LayerCard.Primary>
 		</LayerCard>
@@ -635,7 +784,13 @@ function StatusDot({ status }: { status: string }) {
 
 // --- Plugin widgets ---
 
-function PluginWidgets({ manifest }: { manifest: AdminManifest }) {
+function PluginWidgets({
+	manifest,
+	placement,
+}: {
+	manifest: AdminManifest;
+	placement: "main" | "side";
+}) {
 	const widgets: Array<{
 		id: string;
 		pluginId: string;
@@ -648,6 +803,7 @@ function PluginWidgets({ manifest }: { manifest: AdminManifest }) {
 
 		if ("dashboardWidgets" in plugin && Array.isArray(plugin.dashboardWidgets)) {
 			for (const widget of plugin.dashboardWidgets) {
+				if ((widget.size === "third") !== (placement === "side")) continue;
 				widgets.push({
 					id: widget.id,
 					pluginId,
@@ -663,11 +819,11 @@ function PluginWidgets({ manifest }: { manifest: AdminManifest }) {
 	}
 
 	return (
-		<div className="grid gap-6 lg:grid-cols-2">
+		<>
 			{widgets.map((widget) => (
 				<PluginWidgetCard key={`${widget.pluginId}:${widget.id}`} widget={widget} />
 			))}
-		</div>
+		</>
 	);
 }
 
@@ -685,16 +841,14 @@ function PluginWidgetCard({
 	);
 
 	return (
-		<LayerCard className="h-full">
+		<LayerCard>
 			<DashboardCardHeading>{title}</DashboardCardHeading>
-			<LayerCard.Primary className="flex-1">
-				<DashboardCardInset>
-					{WidgetComponent ? (
-						<WidgetComponent />
-					) : (
-						<SandboxedPluginWidget pluginId={widget.pluginId} widgetId={widget.id} />
-					)}
-				</DashboardCardInset>
+			<LayerCard.Primary>
+				{WidgetComponent ? (
+					<WidgetComponent />
+				) : (
+					<SandboxedPluginWidget pluginId={widget.pluginId} widgetId={widget.id} />
+				)}
 			</LayerCard.Primary>
 		</LayerCard>
 	);
