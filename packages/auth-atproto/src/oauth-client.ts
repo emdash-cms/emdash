@@ -62,6 +62,23 @@ function isLoopback(url: string): boolean {
 	}
 }
 
+function createActorResolver(): LocalActorResolver {
+	return new LocalActorResolver({
+		handleResolver: new CompositeHandleResolver({
+			methods: {
+				dns: new DohJsonHandleResolver({ dohUrl: "https://cloudflare-dns.com/dns-query" }),
+				http: new WellKnownHandleResolver(),
+			},
+		}),
+		didDocumentResolver: new CompositeDidDocumentResolver({
+			methods: {
+				plc: new PlcDidDocumentResolver(),
+				web: new WebDidDocumentResolver(),
+			},
+		}),
+	});
+}
+
 /**
  * Create an AT Protocol OAuth client for a single request.
  *
@@ -91,20 +108,7 @@ export async function getAtprotoOAuthClient(
 		baseUrl = baseUrl.replace("://localhost", "://127.0.0.1");
 	}
 
-	const actorResolver = new LocalActorResolver({
-		handleResolver: new CompositeHandleResolver({
-			methods: {
-				dns: new DohJsonHandleResolver({ dohUrl: "https://cloudflare-dns.com/dns-query" }),
-				http: new WellKnownHandleResolver(),
-			},
-		}),
-		didDocumentResolver: new CompositeDidDocumentResolver({
-			methods: {
-				plc: new PlcDidDocumentResolver(),
-				web: new WebDidDocumentResolver(),
-			},
-		}),
-	});
+	const actorResolver = createActorResolver();
 
 	// Use plugin storage when available (required for multi-instance deployments
 	// like Cloudflare Workers where in-memory state doesn't survive across
@@ -142,7 +146,7 @@ export async function getAtprotoOAuthClient(
 		return new OAuthClient({
 			metadata: {
 				redirect_uris: [`${baseUrl}/_emdash/api/auth/atproto/callback`],
-				scope: "atproto transition:generic",
+				scope: "atproto",
 			},
 			stores,
 			actorResolver,
@@ -156,7 +160,7 @@ export async function getAtprotoOAuthClient(
 		metadata: {
 			client_id: `${baseUrl}/.well-known/atproto-client-metadata.json`,
 			redirect_uris: [`${baseUrl}/_emdash/api/auth/atproto/callback`],
-			scope: "atproto transition:generic",
+			scope: "atproto",
 		},
 		stores,
 		actorResolver,
@@ -164,49 +168,49 @@ export async function getAtprotoOAuthClient(
 }
 
 /**
- * Resolve an AT Protocol user's display name and handle from their PDS.
+ * Resolve an AT Protocol user's display name and handle.
  *
- * Uses the authenticated session to call com.atproto.repo.getRecord
- * for the app.bsky.actor.profile record. Returns displayName and handle
- * (falls back to DID if resolution fails).
+ * Neither lookup uses the OAuth session's token, because the identity-only
+ * `atproto` scope doesn't guarantee access to PDS endpoints. The handle comes
+ * from the DID document and is used only if it resolves back to the same DID.
+ * The display name comes from the public app.bsky.actor.profile record.
+ * Falls back to the DID as the handle if resolution fails.
  */
 export async function resolveAtprotoProfile(
-	atprotoSession: OAuthSession,
+	atprotoSession: Pick<OAuthSession, "did">,
 ): Promise<{ displayName: string | null; handle: string }> {
 	const did = atprotoSession.did;
 
-	// Resolve handle and displayName as independent best-effort steps.
-	// Handle comes from getSession (authoritative PDS record).
-	// DisplayName comes from the profile record (optional, cosmetic).
 	let handle: string = did;
 	let displayName: string | null = null;
+	let pds: string | null = null;
 
-	// 1. Handle via getSession (needed for allowlist checks — fetch independently)
 	try {
-		const sessionRes = await atprotoSession.handle("/xrpc/com.atproto.server.getSession");
-		if (sessionRes.ok) {
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- atproto XRPC getSession returns { handle?: string }
-			const sessionData = (await sessionRes.json()) as { handle?: string };
-			if (sessionData.handle) handle = sessionData.handle;
-		}
+		const resolved = await createActorResolver().resolve(did);
+		pds = resolved.pds;
+		if (resolved.handle !== "handle.invalid") handle = resolved.handle;
 	} catch (error) {
-		console.warn("[atproto-auth] Failed to resolve handle via getSession:", error);
+		console.warn("[atproto-auth] Failed to resolve identity from DID document:", error);
 	}
 
-	// 2. DisplayName via profile record (cosmetic — failure is fine)
-	try {
-		const res = await atprotoSession.handle(
-			`/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=app.bsky.actor.profile&rkey=self`,
-		);
-		if (res.ok) {
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- atproto XRPC getRecord returns { value?: { displayName?: string } }
-			const data = (await res.json()) as {
-				value?: { displayName?: string };
-			};
-			displayName = data.value?.displayName || null;
+	if (pds) {
+		try {
+			const res = await fetch(
+				new URL(
+					`/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=app.bsky.actor.profile&rkey=self`,
+					pds,
+				),
+			);
+			if (res.ok) {
+				// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- atproto XRPC getRecord returns { value?: { displayName?: string } }
+				const data = (await res.json()) as {
+					value?: { displayName?: string };
+				};
+				displayName = data.value?.displayName || null;
+			}
+		} catch (error) {
+			console.warn("[atproto-auth] Failed to resolve profile record:", error);
 		}
-	} catch (error) {
-		console.warn("[atproto-auth] Failed to resolve profile record:", error);
 	}
 
 	return { displayName, handle };
