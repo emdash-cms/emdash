@@ -44,6 +44,7 @@ const UNIT_PACKAGE_BY_PATH = new Map([
 	["packages/registry-lexicons/", "@emdash-cms/registry-lexicons"],
 	["packages/registry-moderation/", "@emdash-cms/registry-moderation"],
 	["packages/registry-verification/", "@emdash-cms/registry-verification"],
+	["packages/workerd/", "@emdash-cms/sandbox-workerd"],
 	["apps/aggregator/", "@emdash-cms/aggregator"],
 	["apps/labeler/", "@emdash-cms/labeler"],
 	["apps/release-action/", "@emdash-cms/release-action"],
