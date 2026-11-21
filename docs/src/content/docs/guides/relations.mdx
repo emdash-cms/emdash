@@ -118,7 +118,7 @@ if (!post) return Astro.rewrite("/404");
 const author = post.references?.author.entries[0];
 ---
 
-<h1>{post?.data.title}</h1>
+<h1>{post.data.title}</h1>
 {author && <p>By {author.data.name}</p>}
 ```
 
