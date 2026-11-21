@@ -117,17 +117,85 @@ export function extractPlainText(blocks: PortableTextBlock[] | string | null | u
 }
 
 /**
+ * Collect Portable Text prose from anywhere inside a block value. Walks
+ * objects and arrays recursively, skips `_`-prefixed keys, and extracts only
+ * Portable Text arrays via `extractPlainText`. This is narrower than the SQL
+ * path (see FTSManager.searchValueExpr), which also indexes any string under
+ * a `text`, `alt`, `caption` or `code` key, so the two can see different text
+ * for the same document.
+ */
+function collectBlockText(value: unknown, parts: string[]): void {
+	if (Array.isArray(value)) {
+		if (value.length > 0 && isPortableTextArray(value) && value.some(isPortableTextNode)) {
+			const text = extractPlainText(value);
+			if (text) parts.push(text);
+			return;
+		}
+		for (const item of value) collectBlockText(item, parts);
+		return;
+	}
+	if (typeof value === "object" && value !== null) {
+		for (const [key, sub] of Object.entries(value)) {
+			if (key.startsWith("_")) continue;
+			collectBlockText(sub, parts);
+		}
+	}
+}
+
+/** Portable Text content nodes (as opposed to a block instance like `{ _type: "hero" }`). */
+function isPortableTextNode(item: PortableTextBlock): boolean {
+	return (
+		item._type === "block" ||
+		item._type === "image" ||
+		item._type === "code" ||
+		item._type === "video"
+	);
+}
+
+/**
+ * Extract text from a blocks field value: an array of `{ _type, ...subFields }`
+ * objects. Only Portable Text sub-fields are extracted.
+ */
+function extractBlocksText(value: unknown): string {
+	let blocks: unknown = value;
+	if (typeof blocks === "string") {
+		try {
+			blocks = JSON.parse(blocks);
+		} catch {
+			return "";
+		}
+	}
+	if (!Array.isArray(blocks)) return "";
+	const parts: string[] = [];
+	for (const block of blocks) {
+		if (typeof block !== "object" || block === null || Array.isArray(block)) continue;
+		for (const [key, sub] of Object.entries(block)) {
+			if (key.startsWith("_")) continue;
+			collectBlockText(sub, parts);
+		}
+	}
+	return parts.join("\n");
+}
+
+/**
  * Extract searchable text from a content entry
  *
  * Extracts text from specified fields, handling both plain text and Portable Text.
  *
+ * A blocks field value is an array of `{ _type }` objects, which is
+ * indistinguishable from Portable Text by shape alone. Pass `fieldTypes`
+ * (field slug to field type) so `blocks` fields are walked sub-field by
+ * sub-field; without it they are treated as Portable Text.
+ *
  * @param entry - Content entry data
  * @param fields - Field names to extract text from
+ * @param fieldTypes - Optional map of field slug to field type
  * @returns Object mapping field names to extracted text
  */
 export function extractSearchableFields(
 	entry: Record<string, unknown>,
 	fields: string[],
+	fieldTypes?: Readonly<Record<string, string>>,
 ): Record<string, string> {
 	const result: Record<string, string> = {};
 
@@ -136,6 +204,12 @@ export function extractSearchableFields(
 
 		if (value === null || value === undefined) {
 			result[field] = "";
+			continue;
+		}
+
+		const fieldType = fieldTypes?.[field];
+		if (fieldType === "blocks") {
+			result[field] = extractBlocksText(value);
 			continue;
 		}
 

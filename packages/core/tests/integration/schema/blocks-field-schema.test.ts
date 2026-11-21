@@ -86,7 +86,6 @@ describeEachDialect("blocks field schema", (dialect) => {
 			{ required: true },
 			{ unique: true },
 			{ indexed: true },
-			{ searchable: true },
 			{ widget: "custom" },
 			{ defaultValue: [{ _type: "hero" }] },
 		].entries()) {
@@ -118,6 +117,17 @@ describeEachDialect("blocks field schema", (dialect) => {
 				validation: { allowedTypes: ["missing"] },
 			}),
 		).rejects.toMatchObject({ code: "BLOCK_TYPE_NOT_FOUND" });
+	});
+
+	it("accepts searchable on a blocks field", async () => {
+		const field = await schema.createField("pages", {
+			slug: "layout",
+			label: "Layout",
+			type: "blocks",
+			searchable: true,
+			validation: { allowedTypes: ["hero"] },
+		});
+		expect(field).toMatchObject({ type: "blocks", searchable: true });
 	});
 
 	it("requires a migration before introducing a positive minimum on populated content", async () => {
