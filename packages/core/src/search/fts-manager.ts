@@ -775,7 +775,7 @@ export class FTSManager {
 		);
 		const healthy = new Set<string>();
 
-		// Leave headroom under D1's 100-column limit, including full-count probes.
+		// One result column per collection; stay well under D1's 100-column limit.
 		for (const batch of chunks(
 			enabled.filter((row) => row.has_index),
 			40,
