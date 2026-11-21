@@ -66,6 +66,18 @@ vi.mock("../../src/lib/api/current-user", async (importOriginal) => ({
 	useCurrentUser: () => mockUseCurrentUser(),
 }));
 
+const NeverLoadingIcon = React.lazy(() => new Promise<never>(() => {}));
+
+vi.mock("../../src/components/admin-navigation-icons.js", async (importOriginal) => {
+	const actual =
+		await importOriginal<typeof import("../../src/components/admin-navigation-icons.js")>();
+	return {
+		...actual,
+		getCollectionNavIcon: (name: string, iconName?: string) =>
+			iconName === "slow-chunk" ? NeverLoadingIcon : actual.getCollectionNavIcon(name, iconName),
+	};
+});
+
 const { Dashboard } = await import("../../src/components/Dashboard");
 
 const manifest: AdminManifest = {
@@ -486,7 +498,7 @@ describe("Dashboard", () => {
 
 		const screen = await render(<Dashboard manifest={manifest} />);
 
-		for (const name of ["Drafts", "Media files", "Users", "Content", "Recent Activity"]) {
+		for (const name of ["Overview", "Content", "Recent Activity"]) {
 			await expect.element(screen.getByRole("heading", { level: 2, name })).toBeInTheDocument();
 		}
 	});
@@ -651,5 +663,148 @@ describe("Dashboard", () => {
 		await expect.element(screen.getByText("Formularze")).toBeInTheDocument();
 		// Sanity check: the original (untranslated) title should not be shown.
 		await expect.element(screen.getByText("Forms")).not.toBeInTheDocument();
+	});
+
+	it("formats large counts with the locale's digit grouping", async () => {
+		const stats = makeStats([
+			{ slug: "pages", label: "Pages", total: 1321, published: 1284, draft: 37, scheduled: 0 },
+		]);
+		stats.mediaCount = 18_432;
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("18,432")).toBeInTheDocument();
+		await expect.element(screen.getByText("1,284")).toBeInTheDocument();
+	});
+
+	it("shows the first three scheduling rejections and reveals the rest on request", async () => {
+		const stats = policyStats();
+		stats.policyRejectedScheduled = 5;
+		stats.policyRejections = Array.from({ length: 5 }, (_, i) => ({
+			...stats.policyRejections![0]!,
+			id: `post-${i}`,
+			_rev: `rev-${i}`,
+		}));
+		mockFetchDashboardStats.mockResolvedValue(stats);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByText("posts/post-2")).toBeInTheDocument();
+		await expect.element(screen.getByText("posts/post-3")).not.toBeInTheDocument();
+		await screen.getByRole("button", { name: "Show 2 more entries" }).click();
+		await expect.element(screen.getByText("posts/post-4")).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "posts/post-3" })).toHaveFocus();
+	});
+
+	it("collapses long collection lists and reveals the rest on request", async () => {
+		mockFetchDashboardStats.mockResolvedValue(
+			makeStats(
+				Array.from({ length: 14 }, (_, i) => ({
+					slug: `type_${i}`,
+					label: `Type ${i}`,
+					total: 1,
+					published: 1,
+					draft: 0,
+					scheduled: 0,
+				})),
+			),
+		);
+
+		const screen = await render(<Dashboard manifest={manifest} />);
+
+		await expect.element(screen.getByRole("link", { name: /^Type 9/ })).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: /^Type 10/ })).not.toBeInTheDocument();
+		await screen.getByRole("button", { name: "Show 4 more collections" }).click();
+		await expect
+			.element(screen.getByRole("link", { name: /^Type 13/ }))
+			.toHaveAttribute("href", "/content/type_13");
+		await expect.element(screen.getByRole("link", { name: /^Type 10/ })).toHaveFocus();
+	});
+
+	it("names the collection on recent activity only when the site has more than one", async () => {
+		const stats = makeStats([]);
+		stats.recentItems = [
+			{
+				id: "1",
+				collection: "pages",
+				collectionLabel: "Pages",
+				title: "About",
+				slug: "about",
+				status: "published",
+				updatedAt: new Date().toISOString(),
+				authorId: null,
+			},
+		];
+		mockFetchDashboardStats.mockResolvedValue(stats);
+		const twoCollections: AdminManifest = {
+			...manifest,
+			collections: {
+				...manifest.collections,
+				posts: { ...manifest.collections.pages!, label: "Posts", labelSingular: "Post" },
+			},
+		};
+
+		const single = await render(<Dashboard manifest={manifest} />);
+		await expect.element(single.getByRole("link", { name: /About/ })).toBeInTheDocument();
+		expect(single.getByRole("link", { name: /About/ }).element().textContent).not.toContain(
+			"Pages",
+		);
+		await single.unmount();
+
+		const multiple = await render(<Dashboard manifest={twoCollections} />);
+		await expect.element(multiple.getByRole("link", { name: /About/ })).toHaveTextContent("Pages");
+		await multiple.unmount();
+
+		stats.recentItems = [
+			...stats.recentItems,
+			{ ...stats.recentItems[0]!, id: "2", collection: "notes", collectionLabel: "Notes" },
+		];
+		const mixed = await render(<Dashboard manifest={manifest} />);
+		await expect.element(mixed.getByRole("link", { name: /About.*Notes/ })).toBeInTheDocument();
+	});
+
+	it("moves quick actions past three collections into a More menu", async () => {
+		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
+		const collection = manifest.collections.pages!;
+		const manyCollections: AdminManifest = {
+			...manifest,
+			collections: {
+				pages: collection,
+				posts: { ...collection, label: "Posts", labelSingular: "Post" },
+				faq: { ...collection, label: "FAQ", labelSingular: "FAQ" },
+				team: { ...collection, label: "Team", labelSingular: "Team member" },
+			},
+		};
+
+		const screen = await render(<Dashboard manifest={manyCollections} />);
+
+		await expect.element(screen.getByRole("link", { name: "Post" })).toBeInTheDocument();
+		await expect.element(screen.getByRole("link", { name: "FAQ" })).not.toBeInTheDocument();
+		await screen.getByRole("button", { name: "More" }).click();
+		await expect
+			.element(screen.getByRole("menuitem", { name: "Team member" }))
+			.toHaveAttribute("href", "/content/team/new");
+	});
+
+	it("keeps the More menu usable while a collection icon is still loading", async () => {
+		mockFetchDashboardStats.mockResolvedValue(makeStats([]));
+		const collection = manifest.collections.pages!;
+		const manyCollections: AdminManifest = {
+			...manifest,
+			collections: {
+				pages: collection,
+				posts: { ...collection, label: "Posts", labelSingular: "Post" },
+				faq: { ...collection, label: "FAQ", labelSingular: "FAQ" },
+				team: { ...collection, label: "Team", labelSingular: "Team member", icon: "slow-chunk" },
+			},
+		};
+
+		const screen = await render(<Dashboard manifest={manyCollections} />);
+
+		await screen.getByRole("button", { name: "More" }).click();
+		await expect
+			.element(screen.getByRole("menuitem", { name: "Team member" }))
+			.toHaveAttribute("href", "/content/team/new");
 	});
 });

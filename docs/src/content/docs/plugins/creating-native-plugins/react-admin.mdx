@@ -324,7 +324,7 @@ export const widgets: PluginAdminExports["widgets"] = {
 };
 ```
 
-The host places the component inside a dashboard card and renders `title` as its heading. Keep the component compact and do not add a second card shell. `size` accepts `full`, `half`, or `third`; it is stored as a layout hint, but the current dashboard renders plugin widgets in its responsive two-column grid without applying that hint.
+The host places the component inside a dashboard card and renders `title` as its heading. Keep the component compact and do not add a second card shell. `size` accepts `full`, `half`, or `third`. On wide screens the dashboard shows `third` widgets in its side column and every other widget, including one with no `size`, in its main column. On narrower screens all widgets stack at full width.
 
 ## Custom field widgets
 
