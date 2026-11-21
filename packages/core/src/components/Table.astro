@@ -213,13 +213,13 @@ function cellAttributes(cell: PortableTextTableCell, scope?: "col" | "row") {
 		margin: 0;
 	}
 	.emdash-table th {
-		background: var(--color-surface, #f5f5f5);
+		background: var(--color-surface, light-dark(#f5f5f5, #18181b));
 		font-weight: 600;
 	}
 	.emdash-table tbody tr:nth-child(even) {
-		background: var(--color-bg-subtle, #fafafa);
+		background: var(--color-bg-subtle, var(--color-sunken, light-dark(#fafafa, #141416)));
 	}
 	.emdash-table tbody tr:hover {
-		background: var(--color-surface, #f0f0f0);
+		background: var(--color-surface, light-dark(#f0f0f0, #27272a));
 	}
 </style>
