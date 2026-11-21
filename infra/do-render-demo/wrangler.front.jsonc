@@ -1,0 +1,28 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	// Front: serves static assets and forwards every other request to the
+	// backend's SiteDO. Deploy the backend (wrangler.jsonc) first.
+	"name": "emdash-demo-do-render-front",
+	"main": "./src/front.ts",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-02-24",
+	"routes": [
+		{
+			"pattern": "do-render-demo.emdashcms.com",
+			"zone_name": "emdashcms.com",
+			"custom_domain": true,
+		},
+	],
+	"assets": {
+		"directory": "./dist/client",
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "SITE",
+				"class_name": "SiteDO",
+				"script_name": "emdash-demo-do-render",
+			},
+		],
+	},
+}

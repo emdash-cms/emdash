@@ -1,0 +1,42 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	// Backend: the Astro app and its database live in the SiteDO Durable
+	// Object. Visitors reach it through the front Worker in wrangler.front.jsonc.
+	// The Astro build still adds an ASSETS binding here; the app uses it for
+	// asset matching and error pages inside the Durable Object.
+	"name": "emdash-demo-do-render",
+	"main": "./src/worker.ts",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"workers_dev": false,
+	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
+	},
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "SITE",
+				"class_name": "SiteDO",
+			},
+		],
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["SiteDO"],
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "emdash-demo-media",
+		},
+	],
+	"kv_namespaces": [
+		{
+			"binding": "SESSION",
+			"id": "7d54671b952a4df5987e475f9e6d3c6a",
+		},
+	],
+}
