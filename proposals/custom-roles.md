@@ -1,0 +1,494 @@
+---
+title: Custom roles and collection-scoped permissions
+type: rfc
+status: accepted
+authors:
+  - Daniel Mueller (@danielmlr)
+champion: Daniel Mueller (@danielmlr)
+sponsor: Matt Kane (@ascorbic)
+discussions:
+  - https://github.com/emdash-cms/emdash/discussions/3717
+created: 2026-10-12
+---
+
+# Custom roles and collection-scoped permissions
+
+## Summary
+
+A site can define its own roles from the existing permissions, limit a role's content permissions to chosen collections, and limit a role's view of drafts to the entries it owns. The five built-in roles and their levels stay as they are, and no permission is renamed. On a site that defines no custom role, no request issues an additional query, and the built-in roles keep the access they have today, except that a Contributor can also discard, restore, duplicate and translate their own drafts.
+
+The work has four phases:
+
+1. **One authorization path.** Every role check in REST routes, MCP tools and the admin goes through the permission map, and the admin receives the signed-in user's effective permissions instead of deriving them from the role number. This phase changes no data model and is useful without the others.
+2. **Roles as data.** A roles table, collection scope for content permissions, and an API, a CLI command and a seed section for roles.
+3. **Role editor.** A Roles page in the admin with a permission matrix.
+4. **Own drafts only.** A permission that shows a role the drafts, revisions and trashed entries it owns, and no one else's.
+
+[#824](https://github.com/emdash-cms/emdash/discussions/824) asks for "user A can edit posts in collection X but not Y". This RFC answers that request and replaces the per-collection `min_role` I proposed in a comment there.
+
+## Problem and user case
+
+### The admin and the server decide separately
+
+`packages/auth/src/rbac.ts` maps 51 permission names to a minimum role level, and a check is `user.role >= Permissions[permission]`. `AGENTS.md` states that authorization is permission-based and that this map is authoritative. Most REST routes follow that rule. Four areas compare the role number instead:
+
+- **User management.** The routes for users, invites, allowed signup domains, API tokens and OAuth clients compare the caller's role to `Role.ADMIN`, in 19 checks across 12 route files. Six permissions in the map are never checked by core, among them `users:invite`. `users:read` decides only whether the dashboard includes the user count, and `users:manage` is checked in one settings route.
+- **MCP.** The MCP server calls `requireRole` with a role level at 53 call sites, next to the permission names that the matching REST routes use. The two can drift apart, and [#3433](https://github.com/emdash-cms/emdash/pull/3433) fixed one such case in `content_duplicate`.
+- **Visual editing.** The middleware that enables edit mode on site pages compares `user.role >= 30`, and the toolbar script makes the same comparison on the role number from `/auth/me`.
+- **Admin.** `GET /_emdash/api/auth/me` returns the role number and no permissions, and the admin package does not depend on `@emdash-cms/auth`. The admin declares 27 numeric role constants in 15 files and decides what to show by comparing against them.
+
+Open reports follow from that split:
+
+- [#1132](https://github.com/emdash-cms/emdash/discussions/1132): a Subscriber sees the collections, plugin pages, settings pages and delete buttons, and the API then rejects the actions.
+- [#3034](https://github.com/emdash-cms/emdash/discussions/3034): plugin pages are listed for every role, while a plugin route without a `permission` requires `plugins:manage`. [#3033](https://github.com/emdash-cms/emdash/issues/3033) reported this for the forms plugin, which has since named a permission on its read routes.
+- The entry editor loads the users list for the author picker when the role is Editor or higher, and `GET /_emdash/api/admin/users` refuses everyone below Admin.
+
+The Contributor role showed the same split: a Contributor could create an entry (201) and was refused on the next save (403), because the map grants `content:create` from Contributor and `content:edit_own` from Author. [#4133](https://github.com/emdash-cms/emdash/pull/4133) closed that gap with a new `content:edit_own_drafts` permission at Contributor; the admin still learns about it only through the role number.
+
+### Five levels cannot express the requests
+
+Each level holds every permission of the levels below it, and every content permission applies to every collection. Three kinds of request fall outside that:
+
+- **A permission without the rest of its level.** [#2332](https://github.com/emdash-cms/emdash/issues/2332) asks for a Subscriber who can also edit byline information, and names custom roles as one way to get there.
+- **A permission for some collections only.** #824 asks for users who can edit one collection and not another. [#2317](https://github.com/emdash-cms/emdash/discussions/2317) describes a site with more than twenty collections and a role for external users, and patches the sidebar to simplify the view for that role.
+- **Only one's own drafts.** A role for external users, such as the one in #2317, may need to see only the entries it created. A role that reads drafts reads every draft, revision and trashed entry in the collection.
+
+For a person who should edit only the job postings, the built-in roles offer two answers: a role that can edit every collection, or a second site.
+
+## Example
+
+A site has `posts`, `pages` and `jobs` collections. One person maintains the job postings and should edit and publish entries in `jobs` and nothing else. The seed file declares a role for that person:
+
+```json title=".emdash/seed.json"
+{
+	"version": "1",
+	"roles": [
+		{
+			"slug": "jobs-editor",
+			"label": "Jobs editor",
+			"permissions": ["media:read", "media:upload", "taxonomies:read"],
+			"collections": {
+				"jobs": [
+					"content:read",
+					"content:read_drafts",
+					"content:create",
+					"content:edit_any",
+					"content:delete_any",
+					"content:publish_any"
+				]
+			}
+		}
+	]
+}
+```
+
+A user with this role gets these results:
+
+| Request                                         | Result  |
+| ----------------------------------------------- | ------- |
+| `POST /_emdash/api/content/jobs`                | 201     |
+| `POST /_emdash/api/content/jobs/{id}/publish`   | 200     |
+| `GET /_emdash/api/content/posts`                | 403     |
+| `PUT /_emdash/api/content/posts/{id}`           | 403     |
+| MCP `content_update` with `collection: "posts"` | refused |
+| `POST /_emdash/api/menus`                       | 403     |
+
+The admin sidebar lists Jobs as the only collection for this user. `GET /_emdash/api/auth/me` returns the effective permissions:
+
+```json
+{
+	"id": "01JZ3W9Q0V5T8K2M4N6P7R8S9T",
+	"email": "sam@example.com",
+	"name": "Sam",
+	"role": 10,
+	"customRole": {
+		"id": "01JZ3WB4Y2D6F8H0J2K4M6N8P0",
+		"slug": "jobs-editor",
+		"label": "Jobs editor"
+	},
+	"permissions": ["media:read", "media:upload", "taxonomies:read"],
+	"collections": {
+		"jobs": [
+			"content:read",
+			"content:read_drafts",
+			"content:read_own_drafts",
+			"content:create",
+			"content:edit_own",
+			"content:edit_own_drafts",
+			"content:edit_any",
+			"content:delete_own",
+			"content:delete_any",
+			"content:publish_own",
+			"content:publish_any"
+		]
+	},
+	"avatarUrl": null,
+	"isFirstLogin": false
+}
+```
+
+`role` holds the compatibility level, described under [Compatibility level](#compatibility-level). The `_own` permissions in `collections` come from the rule that an `_any` grant includes its `_own` counterpart, `content:edit_own_drafts` from the rule that `content:edit_own` includes it, and `content:read_own_drafts` from the rule that `content:read_drafts` includes it.
+
+The request in #2332 becomes a role with the ten Subscriber permissions and `bylines:manage`.
+
+## Goals
+
+- A site can define a role that holds a chosen subset of the existing permissions.
+- A role can hold content permissions for chosen collections and is refused in all others, identically through REST, MCP and the admin.
+- A role can read the drafts, revisions and trashed entries it owns without reading anyone else's.
+- The admin decides what to show from the permissions the server sent. It holds no role thresholds of its own.
+- REST and MCP evaluate the same permission for the same operation.
+- An anonymous request loads no role and issues no additional query. A request from a user with a built-in role issues no additional query. A request from a user with a custom role issues no additional round trip, apart from one owner lookup on some single-entry routes for a role limited to its own drafts ([Own drafts only](#own-drafts-only)).
+- The five built-in roles keep every permission they hold today. The roles from Contributor up gain only `content:read_own_drafts`, which their `content:read_drafts` already covers.
+- Installed plugins, issued tokens and configured identity-provider mappings keep working unchanged.
+- Every schema change is additive, and a version deployed before the change keeps working against the expanded schema.
+
+## Non-goals
+
+- **Public member accounts.** Reader, commenter and paying-subscriber accounts, open signup and paywalls belong to [#590](https://github.com/emdash-cms/emdash/discussions/590), [#1315](https://github.com/emdash-cms/emdash/discussions/1315) and [#1467](https://github.com/emdash-cms/emdash/discussions/1467). This RFC covers the people who work in the admin.
+- **Multi-tenancy and organizations.** Site isolation and organization-scoped content belong to [#139](https://github.com/emdash-cms/emdash/discussions/139) and [#3079](https://github.com/emdash-cms/emdash/discussions/3079).
+- **Field-level permissions.** [Security and privacy](#security-and-privacy) explains why.
+- **Row-level rules beyond own and any.** No filter language and no policy documents.
+- **Per-entry access.** Giving one person access to one entry is the subject of [Co-owners](https://github.com/emdash-cms/emdash/discussions/4132). This RFC keeps the ownership test as an input to the check, so a co-owner model can widen who counts as an owner without changing grants.
+- **Locale scope.** A grant names collections, not locales, so a translator who may edit only the Spanish rows of a collection needs a later proposal. That role also needs a different translation check, because creating a translation requires edit access to the source entry. The grant format lets such a proposal add a restriction that older code denies instead of ignoring ([Check](#check)).
+- **Plugin-defined permissions.** Core owns the set of permission names. A plugin route keeps naming a core permission ([#1587](https://github.com/emdash-cms/emdash/discussions/1587)).
+- **Approval workflows.** A role without a publish permission cannot publish, which the existing permissions already express.
+- **Changing the built-in roles.** They cannot be edited or removed, because every user keeps one of their five levels in `users.role`, which rollback, `minRole` and plugins read as that role's permissions ([Compatibility level](#compatibility-level)), and the last-admin guard counts users with the built-in Admin role. A later setting could hide a built-in role a site doesn't use from the role pickers without changing its permissions. No permission is renamed.
+- **Deny rules.** Roles only grant.
+
+## Detailed design
+
+### Terms
+
+| Term       | Meaning                                                                                                           |
+| ---------- | ----------------------------------------------------------------------------------------------------------------- |
+| Permission | A name from the map in `rbac.ts`, such as `content:edit_own`. Core owns the set.                                  |
+| Grant      | A permission held by a role, either for all collections (unscoped) or for a list of collection slugs (scoped).    |
+| Role       | A named set of grants. The five built-in roles are defined by the map. A custom role is a row in `_emdash_roles`. |
+| Actor      | The signed-in user together with the grants of the user's role. Every check receives an actor.                    |
+| Scopable   | A permission that can be granted per collection: every `content:*` permission, and `editorial:*` once it exists.  |
+
+### Check
+
+The existing helpers in `@emdash-cms/auth` decide, with an optional resource:
+
+```ts
+hasPermission(actor: Actor | null, permission: Permission, resource?: { collection?: string }): boolean
+canActOnOwn(actor: Actor | null, ownerId: string, own: Permission, any: Permission, resource?: { collection?: string }): boolean
+```
+
+- A missing actor is a denial.
+- For a built-in role, the answer is `actor.role >= Permissions[permission]`, as today.
+- For a custom role, the answer comes from its grants. An unscoped grant satisfies any check of that permission. A scoped grant satisfies a check only when `resource.collection` is one of its collections. A check that names no collection is satisfied only by an unscoped grant.
+- A grant of an `_any` permission includes the matching `_own` permission in the same scope, for content and media, a grant of `content:edit_own` includes `content:edit_own_drafts` and a grant of `content:read_drafts` includes `content:read_own_drafts` in the same scope, and a grant of a `manage` permission includes the matching `read` permission (taxonomies, menus, bylines, widgets, sections, redirects and search; `comments:moderate` includes `comments:read`). Inclusions chain. The built-in ladder gives every role these pairs; a custom role gets them from this rule.
+- Ownership stays a separate helper with its rules, including the rule that an empty owner id matches nobody. A co-owner model can widen who counts as an owner there without touching grants.
+- An unknown role reference yields no grants. Unknown permission names in a stored role are dropped when the grants are read. A stored role that carries a key the reader does not know, at the top level of `grants` or in a collection entry, yields no grants at all. A restriction added by a later release, such as a locale scope, therefore denies on older code instead of widening to the whole collection.
+
+`requirePerm`, `requireOwnerPerm`, `requireAnyPerm`, `entryEditAccess` and `requireEntryEditPerm` in core gain the same optional resource. Helpers for navigation and cross-collection reads answer "in which collections does the actor hold this permission", with `null` meaning all. The MCP server's internal `requireRole` helper is removed.
+
+### Data model
+
+One new system table:
+
+| Column        | Type               | Notes                                                                             |
+| ------------- | ------------------ | --------------------------------------------------------------------------------- |
+| `id`          | `text` primary key | ULID                                                                              |
+| `slug`        | `text` unique      | `/^[a-z][a-z0-9_-]*$/`, at most 63 characters, not one of the five built-in slugs |
+| `label`       | `text`             | Display name                                                                      |
+| `description` | `text` nullable    |                                                                                   |
+| `grants`      | `text` (JSON)      | `{ "permissions": string[], "collections": { [slug]: string[] } }`                |
+| `created_at`  | `text`             | `datetime('now')` default                                                         |
+| `updated_at`  | `text`             | `datetime('now')` default                                                         |
+
+Three existing tables gain a nullable reference to `_emdash_roles.id`, each with a foreign key and an index:
+
+| Table             | New column        | Meaning                                                           |
+| ----------------- | ----------------- | ----------------------------------------------------------------- |
+| `users`           | `role_id`         | The user's custom role. `NULL` means the built-in role in `role`. |
+| `auth_tokens`     | `role_id`         | The custom role an invite assigns.                                |
+| `allowed_domains` | `default_role_id` | The custom role a self-signup from that domain receives.          |
+
+When a reference is set, the level column next to it (`users.role`, `auth_tokens.role`, `allowed_domains.default_role`) holds the role's compatibility level. One function derives the level from the role row. Every write that sets a reference, and every role update, rewrites the affected levels atomically, so code that does not know custom roles reads a valid level. The role row stores no level of its own.
+
+### Loading the role
+
+The user lookups in the Kysely auth adapter (`getUserById`, which the auth middleware runs on every request with a session or token, `getUserByEmail`, which it runs under Cloudflare Access, and `getUserWithDetails` and `getUsers`) gain a `LEFT JOIN _emdash_roles ON users.role_id = _emdash_roles.id`. The grants arrive with the user row in the same query. Anonymous requests run no user lookup and therefore load no role. For built-in roles the join finds no row and the check reads the map.
+
+Code that authorizes a stored user id outside a request reads the user through the same lookups, so the grants arrive there too. A [co-editing](real-time-co-editing.md) room does this when it saves as one of its editors, and the runtime does it when it restores a recovery revision.
+
+The join requires the migration. The runtime's `auto` mode applies it, and `check` mode answers 503 before serving a request while it is pending. A `manual` deployment can serve the new build before the migration has run. For that window, the adapter catches the error for a missing `_emdash_roles` table or a missing `role_id` column, falls back to the plain `users` select and retries the join a minute later. Until the migration runs, every user acts with the built-in role in `users.role`, instead of every sign-in failing. The fallback costs nothing once the table exists.
+
+An edited role applies on the user's next request, because the role row is read with the user row every time. The admin caches `/auth/me` for five minutes and fetches it again when its window regains focus, so another open admin session shows its old navigation until one of the two happens.
+
+### Compatibility level
+
+Code that reads the integer keeps working: third-party plugins, `minRole` on plugin panels and list columns, and a version deployed before the migration. For a custom role, the level is the highest built-in level whose permissions the role holds unscoped. A role that contains no built-in role gets 10 (Subscriber), because `toRoleLevel` accepts only the five values.
+
+| Custom role                               | Compatibility level |
+| ----------------------------------------- | ------------------- |
+| Editor permissions without `menus:manage` | 30 (Author)         |
+| `byline-editor` from the example          | 10 (Subscriber)     |
+| `jobs-editor` from the example            | 10 (Subscriber)     |
+
+Code that reads only the integer never grants more than the role holds, with two exceptions:
+
+- A role narrower than Subscriber, such as `jobs-editor`, appears to that code as a Subscriber, which can read published content in every collection. A custom role does not have to contain the Subscriber permissions.
+- When a release adds a permission at or below a role's stored level, the role does not hold it, but code that reads only the level assumes it does. The role's next update recomputes the stored level; the release does not.
+
+Authorization checks in core read the grants, so both exceptions reach only code that compares the level itself: third-party plugins, and `minRole` on trusted plugin panels and list columns. [Alternatives](#alternatives) explains why custom roles are not required to contain the Subscriber permissions and why a release does not recompute the level.
+
+### Effective permissions in the admin
+
+`/auth/me` gains three fields for every user, built-in roles included:
+
+| Field         | Type                                                  | Content                                                                                                       |
+| ------------- | ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `customRole`  | `{ id: string; slug: string; label: string } \| null` | The custom role, or `null` for a built-in role                                                                |
+| `permissions` | `string[]`                                            | Unscoped permissions, with the permissions they include added; for a built-in role, every permission it holds |
+| `collections` | `Record<string, string[]>`                            | Scoped permissions per collection slug, with the same addition; `{}` for a built-in role                      |
+
+`role` stays and holds the level. The admin gets `useCan(permission, { collection })`, which reads these fields and replaces the numeric comparisons in the sidebar, the command palette, route guards and action buttons. A [personal sidebar layout](customizable-admin-sidebars.md) arranges only the entries these checks leave. A route guard that fails shows an access-denied state, as the comments and byline schema pages do today, instead of a blank screen. The server stays the security boundary: the payload only keeps the admin from offering what the server refuses.
+
+### Content routes, lists and MCP
+
+Content routes take the collection from the URL. The revision routes and bulk tagging have no collection in the URL and take it from the loaded revision or from each item. Collection scope needs no row filter: a list request for a collection the role may not read is refused before the query runs.
+
+Every content route checks that the actor holds some content permission in the URL's collection before it loads the entry. Without that check, a role could tell a missing entry (404) from an existing one it may not touch (403) in a collection it cannot reach. Every built-in role passes it.
+
+Reads that cross collections apply the scope per collection:
+
+- The dashboard, the calendar, draft search in REST and search in MCP drop collections the actor may not read from the query. An empty result short-circuits, because the search layer treats an empty collection list as all collections. The dashboard shows drafts and policy rejections only in collections where the actor holds `content:read_drafts`.
+- Reference routes return rows from the other side of the relation, so they check read and draft access on that collection, not on the URL's.
+- Reference fields that point into another collection resolve on the entry read with the actor's `content:read` and `content:read_drafts` in the target collection, and resolve to an empty list when the actor cannot read it. A write that selects or keeps a reference is refused unless the actor holds `content:read` in the target collection.
+- Revision routes answer 404, not 403, for a revision in a collection whose drafts the actor may not read.
+
+The permission a route checks must govern everything its response contains and everything its write touches. Several routes today check one name and return data that another name governs, relying on the built-in ladder to hold both. A custom role can hold one name without the other, so phase 2 checks each route against this rule.
+
+Entries are scoped; collection schemas are not. The admin manifest shows every collection's name, fields and taxonomies to every admin user, because the admin needs them to render, and `GET /_emdash/api/schema/collections` shows them to every holder of `schema:read`. The sidebar and the command palette list only the collections the actor holds a content permission in.
+
+MCP tools call the same helpers with the same permission names as their REST counterparts and pass the tool's `collection` argument. Read tools that check no permission today get the Subscriber-level permission of their REST counterpart, which changes nothing for built-in roles. Where a tool's role level differs from the REST permission today, such as `media_create`, phase 1 settles each difference on its own, with the REST permission as the default.
+
+### Draft-only edits
+
+`content:edit_own_drafts` lets the owner save, lock and set terms on an entry while its status is `draft`. It also satisfies four routes on such an entry that require `content:edit_own` or `content:edit_any` today: discarding the draft, restoring the entry from the trash, duplicating it and creating a translation of it. Duplicating and translating keep their `content:create` check. As with the existing draft-only writes, each of these fails when the entry's status changed after the check. The built-in Contributor holds `content:edit_own_drafts`, so from phase 1 a Contributor can do these four things with their own drafts.
+
+### Own drafts only
+
+`content:read_own_drafts` is a scopable permission at Contributor in the map, and a grant of `content:read_drafts` includes it ([Check](#check)). A role that holds it without `content:read_drafts` in a collection reads the non-published state of the entries it owns there: drafts, scheduled entries, revisions, comparisons, preview URLs and trashed entries. Entries it does not own appear to it as they appear to `content:read`: published entries only, and 404 for an unpublished one. Every built-in role from Contributor up holds `content:read_drafts`, so none of them sees less than today.
+
+Routes about one entry decide with `canActOnOwn(actor, entry.authorId, "content:read_own_drafts", "content:read_drafts", { collection })`: the entry read, its revisions, compare, preview URL, terms, translations and references, and a revision read by id. Some of these routes do not read the entry's owner before their handler runs today, such as compare and a revision read by id. For an actor that holds only `content:read_own_drafts`, such a route reads the owner first, which costs one query. Built-in roles and roles that hold `content:read_drafts` skip that lookup, because `content:read_drafts` decides without the owner.
+
+The co-editing join route decides the same way, whatever the entry's status, because a room carries the entry's draft content. An actor that holds only `content:read_own_drafts` joins the rooms of the entries it owns and is refused for the others.
+
+Routes that list entries add one predicate to their query for an actor that holds only `content:read_own_drafts` in the collection: the row's status is `published`, or its `author_id` is the actor. The content list and its counts, the calendar, the dashboard and the MCP list tools use it, and the trash lists only the actor's own entries. The predicate is part of the existing query and uses the `author_id` index, so it adds no round trip. Filters, sorts and text search in that query see only the rows the predicate keeps. A co-owner model would widen the predicate together with the ownership helper.
+
+Three surfaces keep requiring `content:read_drafts`, so their queries carry no owner predicate: search for non-published statuses in REST and MCP, the collection's authors list, which names the authors of unpublished entries, and media usage details, which list every entry that uses a file. An actor with only `content:read_own_drafts` gets published results from search and 403 from the other two. Reference fields resolve only to published entries for such an actor, even when the referenced draft is its own.
+
+### Plugins
+
+The plugin route contract does not change. A route names a core permission and defaults to `plugins:manage`. The dispatcher passes the actor, so a custom role that holds the named permission can call the route. On the entry editor's extension route (`content/{collection}/{id}/plugin-extensions/…`), the host passes the collection from its own route, after checking it against the extension's collection list and loading the entry from it, so a scoped grant can satisfy that route. The plugin's request body never supplies the collection. The general plugin route has no trusted collection, so only an unscoped grant satisfies it. `ctx.user.role` in plugin routes and `actor.role` in content hooks carry the compatibility level.
+
+A plugin route runs with the plugin's capabilities, not with the caller's grants: the plugin context is built per plugin, and a plugin that reads or writes content through its capabilities reaches every collection. The permission on the route decides who may call it; what the route then does is bounded by the plugin. A policy hook that compares `actor.role` therefore sees a `jobs-editor` as a Subscriber.
+
+Plugin pages, dashboard widgets and sandboxed editor panels are offered to every role today and gated only by their routes; trusted editor panels and list columns compare `minRole` with the level. Phase 1 makes plugin pages, dashboard widgets and sandboxed editor panels visible by permission. Trusted editor panels and list columns keep `minRole`, compared with the compatibility level. Whether visibility comes from the backing route or from a field on the page is the open decision in #3034; this RFC requires only that it is a permission name.
+
+### Tokens
+
+Effective access stays the token's scopes intersected with the role's permissions. For a custom role, the allowed scopes are derived from its grants: a scope is offered when the role holds its permission unscoped or in at least one collection, and checks still apply the collection scope. `admin` and `mcp:tools` are never offered to a custom role. Approval in the device flow and the authorization-code flow, the code exchange and the refresh all clamp scopes with the actor's grants. Built-in roles keep `scopesForRole` unchanged. Personal API tokens and OAuth clients stay managed by the built-in Admin role, through the Admin-level permissions phase 1 adds for them.
+
+### Visual editing
+
+Edit mode on site pages requires `content:edit_own` and `content:read_drafts`, both unscoped, because edit mode serves drafts in every collection. The middleware and the toolbar script both check these names instead of `role >= 30`; the toolbar reads them from `/auth/me`. Built-in roles get the same result as today. A scoped role gets no edit mode, and `content:read_own_drafts` does not satisfy the check.
+
+### Identity providers
+
+`roleMapping` and `defaultRole` in the Cloudflare Access configuration and `defaultRole` in the Atmosphere configuration accept a role slug in addition to a number. A slug that names no role at sign-in falls back to Subscriber and is logged with the `[auth]` prefix. Role sync in the Cloudflare Access configuration (`syncRoles`) leaves a user who holds a custom role untouched: a level from the provider applies to built-in roles only, and the provider assigns a custom role only through a slug.
+
+### Managing roles
+
+Managing roles is user management: listing and reading roles require `users:read`, and writes require `users:manage`. A custom role cannot hold a reserved permission:
+
+| Reserved permission                                                       | Reason                                                                                                                              |
+| ------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| `users:read`, `users:invite`, `users:manage`, `auth:manage_connections`   | They decide who may sign in and with which role.                                                                                    |
+| `settings:manage`                                                         | It sets the Site URL that magic-link, invite and recovery links are built from when neither `siteUrl` nor `EMDASH_SITE_URL` is set. |
+| `plugins:manage`                                                          | It installs plugins and writes their settings; an installed email plugin delivers sign-in links when no other provider is active.   |
+| `schema:manage`                                                           | It alters and deletes collections the role may not read.                                                                            |
+| `import:execute`, `transfer:import`                                       | They write content in every collection.                                                                                             |
+| `backups:manage`, `transfer:export`                                       | They read every collection.                                                                                                         |
+| The Admin-level permissions phase 1 adds for API tokens and OAuth clients | They issue credentials.                                                                                                             |
+
+A write that includes a reserved permission is rejected. `content:delete_permanent` (scopable), `comments:delete`, `comments:settings`, `redirects:manage`, `search:manage` and `updates:read` stay grantable.
+
+| Method and path                          | Purpose                                                                                                                                          |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /_emdash/api/admin/roles`           | `{ items }` of built-in and custom roles; built-in ones are read-only, and each custom role carries its compatibility level and number of users  |
+| `POST /_emdash/api/admin/roles`          | Create from `{ slug, label, description?, permissions, collections }`                                                                            |
+| `GET /_emdash/api/admin/roles/{slug}`    | One role                                                                                                                                         |
+| `PUT /_emdash/api/admin/roles/{slug}`    | Replace label, description and grants; the slug is immutable                                                                                     |
+| `DELETE /_emdash/api/admin/roles/{slug}` | Delete a role that no user, unexpired invite or allowed domain references; expired invites that reference it are removed in the same transaction |
+
+Every route returns these error codes:
+
+| Code               | When                                                                                                                              |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------------- |
+| `VALIDATION_ERROR` | Invalid slug, unknown permission, unknown key in the grants, a non-scopable permission under `collections`, a reserved permission |
+| `CONFLICT`         | The slug exists, or names a built-in role                                                                                         |
+| `ROLE_IN_USE`      | Delete of a role referenced by a user, an unexpired invite or an allowed domain                                                   |
+| `NOT_FOUND`        | No role with that slug                                                                                                            |
+
+Collection slugs in `collections` are not required to exist. A scope entry for a slug with no collection grants nothing; a collection created later with that slug is covered by it.
+
+The user, invite and allowed-domain routes accept a role slug wherever they accept a level today. The existing rules stay: a user cannot change their own role, and the last-admin guard counts enabled users with the built-in Admin role.
+
+- **CLI.** `emdash role list|get|create|update|delete`, going through the REST API like `emdash menu` and `emdash taxonomy`.
+- **Seed.** `SeedFile` gains `roles?: SeedRole[]` with the shape of the create body. Applying a seed creates missing roles and updates existing ones by slug. `emdash export-seed` writes the section.
+
+### Role editor
+
+A Roles page in the Admin group of the sidebar, beside Users, lists the roles and edits custom ones. Opening it requires `users:read`, and changing a role requires `users:manage`. Both are reserved, so in practice only the built-in Admin sees the page.
+
+- **Custom roles.** A table shows each role's label, slug and description, a summary of its content grants per scope ("Jobs: Read, Read drafts, Create" or "All collections: Read") with the number of site-wide permissions, its compatibility level and its number of users. Deleting a role asks for confirmation and is refused with `ROLE_IN_USE` while a user, an unexpired invite or an allowed domain uses it.
+- **Built-in roles.** They are listed read-only. "Start a role from this" opens the editor with that role's permissions, without the reserved ones, as a template.
+
+The editor is a dialog:
+
+- **Name, slug and description.** The slug cannot change once the role exists, because seed files and identity providers refer to the role by it.
+- **Content.** A matrix with one row for all collections, which holds the unscoped grants and also covers collections added later, and one row per collection for the scoped grants. The columns are the content permissions, `content:read_own_drafts` included. A grant that a wider grant includes ([Check](#check)) shows as checked and disabled, and names the grant that includes it.
+- **Everything else.** The site-wide permissions as checkboxes, grouped by area, such as Media, Taxonomies and Comments. Reserved permissions cannot be selected, and a note in their area names them.
+- **Compatibility level.** The dialog shows the level the role will get and updates it as permissions change.
+
+### Localization and accessibility
+
+Permission names stay identifiers; the admin shows a translated label and description for each, and custom role labels are site data that is not translated. The matrix is a table with row and column headers, and each cell is a labelled checkbox.
+
+## Compatibility and migration
+
+- **Existing sites.** No step is required. Every user keeps a built-in role and `role_id` is `NULL`.
+- **Migration.** One migration creates `_emdash_roles` and adds the three nullable columns and their indexes, guarded by existence checks (`ifNotExists` for the table and indexes, a column check before each `ALTER TABLE`) so it can restart after any statement. `down` drops the columns and the table.
+- **Rolling deploy, old code on the new schema.** Code deployed before the migration ignores the new table and columns and reads the level. A role change made by an old version writes only `users.role`, which the new version ignores while `role_id` is set. A custom-role invite accepted by an old version creates a user with the built-in role at the stored level, and the custom role is lost. Admins should not assign custom roles until every running version knows them; the changeset says so.
+- **Rollback.** An older version reads `users.role`, which holds the compatibility level, so a user with a custom role keeps at most the built-in role the custom role contains, or Subscriber.
+- **Site transfer.** `_emdash_roles` is not portable, like the other auth tables, so a transfer import brings no users and no roles.
+- **Public API.** `/auth/me` gains fields and changes none. The authorization helpers gain an optional argument. Identity-provider options accept a slug in addition to a number. `Permission` gains `content:read_own_drafts`. No export is removed.
+- **Deprecated `search:read`.** No route checks `search:read`. It stays in the map and in `Permission`, marked deprecated, because a plugin route that names a permission missing from the map is refused with 500 `INVALID_PLUGIN_ROUTE`. The role editor does not offer it; the roles API and the seed accept it. The next major release removes it.
+- **Behavior change for built-in roles.** They keep their permissions, and the roles from Contributor up gain `content:read_own_drafts`, which `content:read_drafts` already covers. From phase 1, a Contributor can discard, restore, duplicate and translate their own drafts ([Draft-only edits](#draft-only-edits)). Phase 1 also changes what the admin offers them, so it stops offering actions the server refuses, and settles MCP tools whose level differs from the REST permission; each such change is listed in that phase's changeset.
+- **Documentation.** The role table in the authentication guide stays valid for built-in roles. A new page covers custom roles, the seed section and the compatibility level.
+
+## Security and privacy
+
+- **Untrusted keys.** Grants are looked up with `Object.hasOwn`, because `constructor` is a valid collection slug.
+- **Privilege escalation.** Custom roles cannot hold the [reserved permissions](#managing-roles), so the compatibility level of a custom role therefore never reaches 50, and the last-admin guard never counts a custom-role user.
+- **Site-wide permissions act across collections.** A collection scope applies to `content:*` permissions. Every other permission acts on the whole site by design: `bylines:manage` deleting a byline clears it from entries in every collection, `taxonomies:manage` deleting a term removes its assignments everywhere, `media:edit_any` and `media:delete_any` change files that any collection uses, `comments:moderate` reads every collection's comments with author email and IP hash, and a slug change writes the site-wide redirect table. A scoped role that holds one of these is not limited to its collections.
+- **No field-level permissions.** Field read restrictions have leaked through filtering, sorting and relation traversal in other CMSs: Strapi [GHSA-rjg2-95x7-8qmx](https://github.com/strapi/strapi/security/advisories/GHSA-rjg2-95x7-8qmx), Payload [GHSA-9g87-32v6-3c2r](https://github.com/payloadcms/payload/security/advisories/GHSA-9g87-32v6-3c2r) and [GHSA-fpww-c55p-cjv6](https://github.com/payloadcms/payload/security/advisories/GHSA-fpww-c55p-cjv6). A collection scope is checked once per request and collection before any query runs, so filters, sorts and joins inside the query cannot bypass it. Reads that cross collections still have to apply it, which [Verification](#verification) covers.
+- **Owner predicate.** `content:read_own_drafts` is the one rule that filters rows. It is a fixed predicate on `status` and `author_id` with no part supplied by the request, every list surface carries it for an actor that holds only that permission, and filters and sorts run on the rows it keeps. [Verification](#verification) tests each list surface with another user's draft.
+- **Kept invariants.** Users without `content:read_drafts` keep receiving 404 for unpublished entries, apart from their own entries when they hold `content:read_own_drafts`. The empty-owner rule, the last-admin guard, the ban on changing one's own role and scope clamping at token refresh stay.
+- **Open co-editing rooms.** A room authorizes each save as the saving user, with the role it reads at that moment, so an edited role applies to the room's next save. A connection that only reads keeps receiving edits until it is 15 minutes old and joins again, which is the bound the co-editing design sets for every access change. Editing a role applies that bound to every user who holds the role.
+- **Privacy.** No new personal data is stored. `/auth/me` returns only the caller's own permissions.
+
+## Performance
+
+- **Logged-out routes.** No change. Anonymous requests load no user and no role. The query-count snapshots for logged-out routes must not change.
+
+A [prototype](https://github.com/danielmlr/emdash/tree/poc/custom-roles) ([findings](https://github.com/danielmlr/emdash/blob/poc/custom-roles/demos/custom-roles/FINDINGS.md)) measured database queries per request on a Node.js and SQLite demo site with `EMDASH_QUERY_LOG=1`, on a freshly seeded database, after one warm-up request per route and role. `jobs-editor` is the role from the example; `site-editor` is a custom role without collection scope.
+
+| Request                         | Anonymous | Admin | Editor | Contributor | `jobs-editor` | `site-editor` |
+| ------------------------------- | --------- | ----- | ------ | ----------- | ------------- | ------------- |
+| `GET /`                         | 6         | 7     | 7      | 7           | 7             | 7             |
+| `GET /jobs`                     | 6         | 7     | 7      | 7           | 7             | 7             |
+| `GET /_emdash/api/auth/me`      | 401       | 1     | 1      | 1           | 1             | 1             |
+| `GET /_emdash/api/content/jobs` | 401       | 5     | 5      | 5           | 5             | 5             |
+| `GET /_emdash/api/dashboard`    | 401       | 14    | 14     | 14          | 10            | 14            |
+
+The extra query on authenticated pages is the existing user lookup, which carries the role through the join. `jobs-editor` reads one collection on the dashboard, so it runs fewer queries. `pnpm query-counts` matches the committed logged-out snapshots for SQLite and D1 in count and query text. The per-role counts above have not been measured on D1 yet. An anonymous request to an API route is refused with 401 and has no count.
+
+## Failure handling
+
+- **Stored role with invalid JSON.** The role yields no grants, so every check for that user denies, and the error is logged with the `[auth]` prefix. An Admin repairs the role through the API or the editor.
+- **Role row missing.** A reference to a missing role yields no grants, so every check denies until an Admin assigns a role.
+- **Role update interrupted on D1.** The role update runs as one batch. If a batch is lost, the update is idempotent and saving the role again repairs the stored levels.
+- **Seed with an unknown permission or key.** Seed validation fails before anything is written, naming the role and the permission or key.
+- **Role written by a newer release.** During a rolling deploy or after a rollback, older code reads a role whose grants carry a key it does not know. That role yields no grants on the older code, so its users are refused until every running version knows the key.
+
+## Verification
+
+- **Equivalence.** For each built-in role and each permission, `hasPermission` returns what `role >= Permissions[permission]` returns, and `/auth/me` lists exactly the permissions for which it returns true.
+- **Scope.** Route tests with a collection-scoped role cover the content routes, the routes without a collection in the URL, the 404/403 distinction in an unreachable collection, search with an empty narrowed list, the dashboard, the calendar, reference reads and writes into a collection the role may not read, and the plugin extension route.
+- **Permission governs the response.** For each route, a test with a custom role that holds only the checked permission shows that the response contains nothing and the write touches nothing that another permission governs.
+- **Draft-only edits.** A Contributor discards, restores, duplicates and translates their own draft, and is refused for a published entry and for another user's draft.
+- **Own drafts.** With a role that holds `content:read_own_drafts` and another user's draft in the same collection, each single-entry route answers 404 for that draft; the content list, its counts, the trash, the calendar, the dashboard and the MCP list tools omit it; and search, the authors list and media usage do not reveal it. The role's own draft appears on every surface that does not require `content:read_drafts`.
+- **Co-editing.** A collection-scoped role joins a room in its collection as a co-editor and is refused in a collection it cannot reach. A room's save as a custom-role user is decided by the role's grants, and after a role edit removes the edit permission, the room's next save as that user is refused.
+- **Reserved permissions.** The API, the seed and the role editor refuse each reserved permission.
+- **Parity.** One table of operations drives REST and MCP tests, so both surfaces are asserted against the same permission.
+- **Query counts.** The logged-out snapshots do not change. A test asserts the round trips of an authenticated content request with a built-in role and with a custom role.
+- **Migration.** Upgrade from existing data, retry after a partial run, the adapter fallback before the migration, and every supported dialect with `describeEachDialect`.
+- **Compatibility level.** Derivation tests, and a test that code reading only `users.role` never grants more than the custom role, apart from the two exceptions under [Compatibility level](#compatibility-level).
+- **Admin.** Playwright runs the example's `jobs-editor` through the sidebar, an entry in `jobs`, and a direct URL to an entry in `posts`. The role editor is checked in Arabic.
+
+## Rollout and implementation
+
+| Phase | Content                                                                                                                                                                                                                                                                                                                                              | Schema change |
+| ----- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------- |
+| 1     | Permission names replace the role comparisons in the user-management, API token and OAuth client routes, MCP and visual editing, with a new Admin-level name where none exists yet. Effective permissions in `/auth/me`, with the equivalence test. `useCan` in the admin. Plugin pages, widgets and panels visible by permission. Draft-only edits. | None          |
+| 2     | `_emdash_roles` and the references. The optional resource on the checks. Collection scope in content routes, cross-collection reads and MCP tools. The roles API, the seed section and the CLI. Role slugs in identity-provider mappings. Token scopes derived from grants. Custom roles in the user role picker. The route audit.                   | Additive      |
+| 3     | The [role editor](#role-editor): a Roles page and a permission matrix that can start from a built-in role as a template. Documentation.                                                                                                                                                                                                              | None          |
+| 4     | `content:read_own_drafts` in the map and the role editor. Ownership checks on the single-entry routes, and the owner predicate in list routes and MCP list tools.                                                                                                                                                                                    | None          |
+
+Each phase is a separate set of pull requests and ships without a feature flag. Phase 1 can ship on its own. Phase 4 needs phase 2, because only a custom role can hold `content:read_own_drafts` without `content:read_drafts`. I will implement all four phases, in order.
+
+### Reconciliation with related work
+
+[Editorial comments](https://github.com/emdash-cms/emdash/pull/4126) adds `editorial:comment` and `editorial:manage` and names this RFC. Both permissions are scopable, because every editorial route has the collection in its path. Its mentionable-users endpoint, which it places per entry for a future collection-scoped model, lists users who hold `editorial:comment` and `content:read_drafts` in the entry's collection. If both are accepted, the second to land carries this.
+
+[Real-time co-editing](real-time-co-editing.md) adds a room per entry, with routes for joining a room, saving a recovery revision and listing who edited a revision. Each route has the collection in its path, so its checks take the collection like the other content routes. The join route requires `content:read_drafts` and uses the entry edit check to admit a caller as a co-editor or a viewer. A room saves as one of its editors and reads that user by id, through the lookups under [Loading the role](#loading-the-role). Co-editing is implemented first, so phase 2 carries these changes.
+
+## Alternatives
+
+### One minimum role per collection
+
+A nullable `min_role` on the collection, checked next to the permission, which I proposed on #824. It needs one column and no new concept, but it is one-dimensional: whoever passes the higher threshold also passes the lower one, so it cannot express two departments that must not edit each other's collections. It does not cover #2332 either.
+
+### Built-in role plus a collection list
+
+A user keeps a built-in level and gains a list of collections. This keeps roles ordered and is smaller than roles as data. It covers the collection cases and not #2332, and the first request for "Editor without one permission" would need a second migration.
+
+### Generated permission names per collection
+
+Drupal and Craft generate permission names per content type (`edit any $type_id content`, `saveEntries:<section uid>`). In EmDash the permission names are a closed type that installed plugins reference, so generated names would change a public contract. A scope on the grant reaches the same granularity.
+
+### Access functions in site code
+
+Payload and Keystone let site code decide each operation. EmDash collections are created at runtime in the admin, and roles need to be managed there too.
+
+### Veto hooks in a site plugin
+
+`content:beforeSave` and `content:beforePublish` receive the actor and the collection, so a site plugin can already refuse saves and publications per user and collection. That covers writes only: lists, reads and the admin still show every collection, and deletion, restore and discarding a draft run no hook that both knows the actor and can refuse.
+
+### Policies with filters, and relationship tuples
+
+Directus-style policies and the tuple model that #824 opens with express row-level and delegated access. Both decide per row, so every query that reads content carries their constraint. The requests in [Problem and user case](#problem-and-user-case) do not need that.
+
+### Object cache instead of a join
+
+Caching role rows in the object cache with invalidation on role writes avoids touching the user query. The object cache is optional and off by default, so it cannot meet the round-trip goal on every site, and an edited role would apply only after invalidation reaches the isolate.
+
+### Requiring the Subscriber permissions
+
+Every custom role could be required to contain the Subscriber permissions. That would remove the first exception under [Compatibility level](#compatibility-level). It would also rule out roles like `jobs-editor` that must not read other collections through the admin and the API.
+
+### Recomputing the level on upgrade
+
+A release that adds a permission at or below a stored level could recompute the level of every custom role. Each such release would then need a data migration over users, invites and allowed domains. Authorization checks in core read the grants, so a stale level reaches only code that compares the level itself.
+
+### Several roles per user
+
+A user could hold several roles whose grants add up, so an Admin combines roles instead of defining one for each combination. That needs a join table and a compatibility level derived from the union, and an Admin who checks why a user can do something has to read every role the user holds. A user holds one role, and a combination is a role of its own.
+
+## Drawbacks
+
+- **New core permissions do not reach custom roles.** A built-in role receives a new permission through the map. A custom role holds what it was given, so an upgrade can leave it without access to a new feature until an Admin grants it. The editorial-comments permissions are the first instance.
+- **Roles are no longer ordered.** Code and documentation that say "at least Editor" have no meaning for a custom role. Code that compares the level sees a custom role as the largest built-in role it contains, so a `minRole` on a plugin panel hides the panel from a custom role that holds the permissions behind it.
+- **The level overstates two kinds of custom role.** Code that compares the level sees a role narrower than Subscriber as a Subscriber, and keeps a level stored before a release added a permission until the role's next update ([Compatibility level](#compatibility-level)).
+
+## Open questions
+
+None.
