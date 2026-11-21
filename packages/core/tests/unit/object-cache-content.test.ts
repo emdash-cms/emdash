@@ -390,6 +390,46 @@ describe("object cache: content read-through", () => {
 		expect(result.cacheHint.tags).toEqual(["db-hello", "post"]);
 	});
 
+	it("tags a legacy-locale-code entry served from a snapshot without the collection tag", async () => {
+		__setObjectCacheBackendForTests(
+			backendWithCachedValue({
+				ok: true,
+				value: {
+					entry: { id: "hello", data: { id: "db-hello", title: "Hello", locale: "en-US" } },
+					isPreview: false,
+					cacheHint: { tags: ["db-hello"] },
+				},
+			}),
+		);
+
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello", { locale: "en" }),
+		);
+
+		expect(getLiveEntry).not.toHaveBeenCalled();
+		expect(result.cacheHint.tags).toEqual(["db-hello", "post"]);
+	});
+
+	it("keeps a requested-locale entry served from a snapshot without the collection tag", async () => {
+		__setObjectCacheBackendForTests(
+			backendWithCachedValue({
+				ok: true,
+				value: {
+					entry: { id: "hello", data: { id: "db-hello", title: "Hello", locale: "en" } },
+					isPreview: false,
+					cacheHint: { tags: ["db-hello"] },
+				},
+			}),
+		);
+
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello", { locale: "en" }),
+		);
+
+		expect(getLiveEntry).not.toHaveBeenCalled();
+		expect(result.cacheHint.tags).toEqual(["db-hello"]);
+	});
+
 	it("does not read scheduled content cached under the previous namespace", async () => {
 		const stale = {
 			id: "db-due",
