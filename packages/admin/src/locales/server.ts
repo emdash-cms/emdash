@@ -128,6 +128,37 @@ export function translateVisualEditingToolbarLabels(
 	};
 }
 
+export interface AdminShellLabels {
+	title: string;
+	loading: string;
+}
+
+const ADMIN_SHELL_MESSAGES = {
+	title: msg({ id: "adminShell.title", message: "{siteName} Admin" }),
+	defaultTitle: msg({ id: "adminShell.defaultTitle", message: "EmDash Admin" }),
+	loading: msg({ id: "adminShell.loading", message: "Loading {siteName}..." }),
+	defaultLoading: msg({ id: "adminShell.defaultLoading", message: "Loading EmDash..." }),
+} satisfies Record<string, MessageDescriptor>;
+
+/**
+ * Labels for the admin shell that `admin.astro` renders before the React app
+ * starts: the browser tab title and the loading text.
+ */
+export function translateAdminShellLabels(messages: Messages, siteName?: string): AdminShellLabels {
+	if (!siteName) {
+		return {
+			title: resolveToolbarMessage(messages, ADMIN_SHELL_MESSAGES.defaultTitle),
+			loading: resolveToolbarMessage(messages, ADMIN_SHELL_MESSAGES.defaultLoading),
+		};
+	}
+	// A replacer function keeps `$` sequences in the site name literal.
+	const withSiteName = (label: string) => label.replaceAll("{siteName}", () => siteName);
+	return {
+		title: withSiteName(resolveToolbarMessage(messages, ADMIN_SHELL_MESSAGES.title)),
+		loading: withSiteName(resolveToolbarMessage(messages, ADMIN_SHELL_MESSAGES.loading)),
+	};
+}
+
 export async function loadVisualEditingToolbarLabels(
 	request: Request,
 ): Promise<VisualEditingToolbarLabels> {
