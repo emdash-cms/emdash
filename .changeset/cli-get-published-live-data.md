@@ -2,4 +2,4 @@
 "emdash": patch
 ---
 
-Fixes `emdash content get --published` so it returns an entry's published field values when a draft is pending. Users who can read drafts previously received the draft's values. `EmDashClient.get()` accepts a matching `published: true` option.
+Fixes `emdash content get --published` returning draft values when an entry has a pending draft. It now returns the published values. `EmDashClient.get()` also accepts a `published: true` option.
