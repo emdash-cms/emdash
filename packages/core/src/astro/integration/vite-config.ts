@@ -11,7 +11,7 @@ import { dirname, isAbsolute, relative, resolve, win32 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
-import type { Plugin, Rollup } from "vite";
+import type { Plugin, Rollup, ViteDevServer } from "vite";
 
 import { COMMIT, VERSION } from "../../version.js";
 import { shutdownRuntime } from "../runtime-holder.js";
@@ -56,6 +56,9 @@ import {
 	RESOLVED_VIRTUAL_ROOMS_ID,
 	VIRTUAL_ROOM_ENGINE_ID,
 	RESOLVED_VIRTUAL_ROOM_ENGINE_ID,
+	VIRTUAL_PAGE_ROUTES_ID,
+	RESOLVED_VIRTUAL_PAGE_ROUTES_ID,
+	generatePageRoutesModule,
 	generateSeedModule,
 	generateWaitUntilModule,
 	generateSchedulerModule,
@@ -195,13 +198,24 @@ export interface VitePluginOptions {
 	pluginDescriptors: PluginDescriptor[];
 	/** Astro config */
 	astroConfig: AstroConfig;
+	/** Returns route metadata collected by Astro after config setup. */
+	getPageRoutes?: () => { source: string; flags: string }[];
+	/** Registers a callback for invalidating route metadata in the dev module graph. */
+	registerPageRoutesInvalidator?: (invalidator: () => void) => void;
 }
 
 /**
  * Creates the EmDash virtual modules Vite plugin.
  */
 export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
-	const { serializableConfig, resolvedConfig, pluginDescriptors, astroConfig } = options;
+	const {
+		serializableConfig,
+		resolvedConfig,
+		pluginDescriptors,
+		astroConfig,
+		getPageRoutes,
+		registerPageRoutesInvalidator,
+	} = options;
 
 	let viteCommand: "build" | "serve" | undefined;
 	let adminEntryReference: string | undefined;
@@ -237,6 +251,22 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 		},
 		configResolved(config) {
 			viteCommand = config.command;
+		},
+		configureServer(server: ViteDevServer) {
+			registerPageRoutesInvalidator?.(() => {
+				const graphs = Object.values(server.environments ?? {}).map(
+					(environment) => environment.moduleGraph,
+				);
+				if (graphs.length === 0) {
+					const module = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_PAGE_ROUTES_ID);
+					if (module) server.moduleGraph.invalidateModule(module);
+					return;
+				}
+				for (const graph of graphs) {
+					const module = graph.getModuleById(RESOLVED_VIRTUAL_PAGE_ROUTES_ID);
+					if (module) graph.invalidateModule(module);
+				}
+			});
 		},
 		resolveId(id: string) {
 			if (id === VIRTUAL_ADMIN_LOADER_ID) return RESOLVED_ADMIN_LOADER_ID;
@@ -297,6 +327,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 			if (id === VIRTUAL_ROOM_ENGINE_ID) {
 				return RESOLVED_VIRTUAL_ROOM_ENGINE_ID;
+			}
+			if (id === VIRTUAL_PAGE_ROUTES_ID) {
+				return RESOLVED_VIRTUAL_PAGE_ROUTES_ID;
 			}
 		},
 		load(id: string) {
@@ -436,6 +469,9 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			}
 			if (id === RESOLVED_VIRTUAL_ROOM_ENGINE_ID) {
 				return generateRoomEngineModule(resolvedConfig.coEditing === true);
+			}
+			if (id === RESOLVED_VIRTUAL_PAGE_ROUTES_ID) {
+				return generatePageRoutesModule(getPageRoutes?.() ?? []);
 			}
 		},
 	};

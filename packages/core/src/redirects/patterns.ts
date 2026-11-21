@@ -244,3 +244,24 @@ export function normalizeSourcePath(source: string): string {
 		return source;
 	}
 }
+
+/**
+ * Protect percent layers before URI normalization so encoded Unicode and
+ * reserved characters cannot be confused with their decoded spellings.
+ */
+export function redirectNormalizationInput(path: string, encodeBarePercent = true): string {
+	if (!path.includes("%")) return path;
+	const raw = encodeBarePercent ? path.replace(/%(?![\da-f]{2})/gi, "%25") : path;
+	return raw.replace(/%25/gi, "%2525");
+}
+
+export function normalizeRedirectPath(source: string, encodeBarePercent = true): string {
+	if (source.includes("?") || source.includes("#")) return source;
+	try {
+		const url = new URL("http://placeholder.invalid");
+		url.pathname = decodeURI(redirectNormalizationInput(source, encodeBarePercent));
+		return url.pathname;
+	} catch {
+		return encodeBarePercent ? source.replace(/%(?![\da-f]{2})/gi, "%25") : source;
+	}
+}

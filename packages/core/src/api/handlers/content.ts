@@ -18,7 +18,7 @@ import {
 } from "../../database/repositories/content.js";
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
-import { RedirectRepository, redirectPathVariants } from "../../database/repositories/redirect.js";
+import { RedirectRepository } from "../../database/repositories/redirect.js";
 import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -44,13 +44,19 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
-import { interpolateUrlPattern } from "../../i18n/resolve.js";
+import { interpolateUrlPattern, resolveLocalizedContentRoutePath } from "../../i18n/resolve.js";
 import {
 	scheduledPolicyRejectionKey,
 	type ScheduledPolicyRejection,
 } from "../../plugins/content-policy.js";
 import { publishRedirectChanges } from "../../redirects/artifacts.js";
 import { invalidateRedirectCache } from "../../redirects/cache.js";
+import { normalizeRedirectPath, redirectNormalizationInput } from "../../redirects/patterns.js";
+import {
+	importSourceKey,
+	importSourceLookupVariants,
+	normalizationChangesPath,
+} from "../../redirects/source-paths.js";
 import { requestCached } from "../../request-cache.js";
 import { isStoragelessFieldRow } from "../../schema/types.js";
 import { FTSManager } from "../../search/fts-manager.js";
@@ -834,6 +840,12 @@ async function createSlugChangeRedirect(
 	return redirect !== null;
 }
 
+const TRAILING_SLASH = /\/$/;
+
+function addRedirectCleanupSource(source: string, target: Set<string>): void {
+	for (const variant of importSourceLookupVariants([source])) target.add(variant);
+}
+
 /**
  * Remove any auto-redirect whose source is the URL a newly published entry
  * now occupies. This prevents an earlier slug-change redirect from shadowing
@@ -845,6 +857,7 @@ async function removeShadowingAutoRedirect(
 	slug: string | null | undefined,
 	contentId: string,
 	publishedAt: string | null | undefined,
+	locale?: string | null,
 ): Promise<boolean> {
 	if (!slug) return false;
 	validateIdentifier(collection, "collection slug");
@@ -863,10 +876,77 @@ async function removeShadowingAutoRedirect(
 		date: publishedAt,
 	});
 
+	const sources = new Set<string>();
+	const importerSources = new Set<string>();
+	const importerKeys = new Set<string>();
+	const importerLookups = new Set<string>();
+	// Legacy unprefixed aliases may belong to a different locale's imported entry.
+	addRedirectCleanupSource(url, sources);
+
+	const routeLocale = locale || (!isI18nEnabled() ? "en" : undefined);
+	if (routeLocale) {
+		const localized = await resolveLocalizedContentRoutePath({
+			pattern: collectionRow?.url_pattern ?? null,
+			collection,
+			slug,
+			id: contentId,
+			date: publishedAt,
+			locale: routeLocale,
+		});
+		if (localized) {
+			const base = (import.meta.env.BASE_URL || "/").replace(TRAILING_SLASH, "");
+			const canonical = `${base}${localized}`;
+			if (normalizationChangesPath(redirectNormalizationInput(canonical))) {
+				console.warn(
+					"[emdash:content] URL normalization rewrites this entry's pathname; preserved redirects at the normalized path may still shadow it. Review those redirects or choose a slug without rewritten characters.",
+					{ source: canonical, normalized: normalizeRedirectPath(canonical) },
+				);
+			}
+			addRedirectCleanupSource(canonical, sources);
+			importerKeys.add(importSourceKey(canonical));
+			for (const source of importSourceLookupVariants([canonical])) importerLookups.add(source);
+		}
+	}
+
+	if (importerKeys.size > 0) {
+		const imported = await db
+			.selectFrom("_emdash_redirects")
+			.select("source")
+			.where("source", "in", [...importerLookups])
+			.where("auto", "=", 1)
+			.where("group_name", "=", "WordPress import")
+			.where("enabled", "=", 1)
+			.where("is_pattern", "=", 0)
+			.where("type", "=", 301)
+			.execute();
+		for (const row of imported) {
+			if (importerKeys.has(importSourceKey(row.source))) {
+				importerSources.add(row.source);
+				sources.add(row.source);
+			}
+		}
+	}
+
 	const result = await db
 		.deleteFrom("_emdash_redirects")
-		.where("source", "in", redirectPathVariants(url))
+		.where("source", "in", [...sources])
 		.where("auto", "=", 1)
+		.where((eb) =>
+			eb.or([
+				eb("group_name", "is", null),
+				eb("group_name", "!=", "WordPress import"),
+				...(importerSources.size > 0
+					? [
+							eb.and([
+								eb("source", "in", [...importerSources]),
+								eb("enabled", "=", 1),
+								eb("is_pattern", "=", 0),
+								eb("type", "=", 301),
+							]),
+						]
+					: []),
+			]),
+		)
 		.executeTakeFirst();
 	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
 	if (removed) invalidateRedirectCache();
@@ -1482,6 +1562,7 @@ export async function handleContentCreate(
 					created.slug,
 					created.id,
 					created.publishedAt,
+					created.locale,
 				);
 			}
 
@@ -1812,6 +1893,7 @@ export async function handleContentUpdate(
 						updated.slug,
 						updated.id,
 						updated.publishedAt,
+						updated.locale,
 					)) || redirectChanged;
 			}
 
@@ -2646,6 +2728,7 @@ export async function handleContentPublish(
 					published.slug,
 					published.id,
 					published.publishedAt,
+					published.locale,
 				)) || redirectChanged;
 
 			return published;
