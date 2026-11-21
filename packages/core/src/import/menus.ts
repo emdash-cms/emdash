@@ -27,6 +27,8 @@ const POLYLANG_SWITCHER_URL = "#pll_switcher";
 export interface MenuImportResult {
 	/** Number of menus created */
 	menusCreated: number;
+	/** Number of menus skipped because a same-named menu already exists */
+	menusSkipped: number;
 	/** Number of menu items created */
 	itemsCreated: number;
 	/** Mapping from WP menu slug to EmDash menu ID */
@@ -121,10 +123,10 @@ export async function importMenusFromWxr(
 ): Promise<WxrMenuImportResult> {
 	const result: WxrMenuImportResult = {
 		menusCreated: 0,
+		menusSkipped: 0,
 		itemsCreated: 0,
 		menuIdMap: new Map(),
 		errors: [],
-		menusSkipped: 0,
 		itemsSkipped: 0,
 	};
 	const repo = new MenuRepository(db);
@@ -180,6 +182,7 @@ export async function importMenusFromPlugin(
 ): Promise<MenuImportResult> {
 	const result: MenuImportResult = {
 		menusCreated: 0,
+		menusSkipped: 0,
 		itemsCreated: 0,
 		menuIdMap: new Map(),
 		errors: [],
@@ -196,6 +199,7 @@ export async function importMenusFromPlugin(
 
 			if (existing) {
 				result.menuIdMap.set(menu.name, existing.id);
+				result.menusSkipped++;
 				continue;
 			}
 
