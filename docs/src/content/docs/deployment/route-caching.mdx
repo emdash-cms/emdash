@@ -123,7 +123,7 @@ Tag the route with the collection or taxonomy it looks up, even when no entry or
 
 Cache hits skip rendering and writing to the 404 log, so the admin's 404 hit counts record origin misses rather than every request. Each distinct missing URL occupies its own cache entry; scanners requesting random slugs get no reuse and can evict useful pages from a size-limited cache such as `memoryCache()`. To keep a miss uncached, call `Astro.cache.set(false)` in the 404 page's frontmatter (or in the miss branch for a directly returned 404), and keep later layout code from re-enabling caching.
 
-URLs that match no Astro route still have no route-cache handle and remain uncached. Internal paths (`/_emdash`, `/_image`) and paths ending in a file extension bypass the redirect middleware and do not get this 404 lifetime limit.
+URLs that match no Astro route still have no route-cache handle and remain uncached. Internal paths (`/_emdash`, `/_image`) bypass the redirect middleware and do not get this 404 lifetime limit. Paths ending in a file extension match exact redirect rules only; their 404 responses also skip this lifetime limit.
 
 Other error responses, such as a 500 rendered on a cached route, inherit the rule's TTL. Opt them out with `Astro.cache.set(false)`.
 
