@@ -100,6 +100,7 @@ const { entry: post, error } = await getEmDashEntry("posts", slug, {
   locale: Astro.currentLocale,
 });
 
+if (error) throw error;
 if (!post) return Astro.rewrite("/404");
 ---
 
@@ -468,7 +469,7 @@ import { getEmDashEntry, getHreflangAlternates } from "emdash";
 const { entry, error } = await getEmDashEntry("posts", Astro.params.slug, {
 	locale: Astro.currentLocale,
 });
-if (error) return new Response("Server error", { status: 500 });
+if (error) throw error;
 if (!entry) return Astro.rewrite("/404");
 
 const alternates = await getHreflangAlternates("posts", entry.data.id, {

@@ -18,9 +18,8 @@ const [settings, homeResult, projectsResult] = await Promise.all([
 	getEmDashEntry("pages", "home"),
 	getSelectedWork(),
 ]);
-if (homeResult.error || projectsResult.error) {
-	return new Response("Could not load the portfolio", { status: 500 });
-}
+if (homeResult.error) throw homeResult.error;
+if (projectsResult.error) throw projectsResult.error;
 const home = homeResult.entry;
 if (Astro.cache?.enabled) {
 	Astro.cache.set(homeResult.cacheHint);
