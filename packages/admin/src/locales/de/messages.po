@@ -321,7 +321,7 @@ msgstr "{0, plural, one {# Menü wird importiert} other {# Menüs werden importi
 #. placeholder {0}: users.length
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:69
 msgid "{0, plural, one {# other person here} other {# other people here}}"
-msgstr ""
+msgstr "{0, plural, one {# weitere Person hier} other {# weitere Personen hier}}"
 
 #. placeholder {0}: capabilities.length
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:224
@@ -457,7 +457,7 @@ msgstr "{0, plural, one {# weiteres anzeigen} other {# weitere anzeigen}}"
 #. placeholder {0}: users.length
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:156
 msgid "{0, plural, one {Show the # person here} other {Show the # people here}}"
-msgstr ""
+msgstr "{0, plural, one {# anwesende Person anzeigen} other {# anwesende Personen anzeigen}}"
 
 #. placeholder {0}: stats.userCount
 #: packages/admin/src/components/Dashboard.tsx:428
@@ -851,7 +851,7 @@ msgstr "{minimum, plural, one {Verwende mindestens # Zeichen} other {Verwende mi
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:155
 msgid "{more, plural, one {Show # more person} other {Show # more people}}"
-msgstr ""
+msgstr "{more, plural, one {# weitere Person anzeigen} other {# weitere Personen anzeigen}}"
 
 #: packages/admin/src/components/BlockListField.tsx:677
 #: packages/admin/src/components/BlocksField.tsx:1129
@@ -865,15 +865,15 @@ msgstr "{moved} ist bereits an letzter Stelle"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:64
 msgid "{name} · Editing {field}"
-msgstr ""
+msgstr "{name} · Bearbeitet gerade „{field}“"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:62
 msgid "{name} · Viewing"
-msgstr ""
+msgstr "{name} · Sieht zu"
 
 #: packages/admin/src/router.tsx:1279
 msgid "{name} changed this entry"
-msgstr ""
+msgstr "{name} hat diesen Eintrag geändert"
 
 #: packages/admin/src/lib/content-validation-errors.ts:76
 msgid "{name} does not match the required format."
@@ -941,7 +941,7 @@ msgstr "{origin} leitet auf {target} weiter. Gib stattdessen diese Adresse ein."
 
 #: packages/admin/src/components/revisions/revision-format.ts:131
 msgid "{others, plural, one {# other person} other {# other people}}"
-msgstr ""
+msgstr "{others, plural, one {noch # Person} other {noch # Personen}}"
 
 #: packages/admin/src/components/Dashboard.tsx:158
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
@@ -1029,27 +1029,27 @@ msgstr "{selectedCount, plural, one {# Element in den Papierkorb verschieben? Du
 
 #: packages/admin/src/components/ContentList.tsx:625
 msgid "{selectedCount, plural, one {Publish # item?} other {Publish # items?}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {# Element veröffentlichen?} other {# Elemente veröffentlichen?}}"
 
 #: packages/admin/src/components/ContentList.tsx:666
 msgid "{selectedCount, plural, one {Set # item to draft?} other {Set # items to draft?}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {# Element auf Entwurf setzen?} other {# Elemente auf Entwurf setzen?}}"
 
 #: packages/admin/src/components/ContentList.tsx:631
 msgid "{selectedCount, plural, one {This removes its schedule and publishes it immediately.} other {This removes their schedules and publishes them immediately.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {Dadurch wird die Planung aufgehoben und das Element sofort veröffentlicht.} other {Dadurch werden die Planungen aufgehoben und die Elemente sofort veröffentlicht.}}"
 
 #: packages/admin/src/components/ContentList.tsx:672
 msgid "{selectedCount, plural, one {This removes its schedule. Visitors won't see it until you publish it again.} other {This removes their schedules. Visitors won't see them until you publish them again.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {Dadurch wird die Planung aufgehoben. Besucher sehen das Element erst wieder, wenn du es erneut veröffentlichst.} other {Dadurch werden die Planungen aufgehoben. Besucher sehen die Elemente erst wieder, wenn du sie erneut veröffentlichst.}}"
 
 #: packages/admin/src/components/ContentList.tsx:635
 msgid "{selectedCount, plural, one {Visitors will see it immediately.} other {Visitors will see them immediately.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {Besucher sehen es sofort.} other {Besucher sehen sie sofort.}}"
 
 #: packages/admin/src/components/ContentList.tsx:677
 msgid "{selectedCount, plural, one {Visitors won't see it until you publish it again.} other {Visitors won't see them until you publish them again.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {Besucher sehen es erst wieder, wenn du es erneut veröffentlichst.} other {Besucher sehen sie erst wieder, wenn du sie erneut veröffentlichst.}}"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:235
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
@@ -1169,7 +1169,7 @@ msgstr "← Zurück"
 #: packages/admin/src/components/presence/FieldPresence.tsx:48
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:152
 msgid "+{more}"
-msgstr ""
+msgstr "+{more}"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:418
 msgid "<0>{from}</0> becomes <1>{to}</1>"
@@ -2297,7 +2297,7 @@ msgstr "Beliebig viele"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:60
 msgid "Anything typed into the changed fields during the restore will be lost."
-msgstr ""
+msgstr "Was während der Wiederherstellung in die geänderten Felder eingegeben wird, geht verloren."
 
 #: packages/admin/src/components/Settings.tsx:105
 #: packages/admin/src/components/Settings.tsx:109
@@ -2775,7 +2775,7 @@ msgstr "Beide Referenzfelder dieser Beziehung teilen sich diese Limits, sodass s
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:17
 msgid "Breadcrumb"
-msgstr ""
+msgstr "Breadcrumb"
 
 #: packages/admin/src/components/SeoPanel.tsx:317
 msgid "Brief summary shown below the title in search results"
@@ -2934,7 +2934,7 @@ msgstr "Kann Inhalte ansehen"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:150
 msgid "Can’t reach EmDash"
-msgstr ""
+msgstr "EmDash ist nicht erreichbar"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:325
 #: packages/admin/src/components/BulkTagDialog.tsx:506
@@ -3534,7 +3534,7 @@ msgstr "Klicke auf diesen Link, um dich bei {siteName} anzumelden:"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:19
 msgid "Click to copy"
-msgstr ""
+msgstr "Zum Kopieren klicken"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:275
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:324
@@ -3803,7 +3803,7 @@ msgstr "Verbunden am {0}"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:146
 msgid "Connecting to the live version of this entry."
-msgstr ""
+msgstr "Der aktuelle Stand dieses Eintrags wird geladen."
 
 #: packages/auth-atproto/src/admin.tsx:111
 #: packages/auth-atproto/src/admin.tsx:200
@@ -3889,7 +3889,7 @@ msgstr "Inhalt auf Entwurf zurückgesetzt"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
 msgid "Content search is unavailable. Paste a URL instead."
-msgstr ""
+msgstr "Die Inhaltssuche ist nicht verfügbar. Füge stattdessen eine URL ein."
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
@@ -3995,7 +3995,7 @@ msgstr "In die Zwischenablage kopiert"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:18
 msgid "Copy"
-msgstr ""
+msgstr "Kopieren"
 
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 msgid "Copy {label}"
@@ -4016,7 +4016,7 @@ msgstr "Einladungslink kopieren"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:238
 msgid "Copy my edits"
-msgstr ""
+msgstr "Meine Änderungen kopieren"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copy receipt"
@@ -4127,7 +4127,7 @@ msgstr "Ob das Medienelement oder der gewählte Ordner noch existiert, ließ sic
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:223
 msgid "Couldn’t copy. Select the text on the page and copy it instead."
-msgstr ""
+msgstr "Kopieren fehlgeschlagen. Markiere den Text auf der Seite und kopiere ihn stattdessen selbst."
 
 #: packages/admin/src/components/WordPressImport.tsx:1317
 msgid "Couldn't detect WordPress"
@@ -4135,7 +4135,7 @@ msgstr "WordPress wurde nicht erkannt"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:147
 msgid "Couldn’t join. Try again."
-msgstr ""
+msgstr "Verbindung fehlgeschlagen. Versuche es erneut."
 
 #: packages/admin/src/components/ContentEditor.tsx:4711
 msgid "Couldn't load all references."
@@ -4964,7 +4964,7 @@ msgstr "Wird gelöscht…"
 #. placeholder {0}: blocker.slug
 #: packages/admin/src/components/settings/transfer/labels.ts:109
 msgid "Deletion of collection “{0}” failed. Retry it by sending {body} to {action} before importing."
-msgstr ""
+msgstr "Das Löschen der Sammlung „{0}“ ist fehlgeschlagen. Starte es vor dem Import erneut, indem du {body} an {action} sendest."
 
 #: packages/admin/src/lib/api/marketplace.ts:446
 #: packages/admin/src/lib/api/marketplace.ts:457
@@ -5718,11 +5718,11 @@ msgstr "Alt-Text bearbeitet"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:475
 msgid "Edited by <0>{people}</0>"
-msgstr ""
+msgstr "Bearbeitet von <0>{people}</0>"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:311
 msgid "Editing {field}"
-msgstr ""
+msgstr "Bearbeitet gerade „{field}“"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:301
 msgid "Editing is paused until the import finishes. Keep this page open; if you leave, the import continues when you come back."
@@ -5879,15 +5879,15 @@ msgstr "EmDash {latest} ist verfügbar (du verwendest {0})"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:145
 msgid "EmDash couldn’t join this entry yet and keeps trying every few seconds."
-msgstr ""
+msgstr "EmDash konnte sich noch nicht mit diesem Eintrag verbinden und versucht es alle paar Sekunden erneut."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:172
 msgid "EmDash couldn’t keep the edits you made before joining as a recovery revision. Copy them, or try again."
-msgstr ""
+msgstr "EmDash konnte die Änderungen, die du vor dem Verbinden gemacht hast, nicht als Revision sichern. Kopiere sie oder versuche es erneut."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:168
 msgid "EmDash couldn’t merge them or keep them as a recovery revision. Your edits are still on this page."
-msgstr ""
+msgstr "EmDash konnte sie weder zusammenführen noch als Revision sichern. Deine Änderungen sind noch auf dieser Seite."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1955
 msgid "EmDash does not keep the previous image."
@@ -5911,7 +5911,7 @@ msgstr "EmDash erhält niemals deine PIN, dein Passwort oder deine biometrischen
 
 #: packages/admin/src/router.tsx:2597
 msgid "EmDash or this entry’s fields changed since you opened it."
-msgstr ""
+msgstr "EmDash oder die Felder dieses Eintrags haben sich geändert, seit du ihn geöffnet hast."
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:39
 msgid "EmDash site package"
@@ -6895,7 +6895,7 @@ msgstr "Abrufen der Revision fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:669
 msgid "Failed to fetch revision editors"
-msgstr ""
+msgstr "Abrufen der Bearbeiter der Revisionen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:649
 msgid "Failed to fetch revisions"
@@ -7260,7 +7260,7 @@ msgstr "Speichern fehlgeschlagen"
 
 #: packages/admin/src/lib/api/rooms.ts:90
 msgid "Failed to save a recovery revision"
-msgstr ""
+msgstr "Sichern der Änderungen als Revision fehlgeschlagen"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:103
 msgid "Failed to save backup settings"
@@ -7653,7 +7653,7 @@ msgstr "Filter: {activeCount} ausgewählt"
 
 #: packages/admin/src/router.tsx:1235
 msgid "Find it in this entry’s revisions."
-msgstr ""
+msgstr "Du findest sie unter den Revisionen dieses Eintrags."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:590
 msgid "Finish any current edits."
@@ -8040,7 +8040,7 @@ msgstr "Vor Suchmaschinen verbergen"
 
 #: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Hide settings"
-msgstr ""
+msgstr "Einstellungen ausblenden"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:294
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:301
@@ -8717,7 +8717,7 @@ msgstr "Isolierter Frame"
 
 #: packages/admin/src/components/ContentEditor.tsx:2968
 msgid "It has formatting this editor can’t keep."
-msgstr ""
+msgstr "Sie enthält Formatierungen, die dieser Editor nicht beibehalten kann."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:507
 msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
@@ -8729,7 +8729,7 @@ msgstr "Er wurde an anderer Stelle gestartet, daher kann der Plan nicht mehr ge�
 
 #: packages/admin/src/router.tsx:2618
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
-msgstr ""
+msgstr "Er wird schreibgeschützt angezeigt. Einträge im Papierkorb lassen sich dort wiederherstellen."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3645
 #: packages/admin/src/components/PortableTextEditor.tsx:5202
@@ -8788,24 +8788,24 @@ msgstr "job_title"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:148
 msgid "Join"
-msgstr ""
+msgstr "Mitbearbeiten"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:167
 msgid "Join them to edit it together, or open it read-only."
-msgstr ""
+msgstr "Bearbeite ihn gemeinsam mit ihnen oder öffne ihn schreibgeschützt."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:143
 msgid "Joining this entry"
-msgstr ""
+msgstr "Verbindung wird hergestellt"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:148
 msgid "Joining..."
-msgstr ""
+msgstr "Wird verbunden..."
 
 #: packages/admin/src/components/ContentEditor.tsx:3261
 #: packages/admin/src/components/SaveButton.tsx:54
 msgid "Joining…"
-msgstr ""
+msgstr "Wird verbunden…"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:65
 msgid "JS"
@@ -8867,11 +8867,11 @@ msgstr "Tippe weiter, um die Liste einzugrenzen."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:153
 msgid "Keep typing. Your edits stay in this tab and save once EmDash can be reached again, so keep the tab open. Until then, you can’t publish or preview."
-msgstr ""
+msgstr "Schreib einfach weiter. Deine Änderungen bleiben in diesem Tab und werden gespeichert, sobald EmDash wieder erreichbar ist. Lass den Tab deshalb geöffnet. Bis dahin kannst du weder veröffentlichen noch eine Vorschau öffnen."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:159
 msgid "Keep typing. Your edits stay in this tab and save when you’re back online, so keep the tab open. Until then, you can’t publish or preview."
-msgstr ""
+msgstr "Schreib einfach weiter. Deine Änderungen bleiben in diesem Tab und werden gespeichert, sobald du wieder online bist. Lass den Tab deshalb geöffnet. Bis dahin kannst du weder veröffentlichen noch eine Vorschau öffnen."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:315
 #: packages/admin/src/components/SectionEditor.tsx:287
@@ -9846,7 +9846,7 @@ msgstr "Weitere Formatierungen"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:16
 msgid "More information"
-msgstr ""
+msgstr "Weitere Informationen"
 
 #: packages/admin/src/components/DialogSection.tsx:28
 #: packages/admin/src/components/FieldHelpLabel.tsx:110
@@ -10755,7 +10755,7 @@ msgstr "In dieser Version nicht enthalten"
 #: packages/admin/src/components/SaveButton.tsx:56
 #: packages/admin/src/components/SaveButton.tsx:57
 msgid "Not saved"
-msgstr ""
+msgstr "Nicht gespeichert"
 
 #: packages/admin/src/components/ContentEditor.tsx:3277
 msgid "Not saved yet"
@@ -10790,7 +10790,7 @@ msgstr "Noch nichts für die Vorschau vorhanden."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:197
 msgid "Nothing you change here will be saved."
-msgstr ""
+msgstr "Was du hier änderst, wird nicht gespeichert."
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:104
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:385
@@ -10828,7 +10828,7 @@ msgstr "Aus"
 #: packages/admin/src/components/ContentEditor.tsx:3263
 #: packages/admin/src/components/SaveButton.tsx:55
 msgid "Offline"
-msgstr ""
+msgstr "Offline"
 
 #: packages/admin/src/components/SeoImageField.tsx:88
 msgid "OG Image"
@@ -11055,11 +11055,11 @@ msgstr "Sonstige"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:152
 msgid "Other people’s edits show here again once EmDash can be reached."
-msgstr ""
+msgstr "Änderungen anderer Personen erscheinen hier wieder, sobald EmDash erreichbar ist."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:158
 msgid "Other people’s edits show here again once you’re back online."
-msgstr ""
+msgstr "Änderungen anderer Personen erscheinen hier wieder, sobald du wieder online bist."
 
 #: packages/admin/src/components/editor/DocumentOutline.tsx:242
 #: packages/admin/src/lib/editor-sections.ts:38
@@ -11243,7 +11243,7 @@ msgstr "Passwort"
 #. placeholder {0}: result.passwordProtected.length
 #: packages/admin/src/components/WordPressImport.tsx:2413
 msgid "Password-Protected Entries ({0})"
-msgstr ""
+msgstr "Passwortgeschützte Einträge ({0})"
 
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:248
 msgid "Paste an embed code or an https link…"
@@ -11307,11 +11307,11 @@ msgstr "Ausstehende Änderungen"
 #: packages/admin/src/components/EntryLockNotice.tsx:162
 #: packages/admin/src/components/EntryLockNotice.tsx:189
 msgid "People are editing this entry together"
-msgstr ""
+msgstr "Mehrere Personen bearbeiten diesen Eintrag gemeinsam"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:307
 msgid "People in this entry"
-msgstr ""
+msgstr "Personen in diesem Eintrag"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:545
 msgid "People shown publicly on this post."
@@ -11673,7 +11673,7 @@ msgstr "Vorschau von {0}"
 
 #: packages/admin/src/router.tsx:1467
 msgid "Preview opens once your edits are saved"
-msgstr ""
+msgstr "Die Vorschau öffnet sich, sobald deine Änderungen gespeichert sind"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:579
 msgid "Preview unavailable for this format"
@@ -12158,7 +12158,7 @@ msgstr "Release Notes"
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:109
 #: packages/admin/src/router.tsx:2605
 msgid "Reload"
-msgstr ""
+msgstr "Neu laden"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:325
 msgid "Reload after updating EmDash before trying again."
@@ -12170,7 +12170,7 @@ msgstr "Seite neu laden"
 
 #: packages/admin/src/router.tsx:2596
 msgid "Reloading the admin"
-msgstr ""
+msgstr "Der Adminbereich wird neu geladen"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:489
 msgid "Reloading the plan…"
@@ -13985,7 +13985,7 @@ msgstr "Beitragsanzahl anzeigen"
 
 #: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Show settings"
-msgstr ""
+msgstr "Einstellungen anzeigen"
 
 #: packages/admin/src/components/Widgets.tsx:145
 msgid "Show thumbnails"
@@ -14365,7 +14365,7 @@ msgstr "Einige Referenzen verweisen auf Inhalte, die nicht im Paket enthalten si
 
 #: packages/admin/src/router.tsx:1277
 msgid "Someone"
-msgstr ""
+msgstr "Jemand"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:160
 #: packages/admin/src/components/SignupPage.tsx:288
@@ -14847,7 +14847,7 @@ msgstr "das Feld {0} in {1}, das Einträge auswählt, auf die es verweist"
 
 #: packages/admin/src/router.tsx:1210
 msgid "The admin was updated"
-msgstr ""
+msgstr "Der Adminbereich wurde aktualisiert"
 
 #: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
@@ -15138,11 +15138,11 @@ msgstr "Das Plugin hat diese Änderungen nicht gespeichert. Prüfe sie, bevor du
 
 #: packages/admin/src/components/ContentEditor.tsx:2673
 msgid "The plugin proposed a value this editor can't load."
-msgstr ""
+msgstr "Das Plugin hat einen Wert vorgeschlagen, den dieser Editor nicht laden kann."
 
 #: packages/admin/src/components/ContentEditor.tsx:2678
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
-msgstr ""
+msgstr "Das Ergebnis des Plugins enthält Formatierungen, die dieser Editor nicht darstellen kann, deshalb wurde es nicht übernommen."
 
 #: packages/admin/src/components/ContentEditor.tsx:1890
 #: packages/admin/src/components/ContentEditor.tsx:2667
@@ -15310,7 +15310,7 @@ msgstr "Weiterleitungen werden vor dem Import nicht auf Endlosschleifen geprüft
 
 #: packages/admin/src/components/WordPressImport.tsx:2416
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
-msgstr ""
+msgstr "Diese Einträge sind in WordPress passwortgeschützt. EmDash kennt keine Passwörter für einzelne Einträge, deshalb wurden sie als Entwürfe importiert. Prüfe jeden einzelnen, bevor du ihn veröffentlichst."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:295
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
@@ -15318,7 +15318,7 @@ msgstr "Diese Tools bleiben nach der Installation deaktiviert, bis du den Agent-
 
 #: packages/admin/src/router.tsx:1280
 msgid "They changed its publishing or schedule, or replaced its draft."
-msgstr ""
+msgstr "Die Veröffentlichung oder Planung wurde geändert oder der Entwurf ersetzt."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:921
 msgid "This also removes:"
@@ -15351,7 +15351,7 @@ msgstr "Dieser Block verwendet eine ältere Version seines Typs. Nach dem Lösch
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3221
 msgid "This block was deleted, so your changes can't be saved."
-msgstr ""
+msgstr "Dieser Block wurde gelöscht, deshalb können deine Änderungen nicht gespeichert werden."
 
 #: packages/admin/src/components/BlocksField.tsx:954
 msgid "This block's stored definition is unavailable, so it can't be restored after you delete it."
@@ -15359,7 +15359,7 @@ msgstr "Die Definition für die Version dieses Blocks ist nicht verfügbar. Nach
 
 #: packages/admin/src/components/EntryLockNotice.tsx:198
 msgid "This browser can’t join them, so nothing you change here will be saved."
-msgstr ""
+msgstr "Mit diesem Browser kannst du nicht mitbearbeiten, deshalb wird nichts gespeichert, was du hier änderst."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:225
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
@@ -15438,7 +15438,7 @@ msgstr "Dieser Eintrag ist schreibgeschützt, weil das Schema Feldtypen verwende
 
 #: packages/admin/src/components/ContentEditor.tsx:2318
 msgid "This entry is still loading."
-msgstr ""
+msgstr "Dieser Eintrag wird noch geladen."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:409
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
@@ -15446,11 +15446,11 @@ msgstr "Dieser Eintrag hätte {lateness} veröffentlicht werden sollen, wurde ab
 
 #: packages/admin/src/router.tsx:2617
 msgid "This entry was moved to Trash or deleted"
-msgstr ""
+msgstr "Dieser Eintrag wurde in den Papierkorb verschoben oder gelöscht"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:167
 msgid "This entry was moved to Trash or deleted. Your edits are still on this page."
-msgstr ""
+msgstr "Dieser Eintrag wurde in den Papierkorb verschoben oder gelöscht. Deine Änderungen sind noch auf dieser Seite."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:224
 msgid "This export is large"
@@ -16026,7 +16026,7 @@ msgstr "Versuche es erneut"
 
 #: packages/admin/src/router.tsx:1468
 msgid "Try again in a moment."
-msgstr ""
+msgstr "Versuche es gleich noch einmal."
 
 #: packages/admin/src/components/MediaLibrary.tsx:629
 msgid "Try again."
@@ -16235,7 +16235,7 @@ msgstr "Unbenannter Benutzer"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:534
 #: packages/admin/src/components/ContentSettingsPanel.tsx:535
 msgid "Unpublish"
-msgstr ""
+msgstr "Zurückziehen"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:527
 msgid "Unpublish {itemLabel}"
@@ -16243,7 +16243,7 @@ msgstr "{itemLabel} zurückziehen"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:532
 msgid "Unpublish {itemLabel}?"
-msgstr ""
+msgstr "{itemLabel} zurückziehen?"
 
 #: packages/admin/src/router.tsx:2009
 msgid "Unpublished"
@@ -16900,7 +16900,7 @@ msgstr "{license}-Lizenz auf spdx.org anzeigen"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:311
 msgid "Viewing"
-msgstr ""
+msgstr "Sieht zu"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:518
 msgid "Viewing the version from {when} by {name}."
@@ -16937,7 +16937,7 @@ msgstr "Besucher sehen diese Änderungen sofort."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:533
 msgid "Visitors won't see it until you publish it again. It stays as a draft."
-msgstr ""
+msgstr "Besucher sehen den Eintrag erst wieder, wenn du ihn erneut veröffentlichst. Er bleibt als Entwurf erhalten."
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:58
 msgid "Vue"
@@ -16954,7 +16954,7 @@ msgstr "Warten auf den Passkey..."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:143
 msgid "Waiting to join"
-msgstr ""
+msgstr "Warten auf Verbindung"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:335
 msgid "Warn"
@@ -17357,7 +17357,7 @@ msgstr "Du benötigst Redakteur-Berechtigungen, um Kommentare zu moderieren."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:165
 msgid "You no longer have edit access to this entry. Your edits are still on this page."
-msgstr ""
+msgstr "Du darfst diesen Eintrag nicht mehr bearbeiten. Deine Änderungen sind noch auf dieser Seite."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:96
 msgid "You no longer hold this entry"
@@ -17391,7 +17391,7 @@ msgstr "Du registrierst dich als <0>{roleName}</0>"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:156
 msgid "You’re offline"
-msgstr ""
+msgstr "Du bist offline"
 
 #. placeholder {0}: window.location.host
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
@@ -17434,15 +17434,15 @@ msgstr "Dein Browser unterstützt keine Passkeys. Bitte verwende einen modernen 
 
 #: packages/admin/src/components/ContentEditor.tsx:2967
 msgid "Your change to {refusedFieldLabel} wasn’t saved"
-msgstr ""
+msgstr "Deine Änderung am Feld „{refusedFieldLabel}“ wurde nicht gespeichert"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:195
 msgid "Your changes are no longer being saved."
-msgstr ""
+msgstr "Deine Änderungen werden nicht mehr gespeichert."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:194
 msgid "Your changes are no longer being saved. Join them to carry on."
-msgstr ""
+msgstr "Deine Änderungen werden nicht mehr gespeichert. Klicke auf „Mitbearbeiten“, um weiterzuarbeiten."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:202
 msgid "Your credential manager, such as Google Password Manager, saves it and may sync it to your other devices."
@@ -17477,15 +17477,15 @@ msgstr "Dein Entwurf wird durch die Version ({when}) ersetzt. Dein aktueller Ent
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:171
 msgid "Your earlier edits weren’t kept"
-msgstr ""
+msgstr "Deine früheren Änderungen wurden nicht gesichert"
 
 #: packages/admin/src/router.tsx:1211
 msgid "Your edits are still on this page. Reload it to edit with others."
-msgstr ""
+msgstr "Deine Änderungen sind noch auf dieser Seite. Lade die Seite neu, um gemeinsam mit anderen weiterzuarbeiten."
 
 #: packages/admin/src/router.tsx:1432
 msgid "Your edits couldn’t be saved, so this didn’t run. Try again."
-msgstr ""
+msgstr "Deine Änderungen konnten nicht gespeichert werden, deshalb wurde die Aktion nicht ausgeführt. Versuche es erneut."
 
 #: packages/admin/src/components/SetupWizard.tsx:262
 msgid "Your Email"
@@ -17505,11 +17505,11 @@ msgstr "Dein Instagram-Benutzername"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:162
 msgid "Your last edits weren’t saved"
-msgstr ""
+msgstr "Deine letzten Änderungen wurden nicht gespeichert"
 
 #: packages/admin/src/router.tsx:1244
 msgid "Your latest edits couldn’t be saved"
-msgstr ""
+msgstr "Deine neuesten Änderungen konnten nicht gespeichert werden"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:179
 msgid "Your LinkedIn profile username"
@@ -17574,15 +17574,15 @@ msgstr "Deine ungespeicherten Änderungen gehen verloren."
 
 #: packages/admin/src/router.tsx:1234
 msgid "Your unsaved edits are in a recovery revision"
-msgstr ""
+msgstr "Deine ungespeicherten Änderungen wurden als Revision gesichert"
 
 #: packages/admin/src/router.tsx:1219
 msgid "Your unsaved edits are in a recovery revision. Reload the page to edit with others."
-msgstr ""
+msgstr "Deine ungespeicherten Änderungen wurden als Revision gesichert. Lade die Seite neu, um gemeinsam mit anderen weiterzuarbeiten."
 
 #: packages/admin/src/router.tsx:1223
 msgid "Your unsaved edits couldn’t be kept"
-msgstr ""
+msgstr "Deine ungespeicherten Änderungen konnten nicht gesichert werden"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1885
 msgid "Your unsaved media changes will be lost."
