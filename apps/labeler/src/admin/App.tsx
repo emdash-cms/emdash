@@ -32,6 +32,7 @@ import {
 	setTakedown,
 	type ActivityItem,
 	type AssessmentDetail,
+	type AssessmentFilter,
 	type AssessmentListItem,
 	type AssessmentState,
 	type HealthStatus,
@@ -163,7 +164,9 @@ function renderView(
 		return (
 			<ReviewWorkspace
 				initialRunKey={
-					path.startsWith(prefix) ? decodeURIComponent(path.slice(prefix.length)) : undefined
+					path.startsWith(prefix)
+						? decodeURIComponent(path.slice(prefix.length).split("?")[0]!)
+						: undefined
 				}
 				navigate={navigate}
 				isAdmin={session.identity.roles.includes("admin")}
@@ -196,6 +199,7 @@ function Overview({
 	const { t } = useLingui();
 	const reviews = useResource(() => getAssessments("review"), []);
 	const errors = useResource(() => getAssessments("error"), []);
+	const recent = useResource(() => getAssessments("all"), []);
 	const issuance = useResource(getIssuance, []);
 	return (
 		<Page
@@ -242,7 +246,94 @@ function Overview({
 					/>
 				</LayerCard>
 			</div>
+			<RecentAssessments recent={recent} navigate={navigate} />
 		</Page>
+	);
+}
+
+const RECENT_ASSESSMENT_COUNT = 10;
+
+function RecentAssessments({
+	recent,
+	navigate,
+}: {
+	recent: Resource<ApiPage<AssessmentListItem>>;
+	navigate: (path: string) => void;
+}) {
+	const { t } = useLingui();
+	const items = recent.data?.items.slice(0, RECENT_ASSESSMENT_COUNT) ?? [];
+	return (
+		<LayerCard className="mt-4 p-0">
+			<div className="flex items-center justify-between gap-4 border-b px-4 py-2">
+				<p className="text-xs font-medium text-kumo-subtle">
+					<Trans>Recent assessments</Trans>
+				</p>
+				<Button variant="ghost" size="sm" onClick={() => navigate("/_admin/assessments?state=all")}>
+					<Trans>View all</Trans>
+				</Button>
+			</div>
+			{recent.error ? (
+				<p className="px-4 py-3 text-sm text-kumo-danger">{recent.error.message}</p>
+			) : recent.loading ? (
+				<CenteredLoader label={t`Loading assessments`} />
+			) : items.length === 0 ? (
+				<p className="px-4 py-3 text-sm text-kumo-subtle">
+					<Trans>No assessments yet.</Trans>
+				</p>
+			) : (
+				<ul>
+					{items.map((item) => {
+						const identity = assessmentListIdentity(item);
+						return (
+							<li key={item.run_key} className="border-b last:border-b-0">
+								<button
+									type="button"
+									className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 text-start hover:bg-kumo-tint sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+									onClick={() => navigate(assessmentPath(item.run_key, item.state))}
+								>
+									<span className="min-w-0 truncate text-sm font-medium">
+										{identity.name}
+										<span className="ms-2 text-xs font-normal text-kumo-subtle">
+											{item.subject_kind === "release"
+												? t`Release ${identity.version ?? ""}`
+												: t`Profile`}
+										</span>
+									</span>
+									<StateBadge state={item.state} />
+									<CodeReviewBadge item={item} />
+									<span className="text-xs text-kumo-subtle">{formatDate(item.updated_at)}</span>
+								</button>
+							</li>
+						);
+					})}
+				</ul>
+			)}
+		</LayerCard>
+	);
+}
+
+function CodeReviewBadge({ item }: { item: AssessmentListItem }) {
+	const { t } = useLingui();
+	if (item.subject_kind !== "release") return <span />;
+	if (item.code_coverage === "complete") {
+		const count = item.code_review_count ?? 0;
+		return (
+			<Badge variant="success" appearance="dot">
+				{plural(count, { one: "Code reviewed by # model", other: "Code reviewed by # models" })}
+			</Badge>
+		);
+	}
+	if (item.code_coverage === "unavailable") {
+		return (
+			<Badge variant="warning" appearance="dot">
+				{t`Code review unavailable`}
+			</Badge>
+		);
+	}
+	return (
+		<Badge variant="neutral" appearance="dot">
+			{t`No code review`}
+		</Badge>
 	);
 }
 
@@ -289,7 +380,7 @@ function ReviewWorkspace({
 }) {
 	const { t } = useLingui();
 	const initialState = stateFromLocation();
-	const [state, setState] = React.useState<AssessmentState>(initialState);
+	const [state, setState] = React.useState<AssessmentFilter>(initialState);
 	const stateRef = React.useRef(state);
 	const list = useResource(() => getAssessments(state), [state]);
 	const [items, setItems] = React.useState<AssessmentListItem[]>([]);
@@ -313,20 +404,25 @@ function ReviewWorkspace({
 	const selectedItem =
 		items.find((item) => item.run_key === selectedRunKey) ??
 		(detail.data ? detailToListItem(detail.data) : undefined);
-	const stateItems = Object.fromEntries(
-		assessmentStates.map((value) => [value, stateLabel(t, value)]),
-	);
+	const stateItems = {
+		...Object.fromEntries(assessmentStates.map((value) => [value, stateLabel(t, value)])),
+		all: t`All`,
+	};
 
 	return (
 		<Page
 			title={t`Review queue`}
-			description={t`${items.length}${nextCursor ? "+" : ""} in ${stateLabel(t, state).toLowerCase()} · oldest first`}
+			description={
+				state === "all"
+					? t`${items.length}${nextCursor ? "+" : ""} in all states · newest first`
+					: t`${items.length}${nextCursor ? "+" : ""} in ${stateLabel(t, state).toLowerCase()} · oldest first`
+			}
 			actions={
 				<Select
 					aria-label={t`Assessment state`}
 					value={state}
 					onValueChange={(value) => {
-						if (!value || !isAssessmentState(value)) return;
+						if (!value || !isAssessmentFilter(value)) return;
 						stateRef.current = value;
 						setState(value);
 						setSelectedRunKey("");
@@ -347,7 +443,7 @@ function ReviewWorkspace({
 			)}
 			{list.loading ? (
 				<CenteredLoader label={t`Loading assessments`} />
-			) : items.length === 0 ? (
+			) : items.length === 0 && !selectedRunKey ? (
 				<Empty
 					title={t`No assessments`}
 					description={t`There are no assessments in this state.`}
@@ -373,7 +469,7 @@ function ReviewWorkspace({
 											className="min-w-56 border-e px-4 py-3 text-start hover:bg-kumo-tint aria-current:bg-kumo-info-tint lg:block lg:min-w-0 lg:w-full lg:border-e-0 lg:border-b"
 											onClick={() => {
 												setSelectedRunKey(item.run_key);
-												navigate(`/_admin/assessments/${encodeURIComponent(item.run_key)}`);
+												navigate(assessmentPath(item.run_key, state));
 											}}
 										>
 											<span className="block truncate text-sm font-medium">{identity.name}</span>
@@ -385,6 +481,11 @@ function ReviewWorkspace({
 											<span className="mt-1 block truncate text-xs text-kumo-subtle">
 												{itemStatus} · {formatDate(item.updated_at)}
 											</span>
+											{item.subject_kind === "release" && (
+												<span className="mt-1 block">
+													<CodeReviewBadge item={item} />
+												</span>
+											)}
 										</button>
 									);
 								})}
@@ -449,7 +550,6 @@ function AssessmentReview({
 }) {
 	const { t } = useLingui();
 	const toast = useKumoToastManager();
-	const [evidenceOpen, setEvidenceOpen] = React.useState((detail.findings ?? []).length > 0);
 	const [technicalOpen, setTechnicalOpen] = React.useState(false);
 	const [pendingAction, setPendingAction] = React.useState<
 		"approve" | "block" | "rerun" | "notify" | null
@@ -471,7 +571,7 @@ function AssessmentReview({
 		refreshDetail();
 		const index = items.findIndex((candidate) => candidate.run_key === item.run_key);
 		const next = items[index + 1] ?? items[index - 1];
-		if (next) navigate(`/_admin/assessments/${encodeURIComponent(next.run_key)}`);
+		if (next) navigate(assessmentPath(next.run_key, stateFromLocation()));
 	};
 	return (
 		<>
@@ -494,26 +594,25 @@ function AssessmentReview({
 				<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-y py-3 text-sm">
 					<div>
 						<strong>
-							{findings.length === 0 ? t`No model findings` : t`${findings.length} model findings`}
+							{findings.length === 0
+								? t`No findings`
+								: plural(findings.length, { one: "# finding", other: "# findings" })}
 						</strong>
-						<span className="ms-2 text-kumo-subtle">
-							{reasonCodes.includes("manual-positive-required")
-								? t`Manual approval required`
-								: t`Operator decision required`}
-						</span>
+						{(item.state === "review" || item.state === "error") && (
+							<span className="ms-2 text-kumo-subtle">
+								{reasonCodes.includes("manual-positive-required")
+									? t`Manual approval required`
+									: t`Operator decision required`}
+							</span>
+						)}
 					</div>
 					<div className="flex gap-1">
-						<Button size="sm" variant="ghost" onClick={() => setEvidenceOpen((open) => !open)}>
-							{evidenceOpen ? t`Hide assessment` : t`Show assessment`}
-						</Button>
 						<Button size="sm" variant="ghost" onClick={() => setTechnicalOpen((open) => !open)}>
 							{technicalOpen ? t`Hide technical details` : t`Technical details`}
 						</Button>
 					</div>
 				</div>
-				{evidenceOpen && (
-					<AssessmentEvidence detail={detail} findings={findings} reasonCodes={reasonCodes} />
-				)}
+				<AssessmentEvidence detail={detail} findings={findings} reasonCodes={reasonCodes} />
 				{technicalOpen && (
 					<pre className="mt-3 max-h-80 overflow-auto rounded-lg bg-kumo-recessed p-4 text-xs">
 						{JSON.stringify(
@@ -696,16 +795,6 @@ function AssessmentEvidence({
 					runKey={detail.assessment.run_key}
 				/>
 			))}
-			{findings.length === 0 && (
-				<div className="border-s-2 border-kumo-success py-2 ps-3">
-					<p className="text-sm font-medium">
-						<Trans>No model findings</Trans>
-					</p>
-					<p className="mt-1 text-xs text-kumo-subtle">
-						<Trans>The model completed without flagging the submitted listing.</Trans>
-					</p>
-				</div>
-			)}
 			<div className="border-s-2 border-kumo-line py-2 ps-3">
 				<p className="text-sm font-medium">
 					<Trans>Policy</Trans>
@@ -1657,9 +1746,15 @@ function canBlock(state: AssessmentState) {
 function canRerun(state: AssessmentState) {
 	return state !== "cancelled" && state !== "superseded";
 }
-function stateFromLocation(): AssessmentState {
+function isAssessmentFilter(value: string): value is AssessmentFilter {
+	return value === "all" || isAssessmentState(value);
+}
+function stateFromLocation(): AssessmentFilter {
 	const value = new URLSearchParams(window.location.search).get("state");
-	return value && isAssessmentState(value) ? value : "review";
+	return value && isAssessmentFilter(value) ? value : "review";
+}
+function assessmentPath(runKey: string, filter: AssessmentFilter): string {
+	return `/_admin/assessments/${encodeURIComponent(runKey)}?state=${filter}`;
 }
 function viewFromPath(path: string): View {
 	if (path.startsWith("/_admin/assessments")) return "assessments";
