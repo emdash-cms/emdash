@@ -78,6 +78,7 @@ function context() {
 			forms: {
 				get: async (id: string) => (id === "contact" ? form() : null),
 				put: async () => {},
+				updateIf: async () => ({ applied: true, data: form() }),
 				query: async () => ({ items: [{ id: "contact", data: form() }] }),
 			},
 			submissions: {
