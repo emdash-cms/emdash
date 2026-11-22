@@ -1,5 +1,5 @@
 import type { APIContext, APIRoute } from "astro";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET as cloudflareFeed } from "../../../../../templates/blog-cloudflare/src/pages/rss.xml";
 import * as cloudflareLocale from "../../../../../templates/blog-cloudflare/src/utils/locale";
@@ -33,6 +33,14 @@ describe.each([
 	["Node", nodeLocale, nodeFeed],
 	["Cloudflare", cloudflareLocale, cloudflareFeed],
 ] as const)("%s blog locale", (_name, { formatDate, getSiteLocale }, feed) => {
+	// Both templates share one formatter cache on globalThis; clear it so each copy builds its own formatters.
+	beforeEach(() => {
+		const formats = (globalThis as Record<symbol, unknown>)[
+			Symbol.for("emdash:template-blog:date-formats")
+		];
+		if (formats instanceof Map) formats.clear();
+	});
+
 	it("stays English when i18n isn't configured", async () => {
 		setDefaultLocale(null);
 		expect(getSiteLocale()).toBeUndefined();
