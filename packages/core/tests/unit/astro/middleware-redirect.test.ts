@@ -870,31 +870,34 @@ describe("redirect middleware — responses the route cache stores", () => {
 		expect(selects).toBe(1);
 	});
 
-	it("restores the outer settings tracker after a nested cacheable render", async () => {
-		const cache = storingRouteCache();
-		const outerReads: string[] = [];
+	it.each(["/page", "/rss.xml"])(
+		"restores the outer settings tracker after rendering %s",
+		async (pathname) => {
+			const cache = storingRouteCache();
+			const outerReads: string[] = [];
 
-		await runWithContext(
-			{
-				editMode: false,
-				routeCacheFill: true,
-				siteSettings: { onRead: (version) => outerReads.push(version) },
-			},
-			async () => {
-				const { context } = buildContext({ pathname: "/page", cache });
-				await runMiddleware(context, async () => {
-					await setSiteSettings({ title: "updated" }, db);
+			await runWithContext(
+				{
+					editMode: false,
+					routeCacheFill: true,
+					siteSettings: { onRead: (version) => outerReads.push(version) },
+				},
+				async () => {
+					const { context } = buildContext({ pathname, cache });
+					await runMiddleware(context, async () => {
+						await setSiteSettings({ title: "updated" }, db);
+						await getSiteSettings();
+						return new Response("page");
+					});
+
 					await getSiteSettings();
-					return new Response("page");
-				});
+				},
+			);
 
-				await getSiteSettings();
-			},
-		);
-
-		expect(outerReads).toHaveLength(1);
-		expect(cache.set).toHaveBeenCalledWith(false);
-	});
+			expect(outerReads).toHaveLength(1);
+			expect(cache.set).toHaveBeenCalledWith(false);
+		},
+	);
 
 	it("does not read the database for a render the route cache will not store", async () => {
 		await warm();
@@ -1045,5 +1048,253 @@ describe("redirect middleware: non-ASCII source paths", () => {
 
 		expect(redirect).not.toHaveBeenCalled();
 		expect(response.status).toBe(200);
+	});
+});
+
+describe("redirect middleware — file-extension exact rules", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+	});
+
+	afterEach(async () => {
+		await waitForDeferredTasks();
+		await teardownTestDatabase(db);
+	});
+
+	async function run(
+		pathname: string,
+		next: () => Promise<Response>,
+		cache?: ReturnType<typeof storingRouteCache>,
+	) {
+		const { context, redirect } = buildContext({ pathname, ...(cache ? { cache } : {}) });
+		const response = await onRequest(context, next);
+		return { response, redirect };
+	}
+
+	it("redirects exact file sources, including either trailing-slash form, with direct precedence", async () => {
+		const repo = new RedirectRepository(db);
+		const rule = await repo.create({ source: "/old/report.pdf", destination: "/", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		const first = await run(
+			"/old/report.pdf",
+			async () => new Response("missing", { status: 404 }),
+		);
+		const alternate = await run(
+			"/old/report.pdf/",
+			async () => new Response("missing", { status: 404 }),
+		);
+		expect(first.response.status).toBe(301);
+		expect(first.response.headers.get("Location")).toBe("/");
+		expect(alternate.response.status).toBe(301);
+		expect(alternate.response.headers.get("Location")).toBe("/");
+
+		await repo.create({ source: "/old/report.pdf/", destination: "/slash", type: 301 });
+		await publishRedirectArtifacts(db);
+		invalidateRedirectCache();
+		const direct = await run(
+			"/old/report.pdf",
+			async () => new Response("missing", { status: 404 }),
+		);
+		const slashed = await run(
+			"/old/report.pdf/",
+			async () => new Response("missing", { status: 404 }),
+		);
+		expect(direct.redirect).toHaveBeenCalledWith("/", 301);
+		expect(slashed.redirect).toHaveBeenCalledWith("/slash", 301);
+		await waitForDeferredTasks();
+		expect((await repo.findById(rule.id))?.hits).toBe(3);
+	});
+
+	it("matches a file source stored with a trailing slash for an unslashed request", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/old/report.pdf/", destination: "/", type: 302 });
+		const next = vi.fn(async () => new Response("missing", { status: 404 }));
+		const { response } = await run("/old/report.pdf", next);
+		expect(response.status).toBe(302);
+		expect(response.headers.get("Location")).toBe("/");
+		expect(next).not.toHaveBeenCalled();
+	});
+
+	it("does not apply patterns to file paths, log misses, or change cache policy", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/old/[...rest]",
+			destination: "/new/[...rest]",
+			type: 301,
+			isPattern: true,
+		});
+		await publishRedirectArtifacts(db);
+		const log404 = vi.spyOn(RedirectRepository.prototype, "log404");
+
+		for (const pathname of ["/old/missing.pdf", "/old/missing.xml"]) {
+			const cache = storingRouteCache({ maxAge: 60 });
+			const expected = new Response("unchanged", { status: 404 });
+			const { response } = await run(pathname, async () => expected, cache);
+			expect(response).toBe(expected);
+			expect(cache.set).not.toHaveBeenCalled();
+		}
+		expect(log404).not.toHaveBeenCalled();
+		log404.mockRestore();
+	});
+
+	it("keeps pattern redirects and 404 handling for dotted page paths ending in a slash", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({
+			source: "/old/[...rest]",
+			destination: "/new/[...rest]",
+			type: 301,
+			isPattern: true,
+		});
+		const { response } = await run(
+			"/old/node.js/",
+			async () => new Response("missing", { status: 404 }),
+		);
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/new/node.js/");
+
+		const cache = storingRouteCache({ maxAge: 60 });
+		const miss = await run(
+			"/missing/v1.5/",
+			async () => new Response("missing", { status: 404 }),
+			cache,
+		);
+		expect(miss.response.status).toBe(404);
+		expect(cache.set).toHaveBeenCalledWith({ maxAge: 60, swr: 0 });
+		expect(cache.set).not.toHaveBeenCalledWith(false);
+		await waitForDeferredTasks();
+		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
+		expect(rows.map((row) => row.path)).toEqual(["/missing/v1.5/"]);
+	});
+
+	it("keeps internal file paths skipped even when exact rules exist", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/_emdash/file.pdf", destination: "/", type: 301 });
+		await repo.create({ source: "/_image/file.pdf", destination: "/", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		for (const pathname of ["/_emdash/file.pdf", "/_image/file.pdf"]) {
+			const next = vi.fn(async () => new Response("ok"));
+			const { response, redirect } = await run(pathname, next);
+			expect(response.status).toBe(200);
+			expect(next).toHaveBeenCalledTimes(1);
+			expect(redirect).not.toHaveBeenCalled();
+		}
+		expect(getDbMock).not.toHaveBeenCalled();
+	});
+
+	it.each([410, 451] as const)(
+		"serves terminal %i for an exact file source without Location",
+		async (type) => {
+			const repo = new RedirectRepository(db);
+			const rule = await repo.create({ source: `/old/file-${type}.pdf`, destination: "/", type });
+			await publishRedirectArtifacts(db);
+			const { response } = await run(
+				`/old/file-${type}.pdf`,
+				async () => new Response("missing", { status: 404 }),
+			);
+			expect(response.status).toBe(type);
+			expect(response.headers.has("Location")).toBe(false);
+			await waitForDeferredTasks();
+			expect((await repo.findById(rule.id))?.hits).toBe(1);
+		},
+	);
+
+	it("skips an unsafe exact file destination without a hit or 404 log", async () => {
+		const repo = new RedirectRepository(db);
+		const rule = await repo.create({
+			source: "/old/unsafe.pdf",
+			destination: "https://evil.example",
+			type: 301,
+		});
+		await publishRedirectArtifacts(db);
+		const log404 = vi.spyOn(RedirectRepository.prototype, "log404");
+		const next = vi.fn(async () => new Response("missing", { status: 404 }));
+		const { response, redirect } = await run("/old/unsafe.pdf", next);
+		expect(response.status).toBe(404);
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(redirect).not.toHaveBeenCalled();
+		await waitForDeferredTasks();
+		expect((await repo.findById(rule.id))?.hits).toBe(0);
+		expect(log404).not.toHaveBeenCalled();
+		log404.mockRestore();
+	});
+
+	it("delegates once when the database is unavailable", async () => {
+		getDbMock.mockRejectedValueOnce(new Error("database unavailable"));
+		const next = vi.fn(async () => new Response("ok"));
+		const { response } = await run("/old/file.pdf", next);
+		expect(response.status).toBe(200);
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(getDbMock).toHaveBeenCalledTimes(1);
+	});
+
+	it.each([
+		{ isPattern: false, storesResponse: true, expectedStatus: 301 },
+		{ isPattern: true, storesResponse: true, expectedStatus: 200 },
+		{ isPattern: false, storesResponse: false, expectedStatus: 200 },
+	])(
+		"checks new file rules before storing a response: %j",
+		async ({ isPattern, storesResponse, expectedStatus }) => {
+			await publishRedirectArtifacts(db);
+			await run("/feed.xml", async () => new Response("warm"));
+			await waitForDeferredTasks();
+
+			const repo = new RedirectRepository(db);
+			await repo.create({
+				source: isPattern ? "/[...path]" : "/feed.xml",
+				destination: "/rss.xml",
+				type: 301,
+				isPattern,
+			});
+			await publishRedirectArtifacts(db);
+
+			const cache = storingRouteCache();
+			const downstream = new Response("feed");
+			const next = vi.fn(async () => {
+				if (storesResponse) cache.set({ maxAge: 60 });
+				return downstream;
+			});
+			const { response } = await run("/feed.xml", next, cache);
+			expect(next).toHaveBeenCalledTimes(1);
+			expect(response.status).toBe(expectedStatus);
+			if (expectedStatus === 301) {
+				expect(response.headers.get("Location")).toBe("/rss.xml");
+				expect(cache.set).toHaveBeenCalledWith(false);
+			} else {
+				expect(response).toBe(downstream);
+				expect(cache.set).not.toHaveBeenCalledWith(false);
+			}
+		},
+	);
+
+	it("verifies a warmed exact file rule before serving a cached response", async () => {
+		const repo = new RedirectRepository(db);
+		const rule = await repo.create({ source: "/old/stale.pdf", destination: "/before", type: 301 });
+		await publishRedirectArtifacts(db);
+		const warmCache = storingRouteCache({ maxAge: 60 });
+		await run("/old/stale.pdf", async () => new Response("missing", { status: 404 }), warmCache);
+
+		await repo.update(rule.id, { destination: "/after" });
+		await publishRedirectArtifacts(db);
+		const updated = await run(
+			"/old/stale.pdf",
+			async () => new Response("missing", { status: 404 }),
+			storingRouteCache({ maxAge: 60 }),
+		);
+		expect(updated.redirect).toHaveBeenCalledWith("/after", 301);
+
+		await repo.delete(rule.id);
+		await publishRedirectArtifacts(db);
+		const cache = storingRouteCache({ maxAge: 60 });
+		const downstream = new Response("downstream", { status: 200 });
+		const deleted = await run("/old/stale.pdf", async () => downstream, cache);
+		expect(deleted.response).toBe(downstream);
+		expect(cache.set).not.toHaveBeenCalled();
 	});
 });
