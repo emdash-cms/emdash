@@ -4248,9 +4248,13 @@ function FieldRenderer({
 				label: string;
 				required?: boolean;
 				options?: string[];
+				validation?: { allowedMimeTypes?: string[] };
 			}>;
 			return (
 				<RepeaterField
+					fieldId={field.id}
+					blockType={field.blockType}
+					blockVersion={field.blockVersion}
 					label={label}
 					id={id}
 					value={value}
