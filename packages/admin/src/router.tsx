@@ -4148,7 +4148,7 @@ function LoadingScreen() {
 	const { t } = useLingui();
 	return (
 		<div className="flex items-center justify-center min-h-screen">
-			<div className="text-center">
+			<div className="flex flex-col items-center text-center">
 				<Loader />
 				<p className="mt-4 text-kumo-subtle">{t`Loading configuration...`}</p>
 			</div>
