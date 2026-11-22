@@ -417,8 +417,20 @@ function nestedDescriptor(
 	};
 }
 
-function listFieldDefinition({ options, ...subField }: ListSubField): LayoutFieldDefinition {
-	return options ? { ...subField, validation: { options } } : subField;
+function listFieldDefinition({
+	options,
+	validation,
+	...subField
+}: ListSubField): LayoutFieldDefinition {
+	return options || validation
+		? {
+				...subField,
+				validation: {
+					...validation,
+					...(options ? { options } : {}),
+				},
+			}
+		: subField;
 }
 
 function listLimit(field: LayoutFieldDefinition, key: "minItems" | "maxItems") {
@@ -1432,7 +1444,11 @@ function BlockRow({
 						<FieldControl
 							field={definition}
 							name={`${blockPath}.${path}`}
-							descriptor={nestedDescriptor(definition, block)}
+							descriptor={nestedDescriptor(
+								definition,
+								block,
+								`${outerId}:${block._key}:${field.slug}.${subField.slug}`,
+							)}
 							issue={issueAt(path)}
 							{...control}
 							onChange={onControlChange}
@@ -1448,7 +1464,13 @@ function BlockRow({
 						fields={subFields.map(listFieldDefinition)}
 						values={item}
 						namePrefix={`${blockPath}.${field.slug}.${at}`}
-						describe={(definition) => nestedDescriptor(definition, block)}
+						describe={(definition) =>
+							nestedDescriptor(
+								definition,
+								block,
+								`${outerId}:${block._key}:${field.slug}.${definition.slug}`,
+							)
+						}
 						issueAt={(slug) => issueAt(`${field.slug}.${at}.${slug}`)}
 						onTouch={(slug) => onTouch(`${field.slug}.${at}.${slug}`)}
 						onEdit={(slug) => onEdit(`${field.slug}.${at}.${slug}`)}

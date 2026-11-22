@@ -171,6 +171,7 @@ interface RepeaterSubFieldState {
 	options: string;
 	/** The type the sub-field was saved with, if it has been saved. */
 	persistedType?: string;
+	validation?: { allowedMimeTypes?: string[] };
 }
 
 interface FieldFormState {
@@ -935,6 +936,7 @@ export function FieldEditor({
 					...(sf.type === "select" && optionList(sf.options).length > 0
 						? { options: optionList(sf.options) }
 						: {}),
+					...(sf.validation ? { validation: sf.validation } : {}),
 				}));
 			}
 			if (formState.minItems)
