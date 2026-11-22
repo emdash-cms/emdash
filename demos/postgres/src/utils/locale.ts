@@ -16,7 +16,10 @@ export function getSiteLocale(): string | undefined {
 	}
 }
 
-const dateFormats = new Map<string, Intl.DateTimeFormat>();
+const DATE_FORMATS_KEY = Symbol.for("emdash:template-blog:date-formats");
+const g = globalThis as Record<symbol, unknown>;
+// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis singleton pattern
+const dateFormats = (g[DATE_FORMATS_KEY] ??= new Map()) as Map<string, Intl.DateTimeFormat>;
 
 /** Formats a date in the site's locale, or in US English without one. */
 export function formatDate(date: Date, month: "long" | "short"): string {
