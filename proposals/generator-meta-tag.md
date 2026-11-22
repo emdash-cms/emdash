@@ -1,5 +1,5 @@
 ---
-title: Name EmDash in every page it renders
+title: Add a meta generator tag to EmDashHead
 type: feature-plan
 status: proposed
 authors:
@@ -8,7 +8,7 @@ discussion: null
 created: 2026-11-20
 ---
 
-# Name EmDash in every page it renders
+# Add a meta generator tag to `EmDashHead`
 
 ## Problem and user case
 
@@ -29,7 +29,7 @@ They differ in how much version they show. WordPress shows the full version, Gho
 ```
 
 - The version is the major version of the installed `emdash` package. Version `1.6.2` renders `EmDash 1`, and `2.0.0-beta.1` renders `EmDash 2`. When the version isn't a release number, as in EmDash's own unit tests where it is `dev`, the tag reads `EmDash`.
-- The tag follows Drupal's convention. The major version is enough to count adoption per release line, and the page source doesn't repeat the full version that the health endpoint returns.
+- The tag shows only the major version, as Drupal's does. Site owners and security scanners often treat a visible version as a security issue, and sites that get those reports tend to turn the tag off entirely. A major version alone gives them less to object to, so more sites keep the tag on. Adding the minor version, as Ghost does, would tell releases within a major line apart but invites the same objections.
 - The tag appears on every page whose layout renders `EmDashHead`. The blog, starter, marketing and portfolio templates do, in their Node and Cloudflare versions. The `blank` template writes its own `<head>` and gets no tag. Prerendered pages get the tag, and so do pages rendered before the runtime is initialized.
 - `EmDashHead` renders the tag directly, outside the page metadata contributions, so a plugin can't replace or remove it. A plugin's own `generator` contribution renders as a second tag. The HTML standard doesn't limit a page to one generator tag.
 
