@@ -1029,27 +1029,27 @@ msgstr "{selectedCount, plural, one {#件のコンテンツをゴミ箱に移動
 
 #: packages/admin/src/components/ContentList.tsx:625
 msgid "{selectedCount, plural, one {Publish # item?} other {Publish # items?}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {#件を公開しますか？} other {#件を公開しますか？}}"
 
 #: packages/admin/src/components/ContentList.tsx:666
 msgid "{selectedCount, plural, one {Set # item to draft?} other {Set # items to draft?}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {#件を下書きに設定しますか？} other {#件を下書きに設定しますか？}}"
 
 #: packages/admin/src/components/ContentList.tsx:631
 msgid "{selectedCount, plural, one {This removes its schedule and publishes it immediately.} other {This removes their schedules and publishes them immediately.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {公開予約を解除して、今すぐ公開します。} other {公開予約を解除して、今すぐ公開します。}}"
 
 #: packages/admin/src/components/ContentList.tsx:672
 msgid "{selectedCount, plural, one {This removes its schedule. Visitors won't see it until you publish it again.} other {This removes their schedules. Visitors won't see them until you publish them again.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {公開予約を解除します。再公開するまでサイトでは閲覧できません。} other {公開予約を解除します。再公開するまでサイトでは閲覧できません。}}"
 
 #: packages/admin/src/components/ContentList.tsx:635
 msgid "{selectedCount, plural, one {Visitors will see it immediately.} other {Visitors will see them immediately.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {サイトですぐに閲覧できるようになります。} other {サイトですぐに閲覧できるようになります。}}"
 
 #: packages/admin/src/components/ContentList.tsx:677
 msgid "{selectedCount, plural, one {Visitors won't see it until you publish it again.} other {Visitors won't see them until you publish them again.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {再公開するまでサイトでは閲覧できません。} other {再公開するまでサイトでは閲覧できません。}}"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:235
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
@@ -2775,7 +2775,7 @@ msgstr "この関連付けを使う両側の参照フィールドで制限を共
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:17
 msgid "Breadcrumb"
-msgstr ""
+msgstr "パンくずリスト"
 
 #: packages/admin/src/components/SeoPanel.tsx:317
 msgid "Brief summary shown below the title in search results"
@@ -3534,7 +3534,7 @@ msgstr "次のリンクをクリックして、{siteName}にログインして�
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:19
 msgid "Click to copy"
-msgstr ""
+msgstr "クリックしてコピー"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:275
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:324
@@ -3889,7 +3889,7 @@ msgstr "コンテンツを下書きに戻しました"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
 msgid "Content search is unavailable. Paste a URL instead."
-msgstr ""
+msgstr "コンテンツ検索を利用できません。代わりにURLを貼り付けてください。"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
@@ -3995,7 +3995,7 @@ msgstr "クリップボードにコピーしました"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:18
 msgid "Copy"
-msgstr ""
+msgstr "コピー"
 
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 msgid "Copy {label}"
@@ -15138,7 +15138,7 @@ msgstr "プラグインはこれらの変更を保存していません。エデ
 
 #: packages/admin/src/components/ContentEditor.tsx:2673
 msgid "The plugin proposed a value this editor can't load."
-msgstr ""
+msgstr "プラグインが提案した値は、このエディターでは読み込めません。"
 
 #: packages/admin/src/components/ContentEditor.tsx:2678
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
@@ -16235,7 +16235,7 @@ msgstr "名前未設定のユーザー"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:534
 #: packages/admin/src/components/ContentSettingsPanel.tsx:535
 msgid "Unpublish"
-msgstr ""
+msgstr "非公開にする"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:527
 msgid "Unpublish {itemLabel}"
@@ -16243,7 +16243,7 @@ msgstr "{itemLabel}を非公開にする"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:532
 msgid "Unpublish {itemLabel}?"
-msgstr ""
+msgstr "{itemLabel}を非公開にしますか？"
 
 #: packages/admin/src/router.tsx:2009
 msgid "Unpublished"
@@ -16937,7 +16937,7 @@ msgstr "変更内容はすぐにサイトの訪問者に表示されます。"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:533
 msgid "Visitors won't see it until you publish it again. It stays as a draft."
-msgstr ""
+msgstr "再公開するまでサイトでは閲覧できません。下書きとして残ります。"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:58
 msgid "Vue"
