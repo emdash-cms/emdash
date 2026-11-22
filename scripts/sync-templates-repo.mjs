@@ -285,6 +285,9 @@ if (localPath) {
 }
 
 try {
+	const license = join(ROOT, "LICENSE");
+	cpSync(license, join(targetDir, "LICENSE"));
+
 	for (const template of TEMPLATES) {
 		const srcDir = join(TEMPLATES_DIR, template);
 		const destDir = join(targetDir, template);
@@ -296,6 +299,7 @@ try {
 
 		console.log(`Syncing ${template}`);
 		copyTemplateDir(srcDir, destDir);
+		cpSync(license, join(destDir, "LICENSE"));
 
 		const srcPkg = join(srcDir, "package.json");
 		if (existsSync(srcPkg)) {

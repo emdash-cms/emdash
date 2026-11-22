@@ -174,10 +174,9 @@ pnpm install
 pnpm build
 ```
 
-Run the demo (Node.js + SQLite, no Cloudflare account needed):
+Run the primary development demo (`demos/simple/`; Node.js + SQLite, no Cloudflare account needed):
 
 ```bash
-pnpm --filter emdash-demo seed
 pnpm --filter emdash-demo dev
 ```
 

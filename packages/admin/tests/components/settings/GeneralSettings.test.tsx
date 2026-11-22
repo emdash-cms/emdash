@@ -461,11 +461,11 @@ describe("GeneralSettings", () => {
 			shown: "https://new.example leitet auf eine andere Adresse um.",
 		},
 		{
-			case: "a domain serving another site",
+			case: "a domain the check could not verify",
 			details: { reason: "NOT_SERVING", origin },
-			message: msg`${origin} does not serve this site yet`,
-			translation: "{origin} liefert diese Website noch nicht aus.",
-			shown: "https://new.example liefert diese Website noch nicht aus.",
+			message: msg`Could not verify that ${origin} serves this site`,
+			translation: "Es konnte nicht bestätigt werden, dass {origin} diese Website ausliefert.",
+			shown: "Es konnte nicht bestätigt werden, dass https://new.example diese Website ausliefert.",
 		},
 	])(
 		"shows the failed domain check for $case in the admin language",
@@ -522,6 +522,58 @@ describe("GeneralSettings", () => {
 			.element(screen.getByText("Site URL set to http://localhost:4321"))
 			.toBeInTheDocument();
 	});
+
+	it.each(["NOT_SERVING", "UNREACHABLE"])(
+		"explains the Workers limitation and allows a browser-confirmed domain after %s",
+		async (reason) => {
+			mockChangeSiteDomain.mockRejectedValue(
+				new ApiResponseError(422, "DOMAIN_CHECK_FAILED", "Check failed", {
+					reason,
+					origin: "https://new.example",
+				}),
+			);
+			const screen = await renderGeneralSettings();
+			await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+			await screen.getByLabelText("New domain").fill("new.example");
+			await userEvent.keyboard("{Enter}");
+
+			await expect
+				.element(screen.getByRole("button", { name: "Use https://new.example anyway" }))
+				.toHaveAccessibleDescription(/confirm it stays on that address and shows this site/);
+			screen.getByRole("button", { name: "Use https://new.example anyway" }).element().focus();
+			await userEvent.keyboard("{Enter}");
+			await vi.waitFor(() =>
+				expect(mockUpdateSettings).toHaveBeenCalledWith({ url: "https://new.example" }),
+			);
+			await expect
+				.element(screen.getByText("Site URL set to https://new.example"))
+				.toBeInTheDocument();
+		},
+	);
+
+	it.each(["REDIRECT", "NO_PUBLIC_ADDRESS"])(
+		"does not suggest the Workers workaround for %s",
+		async (reason) => {
+			mockChangeSiteDomain.mockRejectedValue(
+				new ApiResponseError(422, "DOMAIN_CHECK_FAILED", "Check failed", {
+					reason,
+					origin: "https://new.example",
+					host: "new.example",
+					target: "https://www.new.example",
+				}),
+			);
+			const screen = await renderGeneralSettings();
+			await userEvent.click(screen.getByRole("button", { name: "Change domain" }));
+			await screen.getByLabelText("New domain").fill("new.example");
+			await userEvent.keyboard("{Enter}");
+			await expect
+				.element(screen.getByRole("button", { name: "Use https://new.example anyway" }))
+				.toBeInTheDocument();
+			await expect
+				.element(screen.getByText(/On Cloudflare Workers, the check can fail/))
+				.not.toBeInTheDocument();
+		},
+	);
 
 	it("names the configured address that emails use while keeping the Site URL changeable", async () => {
 		mockFetchSiteDomain.mockResolvedValue({

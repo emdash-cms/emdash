@@ -8,12 +8,11 @@
  * workerd), or fires-and-forgets on Node (the process lives for the
  * next request anyway).
  *
- * Host binding is resolved lazily via a dynamic import of the
- * `virtual:emdash/wait-until` virtual module. Lazy — rather than a
- * static top-level import — so tools that walk the dist in a plain
- * Node loader (`astro check`, Vitest, etc.) don't trip over the
- * `virtual:` scheme: they'd only fail if they actually called
- * `after()`, which they don't during type-checking.
+ * Host binding is resolved via a dynamic import of the
+ * `virtual:emdash/wait-until` virtual module, with a runtime probe for
+ * workerd when the adapter did not provide a binding. Import failures are
+ * caught so tools that load core in plain Node (`astro check`, Vitest, etc.)
+ * work without either host module.
  */
 
 import { trackDeferredTask } from "./deferred-tasks.js";
@@ -21,8 +20,8 @@ import { getRequestContext } from "./request-context.js";
 
 export type WaitUntilFn = (promise: Promise<unknown>) => void;
 
-// Resolves to the host's waitUntil if the adapter provided one, or
-// null otherwise. Kicked off once at module load; subsequent `after()`
+// Resolves to the host's waitUntil when available, or null otherwise.
+// Kicked off once at module load; subsequent `after()`
 // calls see the cached result without re-importing.
 const waitUntilReady: Promise<WaitUntilFn | null> = (async () => {
 	try {
@@ -30,10 +29,18 @@ const waitUntilReady: Promise<WaitUntilFn | null> = (async () => {
 		const mod = (await import("virtual:emdash/wait-until")) as {
 			waitUntil?: WaitUntilFn;
 		};
+		if (mod.waitUntil) return mod.waitUntil;
+	} catch {
+		// Tooling may load core without the integration's virtual modules.
+	}
+
+	try {
+		// Injected or vendored adapters may not be known at config:setup.
+		// @ts-ignore - optional workerd built-in; unavailable on Node
+		// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- workerd's binding has no Node declarations
+		const mod = (await import("cloudflare:workers")) as { waitUntil?: WaitUntilFn };
 		return mod.waitUntil ?? null;
 	} catch {
-		// No virtual module available (Node-side tooling, tests without the
-		// integration in scope). Fire-and-forget is the safe fallback.
 		return null;
 	}
 })();

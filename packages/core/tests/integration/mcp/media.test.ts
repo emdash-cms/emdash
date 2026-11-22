@@ -14,8 +14,9 @@
  */
 
 import { Role } from "@emdash-cms/auth";
+import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MediaRepository } from "../../../src/database/repositories/media.js";
 import type { Database } from "../../../src/database/types.js";
@@ -785,5 +786,120 @@ describe("media_upload", () => {
 
 		const stored = await new MediaRepository(db).findById(item.id);
 		expect(stored?.caption).toBeNull();
+	});
+});
+
+describe("media_delete route cache purge", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	function routeCache() {
+		const invalidate = vi.fn(async (_options: { tags?: string[] }) => {});
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the tool only reads `enabled` and calls `invalidate`
+		const cache = { enabled: true, invalidate } as unknown as APIContext["cache"];
+		return { cache, invalidate };
+	}
+
+	function trackingStorage(keys: string[]) {
+		const objects = new Set(keys);
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- delete is the only storage call on this path
+		const storage = {
+			delete: async (key: string) => {
+				objects.delete(key);
+			},
+		} as unknown as Storage;
+		return { objects, storage };
+	}
+
+	it("purges the cached file and variants once the stored file is removed", async () => {
+		const storageKey = "photo.png";
+		const { objects, storage } = trackingStorage([storageKey]);
+		const { cache, invalidate } = routeCache();
+		const item = await new MediaRepository(db).create({
+			filename: "photo.png",
+			mimeType: "image/png",
+			storageKey,
+			authorId: ADMIN_ID,
+		});
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			cache,
+			runtimeOptions: { storage },
+		});
+
+		const result = await harness.client.callTool({
+			name: "media_delete",
+			arguments: { id: item.id },
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(objects.size).toBe(0);
+		expect(invalidate).toHaveBeenCalledWith({ tags: [`emdash:media:${storageKey}`] });
+	});
+
+	it("does not purge while another record still serves the stored file", async () => {
+		const storageKey = "shared.png";
+		const { objects, storage } = trackingStorage([storageKey]);
+		const { cache, invalidate } = routeCache();
+		const repo = new MediaRepository(db);
+		const owned = await repo.create({
+			filename: "owned.png",
+			mimeType: "image/png",
+			storageKey,
+			authorId: ADMIN_ID,
+		});
+		await repo.create({
+			filename: "kept.png",
+			mimeType: "image/png",
+			storageKey,
+			authorId: ADMIN_ID,
+		});
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			cache,
+			runtimeOptions: { storage },
+		});
+
+		const result = await harness.client.callTool({
+			name: "media_delete",
+			arguments: { id: owned.id },
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(objects.has(storageKey)).toBe(true);
+		expect(invalidate).not.toHaveBeenCalled();
+	});
+
+	it("does not purge when the media item does not exist", async () => {
+		const { storage } = trackingStorage([]);
+		const { cache, invalidate } = routeCache();
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			cache,
+			runtimeOptions: { storage },
+		});
+
+		const result = await harness.client.callTool({
+			name: "media_delete",
+			arguments: { id: "missing" },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(invalidate).not.toHaveBeenCalled();
 	});
 });

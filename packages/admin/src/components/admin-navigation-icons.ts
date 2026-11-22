@@ -82,9 +82,9 @@ export function getCollectionNavIcon(name: string, iconName?: string): React.Ele
 	return iconName ? resolveNavIcon(iconName, fallback) : fallback;
 }
 
-/** Tags have a distinct meaning; other taxonomies are collections of terms. */
-export function getTaxonomyNavIcon(name: string): Icon {
-	return name === "tag" ? ADMIN_NAV_ICONS.tags : ADMIN_NAV_ICONS.taxonomy;
+/** Flat taxonomies are tags; hierarchical ones nest their terms like folders. */
+export function getTaxonomyNavIcon(taxonomy: { hierarchical?: boolean }): Icon {
+	return taxonomy.hierarchical ? ADMIN_NAV_ICONS.taxonomy : ADMIN_NAV_ICONS.tags;
 }
 
 /** Common plugin-declared icon names that should resolve without loading another chunk. */

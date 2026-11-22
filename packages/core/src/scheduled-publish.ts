@@ -13,7 +13,11 @@
 import type { Kysely } from "kysely";
 
 import { handleContentPublish } from "./api/handlers/content.js";
-import { ContentRepository } from "./database/repositories/content.js";
+import {
+	ContentRepository,
+	findNextScheduledAt,
+	findTypesWithDueContent,
+} from "./database/repositories/content.js";
 import { OptionsRepository } from "./database/repositories/options.js";
 import type { Database } from "./database/types.js";
 import { SchemaRegistry } from "./schema/registry.js";
@@ -92,15 +96,28 @@ export interface PublishDueContentOptions {
 	limit?: number;
 	/** Clock value shared by due selection and the final publication fence. */
 	currentTime?: Date;
+	/**
+	 * When set, the sweep also reports the earliest `scheduled_at` after
+	 * `currentTime` and no later than this time, so a caller can wait for it
+	 * and publish it on time.
+	 */
+	upcomingUntil?: Date;
+}
+
+export interface ScheduledSweepResult {
+	published: PublishedRef[];
+	/** Earliest upcoming `scheduled_at` within `upcomingUntil`, or `null`. */
+	nextScheduledAt: Date | null;
 }
 
 /**
  * Publish every content item whose `scheduled_at` is in the past.
  *
- * Iterates all collections, finds due items (`findReadyToPublish` returns both
- * scheduled drafts and published entries with pending scheduled changes), and
- * publishes each. `publish()` clears `scheduled_at`, so a second sweep is a
- * no-op — safe to run on every tick.
+ * Finds the collections with due content (`findTypesWithDueContent`), then, in
+ * each of them, the due items (`findReadyToPublish` returns both scheduled
+ * drafts and published entries with pending scheduled changes), and publishes
+ * each. `publish()` clears `scheduled_at`, so a second sweep is a no-op — safe
+ * to run on every tick.
  *
  * Bounded per collection by `limit` (default `SCHEDULED_PUBLISH_BATCH_LIMIT`):
  * a large backlog drains across successive ticks rather than in one unbounded
@@ -114,11 +131,24 @@ export async function publishDueContent(
 	db: Kysely<Database>,
 	options: PublishDueContentOptions = {},
 ): Promise<PublishedRef[]> {
+	const { published } = await sweepScheduledContent(db, options);
+	return published;
+}
+
+/**
+ * `publishDueContent`, plus the next upcoming scheduled time when
+ * `upcomingUntil` is set.
+ */
+export async function sweepScheduledContent(
+	db: Kysely<Database>,
+	options: PublishDueContentOptions = {},
+): Promise<ScheduledSweepResult> {
 	const {
 		publish,
 		onPublished,
 		limit = SCHEDULED_PUBLISH_BATCH_LIMIT,
 		currentTime = new Date(),
+		upcomingUntil,
 	} = options;
 	const published: PublishedRef[] = [];
 
@@ -127,7 +157,7 @@ export async function publishDueContent(
 		collections = await new SchemaRegistry(db).listCollections();
 	} catch (error) {
 		console.error("[scheduled-publish] Failed to list collections:", error);
-		return published;
+		return { published, nextScheduledAt: null };
 	}
 
 	const repo = new ContentRepository(db);
@@ -137,7 +167,19 @@ export async function publishDueContent(
 	// 0 / negative means unbounded; findReadyToPublish treats that as "no LIMIT".
 	const batchLimit = limit > 0 ? limit : undefined;
 
+	let dueCollections: Set<string> | undefined;
+	try {
+		dueCollections = await findTypesWithDueContent(
+			db,
+			collections.map((collection) => collection.slug),
+			currentTime,
+		);
+	} catch (error) {
+		console.error("[scheduled-publish] Failed to find collections with due content:", error);
+	}
+
 	for (const collection of collections) {
+		if (dueCollections && !dueCollections.has(collection.slug)) continue;
 		try {
 			let cursor: ScheduledPublishCursor | undefined;
 			let cursorRevision: string | null = null;
@@ -171,9 +213,14 @@ export async function publishDueContent(
 				});
 				if (result.success) {
 					batch.push({ collection: collection.slug, id: item.id });
-				} else if (result.error?.code === "NOT_DUE" || result.error?.code === "PUBLISH_REJECTED") {
-					// Unscheduled or rescheduled between selection and publish — the
-					// editor changed their mind; skip quietly, not a failure.
+				} else if (
+					result.error?.code === "NOT_DUE" ||
+					result.error?.code === "PUBLISH_REJECTED" ||
+					result.error?.code === "CONFLICT"
+				) {
+					// Unscheduled, rescheduled, edited, or published by an overlapping
+					// sweep between selection and publish; skip quietly. An item that is
+					// still due is retried by the next sweep.
 				} else {
 					console.error(
 						`[scheduled-publish] Failed to publish ${collection.slug}/${item.id}:`,
@@ -221,5 +268,19 @@ export async function publishDueContent(
 		}
 	}
 
-	return published;
+	let nextScheduledAt: Date | null = null;
+	if (upcomingUntil) {
+		try {
+			nextScheduledAt = await findNextScheduledAt(
+				db,
+				collections.map((collection) => collection.slug),
+				currentTime,
+				upcomingUntil,
+			);
+		} catch (error) {
+			console.error("[scheduled-publish] Failed to find upcoming scheduled content:", error);
+		}
+	}
+
+	return { published, nextScheduledAt };
 }

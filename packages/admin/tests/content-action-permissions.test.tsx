@@ -175,7 +175,8 @@ describe("content editor Save and Publish offers", () => {
 		const screen = await openEntry("p1");
 
 		await expect.element(screen.getByRole("textbox", { name: "Title" })).toBeEnabled();
-		await expect.element(screen.getByRole("button", { name: "Save" })).toBeInTheDocument();
+		await screen.getByRole("textbox", { name: "Title" }).fill("Edited draft");
+		await expect.element(screen.getByRole("button", { name: "Save", exact: true })).toBeEnabled();
 		expect(screen.getByRole("button", { name: /^Publish/ }).query()).toBeNull();
 		expect(screen.getByRole("button", { name: "Schedule" }).query()).toBeNull();
 		expect(requests).toContain("POST /_emdash/api/content/posts/p1/lock");

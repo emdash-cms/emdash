@@ -1521,6 +1521,25 @@ describe("Portable Text ↔ ProseMirror conversion", () => {
 // =============================================================================
 
 describe("Editor component behaviour", () => {
+	it("names the editable textbox when no field label is supplied", async () => {
+		const screen = await render(<PortableTextEditor />);
+		const textbox = screen.getByRole("textbox", { name: "Rich text editor", exact: true });
+		await expect.element(textbox).toBeVisible();
+		expect(textbox.element().isContentEditable).toBe(true);
+	});
+
+	it("names the editable textbox from its field label", async () => {
+		const screen = await render(
+			<>
+				<span id="rich-text-label">Article body</span>
+				<PortableTextEditor aria-labelledby="rich-text-label" />
+			</>,
+		);
+		const textbox = screen.getByRole("textbox", { name: "Article body", exact: true });
+		await expect.element(textbox).toBeVisible();
+		expect(textbox.element().isContentEditable).toBe(true);
+	});
+
 	it("shows placeholder text in empty editor", async () => {
 		await render(<PortableTextEditor placeholder="Write something..." />);
 		const pm = await waitForEditor();

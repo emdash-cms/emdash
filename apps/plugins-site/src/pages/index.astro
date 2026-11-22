@@ -1,6 +1,4 @@
 ---
-import { getLiveCollection } from "astro:content";
-
 import BuildCta from "../components/home/BuildCta.astro";
 import Hero from "../components/home/Hero.astro";
 import HowItWorks from "../components/home/HowItWorks.astro";
@@ -9,26 +7,16 @@ import SectionNotch from "../components/home/SectionNotch.astro";
 import TrustBento from "../components/home/TrustBento.astro";
 import PluginArt from "../components/PluginArt.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { popularKeywords } from "../lib/home.js";
+import { searchCatalog, withLatestReleases } from "../lib/catalog.js";
+import { recentlyUpdated } from "../lib/discovery.js";
 import { REGISTRY_PAGE_CACHE } from "../lib/registry.js";
 
-const RECENT_LIMIT = 12;
-const CATALOG_LIMIT = 100;
+const result = await searchCatalog("");
+const catalog = "packages" in result ? result.packages : (result.partial ?? []);
+const hasError = "error" in result && catalog.length === 0;
+const recentEntries = await withLatestReleases(recentlyUpdated(catalog));
 
-const [recent, catalog] = await Promise.all([
-	getLiveCollection("plugins", {
-		limit: RECENT_LIMIT,
-		includeLatestRelease: true,
-	}),
-	getLiveCollection("plugins", { limit: CATALOG_LIMIT }),
-]);
-
-const recentEntries = recent.entries?.map((entry) => entry.data) ?? [];
-const packages = catalog.entries?.map((entry) => entry.data.package) ?? [];
-const hasError = Boolean(recent.error);
-const keywords = popularKeywords(packages, 6);
-
-if (!hasError && !catalog.error) {
+if (!("error" in result)) {
 	Astro.cache.set({ ...REGISTRY_PAGE_CACHE, tags: ["registry"] });
 }
 
@@ -41,7 +29,7 @@ const websiteJsonLd = {
 ---
 
 <BaseLayout jsonLd={websiteJsonLd}>
-	<Hero keywords={keywords} />
+	<Hero />
 	<RecentPlugins entries={recentEntries} hasError={hasError} />
 	<SectionNotch />
 	<TrustBento />

@@ -406,7 +406,7 @@ describe("Toolbar Presence and Structure", () => {
 	it("exposes the permanent Table control and keeps other extended actions in the block menu", async () => {
 		const { screen } = await renderEditor();
 		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
-		await expect.element(screen.getByRole("button", { name: "Add link" })).toBeVisible();
+		await expect.element(getToolbarButton(screen, "Add link")).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Insert image" })).toBeVisible();
 		await expect.element(screen.getByRole("button", { name: "Insert HTML" })).toBeVisible();
 		const table = screen.getByRole("button", { name: "Table" });
@@ -707,7 +707,7 @@ describe("Toolbar Presence and Structure", () => {
 	it("renders the link editor outside the horizontally scrolling toolbar", async () => {
 		const { screen } = await renderEditor();
 		const toolbar = screen.getByRole("toolbar", { name: "Text formatting" }).element();
-		screen.getByRole("button", { name: "Add link" }).element().click();
+		getToolbarButton(screen, "Add link").element().click();
 
 		await vi.waitFor(() => {
 			const input = document.querySelector<HTMLInputElement>(
@@ -1887,7 +1887,7 @@ describe("Link Insertion", () => {
 		});
 	});
 
-	it("applies a link to text typed after an empty caret", async () => {
+	it("exits the link when a space is typed after linked text", async () => {
 		const { screen, editor } = await renderEditor();
 		editor
 			.chain()
@@ -1916,7 +1916,8 @@ describe("Link Insertion", () => {
 		await vi.waitFor(() => {
 			const link = screen.container.querySelector("a");
 			expect(link?.getAttribute("href")).toBe("https://example.com");
-			expect(link?.textContent).toBe("linked text");
+			expect(link?.textContent).toBe("linked");
+			expect(link?.nextSibling?.textContent).toBe(" text");
 		});
 	});
 

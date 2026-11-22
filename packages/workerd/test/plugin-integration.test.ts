@@ -64,6 +64,8 @@ async function runMigrations(db: Kysely<any>) {
 		.addColumn("data", "text", (col) => col.notNull())
 		.addColumn("author_id", "text")
 		.addColumn("created_at", "text", (col) => col.notNull().defaultTo(sql`(datetime('now'))`))
+		.addColumn("kind", "text")
+		.addColumn("edited_by", "text")
 		.execute();
 
 	await db.schema

@@ -336,15 +336,21 @@ export function proseMirrorTableToPortableText(
 		}
 		const tableAttrs = asRecord(value.attrs);
 		const rows = value.content.map((row): UnknownRecord => {
-			if (!isRecord(row) || row.type !== "tableRow" || !Array.isArray(row.content)) {
+			// ProseMirror JSON omits the content of a row with no cells, such as one a rowspan covers.
+			if (
+				!isRecord(row) ||
+				row.type !== "tableRow" ||
+				(row.content !== undefined && !Array.isArray(row.content))
+			) {
 				return fail("INVALID_TABLE");
 			}
 			const attrs = asRecord(row.attrs);
+			const cells: unknown[] = Array.isArray(row.content) ? row.content : [];
 			return {
 				...safeFields(attrs.emdashData),
 				_type: "tableRow",
 				_key: readKey(attrs.emdashKey) ?? context.createKey(),
-				cells: row.content.map((cell) => pmCell(cell, context)),
+				cells: cells.map((cell) => pmCell(cell, context)),
 			};
 		});
 		return normalizeTable(
@@ -363,31 +369,31 @@ function pmCell(value: unknown, context: ProseMirrorTableToPortableTextContext):
 	if (
 		!isRecord(value) ||
 		(value.type !== "tableCell" && value.type !== "tableHeader") ||
-		!Array.isArray(value.content)
+		(value.content !== undefined && !Array.isArray(value.content))
 	) {
 		return fail("UNSUPPORTED_CELL_CONTENT");
 	}
 	const attrs = asRecord(value.attrs);
-	const content: PortableTextTableSpan[] = [];
-	const markDefs: PortableTextTableMarkDef[] = [];
-	for (let index = 0; index < value.content.length; index++) {
-		const paragraph = value.content[index];
+	// Converting the cell's paragraphs as one, joined by line breaks, keeps its span keys unique.
+	const inline: PortableTextTableProseMirrorNode[] = [];
+	const paragraphs: unknown[] = Array.isArray(value.content) ? value.content : [];
+	for (let index = 0; index < paragraphs.length; index++) {
+		const paragraph = paragraphs[index];
 		if (!isRecord(paragraph) || paragraph.type !== "paragraph") {
 			return fail("UNSUPPORTED_CELL_CONTENT");
 		}
-		const inline = Array.isArray(paragraph.content) ? paragraph.content : [];
+		const content = Array.isArray(paragraph.content) ? paragraph.content : [];
 		if (
-			!inline.every(
+			!content.every(
 				(node) => isProseMirrorNode(node) && (node.type === "text" || node.type === "hardBreak"),
 			)
 		) {
 			return fail("UNSUPPORTED_CELL_CONTENT");
 		}
-		const converted = context.inlineToSpans(inline);
-		if (index > 0) content.push({ _type: "span", _key: context.createKey(), text: "\n" });
-		content.push(...converted.content);
-		markDefs.push(...(converted.markDefs ?? []));
+		if (index > 0) inline.push({ type: "hardBreak" });
+		inline.push(...content);
 	}
+	const { content, markDefs = [] } = context.inlineToSpans(inline);
 	return {
 		...safeFields(attrs.emdashData),
 		_type: "tableCell",

@@ -53,6 +53,7 @@ export async function submissionsListHandler(ctx: RouteContext<SubmissionsListIn
 
 	return {
 		items: result.items.map((item) => ({ id: item.id, ...visibleTo(ctx, item.data) })),
+		canManage: (ctx.user?.role ?? 0) >= ADMIN_ROLE,
 		hasMore: result.hasMore,
 		cursor: result.cursor,
 	};

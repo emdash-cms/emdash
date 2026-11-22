@@ -12,6 +12,13 @@ describe("updateCollectionBody display fields", () => {
 		expect(result.dateField).toBe("started_at");
 	});
 
+	it.each(["publishedAt", "createdAt", "updatedAt"])(
+		"accepts system timestamp %s for dateField",
+		(dateField) => {
+			expect(updateCollectionBody.parse({ dateField }).dateField).toBe(dateField);
+		},
+	);
+
 	it("accepts null to clear titleField/dateField back to defaults", () => {
 		const result = updateCollectionBody.parse({
 			titleField: null,

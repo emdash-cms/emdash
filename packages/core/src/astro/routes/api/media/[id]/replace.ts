@@ -3,7 +3,12 @@ import type { APIRoute } from "astro";
 import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaReplaceMetadataForm } from "#api/schemas.js";
-import { MUTABLE_MEDIA_CACHE_CONTROL } from "#media/image-endpoint.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
+import {
+	isCacheableMediaKey,
+	mediaCacheTag,
+	MUTABLE_MEDIA_CACHE_CONTROL,
+} from "#media/image-endpoint.js";
 import { normalizeMime } from "#media/mime.js";
 import { computeContentHash } from "#utils/hash.js";
 
@@ -11,7 +16,7 @@ export const prerender = false;
 
 const REPLACEABLE_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 
-export const PUT: APIRoute = async ({ params, request, locals }) => {
+export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { id } = params;
 
@@ -92,6 +97,10 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 			});
 		} catch (error) {
 			return handleError(error, "Failed to replace media", "MEDIA_REPLACE_ERROR");
+		}
+		// The stored bytes changed even if the metadata update below fails.
+		if (isCacheableMediaKey(media.storageKey)) {
+			await invalidateRouteCache(cache, [mediaCacheTag(media.storageKey)]);
 		}
 
 		const result = await emdash.handleMediaReplaceMetadata(id, media.storageKey, {

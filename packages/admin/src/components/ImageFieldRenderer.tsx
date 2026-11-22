@@ -31,11 +31,15 @@ import {
 	metaString,
 	syncMediaCaption,
 } from "../lib/media-utils.js";
+import { cn } from "../lib/utils.js";
+import { DISCLOSURE_EASE, DISCLOSURE_MS, IMAGE_EDGE, ROW_BUTTON } from "./block-field-styles.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
 import { ImageDropTarget } from "./media/ImageDropTarget.js";
 import { useMediaAssetEditor } from "./media/useMediaAssetEditor.js";
 import { MediaPickerModal } from "./MediaPickerModal";
 import { OptionalLabel } from "./OptionalLabel.js";
+import { RequiredFieldMessage, useShowRequiredError } from "./RequiredFieldError.js";
+import { useQuietReturnFocus } from "./useQuietReturnFocus.js";
 
 /**
  * Image field value - matches emdash's MediaValue type
@@ -105,6 +109,14 @@ function mediaItemToImageFieldValue(item: MediaItem): ImageFieldValue {
 	});
 }
 
+/**
+ * Offers to put back a photo removed from a labelled image field, such as one in a block. It's
+ * called with the photo removed, and calls `restored` once it puts the photo back.
+ */
+export const ImageRemovalContext = React.createContext<
+	((removed: ImageFieldValue | string, restored: () => void) => void) | null
+>(null);
+
 export interface ImageFieldRendererProps {
 	id?: string;
 	label: string;
@@ -120,7 +132,32 @@ export interface ImageFieldRendererProps {
 	variant?: "default" | "featured" | "avatar";
 	/** Offer a second slot for the image shown in a dark color scheme */
 	darkVariant?: boolean;
+	/**
+	 * Leaves the label to the caller, which names the field with this element id.
+	 * The photo then spans the field, with its actions over it.
+	 */
+	labelledBy?: string;
+	describedBy?: string;
+	invalid?: boolean;
+	/**
+	 * With `labelledBy`, draws the photo as a thumbnail: in a settings row with Replace and
+	 * Remove beside it, or in a table cell as a button that opens the picker.
+	 */
+	thumbnail?: "row" | "cell";
 }
+
+const HOVER_REVEAL =
+	"opacity-0 transition-opacity duration-0 ease-emdash [@media(hover:none)]:opacity-100 pointer-coarse:opacity-100";
+const PHOTO_REVEAL = cn(
+	HOVER_REVEAL,
+	"group-hover/photo:opacity-100 group-hover/photo:duration-100 group-[:not([data-quiet-focus]):has(:focus-visible)]/photo:opacity-100",
+);
+const THUMB_REVEAL = cn(
+	HOVER_REVEAL,
+	"group-hover/thumb:opacity-100 group-hover/thumb:duration-100 group-[:not([data-quiet-focus]):has(:focus-visible)]/thumb:opacity-100",
+);
+const PHOTO_ACTION =
+	"bg-kumo-base/85 shadow-sm backdrop-blur-sm not-disabled:hover:bg-kumo-base pointer-coarse:h-11 pointer-coarse:min-w-11";
 
 export function ImageFieldRenderer({
 	id,
@@ -136,14 +173,30 @@ export function ImageFieldRenderer({
 	blockVersion,
 	variant = "default",
 	darkVariant = false,
+	labelledBy,
+	describedBy,
+	invalid = false,
+	thumbnail,
 }: ImageFieldRendererProps) {
 	const { t } = useLingui();
+	const labelled = labelledBy !== undefined;
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const errorId = React.useId();
 	const [pickerTarget, setPickerTarget] = React.useState<"image" | "darkVariant">("image");
 	const [mobileActionsOpen, setMobileActionsOpen] = React.useState(false);
 	const [imageBroken, setImageBroken] = React.useState(false);
 	const [darkImageBroken, setDarkImageBroken] = React.useState(false);
 	const mobileImageActionsRef = React.useRef<HTMLButtonElement>(null);
+	const quietFocus = useQuietReturnFocus();
+	const offerRestore = React.useContext(ImageRemovalContext);
+	/** The labelled slot's own button: Select image, or Replace beside a thumbnail. */
+	const slotButtonRef = React.useRef<HTMLButtonElement>(null);
+	const photoReplaceRef = React.useRef<HTMLButtonElement>(null);
+	/** Where focus goes once the photo has gone, or come back. */
+	const focusNextRef = React.useRef<"slot" | "photo" | null>(null);
+	/** The labelled field's box, which eases to its new height when a photo goes or comes back. */
+	const slotRef = React.useRef<HTMLDivElement>(null);
+	const heightBeforeRef = React.useRef<number | null>(null);
 	const [editedContentHashes, setEditedContentHashes] = React.useState<
 		Record<string, string | null | undefined>
 	>({});
@@ -254,8 +307,52 @@ export function ImageFieldRenderer({
 	};
 
 	const handleRemove = () => {
+		const removed = value;
+		if (!labelled) {
+			onChange(null);
+			return;
+		}
+		focusNextRef.current = "slot";
+		heightBeforeRef.current = slotRef.current?.getBoundingClientRect().height ?? null;
 		onChange(null);
+		if (removed && offerRestore) {
+			offerRestore(removed, () => {
+				focusNextRef.current = "photo";
+				heightBeforeRef.current = slotRef.current?.getBoundingClientRect().height ?? null;
+			});
+		}
 	};
+
+	// The rows below glide to where the photo's going or coming back puts them, as they do when a
+	// block or item is deleted or put back.
+	React.useLayoutEffect(() => {
+		const from = heightBeforeRef.current;
+		heightBeforeRef.current = null;
+		const slot = slotRef.current;
+		if (from === null || !slot || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+			return;
+		}
+		const to = slot.getBoundingClientRect().height;
+		if (Math.abs(to - from) < 1) return;
+		slot.animate(
+			{ height: [`${from}px`, `${to}px`], clipPath: ["inset(0)", "inset(0)"] },
+			{
+				duration: to < from ? DISCLOSURE_MS.close : DISCLOSURE_MS.open,
+				easing: DISCLOSURE_EASE,
+			},
+		);
+	}, [displayUrl]);
+
+	// A removed photo's actions go with it, so focus moves on to the slot's own button, and to the
+	// photo's Replace when Undo puts it back. Beside a thumbnail, or in a table cell, that button stays.
+	React.useLayoutEffect(() => {
+		const next = focusNextRef.current;
+		if (!next || (next === "photo") !== Boolean(displayUrl)) return;
+		focusNextRef.current = null;
+		const dropped = !document.activeElement || document.activeElement === document.body;
+		if (next === "slot" && !dropped) return;
+		(next === "photo" && !thumbnail ? photoReplaceRef : slotButtonRef).current?.focus();
+	}, [displayUrl, thumbnail]);
 
 	const handleRemoveDarkVariant = () => {
 		if (!objectValue) return;
@@ -334,6 +431,55 @@ export function ImageFieldRenderer({
 				{t`Remove`}
 			</Button>
 		</div>
+	);
+	const photoActions = (
+		<>
+			<Button
+				ref={photoReplaceRef}
+				type="button"
+				size="sm"
+				variant="secondary"
+				className={PHOTO_ACTION}
+				icon={<ImageSquare aria-hidden="true" />}
+				onClick={(event) => {
+					quietFocus.markOpener(event);
+					openPicker("image");
+				}}
+				disabled={assetEditor.isActive}
+			>
+				{t`Replace`}
+			</Button>
+			{canEditPrimaryAsset && (
+				<Button
+					type="button"
+					size="sm"
+					variant="secondary"
+					shape="square"
+					className={PHOTO_ACTION}
+					icon={<PencilSimple aria-hidden="true" />}
+					loading={assetEditor.isOpening && pickerTarget === "image"}
+					title={t`Edit asset`}
+					aria-label={t`Edit asset`}
+					onClick={(event) => {
+						quietFocus.markOpener(event);
+						setPickerTarget("image");
+						void assetEditor.openAssetEditor(objectValue!.id, event.currentTarget);
+					}}
+				/>
+			)}
+			<Button
+				type="button"
+				size="sm"
+				variant="secondary"
+				shape="square"
+				className={PHOTO_ACTION}
+				icon={<X aria-hidden="true" />}
+				title={t`Remove image`}
+				aria-label={t`Remove image`}
+				onClick={handleRemove}
+				disabled={assetEditor.isActive}
+			/>
+		</>
 	);
 	const mobileFeaturedActions = (
 		<DropdownMenu open={mobileActionsOpen} onOpenChange={setMobileActionsOpen}>
@@ -560,12 +706,162 @@ export function ImageFieldRenderer({
 		</LayerCard>
 	) : null;
 
+	const showRequiredError = useShowRequiredError(required, !displayUrl);
+	const requiredErrorProps = showRequiredError
+		? { "aria-invalid": true as const, "aria-describedby": errorId }
+		: undefined;
+
 	const labelContent = showOptional ? <OptionalLabel>{label}</OptionalLabel> : label;
+
+	const picker = (
+		<MediaPickerModal
+			open={pickerOpen}
+			onOpenChange={setPickerOpen}
+			onSelect={handleSelect}
+			mimeTypeFilters={
+				allowedMimeTypes && allowedMimeTypes.length > 0 ? allowedMimeTypes : ["image/"]
+			}
+			fieldId={fieldId}
+			blockType={blockType}
+			blockVersion={blockVersion}
+			title={
+				pickerTarget === "darkVariant"
+					? darkDisplayUrl
+						? t`Replace dark mode variant for ${label}`
+						: t`Select dark mode variant for ${label}`
+					: displayUrl
+						? t`Replace ${label}`
+						: t`Select ${label}`
+			}
+			confirmLabel={
+				pickerTarget === "darkVariant"
+					? darkDisplayUrl
+						? t`Replace`
+						: undefined
+					: displayUrl
+						? t`Replace`
+						: undefined
+			}
+		/>
+	);
+
+	if (labelled && thumbnail) {
+		const cell = thumbnail === "cell";
+		const preview =
+			displayUrl && !imageBroken ? (
+				<img
+					src={displayUrl}
+					alt=""
+					className="size-full object-cover"
+					style={{ objectPosition }}
+					onError={() => setImageBroken(true)}
+				/>
+			) : displayUrl ? (
+				<ImageBroken className="size-4" aria-hidden="true" />
+			) : (
+				<ImageSquare className="size-4" aria-hidden="true" />
+			);
+		const frame = cn(
+			"grid shrink-0 place-items-center overflow-hidden rounded-md",
+			cell ? "h-7 w-9" : "size-8",
+			displayUrl
+				? IMAGE_EDGE
+				: cn(
+						"border-[1.5px] border-dashed",
+						cell
+							? "border-transparent group-hover/item:border-kumo-line group-focus-within/item:border-kumo-line"
+							: "border-kumo-line",
+						invalid ? "text-kumo-danger" : "text-kumo-subtle",
+					),
+		);
+		return (
+			<div
+				id={id}
+				role="group"
+				aria-labelledby={labelledBy}
+				aria-describedby={describedBy}
+				{...quietFocus.groupProps}
+				className={cn(
+					"group/thumb flex min-h-8 min-w-0 items-center gap-1",
+					cell ? "justify-center" : "px-2",
+				)}
+			>
+				{cell ? (
+					<Button
+						ref={slotButtonRef}
+						type="button"
+						variant="ghost"
+						shape="square"
+						className={cn(frame, "p-0")}
+						aria-label={displayUrl ? t`Replace ${label}` : t`Select ${label}`}
+						aria-describedby={describedBy}
+						onClick={(event) => {
+							quietFocus.markOpener(event);
+							openPicker("image");
+						}}
+					>
+						{preview}
+					</Button>
+				) : (
+					<>
+						<span className={cn(frame, "me-1")}>{preview}</span>
+						<Button
+							ref={slotButtonRef}
+							type="button"
+							variant="ghost"
+							size="sm"
+							className={cn(
+								"h-8 px-2 text-base font-normal text-kumo-subtle",
+								ROW_BUTTON,
+								invalid && !displayUrl && "text-kumo-danger",
+							)}
+							aria-describedby={describedBy}
+							onClick={() => openPicker("image")}
+						>
+							{displayUrl ? t`Replace` : t`Select image`}
+						</Button>
+					</>
+				)}
+				{displayUrl &&
+					(cell ? (
+						<Button
+							type="button"
+							variant="ghost"
+							shape="square"
+							size="sm"
+							className={cn("size-6 text-kumo-subtle", THUMB_REVEAL)}
+							aria-label={t`Remove ${label}`}
+							onClick={handleRemove}
+						>
+							<X className="size-3.5" aria-hidden="true" />
+						</Button>
+					) : (
+						<Button
+							type="button"
+							variant="ghost"
+							size="sm"
+							className={cn("h-8 px-2 text-base font-normal text-kumo-subtle", ROW_BUTTON)}
+							onClick={handleRemove}
+						>
+							{t`Remove`}
+						</Button>
+					))}
+				{picker}
+			</div>
+		);
+	}
 
 	return (
 		// The featured card lays out by its own width, which the editor's column keeps well below the viewport's.
-		<div id={id} className={isFeatured ? "grid gap-2 @container/featured" : "grid gap-2"}>
-			{description ? (
+		<div
+			ref={slotRef}
+			id={id}
+			role={labelled ? "group" : undefined}
+			aria-labelledby={labelledBy}
+			aria-describedby={labelled ? describedBy : undefined}
+			className={cn("grid gap-2", isFeatured && "@container/featured")}
+		>
+			{labelled ? null : description ? (
 				<FieldHelpLabel
 					help={description}
 					helpLabel={t`More information about ${label}`}
@@ -580,6 +876,39 @@ export function ImageFieldRenderer({
 				avatarField
 			) : isFeatured && displayUrl ? (
 				featuredCard
+			) : displayUrl && labelled ? (
+				<div className="group/photo relative mx-2" {...quietFocus.groupProps}>
+					{imageBroken ? (
+						<div className="flex min-h-20 items-center justify-center gap-2 rounded-lg bg-kumo-tint text-kumo-subtle ring ring-kumo-line">
+							<ImageBroken className="size-5" aria-hidden="true" />
+							<span className="text-xs leading-4">{t`Image not found`}</span>
+						</div>
+					) : (
+						// Its size is known before it loads, so a block opening around it animates to its full height.
+						<img
+							src={displayUrl}
+							alt=""
+							className={cn(
+								IMAGE_EDGE,
+								"emdash-media-transparency-grid max-h-60 min-h-20 w-full rounded-lg object-cover",
+							)}
+							style={{
+								objectPosition,
+								aspectRatio:
+									currentWidth && currentHeight ? `${currentWidth} / ${currentHeight}` : "16 / 9",
+							}}
+							onError={() => setImageBroken(true)}
+						/>
+					)}
+					<div
+						className={cn(
+							"absolute end-2 top-2 flex gap-1",
+							imageBroken ? undefined : PHOTO_REVEAL,
+						)}
+					>
+						{photoActions}
+					</div>
+				</div>
 			) : displayUrl ? (
 				imageBroken ? (
 					<div className="grid gap-2">
@@ -610,58 +939,42 @@ export function ImageFieldRenderer({
 					fieldId={fieldId}
 					blockType={blockType}
 					blockVersion={blockVersion}
+					buttonProps={requiredErrorProps}
 				/>
 			) : (
 				<Button
+					ref={labelled ? slotButtonRef : undefined}
 					type="button"
 					variant="outline"
-					className="h-32 w-full justify-center border-dashed bg-kumo-control"
+					className={cn(
+						"justify-center border-dashed bg-kumo-control",
+						labelled ? "mx-2 h-14 w-auto" : "h-32 w-full",
+					)}
 					onClick={() => openPicker("image")}
+					{...(labelled ? { "aria-describedby": describedBy } : requiredErrorProps)}
 				>
-					<div className="flex flex-col items-center gap-2 text-kumo-subtle">
-						<ImageIcon className="h-8 w-8" />
+					<div
+						className={cn(
+							"flex items-center gap-2",
+							!labelled && "flex-col",
+							invalid ? "text-kumo-danger" : "text-kumo-subtle",
+						)}
+					>
+						<ImageIcon className={labelled ? "size-5" : "h-8 w-8"} />
 						<span>{t`Select image`}</span>
 					</div>
 				</Button>
 			)}
 			{darkVariantSlot}
-			<MediaPickerModal
-				open={pickerOpen}
-				onOpenChange={setPickerOpen}
-				onSelect={handleSelect}
-				mimeTypeFilters={
-					allowedMimeTypes && allowedMimeTypes.length > 0 ? allowedMimeTypes : ["image/"]
-				}
-				fieldId={fieldId}
-				blockType={blockType}
-				blockVersion={blockVersion}
-				title={
-					pickerTarget === "darkVariant"
-						? darkDisplayUrl
-							? t`Replace dark mode variant for ${label}`
-							: t`Select dark mode variant for ${label}`
-						: displayUrl
-							? t`Replace ${label}`
-							: t`Select ${label}`
-				}
-				confirmLabel={
-					pickerTarget === "darkVariant"
-						? darkDisplayUrl
-							? t`Replace`
-							: undefined
-						: displayUrl
-							? t`Replace`
-							: undefined
-				}
-			/>
+			{picker}
 			{assetEditor.dialog}
 			{assetEditor.error && (
 				<p role="alert" className="text-xs leading-4 text-kumo-danger">
 					{assetEditor.error}
 				</p>
 			)}
-			{required && !displayUrl && (
-				<p className="-mt-1 text-xs leading-4 text-kumo-danger">{t`This field is required`}</p>
+			{showRequiredError && !labelled && (
+				<RequiredFieldMessage id={errorId}>{t`This field is required`}</RequiredFieldMessage>
 			)}
 		</div>
 	);

@@ -17,9 +17,6 @@ import {
 	type TextModerationAdapter,
 } from "./types.js";
 
-export const WORKERS_AI_TEXT_MODEL_CANDIDATE = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
-export const WORKERS_AI_IMAGE_MODEL_CANDIDATE = "@cf/zai-org/glm-5.3-flash";
-
 export interface WorkersAiAdapterConfig {
 	modelId: string;
 	promptHash: string;
