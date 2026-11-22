@@ -188,17 +188,17 @@ msgstr ""
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
 #: packages/admin/src/components/ContentTypeList.tsx:187
-#: packages/admin/src/components/RepeaterField.tsx:159
+#: packages/admin/src/components/RepeaterField.tsx:166
 msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# مورد)} other {(# مورد)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4820
+#: packages/admin/src/components/ContentEditor.tsx:4824
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr ""
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4825
+#: packages/admin/src/components/ContentEditor.tsx:4829
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr ""
 
@@ -245,7 +245,7 @@ msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr ""
 
 #. placeholder {0}: count ?? issues.length
-#: packages/admin/src/components/BlocksField.tsx:567
+#: packages/admin/src/components/BlocksField.tsx:579
 msgid "{0, plural, one {# field needs attention} other {# fields need attention}}"
 msgstr ""
 
@@ -417,7 +417,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr ""
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:4830
+#: packages/admin/src/components/ContentEditor.tsx:4834
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr ""
 
@@ -745,7 +745,7 @@ msgstr "{label} — بدون ترجمه"
 msgid "{label} — view translation"
 msgstr "{label} — مشاهده ترجمه"
 
-#: packages/admin/src/components/BlocksField.tsx:1736
+#: packages/admin/src/components/BlocksField.tsx:1758
 msgid "{label} · version {versionNumber}"
 msgstr ""
 
@@ -755,7 +755,7 @@ msgid "{label} {position}"
 msgstr ""
 
 #: packages/admin/src/components/BlockListField.tsx:1037
-#: packages/admin/src/components/BlocksField.tsx:1687
+#: packages/admin/src/components/BlocksField.tsx:1709
 msgid "{label} actions"
 msgstr ""
 
@@ -791,7 +791,7 @@ msgstr ""
 msgid "{label}, {restored}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:2371
+#: packages/admin/src/components/BlocksField.tsx:2393
 msgid "{label}: {value}"
 msgstr ""
 
@@ -799,7 +799,7 @@ msgstr ""
 msgid "{lateness} late"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1325
+#: packages/admin/src/components/BlocksField.tsx:1337
 msgid "{list} +{more}"
 msgstr ""
 
@@ -831,7 +831,7 @@ msgstr ""
 msgid "{maximum, plural, one {Use at most # character} other {Use at most # characters}}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:505
+#: packages/admin/src/components/BlocksField.tsx:517
 msgid "{maxItems, plural, one {This field holds up to # block.} other {This field holds up to # blocks.}}"
 msgstr ""
 
@@ -856,12 +856,12 @@ msgid "{more, plural, one {Show # more person} other {Show # more people}}"
 msgstr ""
 
 #: packages/admin/src/components/BlockListField.tsx:677
-#: packages/admin/src/components/BlocksField.tsx:1129
+#: packages/admin/src/components/BlocksField.tsx:1141
 msgid "{moved} is already first"
 msgstr ""
 
 #: packages/admin/src/components/BlockListField.tsx:677
-#: packages/admin/src/components/BlocksField.tsx:1130
+#: packages/admin/src/components/BlocksField.tsx:1142
 msgid "{moved} is already last"
 msgstr ""
 
@@ -1097,11 +1097,11 @@ msgstr ""
 msgid "{title} now goes live {when}."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1023
+#: packages/admin/src/components/BlocksField.tsx:1035
 msgid "{toFix, plural, one {# to fix. Go to the problem} other {# to fix. Go to the next problem}}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1029
+#: packages/admin/src/components/BlocksField.tsx:1041
 msgid "{toFix, plural, one {# to fix} other {# to fix}}"
 msgstr ""
 
@@ -1189,7 +1189,7 @@ msgstr ""
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1496
+#: packages/admin/src/components/BlocksField.tsx:1518
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
 msgid "<0>Alt-click</0> to add above"
 msgstr ""
@@ -1198,12 +1198,12 @@ msgstr ""
 msgid "<0>Click</0> to add below"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1542
+#: packages/admin/src/components/BlocksField.tsx:1564
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
 msgid "<0>Click</0> to open menu"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1538
+#: packages/admin/src/components/BlocksField.tsx:1560
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
 msgid "<0>Drag</0> to move"
 msgstr ""
@@ -1390,13 +1390,13 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:128
 #: packages/admin/src/components/BylineFieldEditor.tsx:372
 #: packages/admin/src/components/ContentTypeEditor.tsx:238
-#: packages/admin/src/components/FieldEditor.tsx:439
-#: packages/admin/src/components/FieldEditor.tsx:1178
+#: packages/admin/src/components/FieldEditor.tsx:440
+#: packages/admin/src/components/FieldEditor.tsx:1180
 msgid "A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:483
-#: packages/admin/src/components/FieldEditor.tsx:1679
+#: packages/admin/src/components/FieldEditor.tsx:484
+#: packages/admin/src/components/FieldEditor.tsx:1681
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr ""
 
@@ -1542,7 +1542,7 @@ msgstr "فعال"
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
-#: packages/admin/src/components/FieldEditor.tsx:1532
+#: packages/admin/src/components/FieldEditor.tsx:1534
 msgid "Active v{0}"
 msgstr ""
 
@@ -1575,7 +1575,7 @@ msgstr ""
 msgid "Add {singularLower} to posts"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:2310
+#: packages/admin/src/components/BlocksField.tsx:2332
 msgid "Add a caption"
 msgstr ""
 
@@ -1600,35 +1600,35 @@ msgstr ""
 msgid "Add another byline"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1154
+#: packages/admin/src/components/BlocksField.tsx:1166
 msgid "Add at least {minItems} blocks."
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:138
-#: packages/admin/src/components/FieldEditor.tsx:387
+#: packages/admin/src/components/FieldEditor.tsx:388
 msgid "Add at least one option."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:474
-#: packages/admin/src/components/FieldEditor.tsx:1617
+#: packages/admin/src/components/FieldEditor.tsx:475
+#: packages/admin/src/components/FieldEditor.tsx:1619
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "حداقل یک زیرفیلد برای تعریف ساختار تکرارشونده بیفزایید."
 
-#: packages/admin/src/components/BlocksField.tsx:986
+#: packages/admin/src/components/BlocksField.tsx:998
 #: packages/admin/src/components/BlockTypePicker.tsx:80
 msgid "Add block"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1717
+#: packages/admin/src/components/BlocksField.tsx:1739
 msgid "Add block above"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1494
-#: packages/admin/src/components/BlocksField.tsx:1718
+#: packages/admin/src/components/BlocksField.tsx:1516
+#: packages/admin/src/components/BlocksField.tsx:1740
 msgid "Add block below"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1513
+#: packages/admin/src/components/BlocksField.tsx:1535
 msgid "Add block below {label}"
 msgstr ""
 
@@ -1672,8 +1672,8 @@ msgid "Add Domain"
 msgstr "افزودن دامنه"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:808
-#: packages/admin/src/components/FieldEditor.tsx:1008
-#: packages/admin/src/components/FieldEditor.tsx:1826
+#: packages/admin/src/components/FieldEditor.tsx:1010
+#: packages/admin/src/components/FieldEditor.tsx:1828
 msgid "Add Field"
 msgstr "افزودن فیلد"
 
@@ -1693,7 +1693,7 @@ msgstr ""
 msgid "Add First Field"
 msgstr ""
 
-#: packages/admin/src/components/RepeaterField.tsx:181
+#: packages/admin/src/components/RepeaterField.tsx:188
 msgid "Add First Item"
 msgstr "افزودن اولین مورد"
 
@@ -1710,7 +1710,7 @@ msgstr ""
 msgid "Add item"
 msgstr ""
 
-#: packages/admin/src/components/RepeaterField.tsx:165
+#: packages/admin/src/components/RepeaterField.tsx:172
 msgid "Add Item"
 msgstr "افزودن مورد"
 
@@ -1762,8 +1762,8 @@ msgstr ""
 msgid "Add Passkey"
 msgstr "افزودن شاه‌کلید"
 
-#: packages/admin/src/components/ContentEditor.tsx:4734
-#: packages/admin/src/components/ContentEditor.tsx:4734
+#: packages/admin/src/components/ContentEditor.tsx:4738
+#: packages/admin/src/components/ContentEditor.tsx:4738
 msgid "Add reference"
 msgstr ""
 
@@ -1793,7 +1793,7 @@ msgstr ""
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1604
+#: packages/admin/src/components/FieldEditor.tsx:1606
 msgid "Add Sub-Field"
 msgstr "افزودن زیرفیلد"
 
@@ -1927,12 +1927,12 @@ msgstr "ناوبری مدیریت"
 msgid "Administrator"
 msgstr "مدیر"
 
-#: packages/admin/src/components/BlocksField.tsx:2432
+#: packages/admin/src/components/BlocksField.tsx:2454
 #: packages/admin/src/components/PortableTextEditor.tsx:501
 msgid "Advanced"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:2415
+#: packages/admin/src/components/BlocksField.tsx:2437
 msgid "Advanced: {blockLabel}"
 msgstr ""
 
@@ -2055,7 +2055,7 @@ msgstr ""
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1412
+#: packages/admin/src/components/FieldEditor.tsx:1414
 msgid "Allow multiple references"
 msgstr ""
 
@@ -2068,8 +2068,8 @@ msgstr "اجازه ثبت‌نام کاربران از دامنه‌های خا�
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1439
-#: packages/admin/src/components/FieldEditor.tsx:1456
+#: packages/admin/src/components/FieldEditor.tsx:1441
+#: packages/admin/src/components/FieldEditor.tsx:1458
 msgid "Allowed block types"
 msgstr ""
 
@@ -2240,7 +2240,7 @@ msgid "Another editor"
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:151
-#: packages/admin/src/components/FieldEditor.tsx:519
+#: packages/admin/src/components/FieldEditor.tsx:520
 msgid "Another field already uses this slug. Enter a different one."
 msgstr ""
 
@@ -2268,7 +2268,7 @@ msgstr ""
 msgid "Another section already uses this slug. Enter a different one."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:489
+#: packages/admin/src/components/FieldEditor.tsx:490
 msgid "Another sub-field already uses this slug. Enter a different one."
 msgstr ""
 
@@ -2375,7 +2375,7 @@ msgstr "تأییدشده"
 msgid "Approving…"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:729
+#: packages/admin/src/components/FieldEditor.tsx:730
 msgid "Arbitrary JSON data"
 msgstr "داده JSON دلخواه"
 
@@ -2436,11 +2436,11 @@ msgstr ""
 msgid "Astro"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4853
+#: packages/admin/src/components/ContentEditor.tsx:4857
 msgid "At least {min}"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4850
+#: packages/admin/src/components/ContentEditor.tsx:4854
 msgid "At most {max}"
 msgstr ""
 
@@ -2611,7 +2611,7 @@ msgstr ""
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:501
-#: packages/admin/src/components/FieldEditor.tsx:1814
+#: packages/admin/src/components/FieldEditor.tsx:1816
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
 #: packages/admin/src/components/WordPressImport.tsx:2609
@@ -2704,7 +2704,7 @@ msgstr "قبل از ارسال:"
 msgid "Before you continue:"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4847
+#: packages/admin/src/components/ContentEditor.tsx:4851
 msgid "Between {min} and {max}"
 msgstr ""
 
@@ -2744,7 +2744,7 @@ msgstr ""
 msgid "Block types"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1446
+#: packages/admin/src/components/FieldEditor.tsx:1448
 msgid "Block types could not be loaded."
 msgstr ""
 
@@ -2752,7 +2752,7 @@ msgstr ""
 msgid "Blockers"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:752
+#: packages/admin/src/components/FieldEditor.tsx:753
 msgid "Blocks"
 msgstr ""
 
@@ -2762,8 +2762,8 @@ msgid "Bold"
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:58
-#: packages/admin/src/components/FieldEditor.tsx:680
-#: packages/admin/src/components/FieldEditor.tsx:1698
+#: packages/admin/src/components/FieldEditor.tsx:681
+#: packages/admin/src/components/FieldEditor.tsx:1700
 msgid "Boolean"
 msgstr "منطقی"
 
@@ -2949,7 +2949,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
-#: packages/admin/src/components/FieldEditor.tsx:1819
+#: packages/admin/src/components/FieldEditor.tsx:1821
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
@@ -3078,7 +3078,7 @@ msgstr ""
 msgid "Center"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1066
+#: packages/admin/src/components/FieldEditor.tsx:1068
 msgid "Change"
 msgstr "تغییر"
 
@@ -3124,7 +3124,7 @@ msgstr ""
 msgid "Change schedule"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1012
+#: packages/admin/src/components/FieldEditor.tsx:1014
 msgid "Change the field's label and what it accepts."
 msgstr ""
 
@@ -3323,7 +3323,7 @@ msgstr ""
 msgid "Choose {label}"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:426
+#: packages/admin/src/components/FieldEditor.tsx:427
 msgid "Choose a collection."
 msgstr ""
 
@@ -3358,7 +3358,7 @@ msgstr ""
 msgid "Choose a recognized timezone for reliable date display."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:425
+#: packages/admin/src/components/FieldEditor.tsx:426
 msgid "Choose a relationship."
 msgstr ""
 
@@ -3386,7 +3386,7 @@ msgstr ""
 msgid "Choose another option"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:502
+#: packages/admin/src/components/FieldEditor.tsx:503
 msgid "Choose at least one block type."
 msgstr ""
 
@@ -3428,7 +3428,7 @@ msgstr ""
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1014
+#: packages/admin/src/components/FieldEditor.tsx:1016
 msgid "Choose what kind of content the field holds."
 msgstr ""
 
@@ -3605,7 +3605,7 @@ msgstr "بلوک کد"
 msgid "Code block actions"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1062
+#: packages/admin/src/components/BlocksField.tsx:1074
 msgid "Collapse all"
 msgstr ""
 
@@ -3742,7 +3742,7 @@ msgstr "تکمیل ثبت‌نام"
 msgid "Component"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1008
+#: packages/admin/src/components/FieldEditor.tsx:1010
 msgid "Configure Field"
 msgstr "پیکربندی فیلد"
 
@@ -4139,7 +4139,7 @@ msgstr "وردپرس شناسایی نشد"
 msgid "Couldn’t join. Try again."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4711
+#: packages/admin/src/components/ContentEditor.tsx:4715
 msgid "Couldn't load all references."
 msgstr ""
 
@@ -4273,7 +4273,7 @@ msgstr ""
 msgid "Create {singularLower}"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1450
+#: packages/admin/src/components/FieldEditor.tsx:1452
 msgid "Create a block type before adding a blocks field."
 msgstr ""
 
@@ -4367,7 +4367,7 @@ msgstr "ساخت    تغییر مسیر برای این مسیر"
 msgid "Create redirect rules to manage URL changes."
 msgstr "قوانین    تغییر مسیر برای مدیریت تغییرات آدرس بسازید."
 
-#: packages/admin/src/components/FieldEditor.tsx:1089
+#: packages/admin/src/components/FieldEditor.tsx:1091
 msgid "Create relation"
 msgstr ""
 
@@ -4586,8 +4586,8 @@ msgstr ""
 msgid "Daily automatic backups"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1792
-#: packages/admin/src/components/FieldEditor.tsx:1795
+#: packages/admin/src/components/FieldEditor.tsx:1794
+#: packages/admin/src/components/FieldEditor.tsx:1797
 #: packages/admin/src/components/ImageFieldRenderer.tsx:562
 msgid "Dark mode variant"
 msgstr ""
@@ -4611,12 +4611,12 @@ msgstr ""
 msgid "Date"
 msgstr "تاریخ"
 
-#: packages/admin/src/components/FieldEditor.tsx:686
-#: packages/admin/src/components/FieldEditor.tsx:1699
+#: packages/admin/src/components/FieldEditor.tsx:687
+#: packages/admin/src/components/FieldEditor.tsx:1701
 msgid "Date & Time"
 msgstr "تاریخ و زمان"
 
-#: packages/admin/src/components/FieldEditor.tsx:687
+#: packages/admin/src/components/FieldEditor.tsx:688
 msgid "Date and time picker"
 msgstr "انتخابگر تاریخ و زمان"
 
@@ -4636,7 +4636,7 @@ msgstr "قالب تاریخ"
 msgid "Date range"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:669
+#: packages/admin/src/components/FieldEditor.tsx:670
 msgid "Decimal number"
 msgstr "عدد اعشاری"
 
@@ -4691,7 +4691,7 @@ msgstr "ساختار محتوای خود را تعریف کنید"
 msgid "Defined in code"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1184
+#: packages/admin/src/components/BlocksField.tsx:1196
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4771,7 +4771,7 @@ msgstr ""
 msgid "Delete {0}?"
 msgstr "حذف {0}؟"
 
-#: packages/admin/src/components/BlocksField.tsx:1182
+#: packages/admin/src/components/BlocksField.tsx:1194
 msgid "Delete {confirmName}?"
 msgstr ""
 
@@ -4920,8 +4920,8 @@ msgstr ""
 msgid "Deleted"
 msgstr "حذف‌شده"
 
-#: packages/admin/src/components/BlocksField.tsx:902
-#: packages/admin/src/components/BlocksField.tsx:928
+#: packages/admin/src/components/BlocksField.tsx:914
+#: packages/admin/src/components/BlocksField.tsx:940
 msgid "Deleted {name}"
 msgstr ""
 
@@ -4936,7 +4936,7 @@ msgstr ""
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1185
+#: packages/admin/src/components/BlocksField.tsx:1197
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1853
@@ -5461,7 +5461,7 @@ msgstr ""
 msgid "Duplicated {copied}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:844
+#: packages/admin/src/components/BlocksField.tsx:856
 msgid "Duplicated {name}"
 msgstr ""
 
@@ -5594,7 +5594,7 @@ msgstr ""
 msgid "Edit Domain"
 msgstr "ویرایش دامنه"
 
-#: packages/admin/src/components/FieldEditor.tsx:1008
+#: packages/admin/src/components/FieldEditor.tsx:1010
 msgid "Edit Field"
 msgstr "ویرایش فیلد"
 
@@ -5767,7 +5767,7 @@ msgstr ""
 msgid "Editor sidebar sections"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1790
+#: packages/admin/src/components/FieldEditor.tsx:1792
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr ""
 
@@ -6025,7 +6025,7 @@ msgid "Enter a full URL, such as https://example.com."
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:119
-#: packages/admin/src/components/FieldEditor.tsx:341
+#: packages/admin/src/components/FieldEditor.tsx:342
 #: packages/admin/src/components/MenuEditor.tsx:136
 #: packages/admin/src/components/MenuEditor.tsx:254
 #: packages/admin/src/components/MenuList.tsx:40
@@ -6034,7 +6034,7 @@ msgstr ""
 msgid "Enter a label."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:344
+#: packages/admin/src/components/FieldEditor.tsx:345
 msgid "Enter a maximum that is at least the minimum."
 msgstr ""
 
@@ -6059,11 +6059,11 @@ msgstr ""
 msgid "Enter a number of {min} or more."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:345
+#: packages/admin/src/components/FieldEditor.tsx:346
 msgid "Enter a number of 100 or less."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:343
+#: packages/admin/src/components/FieldEditor.tsx:344
 msgid "Enter a number."
 msgstr ""
 
@@ -6078,7 +6078,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:127
 #: packages/admin/src/components/BylineFormDialog.tsx:317
-#: packages/admin/src/components/FieldEditor.tsx:340
+#: packages/admin/src/components/FieldEditor.tsx:341
 #: packages/admin/src/components/RelationForm.tsx:173
 #: packages/admin/src/components/Sections.tsx:98
 #: packages/admin/src/components/TaxonomyManager.tsx:106
@@ -6109,7 +6109,7 @@ msgstr ""
 msgid "Enter a valid email address, such as name@example.com."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:453
+#: packages/admin/src/components/FieldEditor.tsx:454
 msgid "Enter a valid regular expression."
 msgstr ""
 
@@ -6118,7 +6118,7 @@ msgid "Enter a valid time"
 msgstr ""
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:4901
+#: packages/admin/src/components/ContentEditor.tsx:4905
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "یک آدرس وب (URL) معتبر وارد کنید (مثلاً https://example.com)"
 
@@ -6126,11 +6126,11 @@ msgstr "یک آدرس وب (URL) معتبر وارد کنید (مثلاً https:
 msgid "Enter a whole number"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:342
+#: packages/admin/src/components/FieldEditor.tsx:343
 msgid "Enter a whole number of 0 or more."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:412
+#: packages/admin/src/components/FieldEditor.tsx:413
 msgid "Enter a whole number of 1 or more."
 msgstr ""
 
@@ -6194,13 +6194,13 @@ msgstr "آدرس وبسایت (URL) وردپرس خود را وارد کنید"
 msgid "Entries"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1126
-#: packages/admin/src/components/FieldEditor.tsx:1379
+#: packages/admin/src/components/FieldEditor.tsx:1128
+#: packages/admin/src/components/FieldEditor.tsx:1381
 msgid "Entries that link to this one"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1125
-#: packages/admin/src/components/FieldEditor.tsx:1378
+#: packages/admin/src/components/FieldEditor.tsx:1127
+#: packages/admin/src/components/FieldEditor.tsx:1380
 msgid "Entries this one links to"
 msgstr ""
 
@@ -6297,7 +6297,7 @@ msgstr ""
 msgid "Exists"
 msgstr "وجود دارد"
 
-#: packages/admin/src/components/BlocksField.tsx:1062
+#: packages/admin/src/components/BlocksField.tsx:1074
 msgid "Expand all"
 msgstr ""
 
@@ -7517,15 +7517,15 @@ msgstr ""
 msgid "Field deleted"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1644
+#: packages/admin/src/components/FieldEditor.tsx:1646
 msgid "Field label"
 msgstr "برچسب فیلد"
 
-#: packages/admin/src/components/FieldEditor.tsx:1154
+#: packages/admin/src/components/FieldEditor.tsx:1156
 msgid "Field Label"
 msgstr "برچسب فیلد"
 
-#: packages/admin/src/components/FieldEditor.tsx:1163
+#: packages/admin/src/components/FieldEditor.tsx:1165
 msgid "Field slugs cannot be changed after creation"
 msgstr "نامک‌های فیلد پس از ساخت قابل تغییر نیستند"
 
@@ -7537,7 +7537,7 @@ msgstr ""
 msgid "Field updated"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1675
+#: packages/admin/src/components/FieldEditor.tsx:1677
 msgid "field_slug"
 msgstr ""
 
@@ -7551,7 +7551,7 @@ msgstr ""
 msgid "Fields created:"
 msgstr "فیلدهای ساخته‌شده:"
 
-#: packages/admin/src/components/FieldEditor.tsx:716
+#: packages/admin/src/components/FieldEditor.tsx:717
 msgid "File"
 msgstr "فایل"
 
@@ -7560,7 +7560,7 @@ msgstr "فایل"
 msgid "File {0}"
 msgstr "فایل {0}"
 
-#: packages/admin/src/components/FieldEditor.tsx:717
+#: packages/admin/src/components/FieldEditor.tsx:718
 msgid "File from media library"
 msgstr "فایل از کتابخانه رسانه"
 
@@ -7874,7 +7874,7 @@ msgstr "رفتن به داشبورد"
 msgid "Go to sign-in"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1016
+#: packages/admin/src/components/BlocksField.tsx:1028
 msgid "Go to the next problem"
 msgstr ""
 
@@ -8068,7 +8068,7 @@ msgstr "بازدید"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4285
+#: packages/admin/src/components/ContentEditor.tsx:4289
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr ""
 
@@ -8219,8 +8219,8 @@ msgid "visualEditing.image"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
-#: packages/admin/src/components/FieldEditor.tsx:710
-#: packages/admin/src/components/FieldEditor.tsx:1702
+#: packages/admin/src/components/FieldEditor.tsx:711
+#: packages/admin/src/components/FieldEditor.tsx:1704
 #: packages/admin/src/components/PortableTextEditor.tsx:2474
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
@@ -8247,7 +8247,7 @@ msgstr ""
 msgid "Image controls"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:711
+#: packages/admin/src/components/FieldEditor.tsx:712
 msgid "Image from media library"
 msgstr "تصویر از کتابخانه رسانه"
 
@@ -8459,7 +8459,7 @@ msgstr ""
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1353
+#: packages/admin/src/components/BlocksField.tsx:1365
 msgid "Inactive version"
 msgstr ""
 
@@ -8484,7 +8484,7 @@ msgstr ""
 msgid "Index existing content and keep Used in results up to date."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1213
+#: packages/admin/src/components/FieldEditor.tsx:1215
 #: packages/admin/src/components/RegistryPluginDetail.tsx:588
 msgid "Indexed"
 msgstr ""
@@ -8643,8 +8643,8 @@ msgstr "نصب شد:"
 msgid "Installing..."
 msgstr "در حال نصب..."
 
-#: packages/admin/src/components/FieldEditor.tsx:674
-#: packages/admin/src/components/FieldEditor.tsx:1697
+#: packages/admin/src/components/FieldEditor.tsx:675
+#: packages/admin/src/components/FieldEditor.tsx:1699
 msgid "Integer"
 msgstr "عدد صحیح"
 
@@ -8656,7 +8656,7 @@ msgstr ""
 msgid "Invalid invite link"
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4994
+#: packages/admin/src/components/ContentEditor.tsx:4998
 msgid "Invalid JSON"
 msgstr "JSON نامعتبر"
 
@@ -8738,7 +8738,7 @@ msgstr ""
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/BlockListField.tsx:401
 #: packages/admin/src/components/PortableTextEditor.tsx:1795
-#: packages/admin/src/components/RepeaterField.tsx:252
+#: packages/admin/src/components/RepeaterField.tsx:268
 msgid "Item {0}"
 msgstr "مورد {0}"
 
@@ -8811,7 +8811,7 @@ msgid "JS"
 msgstr ""
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:41
-#: packages/admin/src/components/FieldEditor.tsx:728
+#: packages/admin/src/components/FieldEditor.tsx:729
 msgid "JSON"
 msgstr "JSON"
 
@@ -8883,8 +8883,8 @@ msgid "Kotlin"
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:341
-#: packages/admin/src/components/FieldEditor.tsx:1151
-#: packages/admin/src/components/FieldEditor.tsx:1630
+#: packages/admin/src/components/FieldEditor.tsx:1153
+#: packages/admin/src/components/FieldEditor.tsx:1632
 #: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/MenuEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:615
@@ -9020,7 +9020,7 @@ msgstr "مجوز"
 msgid "Limit"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:2326
+#: packages/admin/src/components/BlocksField.tsx:2348
 #: packages/admin/src/components/PortableTextEditor.tsx:5386
 msgid "Link"
 msgstr ""
@@ -9037,7 +9037,7 @@ msgstr ""
 msgid "Link this byline to a user or mark it as a guest profile."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:723
+#: packages/admin/src/components/FieldEditor.tsx:724
 msgid "Link to another content item"
 msgstr "لینک به محتوای دیگر"
 
@@ -9190,7 +9190,7 @@ msgid "Loading approval requests…"
 msgstr ""
 
 #: packages/admin/src/components/BlockTypeList.tsx:51
-#: packages/admin/src/components/FieldEditor.tsx:1443
+#: packages/admin/src/components/FieldEditor.tsx:1445
 msgid "Loading block types…"
 msgstr ""
 
@@ -9265,7 +9265,7 @@ msgstr "در حال بارگذاری افزونه‌ها..."
 msgid "Loading redirects..."
 msgstr "در حال بارگذاری    تغییر مسیر‌ها..."
 
-#: packages/admin/src/components/ContentEditor.tsx:4719
+#: packages/admin/src/components/ContentEditor.tsx:4723
 msgid "Loading references..."
 msgstr ""
 
@@ -9408,8 +9408,8 @@ msgstr "لوگو و فاوآیکون"
 msgid "Long text"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:662
-#: packages/admin/src/components/FieldEditor.tsx:1695
+#: packages/admin/src/components/FieldEditor.tsx:663
+#: packages/admin/src/components/FieldEditor.tsx:1697
 msgid "Long Text"
 msgstr "متن بلند"
 
@@ -9536,15 +9536,15 @@ msgstr ""
 msgid "Matched by email"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1761
+#: packages/admin/src/components/FieldEditor.tsx:1763
 msgid "Max Items"
 msgstr "حداکثر موارد"
 
-#: packages/admin/src/components/FieldEditor.tsx:1237
+#: packages/admin/src/components/FieldEditor.tsx:1239
 msgid "Max Length"
 msgstr "حداکثر طول"
 
-#: packages/admin/src/components/FieldEditor.tsx:1275
+#: packages/admin/src/components/FieldEditor.tsx:1277
 msgid "Max Value"
 msgstr "حداکثر مقدار"
 
@@ -9552,7 +9552,7 @@ msgstr "حداکثر مقدار"
 msgid "Maximum"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1561
+#: packages/admin/src/components/FieldEditor.tsx:1563
 msgid "Maximum blocks"
 msgstr ""
 
@@ -9774,19 +9774,19 @@ msgstr ""
 msgid "Migration key"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1751
+#: packages/admin/src/components/FieldEditor.tsx:1753
 msgid "Min Items"
 msgstr "حداقل موارد"
 
-#: packages/admin/src/components/FieldEditor.tsx:1227
+#: packages/admin/src/components/FieldEditor.tsx:1229
 msgid "Min Length"
 msgstr "حداقل طول"
 
-#: packages/admin/src/components/FieldEditor.tsx:1265
+#: packages/admin/src/components/FieldEditor.tsx:1267
 msgid "Min Value"
 msgstr "حداقل مقدار"
 
-#: packages/admin/src/components/FieldEditor.tsx:1550
+#: packages/admin/src/components/FieldEditor.tsx:1552
 msgid "Minimum blocks"
 msgstr ""
 
@@ -9883,8 +9883,8 @@ msgstr "انتقال «{title}» به سطل زباله؟ می‌توانید ب
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4686
-#: packages/admin/src/components/FieldEditor.tsx:1521
+#: packages/admin/src/components/ContentEditor.tsx:4690
+#: packages/admin/src/components/FieldEditor.tsx:1523
 msgid "Move {0} down"
 msgstr ""
 
@@ -9900,8 +9900,8 @@ msgstr ""
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4675
-#: packages/admin/src/components/FieldEditor.tsx:1504
+#: packages/admin/src/components/ContentEditor.tsx:4679
+#: packages/admin/src/components/FieldEditor.tsx:1506
 msgid "Move {0} up"
 msgstr ""
 
@@ -9973,7 +9973,7 @@ msgstr ""
 msgid "Moved {moved} to position {position} of {total}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:855
+#: packages/admin/src/components/BlocksField.tsx:867
 #: packages/admin/src/components/useDragAnnouncements.ts:72
 msgid "Moved {name} to position {position} of {total}"
 msgstr ""
@@ -10067,15 +10067,15 @@ msgstr ""
 msgid "Moving to trash..."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:698
+#: packages/admin/src/components/FieldEditor.tsx:699
 msgid "Multi Select"
 msgstr "چند‌انتخابی"
 
-#: packages/admin/src/components/FieldEditor.tsx:663
+#: packages/admin/src/components/FieldEditor.tsx:664
 msgid "Multi-line plain text"
 msgstr "متن ساده چندخطی"
 
-#: packages/admin/src/components/FieldEditor.tsx:699
+#: packages/admin/src/components/FieldEditor.tsx:700
 msgid "Multiple choices from options"
 msgstr "انتخاب چندگانه از گزینه‌ها"
 
@@ -10100,7 +10100,7 @@ msgstr "وبلاگ عالی من"
 msgid "Name"
 msgstr "نام"
 
-#: packages/admin/src/components/FieldEditor.tsx:1015
+#: packages/admin/src/components/FieldEditor.tsx:1017
 msgid "Name the field and choose what it accepts."
 msgstr ""
 
@@ -10253,7 +10253,7 @@ msgstr ""
 msgid "News"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1822
+#: packages/admin/src/components/FieldEditor.tsx:1824
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "بعدی"
@@ -10327,7 +10327,7 @@ msgstr "هنوز دیدگاه تأییدشده‌ای وجود ندارد."
 msgid "No block types defined"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1147
+#: packages/admin/src/components/BlocksField.tsx:1159
 msgid "No blocks yet"
 msgstr ""
 
@@ -10497,12 +10497,12 @@ msgstr ""
 
 #: packages/admin/src/components/BlockListField.tsx:885
 #: packages/admin/src/components/PortableTextEditor.tsx:1718
-#: packages/admin/src/components/RepeaterField.tsx:172
+#: packages/admin/src/components/RepeaterField.tsx:179
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
 msgstr "هنوز موردی نیست"
 
-#: packages/admin/src/components/FieldEditor.tsx:1766
+#: packages/admin/src/components/FieldEditor.tsx:1768
 msgid "No limit"
 msgstr "بدون حد"
 
@@ -10556,8 +10556,8 @@ msgstr ""
 msgid "No matching timezones"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1242
-#: packages/admin/src/components/FieldEditor.tsx:1280
+#: packages/admin/src/components/FieldEditor.tsx:1244
+#: packages/admin/src/components/FieldEditor.tsx:1282
 msgid "No maximum"
 msgstr "بدون حداکثر"
 
@@ -10578,8 +10578,8 @@ msgstr "هنوز آیتم فهرستیی نیست"
 msgid "No menus yet"
 msgstr "هنوز فهرستیی نیست"
 
-#: packages/admin/src/components/FieldEditor.tsx:1232
-#: packages/admin/src/components/FieldEditor.tsx:1270
+#: packages/admin/src/components/FieldEditor.tsx:1234
+#: packages/admin/src/components/FieldEditor.tsx:1272
 msgid "No minimum"
 msgstr "بدون حداقل"
 
@@ -10635,7 +10635,7 @@ msgstr ""
 msgid "No redirects yet"
 msgstr "هنوز    تغییر مسیری نیست"
 
-#: packages/admin/src/components/ContentEditor.tsx:4629
+#: packages/admin/src/components/ContentEditor.tsx:4633
 msgid "No references selected."
 msgstr ""
 
@@ -10648,7 +10648,7 @@ msgid "No relations yet."
 msgstr ""
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1064
-#: packages/admin/src/components/RepeaterField.tsx:403
+#: packages/admin/src/components/RepeaterField.tsx:434
 msgid "No results"
 msgstr "بدون نتایج"
 
@@ -10796,8 +10796,8 @@ msgstr ""
 msgid "Now · {time}"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:668
-#: packages/admin/src/components/FieldEditor.tsx:1696
+#: packages/admin/src/components/FieldEditor.tsx:669
+#: packages/admin/src/components/FieldEditor.tsx:1698
 msgid "Number"
 msgstr "عدد"
 
@@ -10896,7 +10896,7 @@ msgid "Open"
 msgstr ""
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4664
+#: packages/admin/src/components/ContentEditor.tsx:4668
 msgid "Open {0} in a new tab"
 msgstr ""
 
@@ -10954,8 +10954,8 @@ msgstr ""
 msgid "Open WordPress Profile"
 msgstr "باز کردن نمایه وردپرس"
 
-#: packages/admin/src/components/FieldEditor.tsx:1293
-#: packages/admin/src/components/FieldEditor.tsx:1715
+#: packages/admin/src/components/FieldEditor.tsx:1295
+#: packages/admin/src/components/FieldEditor.tsx:1717
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -10988,8 +10988,8 @@ msgid "Optional tooltip on hover"
 msgstr "راهنمای اختیاری هنگام قرارگیری ماوس"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:432
-#: packages/admin/src/components/FieldEditor.tsx:1290
-#: packages/admin/src/components/FieldEditor.tsx:1708
+#: packages/admin/src/components/FieldEditor.tsx:1292
+#: packages/admin/src/components/FieldEditor.tsx:1710
 msgid "Options (one per line)"
 msgstr "گزینه‌ها (هر خط یکی)"
 
@@ -11027,7 +11027,7 @@ msgstr ""
 msgid "Order saved"
 msgstr "ترتیب ذخیره شد"
 
-#: packages/admin/src/components/FieldEditor.tsx:753
+#: packages/admin/src/components/FieldEditor.tsx:754
 msgid "Ordered page-building blocks"
 msgstr ""
 
@@ -11257,7 +11257,7 @@ msgstr ""
 msgid "Path"
 msgstr "مسیر"
 
-#: packages/admin/src/components/FieldEditor.tsx:1250
+#: packages/admin/src/components/FieldEditor.tsx:1252
 msgid "Pattern (Regex)"
 msgstr "الگو (عبارت منظم)"
 
@@ -11353,7 +11353,7 @@ msgstr ""
 msgid "Picked up {name}, position {position} of {total}"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1879
+#: packages/admin/src/components/FieldEditor.tsx:1881
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr ""
 
@@ -11870,11 +11870,11 @@ msgstr ""
 msgid "Quick action on the dashboard"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1343
+#: packages/admin/src/components/FieldEditor.tsx:1345
 msgid "Quick create a relationship"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1415
+#: packages/admin/src/components/FieldEditor.tsx:1417
 msgid "Quick create names the relationship after this field and this collection, takes how many entries it holds from the switch above, and puts no limit on how many entries link back the other way. <0>Create the relationship yourself</0> to set its slug, the name each side goes by, and both limits, then pick it above."
 msgstr ""
 
@@ -12060,17 +12060,17 @@ msgstr ""
 msgid "Redo"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:722
-#: packages/admin/src/components/FieldEditor.tsx:1302
+#: packages/admin/src/components/FieldEditor.tsx:723
+#: packages/admin/src/components/FieldEditor.tsx:1304
 msgid "Reference"
 msgstr "ارجاع"
 
-#: packages/admin/src/components/FieldEditor.tsx:1105
-#: packages/admin/src/components/FieldEditor.tsx:1108
-#: packages/admin/src/components/FieldEditor.tsx:1323
-#: packages/admin/src/components/FieldEditor.tsx:1358
-#: packages/admin/src/components/FieldEditor.tsx:1361
-#: packages/admin/src/components/FieldEditor.tsx:1394
+#: packages/admin/src/components/FieldEditor.tsx:1107
+#: packages/admin/src/components/FieldEditor.tsx:1110
+#: packages/admin/src/components/FieldEditor.tsx:1325
+#: packages/admin/src/components/FieldEditor.tsx:1360
+#: packages/admin/src/components/FieldEditor.tsx:1363
+#: packages/admin/src/components/FieldEditor.tsx:1396
 msgid "Referenced collection"
 msgstr ""
 
@@ -12132,10 +12132,10 @@ msgstr ""
 msgid "Relations"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1079
-#: packages/admin/src/components/FieldEditor.tsx:1310
-#: packages/admin/src/components/FieldEditor.tsx:1313
-#: packages/admin/src/components/FieldEditor.tsx:1338
+#: packages/admin/src/components/FieldEditor.tsx:1081
+#: packages/admin/src/components/FieldEditor.tsx:1312
+#: packages/admin/src/components/FieldEditor.tsx:1315
+#: packages/admin/src/components/FieldEditor.tsx:1340
 msgid "Relationship"
 msgstr ""
 
@@ -12178,8 +12178,8 @@ msgid "visualEditing.removeImage"
 msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:109
-#: packages/admin/src/components/ContentEditor.tsx:5187
-#: packages/admin/src/components/ContentEditor.tsx:5253
+#: packages/admin/src/components/ContentEditor.tsx:5191
+#: packages/admin/src/components/ContentEditor.tsx:5257
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:359
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:823
@@ -12200,7 +12200,7 @@ msgstr "حذف"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:4699
+#: packages/admin/src/components/ContentEditor.tsx:4703
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -12218,8 +12218,8 @@ msgid "Remove {entry}"
 msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:5185
-#: packages/admin/src/components/ContentEditor.tsx:5251
+#: packages/admin/src/components/ContentEditor.tsx:5189
+#: packages/admin/src/components/ContentEditor.tsx:5255
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -12264,7 +12264,7 @@ msgstr ""
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/PortableTextEditor.tsx:1834
-#: packages/admin/src/components/RepeaterField.tsx:288
+#: packages/admin/src/components/RepeaterField.tsx:304
 msgid "Remove item {0}"
 msgstr "حذف مورد {0}"
 
@@ -12287,7 +12287,7 @@ msgstr "حذف شاه‌کلید؟"
 msgid "Remove schedule"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1741
+#: packages/admin/src/components/FieldEditor.tsx:1743
 msgid "Remove sub-field"
 msgstr "حذف زیرفیلد"
 
@@ -12417,7 +12417,7 @@ msgstr ""
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:1555
+#: packages/admin/src/components/BlocksField.tsx:1577
 #: packages/admin/src/components/BylineCreditsEditor.tsx:693
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
@@ -12427,11 +12427,11 @@ msgstr ""
 msgid "Reorder {label}"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:746
+#: packages/admin/src/components/FieldEditor.tsx:747
 msgid "Repeater"
 msgstr "تکرارشونده"
 
-#: packages/admin/src/components/FieldEditor.tsx:747
+#: packages/admin/src/components/FieldEditor.tsx:748
 msgid "Repeating group of fields"
 msgstr "گروه تکرارشونده فیلدها"
 
@@ -12442,9 +12442,9 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:99
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:198
-#: packages/admin/src/components/ContentEditor.tsx:5142
-#: packages/admin/src/components/ContentEditor.tsx:5177
-#: packages/admin/src/components/ContentEditor.tsx:5243
+#: packages/admin/src/components/ContentEditor.tsx:5146
+#: packages/admin/src/components/ContentEditor.tsx:5181
+#: packages/admin/src/components/ContentEditor.tsx:5247
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12466,7 +12466,7 @@ msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:97
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:5141
+#: packages/admin/src/components/ContentEditor.tsx:5145
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12504,7 +12504,7 @@ msgstr ""
 msgid "Replace original is available with the Original aspect ratio."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4734
+#: packages/admin/src/components/ContentEditor.tsx:4738
 msgid "Replace reference"
 msgstr ""
 
@@ -12569,8 +12569,8 @@ msgstr ""
 #: packages/admin/src/components/block-field-notes.tsx:159
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:984
-#: packages/admin/src/components/FieldEditor.tsx:1193
-#: packages/admin/src/components/FieldEditor.tsx:1723
+#: packages/admin/src/components/FieldEditor.tsx:1195
+#: packages/admin/src/components/FieldEditor.tsx:1725
 #: packages/admin/src/routes/byline-schema.tsx:235
 msgid "Required"
 msgstr "الزامی"
@@ -12714,13 +12714,13 @@ msgstr ""
 msgid "Results"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1354
-#: packages/admin/src/components/FieldEditor.tsx:1488
+#: packages/admin/src/components/BlocksField.tsx:1366
+#: packages/admin/src/components/FieldEditor.tsx:1490
 msgid "Retired"
 msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:4713
+#: packages/admin/src/components/ContentEditor.tsx:4717
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12869,7 +12869,7 @@ msgstr "لغو؟"
 msgid "Revoking..."
 msgstr "در حال لغو..."
 
-#: packages/admin/src/components/FieldEditor.tsx:704
+#: packages/admin/src/components/FieldEditor.tsx:705
 msgid "Rich Text"
 msgstr "متن غنی"
 
@@ -12877,7 +12877,7 @@ msgstr "متن غنی"
 msgid "Rich text content"
 msgstr "محتوای متن غنی"
 
-#: packages/admin/src/components/FieldEditor.tsx:705
+#: packages/admin/src/components/FieldEditor.tsx:706
 #: packages/admin/src/components/PortableTextEditor.tsx:2737
 msgid "Rich text editor"
 msgstr "ویرایشگر متن غنی"
@@ -13085,7 +13085,7 @@ msgstr ""
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1406
+#: packages/admin/src/components/FieldEditor.tsx:1408
 msgid "Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on."
 msgstr ""
 
@@ -13096,7 +13096,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:3268
 #: packages/admin/src/components/ContentEditor.tsx:3273
-#: packages/admin/src/components/FieldEditor.tsx:1826
+#: packages/admin/src/components/FieldEditor.tsx:1828
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
@@ -13444,7 +13444,7 @@ msgid "Search..."
 msgstr "جستجو…"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:986
-#: packages/admin/src/components/FieldEditor.tsx:1206
+#: packages/admin/src/components/FieldEditor.tsx:1208
 msgid "Searchable"
 msgstr "قابل جستجو"
 
@@ -13553,17 +13553,17 @@ msgid "See where this file is used."
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:59
-#: packages/admin/src/components/FieldEditor.tsx:692
-#: packages/admin/src/components/FieldEditor.tsx:1700
+#: packages/admin/src/components/FieldEditor.tsx:693
+#: packages/admin/src/components/FieldEditor.tsx:1702
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:172
 msgid "Select"
 msgstr "انتخاب"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:5141
-#: packages/admin/src/components/ContentEditor.tsx:5202
-#: packages/admin/src/components/ContentEditor.tsx:5263
+#: packages/admin/src/components/ContentEditor.tsx:5145
+#: packages/admin/src/components/ContentEditor.tsx:5206
+#: packages/admin/src/components/ContentEditor.tsx:5267
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13574,7 +13574,7 @@ msgstr "انتخاب {label}"
 msgid "Select {title}"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1399
+#: packages/admin/src/components/FieldEditor.tsx:1401
 msgid "Select a collection"
 msgstr ""
 
@@ -13595,7 +13595,7 @@ msgstr ""
 msgid "Select a menu..."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1092
+#: packages/admin/src/components/FieldEditor.tsx:1094
 msgid "Select a relationship"
 msgstr ""
 
@@ -13612,7 +13612,7 @@ msgstr ""
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:4737
+#: packages/admin/src/components/ContentEditor.tsx:4741
 msgid "Select at least one entry."
 msgstr ""
 
@@ -13645,8 +13645,8 @@ msgstr ""
 msgid "Select Favicon"
 msgstr "انتخاب فاوآیکون"
 
-#: packages/admin/src/components/ContentEditor.tsx:5204
-#: packages/admin/src/components/ContentEditor.tsx:5269
+#: packages/admin/src/components/ContentEditor.tsx:5208
+#: packages/admin/src/components/ContentEditor.tsx:5273
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr ""
@@ -13702,7 +13702,7 @@ msgstr "انتخاب کنید کدام انواع محتوا درون‌ریزی
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
 #: packages/admin/src/components/PortableTextEditor.tsx:1933
-#: packages/admin/src/components/RepeaterField.tsx:401
+#: packages/admin/src/components/RepeaterField.tsx:432
 msgid "Select..."
 msgstr "انتخاب…"
 
@@ -13942,8 +13942,8 @@ msgstr ""
 msgid "Short text"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:656
-#: packages/admin/src/components/FieldEditor.tsx:1694
+#: packages/admin/src/components/FieldEditor.tsx:657
+#: packages/admin/src/components/FieldEditor.tsx:1696
 msgid "Short Text"
 msgstr "متن کوتاه"
 
@@ -14096,11 +14096,11 @@ msgstr ""
 msgid "Signup request failed"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:693
+#: packages/admin/src/components/FieldEditor.tsx:694
 msgid "Single choice from options"
 msgstr "انتخاب تکی از گزینه‌ها"
 
-#: packages/admin/src/components/FieldEditor.tsx:657
+#: packages/admin/src/components/FieldEditor.tsx:658
 msgid "Single line text input"
 msgstr "ورودی متن تک‌خطی"
 
@@ -14229,13 +14229,13 @@ msgstr "رد شده"
 #: packages/admin/src/components/ContentTypeEditor.tsx:133
 #: packages/admin/src/components/ContentTypeEditor.tsx:507
 #: packages/admin/src/components/ContentTypeList.tsx:218
-#: packages/admin/src/components/FieldEditor.tsx:734
-#: packages/admin/src/components/FieldEditor.tsx:1164
-#: packages/admin/src/components/FieldEditor.tsx:1167
-#: packages/admin/src/components/FieldEditor.tsx:1170
-#: packages/admin/src/components/FieldEditor.tsx:1656
-#: packages/admin/src/components/FieldEditor.tsx:1659
-#: packages/admin/src/components/FieldEditor.tsx:1662
+#: packages/admin/src/components/FieldEditor.tsx:735
+#: packages/admin/src/components/FieldEditor.tsx:1166
+#: packages/admin/src/components/FieldEditor.tsx:1169
+#: packages/admin/src/components/FieldEditor.tsx:1172
+#: packages/admin/src/components/FieldEditor.tsx:1658
+#: packages/admin/src/components/FieldEditor.tsx:1661
+#: packages/admin/src/components/FieldEditor.tsx:1664
 #: packages/admin/src/components/RelationForm.tsx:435
 #: packages/admin/src/components/RelationForm.tsx:440
 #: packages/admin/src/components/RelationForm.tsx:444
@@ -14581,11 +14581,11 @@ msgstr ""
 msgid "Style changed:"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1654
+#: packages/admin/src/components/FieldEditor.tsx:1656
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1578
+#: packages/admin/src/components/FieldEditor.tsx:1580
 msgid "Sub-Fields"
 msgstr "زیرفیلدها"
 
@@ -14812,7 +14812,7 @@ msgstr ""
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/BlocksField.tsx:2325
+#: packages/admin/src/components/BlocksField.tsx:2347
 #: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr ""
@@ -15032,7 +15032,7 @@ msgstr ""
 msgid "The name of your site, used in the header and metadata"
 msgstr "نام وبسایت شما، استفاده‌شده در هدر و متادیتا"
 
-#: packages/admin/src/components/FieldEditor.tsx:1440
+#: packages/admin/src/components/FieldEditor.tsx:1442
 msgid "The order controls how block types appear in the picker."
 msgstr ""
 
@@ -15166,12 +15166,12 @@ msgstr ""
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1308
+#: packages/admin/src/components/FieldEditor.tsx:1310
 msgid "The relationship and the referenced collection cannot be changed after creation. How many entries this field accepts is set on the relationship."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1103
-#: packages/admin/src/components/FieldEditor.tsx:1356
+#: packages/admin/src/components/FieldEditor.tsx:1105
+#: packages/admin/src/components/FieldEditor.tsx:1358
 msgid "The relationship decides the referenced collection and how many entries this field accepts."
 msgstr ""
 
@@ -15320,7 +15320,7 @@ msgstr ""
 msgid "This also removes:"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1765
+#: packages/admin/src/components/BlocksField.tsx:1787
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr ""
 
@@ -15329,7 +15329,7 @@ msgstr ""
 msgid "This block embeds a page from {0}."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:2157
+#: packages/admin/src/components/BlocksField.tsx:2179
 msgid "This block has no fields."
 msgstr ""
 
@@ -15337,11 +15337,11 @@ msgstr ""
 msgid "This block runs JavaScript."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:959
+#: packages/admin/src/components/BlocksField.tsx:971
 msgid "This block type can no longer be added to this field, so the block can't be restored after you delete it."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:952
+#: packages/admin/src/components/BlocksField.tsx:964
 msgid "This block uses an older version of its type, so it can't be restored after you delete it."
 msgstr ""
 
@@ -15349,7 +15349,7 @@ msgstr ""
 msgid "This block was deleted, so your changes can't be saved."
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:954
+#: packages/admin/src/components/BlocksField.tsx:966
 msgid "This block's stored definition is unavailable, so it can't be restored after you delete it."
 msgstr ""
 
@@ -15479,30 +15479,30 @@ msgstr ""
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:5275
+#: packages/admin/src/components/ContentEditor.tsx:5279
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "این فیلد الزامی است"
 
-#: packages/admin/src/components/FieldEditor.tsx:1849
+#: packages/admin/src/components/FieldEditor.tsx:1851
 msgid "This field lists entries that link to this one."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1118
-#: packages/admin/src/components/FieldEditor.tsx:1371
+#: packages/admin/src/components/FieldEditor.tsx:1120
+#: packages/admin/src/components/FieldEditor.tsx:1373
 msgid "This field picks"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1848
+#: packages/admin/src/components/FieldEditor.tsx:1850
 msgid "This field picks entries this one links to."
 msgstr ""
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1860
+#: packages/admin/src/components/FieldEditor.tsx:1862
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1865
+#: packages/admin/src/components/FieldEditor.tsx:1867
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr ""
 
@@ -15727,7 +15727,7 @@ msgid "This site was set up with starter content. It has no entries of its own, 
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:161
-#: packages/admin/src/components/FieldEditor.tsx:521
+#: packages/admin/src/components/FieldEditor.tsx:522
 msgid "This slug is reserved. Enter a different one."
 msgstr ""
 
@@ -15977,7 +15977,7 @@ msgstr "سطل زباله خالی است."
 msgid "Trash pagination"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:681
+#: packages/admin/src/components/FieldEditor.tsx:682
 msgid "True/false toggle"
 msgstr "تغییر صحیح/غلط"
 
@@ -16109,7 +16109,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFieldEditor.tsx:385
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
-#: packages/admin/src/components/FieldEditor.tsx:1686
+#: packages/admin/src/components/FieldEditor.tsx:1688
 #: packages/admin/src/components/MediaLibrary.tsx:1147
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
@@ -16189,7 +16189,7 @@ msgid "Uninstalling..."
 msgstr "در حال حذف نصب..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:985
-#: packages/admin/src/components/FieldEditor.tsx:1198
+#: packages/admin/src/components/FieldEditor.tsx:1200
 msgid "Unique"
 msgstr "یکتا"
 
@@ -16276,7 +16276,7 @@ msgstr ""
 msgid "Unscheduled"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1355
+#: packages/admin/src/components/BlocksField.tsx:1367
 #: packages/admin/src/components/ContentTypeEditor.tsx:983
 msgid "Unsupported"
 msgstr ""
@@ -16297,7 +16297,7 @@ msgstr ""
 msgid "Untitled"
 msgstr "بی‌نام"
 
-#: packages/admin/src/components/ContentEditor.tsx:5101
+#: packages/admin/src/components/ContentEditor.tsx:5105
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr ""
@@ -16329,7 +16329,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1826
+#: packages/admin/src/components/FieldEditor.tsx:1828
 msgid "Update Field"
 msgstr "به‌روزرسانی فیلد"
 
@@ -16531,8 +16531,8 @@ msgid "Uploading video…"
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:57
-#: packages/admin/src/components/FieldEditor.tsx:740
-#: packages/admin/src/components/FieldEditor.tsx:1701
+#: packages/admin/src/components/FieldEditor.tsx:741
+#: packages/admin/src/components/FieldEditor.tsx:1703
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/MenuEditor.tsx:847
 #: packages/admin/src/components/PortableTextEditor.tsx:1415
@@ -16554,7 +16554,7 @@ msgid "URL template (e.g. /blog/:slug)"
 msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
-#: packages/admin/src/components/FieldEditor.tsx:735
+#: packages/admin/src/components/FieldEditor.tsx:736
 msgid "URL-friendly identifier"
 msgstr "شناسه سازگار با آدرس"
 
@@ -16618,7 +16618,7 @@ msgid "Use 587 (STARTTLS) or 465 (implicit TLS)."
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:133
-#: packages/admin/src/components/FieldEditor.tsx:351
+#: packages/admin/src/components/FieldEditor.tsx:352
 #: packages/admin/src/components/RelationForm.tsx:178
 #: packages/admin/src/components/TaxonomyManager.tsx:131
 msgid "Use 63 characters or fewer."
@@ -16652,7 +16652,7 @@ msgid "Use lowercase letters, numbers, and hyphens."
 msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:131
-#: packages/admin/src/components/FieldEditor.tsx:349
+#: packages/admin/src/components/FieldEditor.tsx:350
 #: packages/admin/src/components/RelationForm.tsx:176
 #: packages/admin/src/components/TaxonomyManager.tsx:129
 msgid "Use lowercase letters, numbers, and underscores, starting with a letter."
@@ -16757,7 +16757,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "کاربران با آدرس ایمیل از این دامنه‌ها می‌توانند بدون دعوت ثبت‌نام کنند. به‌صورت خودکار نقش مشخص‌شده به آن‌ها اختصاص داده خواهد شد."
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/FieldEditor.tsx:1533
+#: packages/admin/src/components/FieldEditor.tsx:1535
 msgid "v{0}"
 msgstr ""
 
@@ -16770,8 +16770,8 @@ msgstr "v{0} در دسترس"
 msgid "Validating the package"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1224
-#: packages/admin/src/components/FieldEditor.tsx:1262
+#: packages/admin/src/components/FieldEditor.tsx:1226
+#: packages/admin/src/components/FieldEditor.tsx:1264
 msgid "Validation"
 msgstr "اعتبارسنجی"
 
@@ -16815,7 +16815,7 @@ msgstr "نسخه"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:1746
+#: packages/admin/src/components/BlocksField.tsx:1768
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -16986,7 +16986,7 @@ msgstr "لینکی برای ورود بدون گذرواژه برای شما ا�
 msgid "We've sent a verification link to <0>{email}</0>"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:741
+#: packages/admin/src/components/FieldEditor.tsx:742
 msgid "Web address"
 msgstr "آدرس وب"
 
@@ -17041,7 +17041,7 @@ msgstr ""
 msgid "What it leaves out"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1880
+#: packages/admin/src/components/FieldEditor.tsx:1882
 msgid "What the direction changes"
 msgstr ""
 
@@ -17090,7 +17090,7 @@ msgstr ""
 msgid "Which content types can use this taxonomy"
 msgstr "کدام انواع محتوا می‌توانند از این دسته‌بندی استفاده کنند"
 
-#: packages/admin/src/components/FieldEditor.tsx:675
+#: packages/admin/src/components/FieldEditor.tsx:676
 msgid "Whole number"
 msgstr "عدد صحیح"
 
