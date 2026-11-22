@@ -152,7 +152,8 @@ export function Shell({ children, manifest }: ShellProps) {
 				style={
 					{
 						"--sidebar-bg": "var(--color-kumo-elevated)",
-						height: "100svh",
+						position: "fixed",
+						inset: "0",
 						minHeight: "0",
 						overflow: "hidden",
 					} as React.CSSProperties
