@@ -3097,7 +3097,7 @@ export class EmDashRuntime {
 		// so the timer scheduler's cleanup can route scheduled publishing through
 		// the runtime wrapper (firing content:afterPublish hooks). The first tick
 		// is ≥1s out, well after the synchronous assignment below.
-		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
+		await phase("rt.cron", "Cron init", async () => {
 			try {
 				cronExecutor = new CronExecutor(resolveDb, invokeCronHook, deps.now);
 				// Plugin schedules are always database-backed. On long-lived runtimes this
@@ -3105,26 +3105,6 @@ export class EmDashRuntime {
 				// drives execution, so rescheduling is intentionally a no-op.
 				pipeline.setContextFactory({
 					cronReschedule: () => cronScheduler?.reschedule(),
-				});
-
-				// Recover stale locks from previous crashes. Pure bookkeeping
-				// against the _emdash_cron_tasks table — no request needs the
-				// result — so we defer it past the response via after(). On
-				// Cloudflare this goes into waitUntil (extending the worker
-				// lifetime); on Node it's fire-and-forget (the process stays
-				// up anyway). Saves one cold-start write per D1 isolate.
-				const executorForRecovery = cronExecutor;
-				after(async () => {
-					try {
-						const recovered = await executorForRecovery.recoverStaleLocks();
-						if (recovered > 0) {
-							console.log(`[cron] Recovered ${recovered} stale task lock(s)`);
-						}
-					} catch (error) {
-						// Keep the `[cron]` prefix so a failure is easy to trace back
-						// rather than surfacing as a generic deferred-task error.
-						console.error("[cron] Failed to recover stale task locks:", error);
-					}
 				});
 
 				// The platform decides whether a long-lived timer heartbeat exists.

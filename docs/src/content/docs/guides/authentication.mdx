@@ -404,10 +404,20 @@ When deploying to Cloudflare, you can use [Cloudflare Access](https://developers
 
 ### Set up Access
 
-1. Create a Cloudflare Access application and policy for your site's `/_emdash/*` path. Protecting only `/_emdash/admin/*` leaves the REST API without the JWT that EmDash expects.
-2. Copy the application's **Application Audience (AUD) Tag**.
-3. Store the tag in the `CF_ACCESS_AUDIENCE` runtime environment variable. Follow the [EmDash secrets guide](/deployment/secrets/) for local and deployed values.
-4. Configure EmDash to read that value at runtime:
+1. Create a Cloudflare Access application and an Allow policy for your site's `/_emdash/*` path. Protecting only `/_emdash/admin/*` leaves the REST API without the JWT that EmDash expects.
+2. Create a second Access application for the EmDash routes that site visitors use, with a **Bypass** policy that includes **Everyone**. Add these paths on your site's hostname:
+
+   - `/_emdash/api/media/file`, which serves images and other uploaded files when your storage has no `publicUrl`
+   - `/_emdash/api/comments`, which lists and accepts comments
+   - `/_emdash/api/search`, which answers the live search box
+   - each plugin route that a plugin marks as public, such as `/_emdash/api/plugins/emdash-forms/submit` for the forms plugin
+   - `/_emdash/api/health`, if an uptime monitor checks it
+
+   Access uses the application with the more specific path, so these routes stay open to visitors while the rest of `/_emdash/*` requires a login. Without this application, a visitor's request to one of these routes redirects to the Access login page, so images don't load and comments and search fail. A path also covers the routes below it, such as the admin-only `/_emdash/api/search/stats`. EmDash still rejects requests to those admin-only routes from anyone who isn't signed in.
+
+3. Copy the **Application Audience (AUD) Tag** of the application from step 1.
+4. Store the tag in the `CF_ACCESS_AUDIENCE` runtime environment variable. Follow the [EmDash secrets guide](/deployment/secrets/) for local and deployed values.
+5. Configure EmDash to read that value at runtime:
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -508,6 +518,12 @@ When Access is enabled, these features are unavailable:
 Access policies decide who reaches EmDash. EmDash still owns local roles, content ownership, and the disabled-user flag. With `syncRoles: false`, administrators can change a provisioned user's role in EmDash. With `syncRoles: true`, the mapped Access groups replace that role on each login. User names follow the same pattern with `syncName`, except that it defaults to `true`.
 
 ### Troubleshooting
+
+#### Images, comments, or search fail for visitors
+
+Visitors see broken images, the live search box shows no results, or the comment form reports **Network error. Please try again.** In the browser's developer tools, requests to `/_emdash/api/media/file/...`, `/_emdash/api/search`, or `/_emdash/api/comments/...` redirect to your `<team>.cloudflareaccess.com` login page, and the console shows CORS errors for the search and comment requests.
+
+The Access application that protects `/_emdash/*` also covers these routes. Add the second Access application with a Bypass policy from [Set up Access](#set-up-access), step 2.
 
 #### "No Access JWT present"
 

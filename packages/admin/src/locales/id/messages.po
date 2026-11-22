@@ -1029,27 +1029,27 @@ msgstr "{selectedCount, plural, other {Pindahkan # item ke tempat sampah? Anda d
 
 #: packages/admin/src/components/ContentList.tsx:625
 msgid "{selectedCount, plural, one {Publish # item?} other {Publish # items?}}"
-msgstr ""
+msgstr "{selectedCount, plural, other {Publikasikan # item?}}"
 
 #: packages/admin/src/components/ContentList.tsx:666
 msgid "{selectedCount, plural, one {Set # item to draft?} other {Set # items to draft?}}"
-msgstr ""
+msgstr "{selectedCount, plural, other {Atur # item ke draf?}}"
 
 #: packages/admin/src/components/ContentList.tsx:631
 msgid "{selectedCount, plural, one {This removes its schedule and publishes it immediately.} other {This removes their schedules and publishes them immediately.}}"
-msgstr ""
+msgstr "{selectedCount, plural, other {Ini menghapus jadwal mereka dan memublikasikan mereka segera.}}"
 
 #: packages/admin/src/components/ContentList.tsx:672
 msgid "{selectedCount, plural, one {This removes its schedule. Visitors won't see it until you publish it again.} other {This removes their schedules. Visitors won't see them until you publish them again.}}"
-msgstr ""
+msgstr "{selectedCount, plural, other {Ini menghapus jadwal mereka. Pengunjung tidak akan melihat mereka hingga Anda memublikasikan mereka lagi.}}"
 
 #: packages/admin/src/components/ContentList.tsx:635
 msgid "{selectedCount, plural, one {Visitors will see it immediately.} other {Visitors will see them immediately.}}"
-msgstr ""
+msgstr "{selectedCount, plural, other {Pengunjung akan melihat mereka segera.}}"
 
 #: packages/admin/src/components/ContentList.tsx:677
 msgid "{selectedCount, plural, one {Visitors won't see it until you publish it again.} other {Visitors won't see them until you publish them again.}}"
-msgstr ""
+msgstr "{selectedCount, plural, other {Pengunjung tidak akan melihat mereka hingga Anda memublikasikan mereka lagi.}}"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:235
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
@@ -2775,7 +2775,7 @@ msgstr "Kedua kolom referensi yang tersambung ke relasi ini berbagi batasan ini,
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:17
 msgid "Breadcrumb"
-msgstr ""
+msgstr "Breadcrumb"
 
 #: packages/admin/src/components/SeoPanel.tsx:317
 msgid "Brief summary shown below the title in search results"
@@ -3534,7 +3534,7 @@ msgstr "Klik tautan ini untuk masuk ke {siteName}:"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:19
 msgid "Click to copy"
-msgstr ""
+msgstr "Klik untuk menyalin"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:275
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:324
@@ -3889,7 +3889,7 @@ msgstr "Konten dikembalikan ke draf"
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
 msgid "Content search is unavailable. Paste a URL instead."
-msgstr ""
+msgstr "Pencarian konten tidak tersedia. Tempel URL sebagai pengganti."
 
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
@@ -3995,7 +3995,7 @@ msgstr "Disalin ke papan klip"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:18
 msgid "Copy"
-msgstr ""
+msgstr "Salin"
 
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 msgid "Copy {label}"
@@ -4232,7 +4232,7 @@ msgstr "Tidak dapat memperbarui permintaan"
 #. placeholder {0}: deletingField.label
 #: packages/admin/src/routes/byline-schema.tsx:350
 msgid "Couldn't verify how many values reference \"{0}\". Deleting will still remove every stored value for this field — but the count above could not be checked."
-msgstr "Tidak dapat memverifikasi berapa banyak nilai yang merujuk ke \"{0}\". Penghapusan tetap akan menghapus semua nilai tersimpan untuk bidang ini, tetapi jumlah di atas tidak dapat diperiksa."
+msgstr "Tidak dapat memverifikasi berapa banyak nilai yang merujuk ke \"{0}\". Penghapusan tetap akan menghapus semua nilai tersimpan untuk kolom ini, tetapi jumlah di atas tidak dapat diperiksa."
 
 #: packages/admin/src/components/TaxonomyManager.tsx:1322
 msgid "Count"
@@ -8614,7 +8614,7 @@ msgstr "Pemasangan diblokir"
 
 #: packages/admin/src/components/WordPressImport.tsx:1088
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
-msgstr "Instal plugin EmDash Exporter di situs WordPress Anda dan buat kunci melalui Alat → Migrasi EmDash."
+msgstr "Pasang pengaya EmDash Exporter di situs WordPress Anda dan buat kunci melalui Alat → Migrasi EmDash."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:910
 msgid "Installation"
@@ -10886,7 +10886,7 @@ msgstr "Hanya gambar dan video dapat diunggah di sini."
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:139
 msgid "Only the listed MIME types will be accepted for this field."
-msgstr "Hanya tipe MIME yang tercantum yang akan diterima untuk bidang ini."
+msgstr "Hanya tipe MIME yang tercantum yang akan diterima untuk kolom ini."
 
 #: packages/admin/src/components/SignupPage.tsx:429
 msgid "Oops!"
@@ -14260,7 +14260,7 @@ msgstr "Slug disalin ke papan klip"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:353
 msgid "Slugs cannot be changed after the field is created."
-msgstr "Slug tidak dapat diubah setelah bidang dibuat."
+msgstr "Slug tidak dapat diubah setelah kolom dibuat."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:539
 msgid "Small section heading"
@@ -15130,7 +15130,7 @@ msgstr "Paket diubah di tempat lain, seperti dari baris perintah atau asisten AI
 
 #: packages/admin/src/components/PluginFieldErrorBoundary.tsx:37
 msgid "The plugin field widget failed to render."
-msgstr "Widget bidang plugin gagal ditampilkan."
+msgstr "Widget kolom pengaya gagal ditampilkan."
 
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:60
 msgid "The plugin has not saved these changes. Review them before updating the editor."
@@ -15138,7 +15138,7 @@ msgstr "Pengaya belum menyimpan perubahan ini. Tinjau sebelum memperbarui penyun
 
 #: packages/admin/src/components/ContentEditor.tsx:2673
 msgid "The plugin proposed a value this editor can't load."
-msgstr ""
+msgstr "Pengaya mengusulkan nilai yang tidak dapat dimuat oleh penyunting ini."
 
 #: packages/admin/src/components/ContentEditor.tsx:2678
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
@@ -16235,7 +16235,7 @@ msgstr "Pengguna tanpa nama"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:534
 #: packages/admin/src/components/ContentSettingsPanel.tsx:535
 msgid "Unpublish"
-msgstr ""
+msgstr "Batalkan publikasi"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:527
 msgid "Unpublish {itemLabel}"
@@ -16243,7 +16243,7 @@ msgstr "Batalkan publikasi {itemLabel}"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:532
 msgid "Unpublish {itemLabel}?"
-msgstr ""
+msgstr "Batalkan publikasi {itemLabel}?"
 
 #: packages/admin/src/router.tsx:2009
 msgid "Unpublished"
@@ -16937,7 +16937,7 @@ msgstr "Pengunjung akan segera melihat perubahan ini."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:533
 msgid "Visitors won't see it until you publish it again. It stays as a draft."
-msgstr ""
+msgstr "Pengunjung tidak akan melihatnya hingga Anda memublikasikannya lagi. Itu tetap sebagai draf."
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:58
 msgid "Vue"
