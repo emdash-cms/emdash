@@ -1,5 +1,5 @@
 {
-	"GET / (cold)": 8,
+	"GET / (cold)": 15,
 	"GET / (warm)": 4,
 	"GET /category/development (cold)": 14,
 	"GET /category/development (warm)": 8,
@@ -17,7 +17,7 @@
 	"GET /related (warm)": 7,
 	"GET /related-baseline (cold)": 8,
 	"GET /related-baseline (warm)": 4,
-	"GET /rss.xml (cold)": 4,
+	"GET /rss.xml (cold)": 5,
 	"GET /rss.xml (warm)": 1,
 	"GET /search (cold)": 8,
 	"GET /search (warm)": 5,
