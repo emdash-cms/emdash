@@ -11794,11 +11794,6 @@ msgstr "Xuất bản ngay?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Xuất bản, huỷ xuất bản, đặt lịch và huỷ đặt lịch nội dung"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "Đã xuất bản"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1072
@@ -11810,6 +11805,11 @@ msgstr "Đã xuất bản"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:168
 #: packages/admin/src/router.tsx:1984
 msgid "Published"
+msgstr "Đã xuất bản"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "Đã xuất bản"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
