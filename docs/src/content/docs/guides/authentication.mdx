@@ -476,7 +476,7 @@ emdash({
 });
 ```
 
-For the GitHub identity provider, use `"organization-name/team-name"` as the `roleMapping` key, such as `"my-org/Web Admins": 50`. Use the organization and team names returned by Access. Bare team names and organization names are not matched: users can create identically named teams in other GitHub organizations.
+For the GitHub identity provider, use `"organization-name/team-name"` as the `roleMapping` key, such as `"my-org/Web Admins": 50`. Use the organization and team names returned by Access. Bare team names and organization names are not matched: users can create identically named teams in other GitHub organizations. Update mappings when a GitHub organization is renamed, because another organization can claim its old name.
 
 The first match wins in the order returned by Access, checking groups before GitHub teams. The **first user** to access the site always becomes Admin, regardless of groups.
 
