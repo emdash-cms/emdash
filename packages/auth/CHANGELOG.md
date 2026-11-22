@@ -1,5 +1,15 @@
 # @emdash-cms/auth
 
+## 1.6.0
+
+### Patch Changes
+
+- [#4935](https://github.com/emdash-cms/emdash/pull/4935) [`6d0551b`](https://github.com/emdash-cms/emdash/commit/6d0551bdec7f776d3f77233f095342f3aefeb1ac) Thanks [@ascorbic](https://github.com/ascorbic)! - Updates `createKyselyAdapter()` to also accept a database whose columns with database defaults, such as `users.disabled` and `created_at`, are typed as `Generated`. EmDash's own database instance can now be passed without a type cast. The new `GeneratedAuthTables` type describes that shape, and schemas that match `AuthTables` keep working.
+
+- [#4805](https://github.com/emdash-cms/emdash/pull/4805) [`395d56c`](https://github.com/emdash-cms/emdash/commit/395d56c275bdbc27b84c650cd4cfda4b38ef9f83) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes the Users page showing “Last Login: Never” after magic-link, OAuth (including AT Protocol), or external-provider sign-in. Successful sign-ins now record a login time independently of passkeys, while existing passkey login history remains visible. Previously unrecorded logins appear after the next sign-in; refreshing an existing session does not record a new login.
+  
+  EmDash migrates the database automatically. Existing standalone Kysely auth-adapter databases continue to report passkey history without requiring a schema change.
+
 ## 1.5.0
 
 ### Patch Changes
