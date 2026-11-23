@@ -131,7 +131,7 @@ msgstr " (öppnas i nytt fönster)"
 msgid "-- Select --"
 msgstr "-- Välj --"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:163
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:159
 msgctxt "Read aloud between a version's author and status"
 msgid ", "
 msgstr ", "
@@ -319,7 +319,7 @@ msgid "{0, plural, one {# menu will be imported} other {# menus will be imported
 msgstr "{0, plural, one {# meny kommer att importeras} other {# menyer kommer att importeras}}"
 
 #. placeholder {0}: users.length
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:69
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:67
 msgid "{0, plural, one {# other person here} other {# other people here}}"
 msgstr "{0, plural, one {# annan person här} other {# andra personer här}}"
 
@@ -365,7 +365,7 @@ msgstr "{0, plural, one {# relation som innehållstypen ingår i} other {# relat
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:4256
+#: packages/admin/src/components/PortableTextEditor.tsx:4257
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {# rad} other {# rader}} × {1, plural, one {# kolumn} other {# kolumner}} markerade"
 
@@ -455,7 +455,7 @@ msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr "{0, plural, one {Visa # till} other {Visa # till}}"
 
 #. placeholder {0}: users.length
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:156
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:152
 msgid "{0, plural, one {Show the # person here} other {Show the # people here}}"
 msgstr "{0, plural, one {Visa # person här} other {Visa de # personerna här}}"
 
@@ -689,7 +689,7 @@ msgstr "{current} av {total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}, {entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:111
+#: packages/admin/src/components/revisions/revision-format.ts:97
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel}, {timeLabel}"
 
@@ -723,7 +723,7 @@ msgstr "{hidden, plural, one {{date}: # post till} other {{date}: # poster till}
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {+# till} other {+# till}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:394
+#: packages/admin/src/components/revisions/RevisionList.tsx:392
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {Visa # till} other {Visa # till}}"
 
@@ -743,7 +743,7 @@ msgstr "{label}: ingen översättning"
 msgid "{label} — view translation"
 msgstr "{label}: visa översättning"
 
-#: packages/admin/src/components/BlocksField.tsx:1758
+#: packages/admin/src/components/BlocksField.tsx:1755
 msgid "{label} · version {versionNumber}"
 msgstr "{label} · version {versionNumber}"
 
@@ -753,7 +753,7 @@ msgid "{label} {position}"
 msgstr "{label} {position}"
 
 #: packages/admin/src/components/BlockListField.tsx:1037
-#: packages/admin/src/components/BlocksField.tsx:1709
+#: packages/admin/src/components/BlocksField.tsx:1706
 msgid "{label} actions"
 msgstr "Åtgärder för {label}"
 
@@ -785,11 +785,11 @@ msgstr "{label} flyttades till position {position} av {count}."
 msgid "{label} options"
 msgstr "Alternativ för {label}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:247
+#: packages/admin/src/components/revisions/RevisionList.tsx:245
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
-#: packages/admin/src/components/BlocksField.tsx:2393
+#: packages/admin/src/components/BlocksField.tsx:2390
 msgid "{label}: {value}"
 msgstr "{label}: {value}"
 
@@ -797,7 +797,7 @@ msgstr "{label}: {value}"
 msgid "{lateness} late"
 msgstr "{lateness} försenad"
 
-#: packages/admin/src/components/BlocksField.tsx:1337
+#: packages/admin/src/components/BlocksField.tsx:1334
 msgid "{list} +{more}"
 msgstr "{list} +{more}"
 
@@ -849,7 +849,7 @@ msgstr "{minimum, plural, one {Lägg till minst # objekt} other {Lägg till mins
 msgid "{minimum, plural, one {Use at least # character} other {Use at least # characters}}"
 msgstr "{minimum, plural, one {Använd minst # tecken} other {Använd minst # tecken}}"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:155
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:151
 msgid "{more, plural, one {Show # more person} other {Show # more people}}"
 msgstr "{more, plural, one {Visa # person till} other {Visa # personer till}}"
 
@@ -863,11 +863,11 @@ msgstr "{moved} är redan först"
 msgid "{moved} is already last"
 msgstr "{moved} är redan sist"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:64
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:62
 msgid "{name} · Editing {field}"
 msgstr "{name} · Redigerar {field}"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:62
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:60
 msgid "{name} · Viewing"
 msgstr "{name} · Tittar"
 
@@ -939,7 +939,7 @@ msgstr "{origin} omdirigerar till en annan adress"
 msgid "{origin} redirects to {target}. Enter that address instead."
 msgstr "{origin} omdirigerar till {target}. Ange den adressen i stället."
 
-#: packages/admin/src/components/revisions/revision-format.ts:131
+#: packages/admin/src/components/revisions/revision-format.ts:117
 msgid "{others, plural, one {# other person} other {# other people}}"
 msgstr "{others, plural, one {# person till} other {# personer till}}"
 
@@ -1115,19 +1115,19 @@ msgstr "{totalDrafts, plural, one {Utkast} other {Utkast}}"
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {Schemalagd} other {Schemalagda}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:240
+#: packages/admin/src/components/revisions/RevisionList.tsx:238
 msgid "{when}, {author}"
 msgstr "{when}, {author}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:237
+#: packages/admin/src/components/revisions/RevisionList.tsx:235
 msgid "{when}, Current version, {author}"
 msgstr "{when}, aktuell version, {author}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:235
+#: packages/admin/src/components/revisions/RevisionList.tsx:233
 msgid "{when}, Current version, Published, {author}"
 msgstr "{when}, aktuell version, publicerad, {author}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:239
+#: packages/admin/src/components/revisions/RevisionList.tsx:237
 msgid "{when}, Published, {author}"
 msgstr "{when}, publicerad, {author}"
 
@@ -1166,8 +1166,8 @@ msgstr "• URL:er i ditt innehåll uppdateras automatiskt"
 msgid "← Back"
 msgstr "← Tillbaka"
 
-#: packages/admin/src/components/presence/FieldPresence.tsx:48
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:152
+#: packages/admin/src/components/presence/FieldPresence.tsx:49
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:148
 msgid "+{more}"
 msgstr "+{more}"
 
@@ -1187,7 +1187,7 @@ msgstr "<0>{name}</0> redigerar den här posten. Öppna den skrivskyddad eller t
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "<0>{name}</0> har nu låst posten, så dina ändringar sparas inte längre. Ta tillbaka den för att fortsätta."
 
-#: packages/admin/src/components/BlocksField.tsx:1518
+#: packages/admin/src/components/BlocksField.tsx:1515
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
 msgid "<0>Alt-click</0> to add above"
 msgstr "<0>Alt-klicka</0> för att lägga till ovanför"
@@ -1196,12 +1196,12 @@ msgstr "<0>Alt-klicka</0> för att lägga till ovanför"
 msgid "<0>Click</0> to add below"
 msgstr "<0>Klicka</0> för att lägga till nedanför"
 
-#: packages/admin/src/components/BlocksField.tsx:1564
+#: packages/admin/src/components/BlocksField.tsx:1561
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
 msgid "<0>Click</0> to open menu"
 msgstr "<0>Klicka</0> för att öppna menyn"
 
-#: packages/admin/src/components/BlocksField.tsx:1560
+#: packages/admin/src/components/BlocksField.tsx:1557
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
 msgid "<0>Drag</0> to move"
 msgstr "<0>Dra</0> för att flytta"
@@ -1394,7 +1394,7 @@ msgid "A slug cannot be generated from this label. Type one manually using lower
 msgstr "Det går inte att skapa en slug från den här etiketten. Skriv en manuellt med gemener, siffror och understreck."
 
 #: packages/admin/src/components/FieldEditor.tsx:484
-#: packages/admin/src/components/FieldEditor.tsx:1681
+#: packages/admin/src/components/FieldEditor.tsx:1685
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr "Det går inte att skapa en slug från den här etiketten. Skriv en manuellt."
 
@@ -1540,7 +1540,7 @@ msgstr "Aktiv"
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
-#: packages/admin/src/components/FieldEditor.tsx:1534
+#: packages/admin/src/components/FieldEditor.tsx:1538
 msgid "Active v{0}"
 msgstr "Aktiv v{0}"
 
@@ -1573,7 +1573,7 @@ msgstr "Lägg till {singularLower} i 1 inlägg"
 msgid "Add {singularLower} to posts"
 msgstr "Lägg till {singularLower} i inlägg"
 
-#: packages/admin/src/components/BlocksField.tsx:2332
+#: packages/admin/src/components/BlocksField.tsx:2329
 msgid "Add a caption"
 msgstr "Lägg till en bildtext"
 
@@ -1598,7 +1598,7 @@ msgstr "Lägg till en person eller ett team som ska krediteras för ditt innehå
 msgid "Add another byline"
 msgstr "Lägg till ytterligare en skribent"
 
-#: packages/admin/src/components/BlocksField.tsx:1166
+#: packages/admin/src/components/BlocksField.tsx:1163
 msgid "Add at least {minItems} blocks."
 msgstr "Lägg till minst {minItems} block."
 
@@ -1608,7 +1608,7 @@ msgid "Add at least one option."
 msgstr "Lägg till minst ett alternativ."
 
 #: packages/admin/src/components/FieldEditor.tsx:475
-#: packages/admin/src/components/FieldEditor.tsx:1619
+#: packages/admin/src/components/FieldEditor.tsx:1623
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Lägg till minst ett underfält för att definiera repeaterstrukturen."
 
@@ -1617,16 +1617,16 @@ msgstr "Lägg till minst ett underfält för att definiera repeaterstrukturen."
 msgid "Add block"
 msgstr "Lägg till block"
 
-#: packages/admin/src/components/BlocksField.tsx:1739
+#: packages/admin/src/components/BlocksField.tsx:1736
 msgid "Add block above"
 msgstr "Lägg till block ovanför"
 
-#: packages/admin/src/components/BlocksField.tsx:1516
-#: packages/admin/src/components/BlocksField.tsx:1740
+#: packages/admin/src/components/BlocksField.tsx:1513
+#: packages/admin/src/components/BlocksField.tsx:1737
 msgid "Add block below"
 msgstr "Lägg till block nedanför"
 
-#: packages/admin/src/components/BlocksField.tsx:1535
+#: packages/admin/src/components/BlocksField.tsx:1532
 msgid "Add block below {label}"
 msgstr "Lägg till block under {label}"
 
@@ -1636,12 +1636,12 @@ msgstr "Lägg till skribent"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:321
 #: packages/admin/src/components/editor/VideoNode.tsx:323
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
+#: packages/admin/src/components/PortableTextEditor.tsx:4719
 msgid "Add caption"
 msgstr "Lägg till bildtext"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:4269
+#: packages/admin/src/components/PortableTextEditor.tsx:4270
 msgid "Add column after"
 msgstr "Lägg till kolumn efter"
 
@@ -1671,7 +1671,7 @@ msgstr "Lägg till domän"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:808
 #: packages/admin/src/components/FieldEditor.tsx:1010
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Add Field"
 msgstr "Lägg till fält"
 
@@ -1724,9 +1724,9 @@ msgstr "Lägg till objekt nedanför"
 msgid "Add item to {label}"
 msgstr "Lägg till objekt i {label}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3893
-#: packages/admin/src/components/PortableTextEditor.tsx:4711
-#: packages/admin/src/components/PortableTextEditor.tsx:5160
+#: packages/admin/src/components/PortableTextEditor.tsx:3894
+#: packages/admin/src/components/PortableTextEditor.tsx:4712
+#: packages/admin/src/components/PortableTextEditor.tsx:5161
 msgid "Add link"
 msgstr "Lägg till länk"
 
@@ -1774,7 +1774,7 @@ msgid "Add row above"
 msgstr "Lägg till rad ovanför"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:4262
+#: packages/admin/src/components/PortableTextEditor.tsx:4263
 msgid "Add row below"
 msgstr "Lägg till rad nedanför"
 
@@ -1791,7 +1791,7 @@ msgstr "Lägg till valda"
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "Lägg till SEO-metadatafält (titel, beskrivning, bild) och inkludera i webbplatskartan"
 
-#: packages/admin/src/components/FieldEditor.tsx:1606
+#: packages/admin/src/components/FieldEditor.tsx:1610
 msgid "Add Sub-Field"
 msgstr "Lägg till underfält"
 
@@ -1912,10 +1912,14 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Administratör"
+
+#: packages/admin/src/components/Sidebar.tsx:461
+msgctxt "navigation group"
+msgid "Admin"
+msgstr ""
 
 #: packages/admin/src/components/Sidebar.tsx:742
 msgid "Admin navigation"
@@ -1925,12 +1929,12 @@ msgstr "Administrationsnavigering"
 msgid "Administrator"
 msgstr "Administratör"
 
-#: packages/admin/src/components/BlocksField.tsx:2454
+#: packages/admin/src/components/BlocksField.tsx:2451
 #: packages/admin/src/components/PortableTextEditor.tsx:501
 msgid "Advanced"
 msgstr "Avancerat"
 
-#: packages/admin/src/components/BlocksField.tsx:2437
+#: packages/admin/src/components/BlocksField.tsx:2434
 msgid "Advanced: {blockLabel}"
 msgstr "Avancerat: {blockLabel}"
 
@@ -1969,25 +1973,25 @@ msgid "Agent-callable MCP tools"
 msgstr "MCP-verktyg som agenter kan anropa"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:4157
+#: packages/admin/src/components/PortableTextEditor.tsx:4158
 msgid "Align"
 msgstr "Justera"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5334
+#: packages/admin/src/components/PortableTextEditor.tsx:5335
 msgid "Align center"
 msgstr "Centrera"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5326
+#: packages/admin/src/components/PortableTextEditor.tsx:5327
 msgid "Align left"
 msgstr "Vänsterjustera"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5342
+#: packages/admin/src/components/PortableTextEditor.tsx:5343
 msgid "Align right"
 msgstr "Högerjustera"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:726
-#: packages/admin/src/components/PortableTextEditor.tsx:4692
+#: packages/admin/src/components/PortableTextEditor.tsx:4693
 msgid "Alignment"
 msgstr "Justering"
 
@@ -2113,8 +2117,8 @@ msgstr "Alt-text"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:520
 #: packages/admin/src/components/MediaLibrary.tsx:1153
-#: packages/admin/src/components/PortableTextEditor.tsx:4623
-#: packages/admin/src/components/PortableTextEditor.tsx:4689
+#: packages/admin/src/components/PortableTextEditor.tsx:4624
+#: packages/admin/src/components/PortableTextEditor.tsx:4690
 msgid "Alt text"
 msgstr "Alt-text"
 
@@ -2320,7 +2324,7 @@ msgid "Applies to every collection. Sections a collection doesn't use are skippe
 msgstr "Gäller alla samlingar. Sektioner som en samling inte använder hoppas över."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:611
-#: packages/admin/src/components/PortableTextEditor.tsx:5425
+#: packages/admin/src/components/PortableTextEditor.tsx:5426
 msgid "Apply"
 msgstr "Använd"
 
@@ -2328,8 +2332,8 @@ msgstr "Använd"
 msgid "Apply changes"
 msgstr "Använd ändringarna"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3867
-#: packages/admin/src/components/PortableTextEditor.tsx:4664
+#: packages/admin/src/components/PortableTextEditor.tsx:3868
+#: packages/admin/src/components/PortableTextEditor.tsx:4665
 msgid "Apply link"
 msgstr "Använd länk"
 
@@ -2526,10 +2530,13 @@ msgstr "Auktoriserar …"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:769
 #: packages/admin/src/components/RelationForm.tsx:386
-#: packages/admin/src/components/settings/transfer/ImportReview.tsx:306
-#: packages/admin/src/components/settings/transfer/labels.ts:8
 msgid "Authors"
 msgstr "Författare"
+
+#: packages/admin/src/components/settings/transfer/labels.ts:8
+msgctxt "site transfer record kind: user accounts"
+msgid "Authors"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:170
 msgid "Authors will be assigned to users on this site"
@@ -2609,7 +2616,7 @@ msgstr "Tillbaka"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:501
-#: packages/admin/src/components/FieldEditor.tsx:1816
+#: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
 #: packages/admin/src/components/WordPressImport.tsx:2609
@@ -2620,15 +2627,15 @@ msgstr "Tillbaka"
 msgid "Back to {collectionLabel} list"
 msgstr "Tillbaka till listan {collectionLabel}"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:213
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:209
 msgid "Back to editing"
 msgstr "Tillbaka till redigering"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:203
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:199
 msgid "Back to editing (Esc)"
 msgstr "Tillbaka till redigering (Esc)"
 
-#: packages/admin/src/components/revisions/useRevisionView.ts:393
+#: packages/admin/src/components/revisions/useRevisionView.ts:391
 msgid "Back to editing."
 msgstr "Tillbaka i redigeringen."
 
@@ -2754,14 +2761,14 @@ msgstr "Hinder"
 msgid "Blocks"
 msgstr "Block"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3644
-#: packages/admin/src/components/PortableTextEditor.tsx:5194
+#: packages/admin/src/components/PortableTextEditor.tsx:3645
+#: packages/admin/src/components/PortableTextEditor.tsx:5195
 msgid "Bold"
 msgstr "Fet"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:58
 #: packages/admin/src/components/FieldEditor.tsx:681
-#: packages/admin/src/components/FieldEditor.tsx:1700
+#: packages/admin/src/components/FieldEditor.tsx:1704
 msgid "Boolean"
 msgstr "Boolean"
 
@@ -2820,7 +2827,7 @@ msgstr "Byggets ursprung är verifierat"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:542
-#: packages/admin/src/components/PortableTextEditor.tsx:5251
+#: packages/admin/src/components/PortableTextEditor.tsx:5252
 msgid "Bullet List"
 msgstr "Punktlista"
 
@@ -2947,7 +2954,7 @@ msgstr "Kan inte nå EmDash"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
-#: packages/admin/src/components/FieldEditor.tsx:1821
+#: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
@@ -2956,9 +2963,9 @@ msgstr "Kan inte nå EmDash"
 #: packages/admin/src/components/MenuEditor.tsx:894
 #: packages/admin/src/components/MenuList.tsx:238
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
-#: packages/admin/src/components/PortableTextEditor.tsx:4635
-#: packages/admin/src/components/PortableTextEditor.tsx:4661
-#: packages/admin/src/components/PortableTextEditor.tsx:5409
+#: packages/admin/src/components/PortableTextEditor.tsx:4636
+#: packages/admin/src/components/PortableTextEditor.tsx:4662
+#: packages/admin/src/components/PortableTextEditor.tsx:5410
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:384
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
@@ -3071,8 +3078,8 @@ msgstr "Celler sammanfogade"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:4161
-#: packages/admin/src/components/PortableTextEditor.tsx:4282
+#: packages/admin/src/components/PortableTextEditor.tsx:4162
+#: packages/admin/src/components/PortableTextEditor.tsx:4283
 msgid "Center"
 msgstr "Centrera"
 
@@ -3208,7 +3215,7 @@ msgstr "Ändringarna gäller överallt där skribenten visas."
 msgid "Changes discarded"
 msgstr "Ändringarna kasserades"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:351
+#: packages/admin/src/components/revisions/RevisionList.tsx:349
 msgid "Changes in this version"
 msgstr "Ändringar i den här versionen"
 
@@ -3486,7 +3493,7 @@ msgstr "Rensa slutförda"
 msgid "Clear filters"
 msgstr "Rensa filter"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4171
+#: packages/admin/src/components/PortableTextEditor.tsx:4172
 msgid "Clear formatting"
 msgstr "Rensa formatering"
 
@@ -3595,7 +3602,7 @@ msgstr "Kod"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:572
-#: packages/admin/src/components/PortableTextEditor.tsx:5293
+#: packages/admin/src/components/PortableTextEditor.tsx:5294
 msgid "Code Block"
 msgstr "Kodblock"
 
@@ -3659,7 +3666,7 @@ msgid "Collections created:"
 msgstr "Samlingar skapade:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:4267
+#: packages/admin/src/components/PortableTextEditor.tsx:4268
 msgid "Column added after"
 msgstr "Kolumn tillagd efter"
 
@@ -3946,7 +3953,7 @@ msgid "Continue Import"
 msgstr "Fortsätt import"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:5268
+#: packages/admin/src/components/PortableTextEditor.tsx:5269
 msgid "Continue numbering"
 msgstr "Fortsätt numreringen"
 
@@ -4065,7 +4072,7 @@ msgstr "Kunde inte kopiera automatiskt. Markera URL:en ovan och kopiera manuellt
 msgid "Could not create {singularLower}"
 msgstr "Kunde inte skapa {singularLower}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3433
+#: packages/admin/src/components/PortableTextEditor.tsx:3434
 msgid "Could not insert section"
 msgstr "Kunde inte infoga sektionen"
 
@@ -4177,7 +4184,7 @@ msgstr "Kunde inte läsa in mer användning."
 msgid "Couldn’t load the import plan"
 msgstr "Kunde inte läsa in importplanen"
 
-#: packages/admin/src/components/revisions/useRevisionView.ts:565
+#: packages/admin/src/components/revisions/useRevisionView.ts:563
 msgid "Couldn't load this version. Back to editing."
 msgstr "Kunde inte läsa in den här versionen. Tillbaka i redigeringen."
 
@@ -4546,8 +4553,8 @@ msgstr "aktuell"
 msgid "Current cell"
 msgstr "Aktuell cell"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:269
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:91
+#: packages/admin/src/components/revisions/RevisionList.tsx:267
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:87
 msgid "Current version"
 msgstr "Aktuell version"
 
@@ -4584,8 +4591,8 @@ msgstr "Anpassa sidofältet"
 msgid "Daily automatic backups"
 msgstr "Dagliga automatiska säkerhetskopior"
 
-#: packages/admin/src/components/FieldEditor.tsx:1794
-#: packages/admin/src/components/FieldEditor.tsx:1797
+#: packages/admin/src/components/FieldEditor.tsx:1798
+#: packages/admin/src/components/FieldEditor.tsx:1801
 #: packages/admin/src/components/ImageFieldRenderer.tsx:562
 msgid "Dark mode variant"
 msgstr "Variant för mörkt läge"
@@ -4610,7 +4617,7 @@ msgid "Date"
 msgstr "Datum"
 
 #: packages/admin/src/components/FieldEditor.tsx:687
-#: packages/admin/src/components/FieldEditor.tsx:1701
+#: packages/admin/src/components/FieldEditor.tsx:1705
 msgid "Date & Time"
 msgstr "Datum och tid"
 
@@ -4689,7 +4696,7 @@ msgstr "Definiera strukturen på ditt innehåll"
 msgid "Defined in code"
 msgstr "Definierad i kod"
 
-#: packages/admin/src/components/BlocksField.tsx:1196
+#: packages/admin/src/components/BlocksField.tsx:1193
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4769,7 +4776,7 @@ msgstr "Ta bort widgetområdet {0}"
 msgid "Delete {0}?"
 msgstr "Ta bort {0}?"
 
-#: packages/admin/src/components/BlocksField.tsx:1194
+#: packages/admin/src/components/BlocksField.tsx:1191
 msgid "Delete {confirmName}?"
 msgstr "Ta bort {confirmName}?"
 
@@ -4833,7 +4840,7 @@ msgstr "Ta bort mapp"
 msgid "Delete gallery"
 msgstr "Ta bort galleri"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4730
+#: packages/admin/src/components/PortableTextEditor.tsx:4731
 msgid "Delete image"
 msgstr "Ta bort bild"
 
@@ -4934,7 +4941,7 @@ msgstr "Om du tar bort ”{0}” tas även alla dess termer bort på alla språk
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "Om du tar bort ”{0}” försvinner även {1, plural, one {# sparat värde} other {# sparade värden}} från alla skribenter. Det går inte att ångra."
 
-#: packages/admin/src/components/BlocksField.tsx:1197
+#: packages/admin/src/components/BlocksField.tsx:1194
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1853
@@ -5003,7 +5010,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr "Beskriv bilden"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:523
-#: packages/admin/src/components/PortableTextEditor.tsx:4624
+#: packages/admin/src/components/PortableTextEditor.tsx:4625
 msgid "Describe the image"
 msgstr "Beskriv bilden"
 
@@ -5178,11 +5185,11 @@ msgstr "Stäng importförslaget"
 msgid "Dismiss save error"
 msgstr "Stäng sparfelet"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3454
+#: packages/admin/src/components/PortableTextEditor.tsx:3455
 msgid "Dismiss section error"
 msgstr "Stäng sektionsfelet"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3421
+#: packages/admin/src/components/PortableTextEditor.tsx:3422
 msgid "Dismiss table paste error"
 msgstr "Stäng felet om inklistrad tabell"
 
@@ -5571,7 +5578,7 @@ msgstr "Redigera skribentfält"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:321
 #: packages/admin/src/components/editor/VideoNode.tsx:323
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
+#: packages/admin/src/components/PortableTextEditor.tsx:4719
 msgid "Edit caption"
 msgstr "Redigera bildtext"
 
@@ -5616,10 +5623,10 @@ msgstr "Redigera bild"
 msgid "Edit image {0}"
 msgstr "Redigera bild {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3893
-#: packages/admin/src/components/PortableTextEditor.tsx:4002
-#: packages/admin/src/components/PortableTextEditor.tsx:4711
-#: packages/admin/src/components/PortableTextEditor.tsx:5159
+#: packages/admin/src/components/PortableTextEditor.tsx:3894
+#: packages/admin/src/components/PortableTextEditor.tsx:4003
+#: packages/admin/src/components/PortableTextEditor.tsx:4712
+#: packages/admin/src/components/PortableTextEditor.tsx:5160
 msgid "Edit link"
 msgstr "Redigera länk"
 
@@ -5720,7 +5727,7 @@ msgstr "Redigerade en bildbeskrivning"
 msgid "Edited by <0>{people}</0>"
 msgstr "Redigerad av <0>{people}</0>"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:311
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:292
 msgid "Editing {field}"
 msgstr "Redigerar {field}"
 
@@ -5768,7 +5775,7 @@ msgstr "Redigerarens sidofält har återställts"
 msgid "Editor sidebar sections"
 msgstr "Sektioner i redigerarens sidofält"
 
-#: packages/admin/src/components/FieldEditor.tsx:1792
+#: packages/admin/src/components/FieldEditor.tsx:1796
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Redaktörer kan välja en andra bild som webbplatsen visar i mörkt läge."
 
@@ -7518,7 +7525,7 @@ msgstr "Fält skapat"
 msgid "Field deleted"
 msgstr "Fält borttaget"
 
-#: packages/admin/src/components/FieldEditor.tsx:1646
+#: packages/admin/src/components/FieldEditor.tsx:1650
 msgid "Field label"
 msgstr "Fältetikett"
 
@@ -7538,7 +7545,7 @@ msgstr "Fälttyp kan inte ändras efter att den skapats."
 msgid "Field updated"
 msgstr "Fält uppdaterat"
 
-#: packages/admin/src/components/FieldEditor.tsx:1677
+#: packages/admin/src/components/FieldEditor.tsx:1681
 msgid "field_slug"
 msgstr "falt_slug"
 
@@ -7758,7 +7765,7 @@ msgstr "För en fullständig import inklusive utkast och allt innehåll, exporte
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "För bästa importresultat installerar du tillägget <0>EmDash Exporter</0> på din WordPress-webbplats."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3845
+#: packages/admin/src/components/PortableTextEditor.tsx:3846
 msgid "Format selection"
 msgstr "Formatera markering"
 
@@ -8221,7 +8228,7 @@ msgstr "Bild"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:711
-#: packages/admin/src/components/FieldEditor.tsx:1704
+#: packages/admin/src/components/FieldEditor.tsx:1708
 #: packages/admin/src/components/PortableTextEditor.tsx:2474
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
@@ -8244,7 +8251,7 @@ msgstr "Bild {0}"
 msgid "Image actions"
 msgstr "Bildåtgärder"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4589
+#: packages/admin/src/components/PortableTextEditor.tsx:4590
 msgid "Image controls"
 msgstr "Bildverktyg"
 
@@ -8252,7 +8259,7 @@ msgstr "Bildverktyg"
 msgid "Image from media library"
 msgstr "Bild från mediebibliotek"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5157
+#: packages/admin/src/components/PortableTextEditor.tsx:5158
 msgid "Image link"
 msgstr "Bildlänk"
 
@@ -8274,7 +8281,7 @@ msgid "Image replaced."
 msgstr "Bilden har ersatts."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:392
-#: packages/admin/src/components/PortableTextEditor.tsx:4723
+#: packages/admin/src/components/PortableTextEditor.tsx:4724
 msgid "Image settings"
 msgstr "Bildinställningar"
 
@@ -8460,7 +8467,7 @@ msgstr "I papperskorgen"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "Öppna Konton och sedan Inloggningsalternativ i Windows-inställningarna och konfigurera en PIN-kod. Fingeravtryck och ansiktsigenkänning är valfria."
 
-#: packages/admin/src/components/BlocksField.tsx:1365
+#: packages/admin/src/components/BlocksField.tsx:1362
 msgid "Inactive version"
 msgstr "Inaktiv version"
 
@@ -8506,8 +8513,8 @@ msgstr "Infogad"
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Infogade block använder webbplatsens stilar. Webbplatsen tar bort skript, style-taggar och style-attribut och tömmer iframes som inte kommer från YouTube eller Vimeo."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3648
-#: packages/admin/src/components/PortableTextEditor.tsx:5226
+#: packages/admin/src/components/PortableTextEditor.tsx:3649
+#: packages/admin/src/components/PortableTextEditor.tsx:5227
 msgid "Inline Code"
 msgstr "Inline-kod"
 
@@ -8552,8 +8559,8 @@ msgstr "Infoga ett bildgalleri"
 msgid "Insert block"
 msgstr "Infoga block"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5173
-#: packages/admin/src/components/PortableTextEditor.tsx:5183
+#: packages/admin/src/components/PortableTextEditor.tsx:5174
+#: packages/admin/src/components/PortableTextEditor.tsx:5184
 msgid "Insert block after current block"
 msgstr "Infoga block efter aktuellt block"
 
@@ -8561,12 +8568,12 @@ msgstr "Infoga block efter aktuellt block"
 msgid "Insert block below"
 msgstr "Infoga block nedanför"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5307
+#: packages/admin/src/components/PortableTextEditor.tsx:5308
 msgid "Insert HTML"
 msgstr "Infoga HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3554
-#: packages/admin/src/components/PortableTextEditor.tsx:5300
+#: packages/admin/src/components/PortableTextEditor.tsx:3555
+#: packages/admin/src/components/PortableTextEditor.tsx:5301
 msgid "Insert image"
 msgstr "Infoga bild"
 
@@ -8595,7 +8602,7 @@ msgstr "Infoga sektion"
 msgid "Insert table"
 msgstr "Infoga tabell"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3568
+#: packages/admin/src/components/PortableTextEditor.tsx:3569
 msgid "Insert video"
 msgstr "Infoga video"
 
@@ -8645,7 +8652,7 @@ msgid "Installing..."
 msgstr "Installerar …"
 
 #: packages/admin/src/components/FieldEditor.tsx:675
-#: packages/admin/src/components/FieldEditor.tsx:1699
+#: packages/admin/src/components/FieldEditor.tsx:1703
 msgid "Integer"
 msgstr "Heltal"
 
@@ -8731,8 +8738,8 @@ msgstr "Den startades någon annanstans, så planen kan inte längre ändras. F�
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
 msgstr "Den visas skrivskyddad. En post i papperskorgen kan återställas därifrån."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3645
-#: packages/admin/src/components/PortableTextEditor.tsx:5202
+#: packages/admin/src/components/PortableTextEditor.tsx:3646
+#: packages/admin/src/components/PortableTextEditor.tsx:5203
 msgid "Italic"
 msgstr "Kursiv"
 
@@ -8885,7 +8892,7 @@ msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:341
 #: packages/admin/src/components/FieldEditor.tsx:1153
-#: packages/admin/src/components/FieldEditor.tsx:1632
+#: packages/admin/src/components/FieldEditor.tsx:1636
 #: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/MenuEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:615
@@ -8999,8 +9006,8 @@ msgstr "Lämna utan att spara?"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:4160
-#: packages/admin/src/components/PortableTextEditor.tsx:4281
+#: packages/admin/src/components/PortableTextEditor.tsx:4161
+#: packages/admin/src/components/PortableTextEditor.tsx:4282
 msgid "Left"
 msgstr "Vänster"
 
@@ -9021,8 +9028,8 @@ msgstr "Licens"
 msgid "Limit"
 msgstr "Gräns"
 
-#: packages/admin/src/components/BlocksField.tsx:2348
-#: packages/admin/src/components/PortableTextEditor.tsx:5386
+#: packages/admin/src/components/BlocksField.tsx:2345
+#: packages/admin/src/components/PortableTextEditor.tsx:5387
 msgid "Link"
 msgstr "Länk"
 
@@ -9030,7 +9037,7 @@ msgstr "Länk"
 msgid "Link expired"
 msgstr "Länken har gått ut"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3980
+#: packages/admin/src/components/PortableTextEditor.tsx:3981
 msgid "Link options"
 msgstr "Länkalternativ"
 
@@ -9216,7 +9223,7 @@ msgstr "Läser in konfiguration …"
 msgid "Loading content..."
 msgstr "Läser in innehåll …"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3384
+#: packages/admin/src/components/PortableTextEditor.tsx:3385
 msgid "Loading editor..."
 msgstr "Läser in redigerare …"
 
@@ -9410,7 +9417,7 @@ msgid "Long text"
 msgstr "Lång text"
 
 #: packages/admin/src/components/FieldEditor.tsx:663
-#: packages/admin/src/components/FieldEditor.tsx:1697
+#: packages/admin/src/components/FieldEditor.tsx:1701
 msgid "Long Text"
 msgstr "Lång text"
 
@@ -9537,7 +9544,7 @@ msgstr "Sökningen på marknadsplatsen misslyckades"
 msgid "Matched by email"
 msgstr "Matchad via e-post"
 
-#: packages/admin/src/components/FieldEditor.tsx:1763
+#: packages/admin/src/components/FieldEditor.tsx:1767
 msgid "Max Items"
 msgstr "Max antal"
 
@@ -9553,7 +9560,7 @@ msgstr "Maxvärde"
 msgid "Maximum"
 msgstr "Maxantal"
 
-#: packages/admin/src/components/FieldEditor.tsx:1563
+#: packages/admin/src/components/FieldEditor.tsx:1567
 msgid "Maximum blocks"
 msgstr "Högsta antal block"
 
@@ -9775,7 +9782,7 @@ msgstr "Migreringsguide"
 msgid "Migration key"
 msgstr "Migreringsnyckel"
 
-#: packages/admin/src/components/FieldEditor.tsx:1753
+#: packages/admin/src/components/FieldEditor.tsx:1757
 msgid "Min Items"
 msgstr "Min antal"
 
@@ -9787,7 +9794,7 @@ msgstr "Minlängd"
 msgid "Min Value"
 msgstr "Minvärde"
 
-#: packages/admin/src/components/FieldEditor.tsx:1552
+#: packages/admin/src/components/FieldEditor.tsx:1556
 msgid "Minimum blocks"
 msgstr "Minsta antal block"
 
@@ -9840,7 +9847,7 @@ msgstr "Månads-/årsarkiv"
 msgid "More actions for {0}"
 msgstr "Fler åtgärder för {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4127
+#: packages/admin/src/components/PortableTextEditor.tsx:4128
 msgid "More formatting"
 msgstr "Mer formatering"
 
@@ -9885,7 +9892,7 @@ msgstr "Flytta ”{title}” till papperskorgen? Du kan återställa det senare.
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4690
-#: packages/admin/src/components/FieldEditor.tsx:1523
+#: packages/admin/src/components/FieldEditor.tsx:1527
 msgid "Move {0} down"
 msgstr "Flytta ned {0}"
 
@@ -9902,7 +9909,7 @@ msgstr "Flytta ned {0}"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4679
-#: packages/admin/src/components/FieldEditor.tsx:1506
+#: packages/admin/src/components/FieldEditor.tsx:1508
 msgid "Move {0} up"
 msgstr "Flytta upp {0}"
 
@@ -10241,7 +10248,7 @@ msgstr "Ny taxonomi"
 msgid "New window"
 msgstr "Nytt fönster"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:195
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:191
 msgid "Newer version"
 msgstr "Nyare version"
 
@@ -10254,7 +10261,7 @@ msgstr "Nyaste"
 msgid "News"
 msgstr "Nyheter"
 
-#: packages/admin/src/components/FieldEditor.tsx:1824
+#: packages/admin/src/components/FieldEditor.tsx:1828
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "Nästa"
@@ -10328,7 +10335,7 @@ msgstr "Inga godkända kommentarer ännu."
 msgid "No block types defined"
 msgstr "Inga blocktyper har definierats"
 
-#: packages/admin/src/components/BlocksField.tsx:1159
+#: packages/admin/src/components/BlocksField.tsx:1156
 msgid "No blocks yet"
 msgstr "Inga block ännu"
 
@@ -10400,7 +10407,7 @@ msgstr "Inga innehållstyper ännu."
 msgid "No custom fields yet"
 msgstr "Inga anpassade fält ännu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4685
+#: packages/admin/src/components/PortableTextEditor.tsx:4686
 msgid "No description yet"
 msgstr "Ingen beskrivning ännu"
 
@@ -10503,7 +10510,7 @@ msgstr "Ingen inbjudningstoken angiven"
 msgid "No items yet"
 msgstr "Inga objekt ännu"
 
-#: packages/admin/src/components/FieldEditor.tsx:1768
+#: packages/admin/src/components/FieldEditor.tsx:1772
 msgid "No limit"
 msgstr "Ingen gräns"
 
@@ -10722,7 +10729,7 @@ msgid "Non-guest"
 msgstr "Ej gäst"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:4280
+#: packages/admin/src/components/PortableTextEditor.tsx:4281
 msgid "None"
 msgstr "Ingen"
 
@@ -10798,7 +10805,7 @@ msgid "Now · {time}"
 msgstr "Nu · {time}"
 
 #: packages/admin/src/components/FieldEditor.tsx:669
-#: packages/admin/src/components/FieldEditor.tsx:1698
+#: packages/admin/src/components/FieldEditor.tsx:1702
 msgid "Number"
 msgstr "Tal"
 
@@ -10812,7 +10819,7 @@ msgstr "Antal inlägg som visas per sida i listvyer"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:552
-#: packages/admin/src/components/PortableTextEditor.tsx:5259
+#: packages/admin/src/components/PortableTextEditor.tsx:5260
 msgid "Numbered List"
 msgstr "Numrerad lista"
 
@@ -10834,7 +10841,7 @@ msgstr "Offline"
 msgid "OG Image"
 msgstr "OG-bild"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:185
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:181
 msgid "Older version"
 msgstr "Äldre version"
 
@@ -10956,7 +10963,7 @@ msgid "Open WordPress Profile"
 msgstr "Öppna WordPress-profil"
 
 #: packages/admin/src/components/FieldEditor.tsx:1295
-#: packages/admin/src/components/FieldEditor.tsx:1717
+#: packages/admin/src/components/FieldEditor.tsx:1721
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -10993,7 +11000,7 @@ msgstr "Valfritt verktygstips när du hovrar"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:432
 #: packages/admin/src/components/FieldEditor.tsx:1292
-#: packages/admin/src/components/FieldEditor.tsx:1710
+#: packages/admin/src/components/FieldEditor.tsx:1714
 msgid "Options (one per line)"
 msgstr "Alternativ (ett per rad)"
 
@@ -11309,7 +11316,7 @@ msgstr "Väntande ändringar"
 msgid "People are editing this entry together"
 msgstr "Flera redigerar den här posten tillsammans"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:307
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:288
 msgid "People in this entry"
 msgstr "Personer i posten"
 
@@ -11357,7 +11364,7 @@ msgstr "{label} har plockats upp."
 msgid "Picked up {name}, position {position} of {total}"
 msgstr "{name} har plockats upp, position {position} av {total}"
 
-#: packages/admin/src/components/FieldEditor.tsx:1881
+#: packages/admin/src/components/FieldEditor.tsx:1885
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "När fältet väljer poster som den här posten länkar till kan redaktörer dra dem i den ordning de vill. Åt andra hållet listas allt som pekar på posten och den listan går inte att sortera om."
 
@@ -11806,8 +11813,8 @@ msgstr "Publicerad"
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/ContentTypeEditor.tsx:666
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:270
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:168
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:164
 #: packages/admin/src/router.tsx:1984
 msgid "Published"
 msgstr "Publicerad"
@@ -11885,7 +11892,7 @@ msgstr "Snabbskapa döper relationen efter det här fältet och den här samling
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:562
 #: packages/admin/src/components/PortableTextEditor.tsx:2251
-#: packages/admin/src/components/PortableTextEditor.tsx:5285
+#: packages/admin/src/components/PortableTextEditor.tsx:5286
 msgid "Quote"
 msgstr "Citat"
 
@@ -12060,7 +12067,7 @@ msgstr "Omdirigeringar"
 msgid "Redirects that loop will be imported turned off"
 msgstr "Omdirigeringar som bildar en slinga importeras avstängda"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5448
+#: packages/admin/src/components/PortableTextEditor.tsx:5449
 msgid "Redo"
 msgstr "Gör om"
 
@@ -12192,7 +12199,7 @@ msgstr "Ta bort"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:605
 #: packages/admin/src/components/ImageFieldRenderer.tsx:846
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
-#: packages/admin/src/components/PortableTextEditor.tsx:5421
+#: packages/admin/src/components/PortableTextEditor.tsx:5422
 #: packages/admin/src/components/settings/GeneralSettings.tsx:478
 #: packages/admin/src/components/settings/GeneralSettings.tsx:538
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -12272,9 +12279,9 @@ msgstr "Ta bort bilden?"
 msgid "Remove item {0}"
 msgstr "Ta bort objekt {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3871
-#: packages/admin/src/components/PortableTextEditor.tsx:4014
-#: packages/admin/src/components/PortableTextEditor.tsx:4657
+#: packages/admin/src/components/PortableTextEditor.tsx:3872
+#: packages/admin/src/components/PortableTextEditor.tsx:4015
+#: packages/admin/src/components/PortableTextEditor.tsx:4658
 msgid "Remove link"
 msgstr "Ta bort länk"
 
@@ -12291,7 +12298,7 @@ msgstr "Ta bort passkey?"
 msgid "Remove schedule"
 msgstr "Ta bort schemaläggning"
 
-#: packages/admin/src/components/FieldEditor.tsx:1743
+#: packages/admin/src/components/FieldEditor.tsx:1747
 msgid "Remove sub-field"
 msgstr "Ta bort underfält"
 
@@ -12421,7 +12428,7 @@ msgstr "Ändra ordning"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:1577
+#: packages/admin/src/components/BlocksField.tsx:1574
 #: packages/admin/src/components/BylineCreditsEditor.tsx:693
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
@@ -12461,8 +12468,8 @@ msgstr "Ersätt"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:739
 #: packages/admin/src/components/ImageFieldRenderer.tsx:742
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
-#: packages/admin/src/components/PortableTextEditor.tsx:4679
-#: packages/admin/src/components/PortableTextEditor.tsx:4761
+#: packages/admin/src/components/PortableTextEditor.tsx:4680
+#: packages/admin/src/components/PortableTextEditor.tsx:4762
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
@@ -12490,7 +12497,7 @@ msgstr "Byt variant för mörkt läge i {label}"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
 #: packages/admin/src/components/MediaDetailPanel.tsx:1819
 #: packages/admin/src/components/MediaDetailPanel.tsx:1942
-#: packages/admin/src/components/PortableTextEditor.tsx:4760
+#: packages/admin/src/components/PortableTextEditor.tsx:4761
 msgid "Replace image"
 msgstr "Byt bild"
 
@@ -12574,7 +12581,7 @@ msgstr "Kräv en slug innan innehållet kan publiceras"
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:984
 #: packages/admin/src/components/FieldEditor.tsx:1195
-#: packages/admin/src/components/FieldEditor.tsx:1725
+#: packages/admin/src/components/FieldEditor.tsx:1729
 #: packages/admin/src/routes/byline-schema.tsx:235
 msgid "Required"
 msgstr "Obligatorisk"
@@ -12680,13 +12687,13 @@ msgid "Resolving publisher handle..."
 msgstr "Slår upp utgivarens användarnamn …"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:5275
+#: packages/admin/src/components/PortableTextEditor.tsx:5276
 msgid "Restart numbering"
 msgstr "Börja om numreringen"
 
 #: packages/admin/src/components/ContentList.tsx:1837
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:141
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:244
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:240
 msgid "Restore"
 msgstr "Återställ"
 
@@ -12702,7 +12709,7 @@ msgstr "Återställ den här versionen?"
 msgid "Restored an earlier version"
 msgstr "Återställde en tidigare version"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:243
+#: packages/admin/src/components/revisions/RevisionList.tsx:241
 msgid "Restored from {restoredDate}"
 msgstr "Återställd från {restoredDate}"
 
@@ -12718,8 +12725,8 @@ msgstr "Återställer …"
 msgid "Results"
 msgstr "Resultat"
 
-#: packages/admin/src/components/BlocksField.tsx:1366
-#: packages/admin/src/components/FieldEditor.tsx:1490
+#: packages/admin/src/components/BlocksField.tsx:1363
+#: packages/admin/src/components/FieldEditor.tsx:1491
 msgid "Retired"
 msgstr "Utfasad"
 
@@ -12888,8 +12895,8 @@ msgstr "Redigerare för rik text"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:4162
-#: packages/admin/src/components/PortableTextEditor.tsx:4283
+#: packages/admin/src/components/PortableTextEditor.tsx:4163
+#: packages/admin/src/components/PortableTextEditor.tsx:4284
 msgid "Right"
 msgstr "Höger"
 
@@ -12944,7 +12951,7 @@ msgid "Row added above"
 msgstr "Rad tillagd ovanför"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:4260
+#: packages/admin/src/components/PortableTextEditor.tsx:4261
 msgid "Row added below"
 msgstr "Rad tillagd nedanför"
 
@@ -12969,7 +12976,7 @@ msgstr "Kör HTML, CSS och JavaScript i en sandlåda."
 msgid "Rust"
 msgstr "Rust"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:93
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:89
 msgid "Same as current version"
 msgstr "Samma som aktuell version"
 
@@ -13004,7 +13011,7 @@ msgstr "Spara"
 msgid "Save (Enter)"
 msgstr "Spara (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4638
+#: packages/admin/src/components/PortableTextEditor.tsx:4639
 msgid "Save alt text"
 msgstr "Spara alt-text"
 
@@ -13100,7 +13107,7 @@ msgstr "När du sparar skapas ett utkast som inte visas på webbplatsen. Du kan 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:3268
 #: packages/admin/src/components/ContentEditor.tsx:3273
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
@@ -13556,13 +13563,17 @@ msgstr "Säkerhetsinställningar"
 msgid "See where this file is used."
 msgstr "Se var filen används."
 
-#: packages/admin/src/components/BylineFieldEditor.tsx:59
-#: packages/admin/src/components/FieldEditor.tsx:693
-#: packages/admin/src/components/FieldEditor.tsx:1702
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:172
 msgid "Select"
 msgstr "Välj"
+
+#: packages/admin/src/components/BylineFieldEditor.tsx:59
+#: packages/admin/src/components/FieldEditor.tsx:693
+#: packages/admin/src/components/FieldEditor.tsx:1706
+msgctxt "field type"
+msgid "Select"
+msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
 #: packages/admin/src/components/ContentEditor.tsx:5145
@@ -13655,7 +13666,7 @@ msgstr "Välj favicon"
 msgid "Select file"
 msgstr "Välj fil"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3582
+#: packages/admin/src/components/PortableTextEditor.tsx:3583
 msgid "Select gallery images"
 msgstr "Välj bilder till galleriet"
 
@@ -13663,7 +13674,7 @@ msgstr "Välj bilder till galleriet"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
 #: packages/admin/src/components/ImageFieldRenderer.tsx:964
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:3553
+#: packages/admin/src/components/PortableTextEditor.tsx:3554
 msgid "Select image"
 msgstr "Välj bild"
 
@@ -13696,7 +13707,7 @@ msgid "Select up to 50 posts at a time."
 msgstr "Välj högst 50 inlägg åt gången."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:3567
+#: packages/admin/src/components/PortableTextEditor.tsx:3568
 msgid "Select video"
 msgstr "Välj video"
 
@@ -13947,7 +13958,7 @@ msgid "Short text"
 msgstr "Kort text"
 
 #: packages/admin/src/components/FieldEditor.tsx:657
-#: packages/admin/src/components/FieldEditor.tsx:1696
+#: packages/admin/src/components/FieldEditor.tsx:1700
 msgid "Short Text"
 msgstr "Kort text"
 
@@ -13959,7 +13970,7 @@ msgstr "Visa"
 msgid "Show {label}"
 msgstr "Visa {label}"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:230
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:226
 msgid "Show changes"
 msgstr "Visa ändringar"
 
@@ -13975,7 +13986,7 @@ msgstr "Visa datum"
 msgid "Show hierarchy"
 msgstr "Visa hierarki"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:193
+#: packages/admin/src/components/revisions/RevisionList.tsx:191
 msgid "Show older versions"
 msgstr "Visa äldre versioner"
 
@@ -14237,9 +14248,9 @@ msgstr "Överhoppad"
 #: packages/admin/src/components/FieldEditor.tsx:1166
 #: packages/admin/src/components/FieldEditor.tsx:1169
 #: packages/admin/src/components/FieldEditor.tsx:1172
-#: packages/admin/src/components/FieldEditor.tsx:1658
-#: packages/admin/src/components/FieldEditor.tsx:1661
-#: packages/admin/src/components/FieldEditor.tsx:1664
+#: packages/admin/src/components/FieldEditor.tsx:1662
+#: packages/admin/src/components/FieldEditor.tsx:1665
+#: packages/admin/src/components/FieldEditor.tsx:1668
 #: packages/admin/src/components/RelationForm.tsx:435
 #: packages/admin/src/components/RelationForm.tsx:440
 #: packages/admin/src/components/RelationForm.tsx:444
@@ -14563,8 +14574,8 @@ msgstr "Lagrade säkerhetskopior"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Sparas per språk. Varje översättning av en skribent får ett eget värde."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3647
-#: packages/admin/src/components/PortableTextEditor.tsx:5218
+#: packages/admin/src/components/PortableTextEditor.tsx:3648
+#: packages/admin/src/components/PortableTextEditor.tsx:5219
 msgid "Strikethrough"
 msgstr "Genomstruken text"
 
@@ -14585,11 +14596,11 @@ msgstr "Stil"
 msgid "Style changed:"
 msgstr "Formatering ändrad:"
 
-#: packages/admin/src/components/FieldEditor.tsx:1656
+#: packages/admin/src/components/FieldEditor.tsx:1660
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr "Underfältens slugs kan inte ändras när de har skapats."
 
-#: packages/admin/src/components/FieldEditor.tsx:1580
+#: packages/admin/src/components/FieldEditor.tsx:1584
 msgid "Sub-Fields"
 msgstr "Underfält"
 
@@ -14598,11 +14609,11 @@ msgstr "Underfält"
 msgid "Subscriber"
 msgstr "Prenumerant"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4141
+#: packages/admin/src/components/PortableTextEditor.tsx:4142
 msgid "Subscript"
 msgstr "Nedsänkt"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4147
+#: packages/admin/src/components/PortableTextEditor.tsx:4148
 msgid "Superscript"
 msgstr "Upphöjt"
 
@@ -14654,11 +14665,11 @@ msgstr "Systemfält"
 msgid "Table"
 msgstr "Tabell"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3398
+#: packages/admin/src/components/PortableTextEditor.tsx:3399
 msgid "Table cells accept text, links, and formatting only."
 msgstr "Tabellceller kan bara innehålla text, länkar och formatering."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4250
+#: packages/admin/src/components/PortableTextEditor.tsx:4251
 msgid "Table controls"
 msgstr "Tabellkontroller"
 
@@ -14667,7 +14678,7 @@ msgid "Table deleted"
 msgstr "Tabell borttagen"
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:3286
+#: packages/admin/src/components/PortableTextEditor.tsx:3287
 msgid "Table inserted"
 msgstr "Tabell infogad"
 
@@ -14675,7 +14686,7 @@ msgstr "Tabell infogad"
 msgid "Table size"
 msgstr "Tabellstorlek"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3395
+#: packages/admin/src/components/PortableTextEditor.tsx:3396
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Tabeller kan inte klistras in i listor eller citat. Klistra in tabellen i ett eget stycke och försök igen."
 
@@ -14816,12 +14827,12 @@ msgstr "Testmejl skickat till {to}"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/BlocksField.tsx:2347
+#: packages/admin/src/components/BlocksField.tsx:2344
 #: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr "Text"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5462
+#: packages/admin/src/components/PortableTextEditor.tsx:5463
 msgid "Text formatting"
 msgstr "Textformatering"
 
@@ -14829,7 +14840,7 @@ msgstr "Textformatering"
 msgid "That time does not exist in your time zone"
 msgstr "Den tiden finns inte i din tidszon"
 
-#: packages/admin/src/components/revisions/useRevisionView.ts:547
+#: packages/admin/src/components/revisions/useRevisionView.ts:545
 msgid "That version is no longer available. Back to editing."
 msgstr "Den versionen finns inte längre. Tillbaka i redigeringen."
 
@@ -15324,7 +15335,7 @@ msgstr "Publiceringen, schemaläggningen eller utkastet har ändrats."
 msgid "This also removes:"
 msgstr "Då tas även följande bort:"
 
-#: packages/admin/src/components/BlocksField.tsx:1787
+#: packages/admin/src/components/BlocksField.tsx:1784
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr "Blocket kan inte redigeras eftersom dess lagrade definition inte är tillgänglig."
 
@@ -15333,7 +15344,7 @@ msgstr "Blocket kan inte redigeras eftersom dess lagrade definition inte är til
 msgid "This block embeds a page from {0}."
 msgstr "Det här blocket bäddar in en sida från {0}."
 
-#: packages/admin/src/components/BlocksField.tsx:2179
+#: packages/admin/src/components/BlocksField.tsx:2176
 msgid "This block has no fields."
 msgstr "Det här blocket har inga fält."
 
@@ -15349,7 +15360,7 @@ msgstr "Den här blocktypen kan inte längre läggas till i fältet, så blocket
 msgid "This block uses an older version of its type, so it can't be restored after you delete it."
 msgstr "Blocket använder en äldre version av sin typ, så det kan inte återställas om du tar bort det."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3221
+#: packages/admin/src/components/PortableTextEditor.tsx:3222
 msgid "This block was deleted, so your changes can't be saved."
 msgstr "Blocket har tagits bort, så dina ändringar kan inte sparas."
 
@@ -15383,7 +15394,7 @@ msgstr "Koden är ogiltig eller har redan använts."
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Den här samlingen är definierad i kod. Vissa inställningar kan inte ändras här. Redigera filen live.config.ts för att ändra schemat."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3370
+#: packages/admin/src/components/PortableTextEditor.tsx:3371
 msgid "This content cannot be edited safely"
 msgstr "Innehållet kan inte redigeras säkert"
 
@@ -15462,11 +15473,11 @@ msgstr "Exporten är stor"
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Fältet kan inte redigeras i den här versionen av EmDash."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3353
+#: packages/admin/src/components/PortableTextEditor.tsx:3354
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "Fältet innehåller tabellinnehåll som redigeraren inte kan bevara. Uppdatera det via API:t innan du redigerar eller sparar innehållet."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3372
+#: packages/admin/src/components/PortableTextEditor.tsx:3373
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "Fältet innehåller Portable Text-markeringar som inte stöds: <0>{markList}</0>. Ta bort dem via API:t innan du redigerar eller sparar innehållet."
 
@@ -15488,7 +15499,7 @@ msgstr "Fältet förväntar sig en lista. Det lagrade värdet ändras inte förr
 msgid "This field is required"
 msgstr "Fältet är obligatoriskt"
 
-#: packages/admin/src/components/FieldEditor.tsx:1851
+#: packages/admin/src/components/FieldEditor.tsx:1855
 msgid "This field lists entries that link to this one."
 msgstr "Fältet listar poster som länkar till den här posten."
 
@@ -15497,16 +15508,16 @@ msgstr "Fältet listar poster som länkar till den här posten."
 msgid "This field picks"
 msgstr "Fältet väljer"
 
-#: packages/admin/src/components/FieldEditor.tsx:1850
+#: packages/admin/src/components/FieldEditor.tsx:1854
 msgid "This field picks entries this one links to."
 msgstr "Fältet väljer poster som den här posten länkar till."
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1862
+#: packages/admin/src/components/FieldEditor.tsx:1866
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "Fältet visar de <0>{0}</0> som den här posten av typen {linkingSide} länkar till"
 
-#: packages/admin/src/components/FieldEditor.tsx:1867
+#: packages/admin/src/components/FieldEditor.tsx:1871
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "Fältet visar posten av typen <0>{linkingSide}</0> som länkar till den här posten av typen {linkedSide}"
 
@@ -15595,7 +15606,7 @@ msgstr "Det här paketet skapades med en nyare eller annan version av EmDash."
 msgid "This passkey is already registered on this device."
 msgstr "Passkeyn är redan registrerad på den här enheten."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3391
+#: packages/admin/src/components/PortableTextEditor.tsx:3392
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "Det du klistrar in är för stort. Klistra in färre celler eller mindre text åt gången."
 
@@ -15672,12 +15683,12 @@ msgstr "Schemaläggningen tas bort och innehållet publiceras direkt."
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "Den sparade tidszonen känns inte igen. Välj ett av förslagen så att datum visas korrekt."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3436
+#: packages/admin/src/components/PortableTextEditor.tsx:3437
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "Sektionen innehåller tabellinnehåll som redigeraren inte kan bevara. Uppdatera sektionen innan du infogar den."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3438
+#: packages/admin/src/components/PortableTextEditor.tsx:3439
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "Sektionen innehåller Portable Text-markeringar som inte stöds: <0>{0}</0>. Uppdatera sektionen innan du infogar den."
 
@@ -15735,15 +15746,15 @@ msgstr "Den här webbplatsen skapades med startinnehåll. Den har inga egna post
 msgid "This slug is reserved. Enter a different one."
 msgstr "Slugen är reserverad. Ange en annan."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3393
+#: packages/admin/src/components/PortableTextEditor.tsx:3394
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "Kalkylbladsdatan innehåller celler med ogiltiga citattecken. Rätta citattecknen eller ta bort tabbavgränsarna och försök igen."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3351
+#: packages/admin/src/components/PortableTextEditor.tsx:3352
 msgid "This table cannot be edited safely"
 msgstr "Tabellen kan inte redigeras säkert"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3397
+#: packages/admin/src/components/PortableTextEditor.tsx:3398
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "Tabellen har cellformatering, sammanfogade celler eller kolumnbredder som inte stöds. Klistra in den som vanlig text eller förenkla tabellen och försök igen."
 
@@ -15850,7 +15861,7 @@ msgstr "för att välja"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:517
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:125
-#: packages/admin/src/components/revisions/revision-format.ts:94
+#: packages/admin/src/components/revisions/revision-format.ts:80
 msgid "Today"
 msgstr "I dag"
 
@@ -16068,9 +16079,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:4064
-#: packages/admin/src/components/PortableTextEditor.tsx:4066
-#: packages/admin/src/components/PortableTextEditor.tsx:4083
+#: packages/admin/src/components/PortableTextEditor.tsx:4065
+#: packages/admin/src/components/PortableTextEditor.tsx:4067
+#: packages/admin/src/components/PortableTextEditor.tsx:4084
 msgid "Turn into"
 msgstr "Omvandla till"
 
@@ -16113,7 +16124,7 @@ msgstr "Två poster har samma värde där det måste vara unikt"
 #: packages/admin/src/components/BylineFieldEditor.tsx:385
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
-#: packages/admin/src/components/FieldEditor.tsx:1688
+#: packages/admin/src/components/FieldEditor.tsx:1692
 #: packages/admin/src/components/MediaLibrary.tsx:1147
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
@@ -16141,7 +16152,7 @@ msgstr "Typmismatchning ({0})"
 msgid "Type to filter"
 msgstr "Skriv för att filtrera"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3508
+#: packages/admin/src/components/PortableTextEditor.tsx:3509
 msgid "Type to search"
 msgstr "Skriv för att söka"
 
@@ -16163,13 +16174,13 @@ msgstr "Kunde inte nå marknadsplatsen"
 msgid "Unassigned"
 msgstr "Otilldelad"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3646
-#: packages/admin/src/components/PortableTextEditor.tsx:5210
+#: packages/admin/src/components/PortableTextEditor.tsx:3647
+#: packages/admin/src/components/PortableTextEditor.tsx:5211
 msgid "Underline"
 msgstr "Understrykning"
 
 #: packages/admin/src/components/block-field-undo.tsx:219
-#: packages/admin/src/components/PortableTextEditor.tsx:5441
+#: packages/admin/src/components/PortableTextEditor.tsx:5442
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:68
 msgid "Undo"
 msgstr "Ångra"
@@ -16206,7 +16217,7 @@ msgstr "Unik identifierare (ULID)"
 msgid "Unknown"
 msgstr "Okänd"
 
-#: packages/admin/src/components/revisions/revision-format.ts:117
+#: packages/admin/src/components/revisions/revision-format.ts:103
 msgid "Unknown author"
 msgstr "Okänd författare"
 
@@ -16228,7 +16239,7 @@ msgstr "Lås upp bildförhållande"
 msgid "Unnamed passkey"
 msgstr "Namnlös passkey"
 
-#: packages/admin/src/components/revisions/revision-format.ts:117
+#: packages/admin/src/components/revisions/revision-format.ts:103
 msgid "Unnamed user"
 msgstr "Namnlös användare"
 
@@ -16280,7 +16291,7 @@ msgstr "Osparat innehåll kan lämna din webbplats"
 msgid "Unscheduled"
 msgstr "Ej schemalagd"
 
-#: packages/admin/src/components/BlocksField.tsx:1367
+#: packages/admin/src/components/BlocksField.tsx:1364
 #: packages/admin/src/components/ContentTypeEditor.tsx:983
 msgid "Unsupported"
 msgstr "Stöds inte"
@@ -16333,7 +16344,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr "Uppdatering"
 
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Update Field"
 msgstr "Uppdatera fält"
 
@@ -16536,7 +16547,7 @@ msgstr "Laddar upp video …"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:57
 #: packages/admin/src/components/FieldEditor.tsx:741
-#: packages/admin/src/components/FieldEditor.tsx:1703
+#: packages/admin/src/components/FieldEditor.tsx:1707
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/MenuEditor.tsx:847
 #: packages/admin/src/components/PortableTextEditor.tsx:1415
@@ -16761,7 +16772,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Användare med e-postadresser från de här domänerna kan registrera sig utan inbjudan. De tilldelas automatiskt den angivna rollen."
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/FieldEditor.tsx:1535
+#: packages/admin/src/components/FieldEditor.tsx:1539
 msgid "v{0}"
 msgstr "v{0}"
 
@@ -16819,7 +16830,7 @@ msgstr "Version"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:1768
+#: packages/admin/src/components/BlocksField.tsx:1765
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -16830,7 +16841,7 @@ msgstr "Version {0}"
 msgid "Version {0} (active)"
 msgstr "Version {0} (aktiv)"
 
-#: packages/admin/src/components/revisions/useRevisionView.ts:653
+#: packages/admin/src/components/revisions/useRevisionView.ts:651
 msgid "Version from {when}"
 msgstr "Version från {when}"
 
@@ -16898,11 +16909,11 @@ msgstr "Visa källa"
 msgid "View the {license} license on spdx.org"
 msgstr "Visa licensen {license} på spdx.org"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:311
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:292
 msgid "Viewing"
 msgstr "Tittar"
 
-#: packages/admin/src/components/revisions/useRevisionView.ts:518
+#: packages/admin/src/components/revisions/useRevisionView.ts:516
 msgid "Viewing the version from {when} by {name}."
 msgstr "Du visar versionen från {when} av {name}."
 
@@ -17045,7 +17056,7 @@ msgstr "Vad är en passkey?"
 msgid "What it leaves out"
 msgstr "Vad som inte ingår"
 
-#: packages/admin/src/components/FieldEditor.tsx:1882
+#: packages/admin/src/components/FieldEditor.tsx:1886
 msgid "What the direction changes"
 msgstr "Vad riktningen påverkar"
 
@@ -17282,7 +17293,7 @@ msgstr "Årligen"
 msgid "Yes"
 msgstr "Ja"
 
-#: packages/admin/src/components/revisions/revision-format.ts:96
+#: packages/admin/src/components/revisions/revision-format.ts:82
 msgid "Yesterday"
 msgstr "I går"
 

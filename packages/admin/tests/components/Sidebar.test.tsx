@@ -24,6 +24,7 @@
  */
 
 import { setupI18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import {
 	Plug,
 	Gear,
@@ -56,6 +57,7 @@ import {
 	type NavBuildInput,
 	type NavGroup,
 } from "../../src/components/Sidebar";
+import { getRoleConfig } from "../../src/components/users/roleDefinitions";
 import { render } from "../utils/render.tsx";
 
 // Mirror @emdash-cms/auth Role levels. Kept inline (matching Sidebar.tsx)
@@ -399,6 +401,21 @@ describe("buildNavGroups", () => {
 	}
 
 	const posts = { posts: { label: "Posts" } };
+
+	it("translates the Admin heading separately from the Admin role", () => {
+		const catalan = setupI18n({
+			locale: "ca",
+			messages: {
+				ca: {
+					[msg`Admin`.id]: "Administrador",
+					[msg({ message: "Admin", context: "navigation group" }).id]: "Administració",
+				},
+			},
+		});
+		const groups = build({ i18n: catalan, translate: catalan._.bind(catalan) });
+		expect(group(groups, "admin")?.label).toBe("Administració");
+		expect(catalan._(getRoleConfig(ROLE_ADMIN).label)).toBe("Administrador");
+	});
 
 	it("gives a taxonomy link that carries the route locale an ID without it", () => {
 		const groups = build({
