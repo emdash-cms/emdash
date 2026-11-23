@@ -450,9 +450,9 @@ The application audience identifies which Access application issued the JWT. EmD
 | `audience`      | `string`  | —        | Application Audience (AUD) tag supplied directly. Prefer `audienceEnvVar` on Workers. |
 | `autoProvision` | `boolean` | `true`   | Create EmDash users on first Access login                   |
 | `defaultRole`   | `number`  | `30`     | Role for users not matching any group (30 = Author)           |
-| `syncRoles`     | `boolean` | `false`  | Update role on each login based on IdP groups                 |
+| `syncRoles`     | `boolean` | `false`  | Update role on each login based on IdP groups or GitHub teams                 |
 | `syncName`      | `boolean` | `true`   | Update the user's name from the IdP on every authenticated request |
-| `roleMapping`   | `object`  | —        | Map IdP group names to role levels                            |
+| `roleMapping`   | `object`  | —        | Map IdP group names or GitHub `org/team` names to role levels                            |
 | `audienceEnvVar`| `string`  | `"CF_ACCESS_AUDIENCE"` | Environment variable containing the audience tag. Used when `audience` is omitted. |
 
 Provide either `audience` or an environment value under `audienceEnvVar`.
@@ -476,13 +476,15 @@ emdash({
 });
 ```
 
-The first matching group wins if a user belongs to multiple groups. The **first user** to access the site always becomes Admin, regardless of groups.
+For the GitHub identity provider, use `"organization-name/team-name"` as the `roleMapping` key, such as `"my-org/Web Admins": 50`. Use the organization and team names returned by Access. Bare team names and organization names are not matched: users can create identically named teams in other GitHub organizations. Update mappings when a GitHub organization is renamed, because another organization can claim its old name.
+
+The first match wins in the order returned by Access, checking groups before GitHub teams. The **first user** to access the site always becomes Admin, regardless of groups.
 
 ### Role sync behavior
 
 By default (`syncRoles: false`), a user's role is set when they first log in and doesn't change afterward. This allows admins to manually adjust roles in EmDash.
 
-Set `syncRoles: true` if you want IdP groups to be authoritative — the user's role will update on every login based on their current groups.
+Set `syncRoles: true` if you want IdP groups or GitHub teams to be authoritative — the user's role will update on every login based on their current memberships.
 
 ### Name sync behavior
 
