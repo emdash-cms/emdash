@@ -17,7 +17,13 @@ import { useLingui } from "@lingui/react/macro";
 import { useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
-import { apiFetch, fetchContent, fetchManifest, throwResponseError } from "../../lib/api";
+import {
+	apiFetch,
+	ApiResponseError,
+	fetchContent,
+	fetchManifest,
+	throwResponseError,
+} from "../../lib/api";
 import type { ContentItem } from "../../lib/api";
 import { useDebouncedValue } from "../../lib/hooks";
 import { contentUrl } from "../../lib/url.js";
@@ -143,11 +149,18 @@ export function LinkDestinationInput({
 		data: rawResults,
 		isFetching,
 		isError,
+		error: searchError,
 	} = useQuery({
 		queryKey: ["link-content-search", query],
 		queryFn: () => searchLinkTargets(query),
 		enabled: searchEnabled,
+		retry: (failureCount, error) =>
+			!(error instanceof ApiResponseError && error.code === "SEARCH_UNAVAILABLE") &&
+			failureCount < 1,
 	});
+
+	const searchUnavailable =
+		searchError instanceof ApiResponseError && searchError.code === "SEARCH_UNAVAILABLE";
 
 	// Entries in non-routable collections have no public URL to link to.
 	const results = React.useMemo(
@@ -334,7 +347,9 @@ export function LinkDestinationInput({
 			)}
 			{searchEnabled && isError && (
 				<p role="alert" className="px-2 py-1 text-xs text-kumo-danger">
-					{t`Search failed. Check your connection and try again.`}
+					{searchUnavailable
+						? t`Content search is unavailable. Paste a URL instead.`
+						: t`Search failed. Check your connection and try again.`}
 				</p>
 			)}
 			{searchEnabled && !isFetching && !isError && results.length === 0 && (

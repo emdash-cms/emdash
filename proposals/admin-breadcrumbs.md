@@ -1,7 +1,7 @@
 ---
 title: Breadcrumbs on nested admin pages
 type: feature-plan
-status: proposed
+status: implemented
 authors:
   - Noah Pham (@khoinguyenpham04)
 discussion: null

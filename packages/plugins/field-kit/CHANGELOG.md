@@ -1,5 +1,15 @@
 # @emdash-cms/plugin-field-kit
 
+## 0.1.4
+
+### Patch Changes
+
+- [#4940](https://github.com/emdash-cms/emdash/pull/4940) [`a570e5d`](https://github.com/emdash-cms/emdash/commit/a570e5d8b6bcac947483ba01ffa61fbb8c34ebc5) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates `@cloudflare/kumo` to 2.19.0. These packages now require exactly `@cloudflare/kumo@2.19.0`, so sites and plugins that install Kumo themselves should upgrade to that version to match the admin's prebuilt styles. Update `emdash` and the Forms, Field Kit, AI Moderation and AI Search plugins together, since their earlier releases require Kumo 2.15.0.
+  
+  In the admin, date pickers use Kumo's refreshed day and month buttons, and button labels are vertically centred.
+  
+  Plugin admin pages built with Kumo may need changes for `Radio.Group` tests, `DatePicker` style overrides and `Dialog` maximum heights. [Upgrade to Kumo 2.19](https://docs.emdashcms.com/plugins/creating-native-plugins/distributing/#upgrade-to-kumo-219) describes each change, and [Match the admin's Kumo version](https://docs.emdashcms.com/plugins/creating-native-plugins/distributing/#match-the-admins-kumo-version) explains how a plugin pins Kumo.
+
 ## 0.1.3
 
 ### Patch Changes

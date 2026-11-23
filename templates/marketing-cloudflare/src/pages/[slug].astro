@@ -8,9 +8,9 @@ const slug = decodeSlug(Astro.params.slug);
 if (!slug) return Astro.rewrite("/404");
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
-if (!page) return Astro.rewrite("/404");
-
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+if (!page) return Astro.rewrite("/404");
 
 const seo = getSeoMeta(page, {
 	siteUrl: Astro.url.origin,

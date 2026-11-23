@@ -24,6 +24,7 @@ import {
 	DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 } from "../ai/image-resize.js";
 import { workersAiBindingFromEnv } from "../ai/workers-ai.js";
+import { createProductionCodeAssessment } from "../code/runtime.js";
 import { createD1ListingLabelIssuer, type ListingLabelIssuer } from "../labels/issuer.js";
 import {
 	LABELER_POLICY_EFFECTIVE_AT,
@@ -33,7 +34,11 @@ import {
 import { createDohHostnameResolver, DOH_ENDPOINT } from "../runtime-network.js";
 import { createLabelPublicationTarget } from "../subscriptions/publisher.js";
 import { createD1AssessmentLifecycleStore } from "./lifecycle.js";
-import { createGuardedMediaAcquirer } from "./media.js";
+import {
+	createGuardedMediaAcquirer,
+	type GuardedMediaTransport,
+	type MediaHostnameResolver,
+} from "./media.js";
 import { publisherHandleFromDidDocument, verifiedHandleDid } from "./publisher-identity.js";
 import { createAtprotoExactRecordVerifier } from "./records.js";
 import {
@@ -68,6 +73,28 @@ export async function createProductionAssessmentWorkflowDependencies(
 		}),
 		DEFAULT_MODERATION_IMAGE_DERIVATIVE_OPTIONS,
 	);
+	const guardedResolver: MediaHostnameResolver = {
+		async resolve(hostname, options) {
+			if (options.signal.aborted) {
+				throw new Error("display media hostname resolution was aborted");
+			}
+			const addresses = await resolveHostname(hostname);
+			if (options.signal.aborted) {
+				throw new Error("display media hostname resolution was aborted");
+			}
+			return addresses;
+		},
+	};
+	const guardedTransport: GuardedMediaTransport = createTrustedOriginServiceBindingTransport(
+		REGISTRY_CUMULUS_ORIGIN,
+		env.REGISTRY_BLOB_CACHE,
+		createWorkersSocketPinnedTransport(connect),
+	);
+	const codeAssessment = createProductionCodeAssessment(env, {
+		db: env.DB,
+		resolver: guardedResolver,
+		transport: guardedTransport,
+	});
 	return {
 		lifecycle: createD1AssessmentLifecycleStore(env.DB),
 		recordVerifier: createAtprotoExactRecordVerifier({
@@ -76,29 +103,15 @@ export async function createProductionAssessmentWorkflowDependencies(
 			resolveHostname,
 		}),
 		mediaAcquirer: createGuardedMediaAcquirer({
-			resolver: {
-				async resolve(hostname, options) {
-					if (options.signal.aborted) {
-						throw new Error("display media hostname resolution was aborted");
-					}
-					const addresses = await resolveHostname(hostname);
-					if (options.signal.aborted) {
-						throw new Error("display media hostname resolution was aborted");
-					}
-					return addresses;
-				},
-			},
-			transport: createTrustedOriginServiceBindingTransport(
-				REGISTRY_CUMULUS_ORIGIN,
-				env.REGISTRY_BLOB_CACHE,
-				createWorkersSocketPinnedTransport(connect),
-			),
+			resolver: guardedResolver,
+			transport: guardedTransport,
 			store: createR2MediaContentStore(env.MEDIA_QUARANTINE, env.DB),
 			decoder: createCloudflareImagesDecoder(env.IMAGES),
 		}),
 		mediaReader: createR2ModerationMediaReader(env.MEDIA_QUARANTINE),
 		textAdapter,
 		imageAdapter,
+		...(codeAssessment ? { codeAssessment } : {}),
 		policy: {
 			...INITIAL_LISTING_POLICY_FIXTURE,
 			policyVersion: config.versions.policyVersion,

@@ -46,6 +46,7 @@ import {
 	InvalidCursorError,
 } from "../database/repositories/types.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
+import { isRouteCachedMedia, mediaCacheTag } from "../media/image-endpoint.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -2905,7 +2906,15 @@ export function createMcpServer(
 			const authorId = existing.data.item.authorId ?? "";
 			requireOwnership(extra, authorId, "media:delete_own", "media:delete_any");
 
-			return unwrap(await ec.handleMediaDelete(args.id));
+			const result = await ec.handleMediaDelete(args.id);
+			if (
+				result.success &&
+				result.data?.storageDeleted &&
+				isRouteCachedMedia(result.data.storageKey, result.data.mimeType)
+			) {
+				await invalidateRouteCache(getExtra(extra).cache, [mediaCacheTag(result.data.storageKey)]);
+			}
+			return unwrap(result);
 		},
 	);
 

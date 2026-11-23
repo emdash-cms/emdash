@@ -1,5 +1,12 @@
 # @emdash-cms/registry-loader
 
+## 0.1.5
+
+### Patch Changes
+
+- Updated dependencies []:
+  - @emdash-cms/registry-client@0.7.3
+
 ## 0.1.4
 
 ### Patch Changes

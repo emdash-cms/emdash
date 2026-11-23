@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { NormalizedModerationFindingSchema } from "../src/findings.js";
+import { AssessmentFindingSchema, NormalizedModerationFindingSchema } from "../src/findings.js";
 import {
 	MODERATION_INPUT_FIELDS_FIXTURE,
 	PROFILE_MODERATION_INPUT_FIXTURE,
@@ -153,6 +153,40 @@ describe("canonical moderation inputs", () => {
 				summary: "Review this listing",
 				evidenceRefs: ["profile.name"],
 				label: "listing-blocked",
+			}),
+		).toMatchObject({ success: false });
+	});
+
+	it("accepts code findings with a severity only through the assessment schema", () => {
+		const finding = {
+			category: "malicious-code",
+			recommendation: "review",
+			confidence: 0.7,
+			severity: "high",
+			summary: "Evaluates strings as code",
+			evidenceRefs: ["release.package:backend.js#L1C1:0-4"],
+		};
+		expect(AssessmentFindingSchema.safeParse(finding)).toMatchObject({
+			success: true,
+			data: finding,
+		});
+		expect(NormalizedModerationFindingSchema.safeParse(finding)).toMatchObject({
+			success: false,
+		});
+		expect(AssessmentFindingSchema.safeParse({ ...finding, severity: "severe" })).toMatchObject({
+			success: false,
+		});
+	});
+
+	it("rejects a severity on a listing finding", () => {
+		expect(
+			NormalizedModerationFindingSchema.safeParse({
+				category: "scam-or-spam",
+				recommendation: "review",
+				confidence: 0.9,
+				summary: "Review this listing",
+				evidenceRefs: ["profile.name"],
+				severity: "high",
 			}),
 		).toMatchObject({ success: false });
 	});

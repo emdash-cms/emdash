@@ -15,7 +15,12 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { AstroIntegration, AstroIntegrationLogger, AstroIntegrationMiddleware } from "astro";
+import type {
+	AstroConfig,
+	AstroIntegration,
+	AstroIntegrationLogger,
+	AstroIntegrationMiddleware,
+} from "astro";
 
 import { getEnvSiteUrl } from "../../api/public-url.js";
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
@@ -443,6 +448,21 @@ export function buildMiddlewareEntries(
 	return entries;
 }
 
+/** Astro 6 configures route caching under `experimental.cache`, Astro 7 under `cache`. */
+function routeCacheProviderName(config: AstroConfig): string | undefined {
+	const experimental: unknown = Reflect.get(config, "experimental");
+	const legacyCache: unknown =
+		typeof experimental === "object" && experimental !== null
+			? Reflect.get(experimental, "cache")
+			: undefined;
+	const cache: unknown = config.cache ?? legacyCache;
+	if (typeof cache !== "object" || cache === null) return undefined;
+	const provider: unknown = Reflect.get(cache, "provider");
+	if (typeof provider !== "object" || provider === null) return undefined;
+	const name: unknown = Reflect.get(provider, "name");
+	return typeof name === "string" ? name : undefined;
+}
+
 function assertNoRemovedRegistryOption(config: EmDashConfig): void {
 	const experimental: unknown = Reflect.get(config, "experimental");
 	if (
@@ -816,6 +836,7 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					typeof cookie === "string"
 						? cookie || "astro-session"
 						: (cookie?.name ?? "astro-session");
+				serializableConfig.routeCacheProvider = routeCacheProviderName(finalConfig);
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
 				const adapterWarning = adapterVersionMismatchWarning(finalConfig.root);

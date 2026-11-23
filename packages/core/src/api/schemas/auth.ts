@@ -45,6 +45,13 @@ export const signupRequestBody = z
 	})
 	.meta({ id: "SignupRequestBody" });
 
+export const signupRegisterOptionsBody = z
+	.object({
+		token: z.string().min(1),
+		name: z.string().optional(),
+	})
+	.meta({ id: "SignupRegisterOptionsBody" });
+
 export const signupCompleteBody = z
 	.object({
 		token: z.string().min(1),

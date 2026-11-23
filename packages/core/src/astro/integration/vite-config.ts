@@ -510,7 +510,7 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
  * imports: any other `cloudflare:` import on a non-Cloudflare adapter should
  * still fail the build instead of failing at runtime.
  */
-const CORE_WORKERS_BUILTINS = new Set(["cloudflare:sockets"]);
+const CORE_WORKERS_BUILTINS = new Set(["cloudflare:sockets", "cloudflare:workers"]);
 
 function createWorkersBuiltinsExternalPlugin(): Plugin {
 	return {
@@ -699,6 +699,7 @@ export function createViteConfig(
 							"emdash > mime/lite",
 							"emdash > modern-tar",
 							"emdash > sanitize-html",
+							"emdash > htmlparser2",
 							"emdash > @tiptap/core",
 							"emdash > ulidx",
 							"emdash > upng-js",

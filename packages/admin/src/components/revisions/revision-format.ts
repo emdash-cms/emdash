@@ -5,10 +5,8 @@ import * as React from "react";
 
 import type { RevisionAuthor, RevisionListItem } from "../../lib/api";
 import type { CurrentUser } from "../../lib/api/current-user.js";
-import { assignAuthorColors, authorColorOf, type AuthorColor } from "../../lib/author-colors.js";
+import { userColor, type UserColor } from "../../lib/user-color.js";
 import { formatDate, isolate, parseTimestamp } from "../../lib/utils.js";
-
-export { assignAuthorColors, authorColorOf, type AuthorColor };
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -26,24 +24,12 @@ function soleNamed(item: RevisionListItem): RevisionAuthor | null {
 }
 
 /**
- * Colours for the people that versions of a loaded list name on their own, shared by the list dots,
- * the view bar and the canvas marks.
+ * A version's colour, for the list dots, the view bar and the canvas marks: the colour of the one
+ * person it names, or null for neutral when it names several, or only an unknown or deleted account.
  */
-export function revisionAuthorColors(
-	items: readonly RevisionListItem[],
-): ReadonlyMap<string, AuthorColor> {
-	return assignAuthorColors(items.map((item) => soleNamed(item)?.id));
-}
-
-/**
- * A version's colour: the colour of the one person it names, or neutral when it names several, or
- * only an unknown or deleted account.
- */
-export function revisionAuthorColor(
-	colors: ReadonlyMap<string, AuthorColor>,
-	item: RevisionListItem,
-): AuthorColor {
-	return authorColorOf(colors, soleNamed(item)?.id);
+export function revisionAuthorColor(item: RevisionListItem): UserColor | null {
+	const author = soleNamed(item);
+	return author ? userColor(author.id) : null;
 }
 
 /** Revision timestamps come from SQLite without a zone and are UTC. */
