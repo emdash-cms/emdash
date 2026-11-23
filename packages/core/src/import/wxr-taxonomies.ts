@@ -329,6 +329,14 @@ async function ensureTermsBatch(
 const describeTerm = (d: TermDescriptor) => `"${d.taxonomyName}/${d.slug}" (${d.locale})`;
 
 /**
+ * Entries go too: the admin imports with `skipExisting`, so the entries an
+ * earlier import created would be skipped, left with no terms once theirs are
+ * deleted.
+ */
+const REIMPORT_ADVICE =
+	"Delete the entries and terms that an earlier import created, then import again.";
+
+/**
  * Find or create terms whose locale the export records, each in that locale.
  * The members of one translation group are linked through `translationOf`.
  * Rows that already exist decide the group: missing members join it, anchored
@@ -392,7 +400,7 @@ async function ensureLocalizedTerms(
 		const existingGroups = new Set(found.map((member) => member.row!.group));
 		if (existingGroups.size > 1) {
 			throw new WxrTaxonomyConflictError(
-				`Cannot import: the translations ${found.map((member) => describeTerm(member.d)).join(" and ")} already exist in different translation groups. Link them in the admin (re-link via translationOf, or delete one) and retry.`,
+				`Cannot import: the translations ${found.map((member) => describeTerm(member.d)).join(" and ")} already exist in different translation groups, and existing terms can't be linked. ${REIMPORT_ADVICE}`,
 			);
 		}
 		const [group] = existingGroups;
@@ -411,7 +419,7 @@ async function ensureLocalizedTerms(
 			const taken = row ? undefined : groupLocales?.get(d.locale!);
 			if (taken !== undefined) {
 				throw new WxrTaxonomyConflictError(
-					`Cannot import: term ${describeTerm(d)} would join the translation group of ${describeTerm(found[0].d)}, which already has "${d.taxonomyName}/${taken}" at locale "${d.locale}". Reconcile the rows in the admin (re-link via translationOf, or delete one) and retry.`,
+					`Cannot import: term ${describeTerm(d)} would join the translation group of ${describeTerm(found[0].d)}, which already has "${d.taxonomyName}/${taken}" at locale "${d.locale}". ${REIMPORT_ADVICE}`,
 				);
 			}
 		}

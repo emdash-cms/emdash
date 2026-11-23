@@ -498,6 +498,8 @@ Import WordPress content through the admin migration tool — see [Content Impor
 
 A WXR export of **All content** from a site translated with Polylang records the language and translations of each post. The importer uses the Polylang language code, for example `en`, as each entry's locale and links the entry to its translations. List the same codes in `i18n.locales` so Astro can route the imported entries. Categories, tags, and other terms that Polylang translates keep their own language and name, and are linked to their translations. An export of **Posts** leaves out the translations of categories and tags, so the importer doesn't link its entries.
 
+To import a Polylang site again after importing it with an earlier EmDash version, first delete the entries and terms the earlier import created. That import left the translations of each term unlinked, and existing terms can't be linked, so the import stops with a conflict that names them.
+
 A WXR export does not carry the locale and translation-group structure that WPML adds, so content imported from a WPML site lands in your default locale.
 
 To build translations from imported content, create the translated entry as a draft and link it to the original database ID:
