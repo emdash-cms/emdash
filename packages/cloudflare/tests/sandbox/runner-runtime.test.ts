@@ -1,3 +1,5 @@
+import { DatabaseSync } from "node:sqlite";
+
 import type {
 	ContentActionCallbacks,
 	PluginCapability,
@@ -13,6 +15,8 @@ import atprotoPlugin from "../../../plugins/atproto/src/plugin.js";
 const mocks = vi.hoisted(() => ({
 	loader: { get: vi.fn() },
 	bridge: vi.fn(),
+	db: { prepare: vi.fn() },
+	media: { delete: vi.fn() },
 }));
 
 vi.mock("cloudflare:workers", () => ({
@@ -24,7 +28,7 @@ vi.mock("cloudflare:workers", () => ({
 			readonly env: Record<string, unknown>,
 		) {}
 	},
-	env: { LOADER: mocks.loader },
+	env: { LOADER: mocks.loader, DB: mocks.db, MEDIA: mocks.media },
 	exports: { PluginBridge: mocks.bridge },
 }));
 
@@ -156,6 +160,88 @@ const manifest = (capabilities: PluginCapability[]) => ({
 });
 
 describe("Cloudflare sandbox runner runtime targets", () => {
+	it("invalidates a late media deletion before settling its timed-out invocation", async () => {
+		const db = new DatabaseSync(":memory:");
+		db.exec(
+			"CREATE TABLE media (id TEXT PRIMARY KEY, storage_key TEXT NOT NULL, mime_type TEXT NOT NULL)",
+		);
+		db.exec("INSERT INTO media VALUES ('media-id', 'trusted.png', 'image/png')");
+		mocks.db.prepare.mockImplementation((sql: string) => ({
+			bind: (...params: string[]) => ({
+				first: async () => db.prepare(sql).get(...params) ?? null,
+				run: async () => ({ meta: { changes: Number(db.prepare(sql).run(...params).changes) } }),
+			}),
+		}));
+		const storageDelete = Promise.withResolvers<void>();
+		mocks.media.delete.mockReturnValue(storageDelete.promise);
+		const events: string[] = [];
+		const settled = Promise.withResolvers<void>();
+		let invocationId: string | undefined;
+		setupLoader({
+			routes: { ops: async (_route: unknown, ctx: any) => ctx.media.delete("media-id") },
+		});
+		const instance = runner({
+			limits: { wallTimeMs: 10 },
+			contentActions: {
+				begin: (_plugin: string, id: string) => {
+					invocationId = id;
+				},
+				invalidateMedia: async (plugin: string, key: string, id: string) => {
+					expect(id).toBe(invocationId);
+					expect(plugin).toBe("runtime-plugin");
+					events.push(key);
+				},
+				flush: async (_plugin: string, id: string, complete: boolean) => {
+					expect(id).toBe(invocationId);
+					events.push(`flush:${complete}`);
+					if (complete) settled.resolve();
+				},
+			} as never,
+		});
+		try {
+			const plugin = await instance.load(manifest(["media:write"]), "");
+			await expect(plugin.invokeRoute("ops", {}, request)).rejects.toThrow(
+				/exceeded wall-time limit/,
+			);
+			expect(events).toEqual(["flush:false"]);
+			expect(db.prepare("SELECT id FROM media").all()).toEqual([]);
+			storageDelete.resolve();
+			await settled.promise;
+			expect(events).toEqual(["flush:false", "trusted.png", "flush:true"]);
+		} finally {
+			storageDelete.resolve();
+			await instance.terminateAll();
+			db.close();
+		}
+	});
+
+	it("rejects media deletion without write capability before touching storage", async () => {
+		mocks.db.prepare.mockClear();
+		mocks.media.delete.mockClear();
+		const invalidateMedia = vi.fn();
+		setupLoader({
+			routes: { ops: async (_route: unknown, ctx: any) => ctx.media.delete("media-id") },
+		});
+		const instance = runner({
+			contentActions: {
+				invalidateMedia,
+				begin: vi.fn(),
+				flush: vi.fn().mockResolvedValue(undefined),
+			} as never,
+		});
+		try {
+			const plugin = await instance.load(manifest(["media:read"]), "");
+			await expect(plugin.invokeRoute("ops", {}, request)).rejects.toThrow(
+				"Missing capability: media:write",
+			);
+			expect(mocks.db.prepare).not.toHaveBeenCalled();
+			expect(mocks.media.delete).not.toHaveBeenCalled();
+			expect(invalidateMedia).not.toHaveBeenCalled();
+		} finally {
+			await instance.terminateAll();
+		}
+	});
+
 	it("threads the runner write guard and records only successful creates", async () => {
 		const writes: string[] = [];
 		let blocked = true;

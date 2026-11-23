@@ -362,7 +362,9 @@ export async function handleMediaDelete(
 	db: Kysely<Database>,
 	id: string,
 	storage?: Storage | null,
-): Promise<ApiResult<{ deleted: true; storageKey: string; storageDeleted: boolean }>> {
+): Promise<
+	ApiResult<{ deleted: true; storageKey: string; mimeType: string; storageDeleted: boolean }>
+> {
 	try {
 		const repo = new MediaRepository(db);
 		const notFound: ApiResult<never> = {
@@ -392,7 +394,7 @@ export async function handleMediaDelete(
 
 		return {
 			success: true,
-			data: { deleted: true, storageKey, storageDeleted },
+			data: { deleted: true, storageKey, mimeType: media.mimeType, storageDeleted },
 		};
 	} catch {
 		return {

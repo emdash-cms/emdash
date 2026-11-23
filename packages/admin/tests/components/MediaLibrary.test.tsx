@@ -407,7 +407,6 @@ describe("MediaLibrary", () => {
 			);
 			await folderLink.click();
 			expect(onOpenFolder).toHaveBeenCalledWith(folder);
-			await expect.element(screen.getByRole("heading", { name: "Media Library" })).toHaveFocus();
 			const editFolder = screen.getByRole("button", { name: "Edit folder Product photos" });
 			await editFolder.click();
 			await expect
@@ -747,38 +746,43 @@ describe("MediaLibrary", () => {
 			await expect.element(screen.getByText("Loading folders")).toBeInTheDocument();
 		});
 
-		it("shows Back and breadcrumbs inside a folder, hides folder creation, and keeps upload available", async () => {
-			const onBackToMain = vi.fn();
+		it("hides folder creation inside a folder and keeps upload available", async () => {
 			const screen = await renderLibrary({
 				folderId: "folder-1",
 				currentFolder: makeFolder(),
 				canManageFolders: true,
-				onBackToMain,
 			});
 
-			const back = screen.getByRole("link", { name: "Back" });
-			const modifiedClick = new MouseEvent("click", {
-				bubbles: true,
-				cancelable: true,
-				metaKey: true,
-			});
-			back.element().dispatchEvent(modifiedClick);
-			expect(modifiedClick.defaultPrevented).toBe(false);
-			expect(onBackToMain).not.toHaveBeenCalled();
-			back.element().click();
-			expect(onBackToMain).toHaveBeenCalledTimes(1);
-			await expect.element(screen.getByRole("heading", { name: "Media Library" })).toHaveFocus();
-			const currentFolder = screen.getByText("Product photos").first();
-			await expect.element(currentFolder).toBeInTheDocument();
-			expect(currentFolder.element()).toHaveAttribute("dir", "auto");
-			const rootCrumb = screen.getByRole("link", { name: "Media Library" }).first();
-			expect(getComputedStyle(rootCrumb.element()).fontSize).toBe(
-				getComputedStyle(currentFolder.element()).fontSize,
-			);
+			await expect.element(screen.getByRole("heading", { name: "Media Library" })).toBeVisible();
 			expect(screen.getByRole("button", { name: "Add new folder" }).query()).toBeNull();
 			await expect
 				.element(screen.getByRole("button", { name: UPLOAD_FILES_PATTERN }).first())
 				.toBeInTheDocument();
+		});
+
+		it("moves focus to the library heading whenever the open folder changes", async () => {
+			const folder = makeFolder();
+			const library = (folderId?: string) => (
+				<QueryWrapper>
+					<MediaLibrary
+						folders={[folder]}
+						folderId={folderId}
+						currentFolder={folderId ? folder : null}
+						onBackToMain={vi.fn()}
+					/>
+				</QueryWrapper>
+			);
+			const screen = await render(library());
+			const heading = screen.getByRole("heading", { name: "Media Library" });
+			await expect.element(heading).toBeVisible();
+			expect(heading.element()).not.toHaveFocus();
+
+			await screen.rerender(library(folder.id));
+			await expect.element(heading).toHaveFocus();
+
+			screen.getByRole("button", { name: "Back to Main library" }).element().focus();
+			await screen.rerender(library());
+			await expect.element(heading).toHaveFocus();
 		});
 
 		it("keeps browsing available without folder-management permission", async () => {

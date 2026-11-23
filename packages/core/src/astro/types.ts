@@ -74,6 +74,8 @@ export interface ManifestCollection {
 		string,
 		{
 			kind: string;
+			/** Schema type. Absent for unsupported types and for descriptors derived from Zod schemas. */
+			type?: string;
 			label?: string;
 			required?: boolean;
 			translatable?: boolean;
@@ -551,7 +553,14 @@ export interface EmDashHandlers {
 		input: { size: number; width: number; height: number; contentHash: string },
 	) => Promise<HandlerResponse<MediaResponse>>;
 
-	handleMediaDelete: (id: string) => Promise<HandlerResponse>;
+	handleMediaDelete: (id: string) => Promise<
+		HandlerResponse<{
+			deleted: true;
+			storageKey: string;
+			mimeType: string;
+			storageDeleted: boolean;
+		}>
+	>;
 
 	// Revision handlers
 	handleRevisionList: (

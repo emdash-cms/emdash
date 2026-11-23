@@ -297,6 +297,7 @@ async function importMenusInto(
 			);
 			result.menus = {
 				created: menuResult.menusCreated,
+				skipped: menuResult.menusSkipped,
 				items: menuResult.itemsCreated,
 			};
 			for (const menuError of menuResult.errors) {

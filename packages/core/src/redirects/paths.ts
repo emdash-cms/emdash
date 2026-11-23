@@ -1,4 +1,4 @@
-/** Paths served outside the redirect middleware's lookup and 404 logging. */
+/** Paths excluded from automatic WordPress permalink redirect creation. */
 const SKIP_PREFIXES = ["/_emdash", "/_image"];
 const ASSET_EXTENSION = /\.\w{1,10}$/;
 

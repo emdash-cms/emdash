@@ -230,8 +230,8 @@ if (error) {
   return new Response("Unable to load post", { status: 500 });
 }
 
-if (!post) return Astro.rewrite("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+if (!post) return Astro.rewrite("/404");
 ---
 
 {isPreview && <p>This is an unpublished preview.</p>}
@@ -402,7 +402,8 @@ request. If you deliberately prerender a route, its HTML contains the content av
 time and changes only after another build.
 
 When Astro's cache is enabled, pass the query's `cacheHint` to `Astro.cache.set()`. EmDash associates
-the response with the collection and entry tags so publishing can invalidate affected cached pages.
+the response with the tags in the hint so publishing can invalidate affected cached pages.
+See [Route caching](/deployment/route-caching/) for which tags belong on index and detail pages.
 Avoid replacing that integration with a long fixed `Cache-Control` lifetime unless delayed updates
 are an explicit product decision.
 

@@ -433,6 +433,54 @@ describe("LinkDestinationInput", () => {
 		expect(screen.getByRole("option").elements()).toHaveLength(0);
 	});
 
+	it("shows a neutral unavailable state without retrying capability failures", async () => {
+		vi.mocked(apiFetch).mockImplementation(
+			async () =>
+				new Response(
+					JSON.stringify({ error: { code: "SEARCH_UNAVAILABLE", message: "Unavailable" } }),
+					{
+						status: 503,
+						headers: { "Content-Type": "application/json" },
+					},
+				),
+		);
+		const screen = await render(<Harness />);
+
+		await typeQuery(screen, "hello");
+
+		await expect
+			.element(screen.getByText("Content search is unavailable. Paste a URL instead."))
+			.toBeVisible();
+		expect(screen.getByText("No matching content found.").elements()).toHaveLength(0);
+		await vi.waitFor(() => expect(apiFetch).toHaveBeenCalledTimes(2));
+		await new Promise((resolve) => setTimeout(resolve, 1100));
+		expect(apiFetch).toHaveBeenCalledTimes(2);
+	});
+
+	it("still submits a pasted URL after content search is unavailable", async () => {
+		vi.mocked(apiFetch).mockImplementation(
+			async () =>
+				new Response(
+					JSON.stringify({ error: { code: "SEARCH_UNAVAILABLE", message: "Unavailable" } }),
+					{
+						status: 503,
+						headers: { "Content-Type": "application/json" },
+					},
+				),
+		);
+		const onSubmit = vi.fn();
+		const screen = await render(<Harness onSubmit={onSubmit} />);
+
+		await typeQuery(screen, "hello");
+		await expect
+			.element(screen.getByText("Content search is unavailable. Paste a URL instead."))
+			.toBeVisible();
+		await typeQuery(screen, "https://example.com");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledOnce());
+	});
+
 	it("deduplicates the draft bucket and marks drafts", async () => {
 		const draftOnly: SearchItem = {
 			collection: "posts",

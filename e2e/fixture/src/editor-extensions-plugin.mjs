@@ -25,13 +25,25 @@ const plugin = {
 					const values = route.input.draft.fields;
 					const title = "title" in values && typeof values.title === "string" ? values.title : "";
 					const body = "body" in values && Array.isArray(values.body) ? values.body : [];
+					const translatedBody = body.map((block) =>
+						Array.isArray(block.children)
+							? {
+									...block,
+									children: block.children.map((span) =>
+										typeof span.text === "string"
+											? { ...span, text: `${span.text} translated` }
+											: span,
+									),
+								}
+							: block,
+					);
 					return {
 						blocks: [],
 						patch: {
 							type: "editor-draft-patch",
 							operations: [
 								{ op: "set", field: "title", value: `${title} translated` },
-								{ op: "set", field: "body", value: body },
+								{ op: "set", field: "body", value: translatedBody },
 							],
 						},
 					};

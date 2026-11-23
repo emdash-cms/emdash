@@ -22,6 +22,8 @@ vi.mock("@tanstack/react-router", async () => {
 	};
 });
 
+vi.mock("../../src/components/AdminBreadcrumbs.js", () => ({ AdminBreadcrumbs: () => null }));
+
 const currentUser = vi.hoisted(() => ({ role: 50 }));
 
 // Mock API

@@ -1,6 +1,5 @@
 import { vi } from "vitest";
 
-import { assignAuthorColors, authorColorOf } from "../../src/lib/author-colors";
 import type {
 	DraftCapture,
 	PresenceUser,
@@ -30,10 +29,7 @@ export function createRoom(initial: Record<string, unknown>) {
 	let users: readonly PresenceUser[] = NO_USERS;
 	const byField = new Map<string, readonly PresenceUser[]>();
 	const updatePresence = () => {
-		const colors = assignAuthorColors([self, ...people.keys()]);
-		users = [...people]
-			.filter(([id]) => id !== self)
-			.map(([id, person]) => ({ id, ...person, color: authorColorOf(colors, id) }));
+		users = [...people].filter(([id]) => id !== self).map(([id, person]) => ({ id, ...person }));
 		byField.clear();
 		for (const user of users) {
 			if (user.field !== null) byField.set(user.field, [...(byField.get(user.field) ?? []), user]);

@@ -28,6 +28,8 @@ declare module "virtual:emdash/config" {
 		/** Public origin from astro.config.mjs, origin-normalized at startup. */
 		siteUrl?: string;
 		astroCspEnabled?: boolean;
+		/** `name` of the Astro route cache provider, e.g. `"memory"` for `memoryCache()`. */
+		routeCacheProvider?: string;
 		trailingSlash?: "always" | "never" | "ignore";
 		robotsTxtOverridden?: boolean;
 		sessionCookieName?: string;

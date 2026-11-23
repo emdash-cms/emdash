@@ -18,9 +18,14 @@ import { MediaRepository } from "./database/repositories/media.js";
 import { RedirectRepository } from "./database/repositories/redirect.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { Database } from "./database/types.js";
+import { isCacheableMediaKey, mediaCacheTag } from "./media/image-endpoint.js";
 import { removeUploadAttempt } from "./media/upload-attempts.js";
 import { cleanupMediaUsage } from "./media/usage/cleanup.js";
 import type { Storage } from "./storage/types.js";
+import { chunks } from "./utils/chunks.js";
+
+/** Most tags Cloudflare accepts in one purge call. */
+const PURGE_TAG_BATCH = 100;
 
 /**
  * Result of a system cleanup run.
@@ -89,11 +94,15 @@ export function shouldRunSystemCleanup(currentTime: Date, lastRunAt?: Date | nul
  * @param storage - Optional storage backend for deleting orphaned files.
  *   When omitted, pending upload DB rows are still deleted but the
  *   corresponding files in object storage are not removed.
+ * @param invalidateRouteCache - Purges route cache tags; called with the media
+ *   tags of the stored files this run removed.
  */
 export async function runSystemCleanup(
 	db: Kysely<Database>,
 	storage?: Storage,
+	invalidateRouteCache?: (tags: string[]) => Promise<void>,
 ): Promise<CleanupResult> {
+	const removedKeys: string[] = [];
 	const result: CleanupResult = {
 		challenges: -1,
 		expiredTokens: -1,
@@ -139,6 +148,7 @@ export async function runSystemCleanup(
 				try {
 					await storage.delete(key);
 					filesDeleted++;
+					removedKeys.push(key);
 				} catch (error) {
 					// Log per-file failures but continue -- storage.delete is
 					// documented as idempotent, so this is an unexpected error.
@@ -165,12 +175,24 @@ export async function runSystemCleanup(
 			for (const storageKey of storageKeys) {
 				if (await removeUploadAttempt(storage, mediaRepo, storageKey)) {
 					attemptsDeleted++;
+					removedKeys.push(storageKey);
 				}
 			}
 			result.uploadAttempts = attemptsDeleted;
 		}
 	} catch (error) {
 		console.error("[cleanup] Failed to clean media upload attempts:", error);
+	}
+
+	if (invalidateRouteCache) {
+		const tags = removedKeys.filter(isCacheableMediaKey).map(mediaCacheTag);
+		for (const batch of chunks(tags, PURGE_TAG_BATCH)) {
+			try {
+				await invalidateRouteCache(batch);
+			} catch (error) {
+				console.error("[cleanup] Failed to purge removed media from the route cache:", error);
+			}
+		}
 	}
 
 	const oauthCutoff = new Date(Date.now() - OAUTH_EXPIRY_GRACE_MS).toISOString();

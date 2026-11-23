@@ -125,6 +125,7 @@ export interface SidebarNavProps {
 			id?: string;
 			name: string;
 			label: string;
+			hierarchical?: boolean;
 			collections?: string[];
 			locale?: string;
 			translationGroup?: string | null;
@@ -457,7 +458,7 @@ const NAV_GROUP_LABELS: Record<NavGroupKey, MessageDescriptor | null> = {
 	top: null,
 	content: msg`Content`,
 	manage: msg`Manage`,
-	admin: msg`Admin`,
+	admin: msg({ message: "Admin", context: "navigation group" }),
 	plugins: msg`Plugins`,
 };
 
@@ -560,7 +561,7 @@ export function buildNavGroups(input: NavBuildInput): NavGroup[] {
 		const item: NavItem = {
 			to: "/taxonomies/$taxonomy",
 			label: tax.label,
-			icon: getTaxonomyNavIcon(tax.name),
+			icon: getTaxonomyNavIcon(tax),
 			params: { taxonomy: tax.name },
 			search: routeLocale ? { locale: routeLocale } : undefined,
 			minRole: ROLE_EDITOR,

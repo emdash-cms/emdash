@@ -8,7 +8,8 @@
  * Skip paths:
  * - /_emdash/* (admin UI, API routes, auth endpoints)
  * - /_image (Astro image optimization)
- * - Static assets (files with extensions)
+ *
+ * File paths (with extensions) only match exact rules and skip 404 logging.
  *
  * 404 logging happens post-response: if next() returns 404 and the path
  * wasn't already matched by a redirect, log it.
@@ -24,8 +25,8 @@ import { createRedirectSource } from "../../redirects/artifacts.js";
 import type { CachedRedirects, RedirectRule } from "../../redirects/cache.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
 import { isSiteRelativeDestination } from "../../redirects/destination.js";
-import { shouldSkipRedirectPath } from "../../redirects/paths.js";
-import { normalizeRedirectPath } from "../../redirects/patterns.js";
+import { normalizeRedirectPath, redirectNormalizationInput } from "../../redirects/patterns.js";
+import { normalizationChangesPath } from "../../redirects/source-paths.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 import { peekRequestCache } from "../../request-cache.js";
 import {
@@ -34,6 +35,11 @@ import {
 	type EmDashRequestContext,
 } from "../../request-context.js";
 import { invalidateSiteSettingsSnapshot, peekSiteSettingsSnapshot } from "../../settings/index.js";
+
+/** Paths that should never be intercepted by redirects */
+const SKIP_PREFIXES = ["/_emdash", "/_image"];
+
+const FILE_EXTENSION = /\.\w{1,10}$/;
 
 type RedirectCode = 301 | 302 | 303 | 307 | 308;
 
@@ -63,16 +69,24 @@ interface RedirectMatch {
 }
 
 /** Exact rules first, with or without a trailing slash, then patterns in precedence order. */
-function matchRedirect(cached: CachedRedirects, pathname: string): RedirectMatch | null {
+function matchRedirect(
+	cached: CachedRedirects,
+	pathname: string,
+	includePatterns = true,
+): RedirectMatch | null {
 	const normalized = normalizeRedirectPath(pathname);
-	let exact = cached.exact.get(normalized);
-	if (!exact && normalized.length > 1) {
-		const alt = normalized.endsWith("/") ? normalized.slice(0, -1) : `${normalized}/`;
+	const lookupPath =
+		normalized !== pathname && normalizationChangesPath(redirectNormalizationInput(pathname))
+			? pathname
+			: normalized;
+	let exact = cached.exact.get(lookupPath);
+	if (!exact && lookupPath.length > 1) {
+		const alt = lookupPath.endsWith("/") ? lookupPath.slice(0, -1) : `${lookupPath}/`;
 		exact = cached.exact.get(alt);
 	}
 	if (exact) return { redirect: exact, destination: exact.destination };
 	// Pattern captures are interpolated into Location; preserve their original escaping.
-	return matchCachedPatterns(cached.patterns, pathname);
+	return includePatterns ? matchCachedPatterns(cached.patterns, pathname) : null;
 }
 
 /** The response for a matched rule, or null when its destination is not safe to send. */
@@ -116,10 +130,11 @@ function routeCacheStores(cache: APIContext["cache"] | undefined): boolean {
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { pathname } = context.url;
 
-	// Skip internal paths and static assets
-	if (shouldSkipRedirectPath(pathname)) {
+	// Skip internal paths before loading redirect rules.
+	if (SKIP_PREFIXES.some((prefix) => pathname.startsWith(prefix))) {
 		return next();
 	}
+	const isFilePath = FILE_EXTENSION.test(pathname);
 
 	// Public visitors hit the runtime's anonymous fast path, which intentionally
 	// omits `db` from `locals.emdash` to keep the public render boundary minimal
@@ -205,11 +220,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// A response the route cache stores is served to every visitor until it
 			// is purged, so before one is returned the rules are verified current.
 			cached = await loadCachedRedirects(source);
-			match = matchRedirect(cached, pathname);
+			match = matchRedirect(cached, pathname, !isFilePath);
 			if (match && routeCacheStores(routeCache)) {
 				cached = await loadCachedRedirects(source, { verify: true });
 				verified = true;
-				match = matchRedirect(cached, pathname);
+				match = matchRedirect(cached, pathname, !isFilePath);
 			}
 		} catch {
 			// If the redirects table doesn't exist yet (pre-migration), skip silently.
@@ -224,18 +239,20 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			if (redirected) return redirected;
 		}
 
-		// No redirect matched -- proceed and check for 404.
 		const response = await next();
+		if (isFilePath && !routeCacheStores(routeCache)) return response;
 
 		// Post-response work must not re-run the route either. Swallow errors here
 		// and return the response the route already produced.
 		try {
-			// Keep a 404 out of the route cache: publishing the missing entry later
-			// purges content tags, not the missed path, so a cached 404 would outlive
-			// the fix. Astro has no cache handle for URLs that match no route, but a
-			// page answering a content miss with Astro.rewrite("/404") has one.
-			if (response.status === 404) {
-				routeCache?.set(false);
+			// Missing entries have no entry tag to purge on publish. Retain the
+			// route's collection tags, but bound staleness even without a matching
+			// tag or when a purge fails. Do not re-enable a route's explicit opt-out.
+			if (!isFilePath && response.status === 404 && routeCacheStores(routeCache)) {
+				routeCache?.set({
+					maxAge: Math.min(routeCache.options.maxAge ?? 60, 60),
+					swr: 0,
+				});
 			}
 
 			if (!verified && routeCacheStores(routeCache) && source && cached) {
@@ -245,7 +262,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					currentSettingsVersion = null;
 					checkSettings();
 				}
-				const late = current === cached ? null : matchRedirect(current, pathname);
+				const late = current === cached ? null : matchRedirect(current, pathname, !isFilePath);
 				const redirected = late && redirectResponse(context, repo, late);
 				if (redirected) {
 					routeCache?.set(false);
@@ -256,6 +273,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					return redirected;
 				}
 			}
+
+			if (isFilePath) return response;
 
 			try {
 				await finalizeSettings();

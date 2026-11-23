@@ -417,8 +417,20 @@ function nestedDescriptor(
 	};
 }
 
-function listFieldDefinition({ options, ...subField }: ListSubField): LayoutFieldDefinition {
-	return options ? { ...subField, validation: { options } } : subField;
+function listFieldDefinition({
+	options,
+	validation,
+	...subField
+}: ListSubField): LayoutFieldDefinition {
+	return options || validation
+		? {
+				...subField,
+				validation: {
+					...validation,
+					...(options ? { options } : {}),
+				},
+			}
+		: subField;
 }
 
 function listLimit(field: LayoutFieldDefinition, key: "minItems" | "maxItems") {
@@ -971,7 +983,7 @@ export function BlocksField({
 				ROW_BUTTON,
 				"h-10 w-full justify-start gap-2 rounded-none px-2 font-normal text-kumo-subtle shadow-none hover:text-kumo-default aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
 				SHEET_INNER_BOTTOM,
-				blocks.length > 0 && "border-t border-kumo-hairline",
+				"border-t border-kumo-hairline",
 			)}
 			onClick={(event) => {
 				if (!canAdd) return;
@@ -1138,12 +1150,9 @@ export function BlocksField({
 							</SortableContext>
 						</DndContext>
 					) : (
-						<p
-							className={cn(
-								"px-4 pt-6 text-center text-base text-kumo-subtle",
-								readOnly ? "pb-6" : "pb-2",
-							)}
-						>
+						// As tall as a block's header and starting at the Add block label, so the first block
+						// takes its place.
+						<p className="flex min-h-11 items-center py-2.5 ps-8 pe-4 text-base text-kumo-subtle">
 							{t`No blocks yet`}
 						</p>
 					)}
@@ -1432,7 +1441,11 @@ function BlockRow({
 						<FieldControl
 							field={definition}
 							name={`${blockPath}.${path}`}
-							descriptor={nestedDescriptor(definition, block)}
+							descriptor={nestedDescriptor(
+								definition,
+								block,
+								`${outerId}:${block._key}:${field.slug}.${subField.slug}`,
+							)}
 							issue={issueAt(path)}
 							{...control}
 							onChange={onControlChange}
@@ -1448,7 +1461,13 @@ function BlockRow({
 						fields={subFields.map(listFieldDefinition)}
 						values={item}
 						namePrefix={`${blockPath}.${field.slug}.${at}`}
-						describe={(definition) => nestedDescriptor(definition, block)}
+						describe={(definition) =>
+							nestedDescriptor(
+								definition,
+								block,
+								`${outerId}:${block._key}:${field.slug}.${definition.slug}`,
+							)
+						}
 						issueAt={(slug) => issueAt(`${field.slug}.${at}.${slug}`)}
 						onTouch={(slug) => onTouch(`${field.slug}.${at}.${slug}`)}
 						onEdit={(slug) => onEdit(`${field.slug}.${at}.${slug}`)}

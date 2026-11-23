@@ -484,9 +484,8 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 			unrelated: ["/posts", "/posts/", "/posts/left/right"],
 		},
 	])(
-		"publishing a $label slug preserves other rules and warns about remaining matching aliases",
+		"publishing a $label slug stays reachable without removing other-path rules",
 		async ({ slug, unrelated }) => {
-			const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
 			const repository = new RedirectRepository(harness.db);
 			const ownSource = `/posts/${encodeURIComponent(slug)}`;
 			const own = await repository.create({
@@ -520,17 +519,18 @@ describeEachDialect("WordPress permalink roots and publish cleanup", (dialect) =
 			expect(published.success).toBe(true);
 			expect(await repository.findById(own.id)).toBeNull();
 			for (const rule of other) expect(await repository.findById(rule.id)).toEqual(rule);
-			expect(warning).toHaveBeenCalledWith(
-				expect.stringContaining("normalization rewrites"),
-				expect.objectContaining({ source: ownSource }),
-			);
+
 			invalidateRedirectCache();
-			const response = await onRequest(
-				middlewareContext(ownSource, harness.db),
-				async () => new Response("page", { status: 200 }),
-			);
-			expect(response.status).toBe(301);
-			expect(response.headers.get("Location")).toBe("/keep-2");
+			for (const path of [ownSource, `${ownSource}/`]) {
+				const next = vi.fn(async () => new Response("page", { status: 200 }));
+				const response = await onRequest(middlewareContext(path, harness.db), next);
+				expect(response.status).toBe(200);
+				expect(response.headers.has("Location")).toBe(false);
+				expect(next).toHaveBeenCalledOnce();
+			}
+			const kept = await onRequest(middlewareContext(unrelated[2]!, harness.db), vi.fn());
+			expect(kept.status).toBe(301);
+			expect(kept.headers.get("Location")).toBe("/keep-2");
 		},
 	);
 

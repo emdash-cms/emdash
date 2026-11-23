@@ -34,6 +34,7 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 		await registry.createField("posts", { slug: "name", label: "Name", type: "string" });
 		await registry.createField("posts", { slug: "body", label: "Body", type: "portableText" });
 		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+		await registry.createField("posts", { slug: "link", label: "Link", type: "url" });
 		await registry.createField("posts", { slug: "raw_data", label: "Raw Data", type: "json" });
 		await registry.createField("posts", { slug: "attachment", label: "Attachment", type: "file" });
 		await registry.createField("posts", { slug: "hero", label: "Hero", type: "image" });
@@ -43,8 +44,9 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 			type: "repeater",
 			validation: {
 				subFields: [
-					{ slug: "caption", type: "text", label: "Caption" },
+					{ slug: "caption", type: "string", label: "Caption" },
 					{ slug: "image", type: "image", label: "Image" },
+					{ slug: "link", type: "url", label: "Link" },
 				],
 			},
 		});
@@ -56,11 +58,20 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 			{ slug: "attachment", type: "file" },
 			{ slug: "body", type: "portableText" },
 			{ slug: "hero", type: "image" },
+			{ slug: "link", type: "url" },
+			{ slug: "name", type: "string" },
 			{
 				slug: "sections",
 				type: "repeater",
-				validation: { subFields: [{ slug: "image", type: "image" }] },
+				validation: {
+					subFields: [
+						{ slug: "caption", type: "string" },
+						{ slug: "image", type: "image" },
+						{ slug: "link", type: "url" },
+					],
+				},
 			},
+			{ slug: "title", type: "string" },
 		]);
 	});
 
@@ -86,6 +97,7 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 						{ slug: "download", type: "file", label: "Download" },
 						{ slug: "image", type: "image", label: "Image" },
 						{ slug: "caption", type: "text", label: "Caption" },
+						{ slug: "link", type: "url", label: "Link" },
 					],
 				}),
 			})
@@ -107,7 +119,12 @@ describeEachDialect("content media usage field discovery", (dialect) => {
 			{
 				slug: "sections",
 				type: "repeater",
-				validation: { subFields: [{ slug: "image", type: "image" }] },
+				validation: {
+					subFields: [
+						{ slug: "image", type: "image" },
+						{ slug: "link", type: "url" },
+					],
+				},
 			},
 		]);
 	});

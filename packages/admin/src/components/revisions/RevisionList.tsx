@@ -7,16 +7,15 @@ import * as React from "react";
 import type { RevisionListItem, RevisionListResponse } from "../../lib/api";
 import { restoredSources } from "../../lib/revision-diff/index.js";
 import type { ChangeItem } from "../../lib/revision-diff/types.js";
+import { userColorProps, type UserColor } from "../../lib/user-color.js";
 import { cn, isolate } from "../../lib/utils.js";
 import { changeLabel } from "./change-labels.js";
 import {
 	localDayKey,
 	revisionAuthorColor,
-	revisionAuthorColors,
 	revisionDate,
 	revisionNamed,
 	useRevisionFormat,
-	type AuthorColor,
 } from "./revision-format.js";
 import { REVISION_LIST_LIMIT_ALL, visibleRevisionCount } from "./revision-query.js";
 import { useRevisionViewContext, type RevisionViewContextValue } from "./revision-view-context.js";
@@ -71,7 +70,6 @@ export function RevisionList({ list, loadingOlder }: RevisionListProps) {
 	const pickedRowRef = React.useRef<{ revisionId: string; top: number } | null>(null);
 
 	const visibleCount = visibleRevisionCount(list);
-	const colors = React.useMemo(() => revisionAuthorColors(list.items), [list.items]);
 	const fields = view?.fields;
 	const sources = React.useMemo(
 		() => (fields ? restoredSources(list.items, fields) : new Map<string, string>()),
@@ -163,7 +161,7 @@ export function RevisionList({ list, loadingOlder }: RevisionListProps) {
 									firstOfDay={index === 0}
 									lastOfDay={index === group.items.length - 1}
 									view={view}
-									color={revisionAuthorColor(colors, item)}
+									color={revisionAuthorColor(item)}
 									restoredFrom={sources.get(item.id) ?? null}
 									savedWhen={savedWhen}
 									onPick={(row) => {
@@ -202,7 +200,7 @@ interface VersionRowProps {
 	firstOfDay: boolean;
 	lastOfDay: boolean;
 	view: RevisionViewContextValue | null;
-	color: AuthorColor;
+	color: UserColor | null;
 	/** The version this one copies, when it is a restored copy. */
 	restoredFrom: string | null;
 	/** When a listed version was saved, or null when it isn't loaded. */
@@ -247,7 +245,7 @@ function VersionRow({
 			<span className="sr-only">{restored ? t`${label}, ${restored}` : label}</span>
 			<span aria-hidden="true" className="flex h-5 items-center justify-center">
 				<span
-					data-author-color={color}
+					{...userColorProps(color)}
 					className={cn(
 						"shrink-0 rounded-full",
 						isCurrent
