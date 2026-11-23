@@ -240,7 +240,7 @@ msgstr "{0, plural, one {# elemento de contenido importado} other {# elementos d
 #. placeholder {0}: states.length
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:406
 msgid "{0, plural, one {# entry} other {# entries}}"
-msgstr ""
+msgstr "{0, plural, one {# entrada} other {# entradas}}"
 
 #. placeholder {0}: count ?? issues.length
 #: packages/admin/src/components/BlocksField.tsx:579
@@ -687,7 +687,7 @@ msgstr "{current} de {total}"
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:420
 msgid "{dayLabel}, {entries}"
-msgstr ""
+msgstr "{dayLabel}, {entries}"
 
 #: packages/admin/src/components/revisions/revision-format.ts:111
 msgid "{dayLabel}, {timeLabel}"
@@ -695,7 +695,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:120
 msgid "{earlierCount, plural, one {Show # earlier entry} other {Show # earlier entries}}"
-msgstr ""
+msgstr "{earlierCount, plural, one {Mostrar # entrada anterior} other {Mostrar # entradas anteriores}}"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:238
 msgid "{failed, plural, one {# email could not be sent. Check the email provider.} other {# emails could not be sent. Check the email provider.}}"
@@ -717,11 +717,11 @@ msgstr "{filteredCount, plural, one {#{0} elemento} other {#{1} elementos}}"
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:340
 msgid "{hidden, plural, one {# more entry on {date}} other {# more entries on {date}}}"
-msgstr ""
+msgstr "{hidden, plural, one {# entrada más el {date}} other {# entradas más el {date}}}"
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:347
 msgid "{hidden, plural, one {+# more} other {+# more}}"
-msgstr ""
+msgstr "{hidden, plural, one {+# más} other {+# más}}"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:394
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
@@ -795,7 +795,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:344
 msgid "{lateness} late"
-msgstr ""
+msgstr "{lateness} tarde"
 
 #: packages/admin/src/components/BlocksField.tsx:1337
 msgid "{list} +{more}"
@@ -1065,19 +1065,19 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:107
 msgid "{siteZone} · Your time: {viewerZone}"
-msgstr ""
+msgstr "{siteZone} · Tu zona horaria: {viewerZone}"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:266
 msgid "{state} · {when}"
-msgstr ""
+msgstr "{state} · {when}"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:330
 msgid "{state}, {lateness} late, {time}:"
-msgstr ""
+msgstr "{state}, {lateness} tarde, {time}:"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:330
 msgid "{state}, {time}:"
-msgstr ""
+msgstr "{state}, {time}:"
 
 #: packages/admin/src/lib/content-validation-errors.ts:57
 msgid "{subLabel} ({label}, item {position})"
@@ -1085,15 +1085,15 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:240
 msgid "{title} is a draft again."
-msgstr ""
+msgstr "{title} volvió a ser borrador."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 msgid "{title} is now live."
-msgstr ""
+msgstr "{title} ya está publicado."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:252
 msgid "{title} now goes live {when}."
-msgstr ""
+msgstr "{title} ahora se publica el {when}."
 
 #: packages/admin/src/components/BlocksField.tsx:1035
 msgid "{toFix, plural, one {# to fix. Go to the problem} other {# to fix. Go to the next problem}}"
@@ -1953,7 +1953,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:88
 msgid "Agenda"
-msgstr ""
+msgstr "Agenda"
 
 #: packages/admin/src/components/PluginManager.tsx:615
 msgid "Agent access"
@@ -2914,7 +2914,7 @@ msgstr "C++"
 #: packages/admin/src/router.tsx:610
 #: packages/admin/src/routes/calendar.tsx:286
 msgid "Calendar"
-msgstr ""
+msgstr "Calendario"
 
 #: packages/admin/src/components/users/roleDefinitions.ts:25
 msgid "Can create content"
@@ -3258,7 +3258,7 @@ msgstr ""
 
 #: packages/admin/src/routes/calendar.tsx:279
 msgid "Check your connection and try again."
-msgstr ""
+msgstr "Comprueba tu conexión e intenta de nuevo."
 
 #: packages/admin/src/components/LoginPage.tsx:102
 #: packages/admin/src/components/SignupPage.tsx:151
@@ -4087,11 +4087,11 @@ msgstr ""
 
 #: packages/admin/src/routes/calendar.tsx:315
 msgid "Could not load the calendar"
-msgstr ""
+msgstr "No se pudo cargar el calendario"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:395
 msgid "Could not load this entry's details."
-msgstr ""
+msgstr "No se pudieron cargar los detalles de esta entrada."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1253
 msgid "Could not load this folder."
@@ -4099,7 +4099,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:229
 msgid "Could not publish"
-msgstr ""
+msgstr "No se pudo publicar"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:49
 msgid "Could not reach {origin}"
@@ -4107,7 +4107,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:244
 msgid "Could not remove the schedule"
-msgstr ""
+msgstr "No se pudo quitar la programación"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:194
 msgid "Could not review posts"
@@ -7114,7 +7114,7 @@ msgstr "No se pudo cargar la configuración"
 
 #: packages/admin/src/lib/api/calendar.ts:49
 msgid "Failed to load the calendar"
-msgstr ""
+msgstr "Error al cargar el calendario"
 
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:89
 msgid "Failed to load theme"
@@ -7598,7 +7598,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:131
 msgid "Filter"
-msgstr ""
+msgstr "Filtrar"
 
 #: packages/admin/src/components/ContentList.tsx:1128
 msgid "Filter by author"
@@ -7649,7 +7649,7 @@ msgstr "Filtrar por tipo de firma"
 
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:129
 msgid "Filter: {activeCount} selected"
-msgstr ""
+msgstr "Filtro: {activeCount} seleccionados"
 
 #: packages/admin/src/router.tsx:1235
 msgid "Find it in this entry’s revisions."
@@ -7864,7 +7864,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:439
 msgid "Go live {countdown}"
-msgstr ""
+msgstr "Se publican {countdown}"
 
 #: packages/admin/src/components/WordPressImport.tsx:2500
 #: packages/admin/src/router.tsx:4184
@@ -7881,11 +7881,11 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:354
 msgid "Goes live"
-msgstr ""
+msgstr "Se publica"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:421
 msgid "Goes live {countdown}"
-msgstr ""
+msgstr "Se publica {countdown}"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:244
 msgid "Google Verification"
@@ -8027,7 +8027,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:119
 msgid "Hide earlier entries"
-msgstr ""
+msgstr "Ocultar entradas anteriores"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:611
 msgid "Hide from navigation"
@@ -8923,7 +8923,7 @@ msgstr "Encabezado de sección grande"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:389
 msgid "Last edited"
-msgstr ""
+msgstr "Última edición"
 
 #: packages/admin/src/components/PluginManager.tsx:682
 msgid "Last enabled:"
@@ -8966,7 +8966,7 @@ msgstr "Usado por última vez {0}"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:147
 msgid "Later entries weren't loaded. The range has more entries than the calendar can show."
-msgstr ""
+msgstr "Las entradas posteriores no se cargaron. El intervalo tiene más entradas de las que el calendario puede mostrar."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:2415
 msgid "Layout"
@@ -9141,7 +9141,7 @@ msgstr ""
 #: packages/admin/src/components/ContentSettingsPanel.tsx:235
 #: packages/admin/src/components/ContentSettingsPanel.tsx:261
 msgid "Live version"
-msgstr ""
+msgstr "Versión publicada"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:772
 msgid "Live View"
@@ -9821,7 +9821,7 @@ msgstr "Modificar esquemas de colección"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:74
 msgid "Month"
-msgstr ""
+msgstr "Mes"
 
 #: packages/admin/src/components/Widgets.tsx:179
 msgid "Monthly"
@@ -10261,7 +10261,7 @@ msgstr "Próximo"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:131
 msgid "Next month"
-msgstr ""
+msgstr "Mes siguiente"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:427
 #: packages/admin/src/components/ContentList.tsx:938
@@ -10435,7 +10435,7 @@ msgstr "No se encontraron usuarios de EmDash"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:66
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:85
 msgid "No entries match these filters"
-msgstr ""
+msgstr "Ninguna entrada coincide con estos filtros"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:467
 msgid "No exact match on this site"
@@ -10514,7 +10514,7 @@ msgstr "Sin usuario vinculado"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:63
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:85
 msgid "No loaded entries match these filters"
-msgstr ""
+msgstr "Ninguna de las entradas cargadas coincide con estos filtros"
 
 #: packages/admin/src/components/editor/CodeBlockNode.tsx:324
 msgid "No matches"
@@ -10741,7 +10741,7 @@ msgstr "No es compatible con este entorno"
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:298
 msgid "Not loaded"
-msgstr ""
+msgstr "Sin cargar"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:71
 msgid "Not matched"
@@ -10769,11 +10769,11 @@ msgstr "No establecido"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:143
 msgid "Nothing else is scheduled this month."
-msgstr ""
+msgstr "No hay nada más programado este mes."
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:547
 msgid "Nothing on this day."
-msgstr ""
+msgstr "No hay nada para este día."
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:520
 msgid "Nothing on this site changed."
@@ -10781,7 +10781,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:67
 msgid "Nothing published or scheduled in {monthTitle}"
-msgstr ""
+msgstr "No hay nada publicado ni programado en {monthTitle}"
 
 #: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
@@ -10795,7 +10795,7 @@ msgstr ""
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:104
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:385
 msgid "Now · {time}"
-msgstr ""
+msgstr "Ahora · {time}"
 
 #: packages/admin/src/components/FieldEditor.tsx:669
 #: packages/admin/src/components/FieldEditor.tsx:1698
@@ -10915,7 +10915,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:487
 msgid "Open in editor"
-msgstr ""
+msgstr "Abrir en el editor"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:557
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:579
@@ -11077,11 +11077,11 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:46
 msgid "Overdue"
-msgstr ""
+msgstr "Atrasado"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:154
 msgid "Overdue · {lateness}"
-msgstr ""
+msgstr "Atrasado · {lateness}"
 
 #: packages/admin/src/components/SeoPanel.tsx:295
 msgid "Overrides the page title in search engine results"
@@ -11656,7 +11656,7 @@ msgstr "Avance"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:496
 msgid "Preview changes"
-msgstr ""
+msgstr "Previsualizar cambios"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:104
 msgid "Preview content before publishing"
@@ -11685,7 +11685,7 @@ msgstr "Anterior"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:118
 msgid "Previous month"
-msgstr ""
+msgstr "Mes anterior"
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:408
 #: packages/admin/src/components/ContentList.tsx:926
@@ -11784,7 +11784,7 @@ msgstr ""
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:454
 #: packages/admin/src/components/ContentSettingsPanel.tsx:549
 msgid "Publish now"
-msgstr ""
+msgstr "Publicar ahora"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:550
 msgid "Publish now?"
@@ -11819,7 +11819,7 @@ msgstr "Publicado {0}"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:433
 msgid "Published {liveSince}"
-msgstr ""
+msgstr "Publicada el {liveSince}"
 
 #: packages/admin/src/router.tsx:797
 msgid "Published {total} items"
@@ -11851,7 +11851,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:401
 msgid "Publishing"
-msgstr ""
+msgstr "Publicación"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1041
 msgid "Publishing summary"
@@ -12289,7 +12289,7 @@ msgstr "¿Quitar la Passkey?"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:473
 #: packages/admin/src/components/ContentSettingsPanel.tsx:671
 msgid "Remove schedule"
-msgstr ""
+msgstr "Quitar programación"
 
 #: packages/admin/src/components/FieldEditor.tsx:1743
 msgid "Remove sub-field"
@@ -12594,11 +12594,11 @@ msgstr "Requiere EmDash {0}"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:464
 msgid "Reschedule"
-msgstr ""
+msgstr "Reprogramar"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:252
 msgid "Rescheduled"
-msgstr ""
+msgstr "Reprogramado"
 
 #: packages/admin/src/components/SignupPage.tsx:174
 msgid "Resend email"
@@ -13160,7 +13160,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:236
 msgid "Schedule removed"
-msgstr ""
+msgstr "Programación eliminada"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:44
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:420
@@ -13172,7 +13172,7 @@ msgstr "Programado"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:438
 msgid "Scheduled changes"
-msgstr ""
+msgstr "Cambios programados"
 
 #: packages/admin/src/components/Dashboard.tsx:171
 msgid "Scheduled content was not published"
@@ -13180,7 +13180,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:74
 msgid "Scheduled entries appear here with their publish time."
-msgstr ""
+msgstr "Las entradas programadas aparecen aquí con su hora de publicación."
 
 #. placeholder {0}: isolate(formattedSchedule)
 #: packages/admin/src/components/ContentSettingsPanel.tsx:156
@@ -14517,7 +14517,7 @@ msgstr ""
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:340
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:100
 msgid "State"
-msgstr ""
+msgstr "Estado"
 
 #: packages/admin/src/components/ContentList.tsx:510
 #: packages/admin/src/components/ContentList.tsx:810
@@ -14879,11 +14879,11 @@ msgstr ""
 
 #: packages/admin/src/routes/calendar.tsx:330
 msgid "The calendar shows the first {maxEntries}, which end on {cutOffDay}."
-msgstr ""
+msgstr "El calendario muestra las primeras {maxEntries}, que llegan hasta el {cutOffDay}."
 
 #: packages/admin/src/routes/calendar.tsx:331
 msgid "The calendar shows the first {maxEntries}."
-msgstr ""
+msgstr "El calendario muestra las primeras {maxEntries}."
 
 #: packages/admin/src/components/editor/EmbedBlockShell.tsx:105
 msgid "The code editor couldn't load. Save your work, then reload the page."
@@ -15160,7 +15160,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:71
 msgid "The range has more entries than the calendar can show."
-msgstr ""
+msgstr "El intervalo tiene más entradas de las que el calendario puede mostrar."
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:202
 msgid "The referenced image is no longer available. Pick a new one or remove the reference."
@@ -15189,7 +15189,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:239
 msgid "The scheduled changes to {title} stay as a draft."
-msgstr ""
+msgstr "Los cambios programados de {title} quedan como borrador."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:831
 msgid "The selected folder no longer exists. Choose another location and save again."
@@ -15393,7 +15393,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:546
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
-msgstr ""
+msgstr "Este día no se cargó. El intervalo tiene más entradas de las que el calendario puede mostrar."
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:370
 msgid "This device is requesting permission to use:"
@@ -15442,7 +15442,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:409
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
-msgstr ""
+msgstr "Esta entrada debía publicarse {lateness}, pero no se publicó. Es posible que la publicación programada no esté activa."
 
 #: packages/admin/src/router.tsx:2617
 msgid "This entry was moved to Trash or deleted"
@@ -15577,7 +15577,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:64
 msgid "This month wasn't loaded"
-msgstr ""
+msgstr "Este mes no se cargó"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:200
 msgid "This operation expired. Start again."
@@ -15642,7 +15642,7 @@ msgstr ""
 
 #: packages/admin/src/routes/calendar.tsx:327
 msgid "This range has more than {maxEntries} entries"
-msgstr ""
+msgstr "Este intervalo tiene más de {maxEntries} entradas"
 
 #: packages/admin/src/components/Redirects.tsx:885
 msgid "This redirect rule will be permanently removed."
@@ -15803,11 +15803,11 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:53
 msgid "Times are in {zoneName}."
-msgstr ""
+msgstr "Los horarios se muestran en {zoneName}."
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:52
 msgid "Times are in {zoneName}. Your browser uses {viewerZoneName}."
-msgstr ""
+msgstr "Los horarios se muestran en {zoneName}. Tu navegador usa {viewerZoneName}."
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:305
 #: packages/admin/src/components/settings/GeneralSettings.tsx:586
@@ -15852,7 +15852,7 @@ msgstr "para seleccionar"
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:125
 #: packages/admin/src/components/revisions/revision-format.ts:94
 msgid "Today"
-msgstr ""
+msgstr "Hoy"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:630
 msgid "Toggle"
@@ -15890,7 +15890,7 @@ msgstr "TOML"
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:193
 msgid "Tomorrow"
-msgstr ""
+msgstr "Mañana"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:537
 msgid "Tooltip text"
@@ -15955,7 +15955,7 @@ msgstr "Traducciones"
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:373
 msgid "Translations:"
-msgstr ""
+msgstr "Traducciones:"
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:201
 msgid "trash"
@@ -16331,7 +16331,7 @@ msgstr "Actualizar"
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:49
 msgctxt "A published entry's scheduled changes"
 msgid "Update"
-msgstr ""
+msgstr "Actualización"
 
 #: packages/admin/src/components/FieldEditor.tsx:1828
 msgid "Update Field"
@@ -16339,7 +16339,7 @@ msgstr "Actualizar campo"
 
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:45
 msgid "Update scheduled"
-msgstr ""
+msgstr "Actualización programada"
 
 #. placeholder {0}: editingDomain?.domain
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:399
@@ -16870,7 +16870,7 @@ msgstr "Ver el estado del proveedor de correo electrónico y enviar correos elec
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:506
 msgid "View live"
-msgstr ""
+msgstr "Ver publicado"
 
 #: packages/admin/src/components/MediaLibrary.tsx:869
 #: packages/admin/src/components/MediaPickerModal.tsx:1266
@@ -16967,7 +16967,7 @@ msgstr ""
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:353
 msgid "Was due"
-msgstr ""
+msgstr "Debía publicarse"
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:588
 msgid "We checked before opening the browser's passkey prompt so you can choose what happens next."
@@ -17329,7 +17329,7 @@ msgstr ""
 
 #: packages/admin/src/routes/calendar.tsx:277
 msgid "You don't have permission to view the calendar."
-msgstr ""
+msgstr "No tienes permiso para ver el calendario."
 
 #: packages/admin/src/components/WelcomeModal.tsx:48
 msgid "You have full access to manage this site, including users, settings, and all content."
@@ -17561,7 +17561,7 @@ msgstr "Su sitio requiere que las versiones tengan al menos {0} de antigüedad a
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:268
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:361
 msgid "Your time: {viewerTime}"
-msgstr ""
+msgstr "Tu hora: {viewerTime}"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:143
 msgid "Your Twitter/X handle (e.g., @username)"
