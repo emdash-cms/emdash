@@ -164,6 +164,8 @@ test.describe("Portable Text image upload", () => {
 			.toEqual(["First", `image:${uploaded.data.item.id}`, "Second"]);
 
 		await page.reload();
+		await admin.waitForShell();
+		await admin.waitForLoading();
 		await expect(
 			page.locator(EDITOR).locator(`img[src*="${uploaded.data.item.storageKey}"]`),
 		).toBeVisible();

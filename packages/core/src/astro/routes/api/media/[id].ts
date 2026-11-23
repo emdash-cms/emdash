@@ -13,6 +13,8 @@ import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { handleMediaUsageSummaries } from "#api/handlers/media-usage.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { mediaGetQuery, mediaUpdateBody } from "#api/schemas.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
+import { isRouteCachedMedia, mediaCacheTag } from "#media/image-endpoint.js";
 export const prerender = false;
 
 /**
@@ -78,7 +80,12 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 		const media = getResult.data.item;
 
 		// Ownership check: authors can edit own, editors+ can edit any
-		const ownerDenied = requireOwnerPerm(user, media.authorId, "media:edit_own", "media:edit_any");
+		const ownerDenied = requireOwnerPerm(
+			user,
+			media.authorId ?? "",
+			"media:edit_own",
+			"media:edit_any",
+		);
 		if (ownerDenied) return ownerDenied;
 
 		const body = await parseBody(request, mediaUpdateBody);
@@ -105,7 +112,7 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
  *
  * Authors can delete their own media; editors+ can delete any.
  */
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 	const { emdash, user } = locals;
 	const { id } = params;
 
@@ -133,7 +140,7 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 		// Ownership check: authors can delete own, editors+ can delete any
 		const ownerDenied = requireOwnerPerm(
 			user,
-			media.authorId,
+			media.authorId ?? "",
 			"media:delete_own",
 			"media:delete_any",
 		);
@@ -150,6 +157,12 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 			typeof result.data.storageDeleted !== "boolean"
 		) {
 			return apiError("MEDIA_DELETE_ERROR", "Failed to delete media", 500);
+		}
+		if (
+			result.data.storageDeleted &&
+			isRouteCachedMedia(result.data.storageKey, result.data.mimeType)
+		) {
+			await invalidateRouteCache(cache, [mediaCacheTag(result.data.storageKey)]);
 		}
 
 		return apiSuccess({ deleted: true, storageDeleted: result.data.storageDeleted });

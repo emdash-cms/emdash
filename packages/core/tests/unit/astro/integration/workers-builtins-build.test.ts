@@ -54,15 +54,29 @@ async function buildEntry(source: string, target: "server" | "client"): Promise<
 }
 
 describe("Node adapter builds with Workers built-ins", () => {
+	it.each(["cloudflare:sockets", "cloudflare:workers"])(
+		"leaves %s for runtime resolution in a server build",
+		async (specifier) => {
+			const output = await buildEntry(
+				`export const load = () => import("${specifier}");`,
+				"server",
+			);
+			expect(output).toContain(`import("${specifier}")`);
+		},
+	);
+
 	it("still fails a server build that imports another Workers built-in", async () => {
 		await expect(
-			buildEntry(`export const load = () => import("cloudflare:workers");`, "server"),
-		).rejects.toThrow('failed to resolve import "cloudflare:workers"');
+			buildEntry(`export const load = () => import("cloudflare:email");`, "server"),
+		).rejects.toThrow('failed to resolve import "cloudflare:email"');
 	});
 
-	it("still fails a client build that imports the Workers socket built-in", async () => {
-		await expect(
-			buildEntry(`export const load = () => import("cloudflare:sockets");`, "client"),
-		).rejects.toThrow('failed to resolve import "cloudflare:sockets"');
-	});
+	it.each(["cloudflare:sockets", "cloudflare:workers"])(
+		"still fails a client build that imports %s",
+		async (specifier) => {
+			await expect(
+				buildEntry(`export const load = () => import("${specifier}");`, "client"),
+			).rejects.toThrow(`failed to resolve import "${specifier}"`);
+		},
+	);
 });

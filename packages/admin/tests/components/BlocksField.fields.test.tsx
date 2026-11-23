@@ -741,6 +741,80 @@ describe("Checking fields inside a block", () => {
 		expect(box(minimum).left).toBeGreaterThan(listLabel.right);
 	});
 
+	it("focuses a linked non-first repeater subfield rather than the first control", async () => {
+		const onFieldFocused = vi.fn();
+		await renderEditor(
+			[
+				{
+					_type: "logos",
+					_version: 1,
+					_key: "logos-1",
+					logos: [{ name: "Arc" }, { name: "Boreal" }, { name: "Cobalt" }],
+				},
+			],
+			[logoWall],
+			{ focusField: "content.logos-1.logos.2.name", onFieldFocused },
+		);
+		await expect
+			.element(page.getByRole("textbox", { name: "Company name 3", exact: true }))
+			.toHaveFocus();
+		expect(onFieldFocused).toHaveBeenCalledOnce();
+	});
+
+	it.each(["items.0.title", "items.1.title", "items.2.text"])(
+		"opens only the addressed card and focuses its indexed subfield: %s",
+		async (path) => {
+			const services = blockType("services", "Services", [
+				{ slug: "heading", label: "Heading", type: "string" },
+				{
+					slug: "items",
+					label: "Items",
+					type: "repeater",
+					validation: {
+						subFields: [
+							{ slug: "title", label: "Title", type: "string" },
+							{ slug: "text", label: "Text", type: "text", required: true },
+						],
+					},
+				},
+			]);
+			const onFieldFocused = vi.fn();
+			await renderEditor(
+				[
+					{
+						_type: "services",
+						_version: 1,
+						_key: "services",
+						items: [
+							{ title: "First service", text: "" },
+							{ title: "Second service", text: "Second description" },
+							{ title: "Third service", text: "Third description" },
+						],
+					},
+				],
+				[services],
+				{ focusField: `content.services.${path}`, onFieldFocused },
+			);
+			await expect.poll(() => document.activeElement?.id).toBe(`field-content.services.${path}`);
+			const index = Number(path.split(".")[1]);
+			const toggles = [
+				...document.querySelectorAll('[data-block-key="services"] [data-item-focus]'),
+			];
+			expect(toggles.map((toggle) => toggle.getAttribute("aria-expanded"))).toEqual(
+				[0, 1, 2].map((at) => String(at === index)),
+			);
+			expect(
+				document.querySelector('[data-block-key="services"] [aria-invalid="true"]'),
+			).toBeNull();
+			expect(onFieldFocused).toHaveBeenCalledOnce();
+			await userEvent.click(toggles[index] as HTMLElement);
+			await expect.poll(() => toggles[index]?.getAttribute("aria-expanded")).toBe("false");
+			await page.getByRole("textbox", { name: "Heading", exact: true }).fill("Updated heading");
+			expect(toggles[index]?.getAttribute("aria-expanded")).toBe("false");
+			expect(onFieldFocused).toHaveBeenCalledOnce();
+		},
+	);
+
 	it("marks a required list sub-field where it is and focuses it", async () => {
 		await renderEditor(
 			[

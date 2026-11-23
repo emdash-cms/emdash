@@ -1,6 +1,5 @@
 import {
 	Banner,
-	Breadcrumbs,
 	Button,
 	Grid,
 	LayerCard,
@@ -28,7 +27,6 @@ import {
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
 import {
-	ArrowLeft,
 	File as FileIcon,
 	Folder,
 	Images,
@@ -41,6 +39,7 @@ import {
 } from "@phosphor-icons/react";
 import type { Icon } from "@phosphor-icons/react";
 import { useMutation, useQuery } from "@tanstack/react-query";
+import { type AnyRouter, useRouter } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
@@ -74,6 +73,7 @@ import {
 	metaNumber,
 } from "../lib/media-utils";
 import { cn } from "../lib/utils";
+import { NestedBreadcrumb } from "./AdminBreadcrumbs.js";
 import {
 	DataTable,
 	DataTableMessage,
@@ -123,6 +123,8 @@ export interface MediaLibraryProps {
 	canManageFolders?: boolean;
 	onOpenFolder?: (folder: MediaFolder) => void;
 	onBackToMain?: () => void;
+	/** Moves focus to the heading on mount, as when the library replaces an error screen after the folder changed. */
+	focusHeadingOnMount?: boolean;
 	onRetryFolders?: () => void;
 	onCreateFolder?: (name: string) => Promise<MediaFolder>;
 	onRenameFolder?: (folder: MediaFolder, name: string) => Promise<MediaFolder>;
@@ -133,7 +135,6 @@ export interface MediaLibraryProps {
 
 const MEDIA_DRAG_OVERLAY_MAX_WIDTH = 384;
 const MEDIA_DRAG_OVERLAY_HEIGHT = 36;
-let pendingMediaLibraryScrollTop: number | null = null;
 
 interface MediaDragData {
 	kind: "local-media";
@@ -203,6 +204,7 @@ export function MediaLibrary({
 	canManageFolders,
 	onOpenFolder,
 	onBackToMain,
+	focusHeadingOnMount = false,
 	onRetryFolders,
 	onCreateFolder,
 	onRenameFolder,
@@ -447,9 +449,31 @@ export function MediaLibrary({
 	const currentItems = activeProvider === "local" ? items : [];
 	const currentProviderItems = activeProvider !== "local" ? providerData?.items || [] : [];
 	const currentLoading = activeProvider === "local" ? isLoading : providerLoading;
+	// The new folder can render shorter while it loads, which clamps the scroll position, so the
+	// position is read before the navigation renders.
+	const router = useRouter({ warn: false }) as AnyRouter | undefined;
+	const scrollTopBeforeNavigationRef = React.useRef<number | null>(null);
+	React.useEffect(
+		() =>
+			router?.subscribe("onBeforeNavigate", () => {
+				scrollTopBeforeNavigationRef.current =
+					mediaHeadingRef.current?.closest("main")?.scrollTop ?? null;
+			}),
+		[router],
+	);
+	const previousFolderIdRef = React.useRef<string | undefined | null>(
+		focusHeadingOnMount ? null : folderId,
+	);
+	const pendingScrollTopRef = React.useRef<number | null>(null);
+	React.useLayoutEffect(() => {
+		if (previousFolderIdRef.current === folderId) return;
+		previousFolderIdRef.current = folderId;
+		pendingScrollTopRef.current = scrollTopBeforeNavigationRef.current;
+		mediaHeadingRef.current?.focus({ preventScroll: true });
+	}, [folderId]);
 	React.useEffect(() => {
 		if (
-			pendingMediaLibraryScrollTop === null ||
+			pendingScrollTopRef.current === null ||
 			currentLoading ||
 			foldersLoading ||
 			currentFolderLoading
@@ -459,10 +483,10 @@ export function MediaLibrary({
 		const firstFrame = window.requestAnimationFrame(() => {
 			secondFrame = window.requestAnimationFrame(() => {
 				const scrollContainer = document.querySelector<HTMLElement>("main");
-				if (scrollContainer && pendingMediaLibraryScrollTop !== null) {
-					scrollContainer.scrollTop = pendingMediaLibraryScrollTop;
+				if (scrollContainer && pendingScrollTopRef.current !== null) {
+					scrollContainer.scrollTop = pendingScrollTopRef.current;
 				}
-				pendingMediaLibraryScrollTop = null;
+				pendingScrollTopRef.current = null;
 			});
 		});
 		return () => {
@@ -686,23 +710,12 @@ export function MediaLibrary({
 			});
 		});
 	};
-	const focusMediaHeading = () => mediaHeadingRef.current?.focus({ preventScroll: true });
-	const rememberScrollPosition = () => {
-		pendingMediaLibraryScrollTop = mediaHeadingRef.current?.closest("main")?.scrollTop ?? null;
-	};
-	const backToMain = () => {
-		rememberScrollPosition();
-		focusMediaHeading();
-		onBackToMain?.();
-	};
 	const openFolder = (folder: MediaFolder) => {
 		setSearchQuery("");
 		onLocalSearchChange?.("");
 		cancelPendingDetailOpen();
 		setIsDetailOpen(false);
 		setDetailItem(null);
-		rememberScrollPosition();
-		focusMediaHeading();
 		onOpenFolder?.(folder);
 	};
 	const uploadActionLabel =
@@ -756,20 +769,8 @@ export function MediaLibrary({
 			{/* Header: page title (start) + primary actions (end) */}
 			<div className="flex items-center justify-between gap-2 sm:gap-4">
 				<div className="min-w-0">
-					{activeProvider === "local" && folderId && (
-						<RouterLinkButton
-							to="/media"
-							search={{ folder: undefined }}
-							variant="ghost"
-							size="sm"
-							icon={<ArrowLeft className="rtl:-scale-x-100" aria-hidden="true" />}
-							className="mb-2"
-							onClick={(event) =>
-								handleNavigationClick(event, onBackToMain ? backToMain : undefined)
-							}
-						>
-							{t`Back`}
-						</RouterLinkButton>
+					{activeProvider === "local" && folderId && (currentFolderLoading || currentFolder) && (
+						<NestedBreadcrumb label={currentFolder?.name} />
 					)}
 					<h1
 						ref={mediaHeadingRef}
@@ -778,30 +779,6 @@ export function MediaLibrary({
 					>
 						{t`Media Library`}
 					</h1>
-					{activeProvider === "local" && folderId && (
-						<nav aria-label={t`Folders navigation`} className="mt-2">
-							<Breadcrumbs size="sm">
-								<RouterLinkButton
-									to="/media"
-									search={{ folder: undefined }}
-									variant="ghost"
-									size="sm"
-									className="h-auto px-0 py-0 text-sm"
-									onClick={(event) =>
-										handleNavigationClick(event, onBackToMain ? backToMain : undefined)
-									}
-								>
-									{t`Media Library`}
-								</RouterLinkButton>
-								<Breadcrumbs.Separator />
-								<Breadcrumbs.Current loading={currentFolderLoading}>
-									<span dir="auto" className="inline-block max-w-full truncate align-bottom">
-										{currentFolder?.name ?? ""}
-									</span>
-								</Breadcrumbs.Current>
-							</Breadcrumbs>
-						</nav>
-					)}
 				</div>
 				<div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
 					{activeProvider === "local" && !folderId && folderActionsAvailable && (
@@ -1055,7 +1032,7 @@ export function MediaLibrary({
 								<Button onClick={openUploadDialog} icon={<Upload />}>
 									{t`Upload Files`}
 								</Button>
-								<Button variant="outline" onClick={backToMain}>
+								<Button variant="outline" onClick={onBackToMain}>
 									{t`Back to Main library`}
 								</Button>
 							</div>

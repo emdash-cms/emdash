@@ -1,5 +1,29 @@
 # @emdash-cms/registry-verification
 
+## 0.4.0
+
+### Minor Changes
+
+- [#4914](https://github.com/emdash-cms/emdash/pull/4914) [`e7c8f19`](https://github.com/emdash-cms/emdash/commit/e7c8f19f560b5cb79a781f71cca6372d3acee317) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds finding categories and an optional severity for assessments of a release's package code, so labelers can report code findings in the same shape as listing findings.
+  
+  `@emdash-cms/registry-moderation` exports `CODE_FINDING_CATEGORIES` (`malicious-code`, `vulnerability`, `reviewer-manipulation`, `package-integrity`, and `review-declined` for a reviewer model that refused to review the code), `FINDING_SEVERITIES`, and `AssessmentFindingSchema`, which accepts both listing and code findings. `ModerationCoverage` gains an optional `code` field. `NormalizedModerationFindingSchema` still accepts listing categories only, so existing model-output validation is unchanged.
+  
+  `@emdash-cms/registry-verification/bundle` now exports the bundle size and entry limits (`MAX_BUNDLE_COMPRESSED_BYTES`, `MAX_BUNDLE_DECOMPRESSED_BYTES`, `MAX_BUNDLE_FILE_BYTES`, `MAX_BUNDLE_FILE_COUNT`, `MAX_BUNDLE_SIZE`, `MAX_BUNDLE_TAR_ENTRY_COUNT`), so Workers code can apply the same limits without importing the Node entry point.
+
+### Patch Changes
+
+- [#4935](https://github.com/emdash-cms/emdash/pull/4935) [`6d0551b`](https://github.com/emdash-cms/emdash/commit/6d0551bdec7f776d3f77233f095342f3aefeb1ac) Thanks [@ascorbic](https://github.com/ascorbic)! - Types `fetchVerifiedResource()` bytes as `Uint8Array<ArrayBuffer>`, so they can be passed to `new Response()` without a type assertion.
+- Updated dependencies []:
+  - @emdash-cms/registry-lexicons@0.7.1
+
+## 0.3.5
+
+### Patch Changes
+
+- Updated dependencies [[`7d48e95`](https://github.com/emdash-cms/emdash/commit/7d48e95c8b3b0d5f53a48ebbe5ee9f005035c610), [`4e95f4f`](https://github.com/emdash-cms/emdash/commit/4e95f4f23d9efe288b255d5f94963f8f97dac27a)]:
+  - @emdash-cms/plugin-types@0.6.1
+  - @emdash-cms/registry-lexicons@0.7.1
+
 ## 0.3.4
 
 ### Patch Changes

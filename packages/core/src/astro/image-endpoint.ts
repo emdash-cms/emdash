@@ -13,9 +13,15 @@ import type { APIRoute } from "astro";
 import { GET as genericGET } from "astro/assets/endpoint/generic";
 // @ts-ignore - astro:assets is resolved by the consumer's Astro build
 import { getConfiguredImageService, imageConfig } from "astro:assets";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import {
+	cacheMediaResponse,
+	canonicalTransformRedirect,
+	canonicalTransformSearch,
 	getTransformFingerprint,
+	isCacheableMediaSource,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
@@ -82,6 +88,14 @@ export const GET: APIRoute = async (ctx) => {
 	const service = await getConfiguredImageService();
 	if (!("transform" in service)) return genericGET(ctx);
 
+	// Astro adds the adapter's assetQueryParams; the public astro:assets type omits it.
+	const config: typeof imageConfig & { assetQueryParams?: URLSearchParams } = imageConfig;
+	const isStockService = imageConfig.service?.entrypoint === "astro/assets/services/sharp";
+	if (isStockService) {
+		const canonical = canonicalTransformSearch(url, config.assetQueryParams);
+		if (canonical !== null) return canonicalTransformRedirect(url, canonical);
+	}
+
 	// An unread download retains its storage connection even for a bodyless response.
 	let unusedBody: ReadableStream<Uint8Array> | undefined;
 	try {
@@ -104,7 +118,7 @@ export const GET: APIRoute = async (ctx) => {
 			return response;
 		}
 
-		const transform = await service.parseURL(url, imageConfig);
+		const transform = await service.parseURL(url, imageConfig, ctx.logger);
 		if (!transform) {
 			if (isNotModified(ctx.request, source.size, source.lastModified)) {
 				return notModifiedResponse(source.contentType, source.size, source.lastModified);
@@ -126,9 +140,21 @@ export const GET: APIRoute = async (ctx) => {
 		}
 
 		const inputBuffer = new Uint8Array(await new Response(source.body).arrayBuffer());
-		const { data, format } = await service.transform(inputBuffer, transform, imageConfig);
+		const { data, format } = await service.transform(
+			inputBuffer,
+			transform,
+			imageConfig,
+			ctx.logger,
+		);
 
-		return new Response(data, {
+		if (
+			isStockService &&
+			virtualConfig?.routeCacheProvider !== "memory" &&
+			isCacheableMediaSource(url.searchParams.get("href"), url)
+		) {
+			cacheMediaResponse(ctx.cache, key);
+		}
+		return new Response(new Uint8Array(data), {
 			status: 200,
 			headers: {
 				"Content-Type": FORMAT_MIME[format] ?? source.contentType,

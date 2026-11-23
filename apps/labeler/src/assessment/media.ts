@@ -150,6 +150,10 @@ export interface GuardedMediaAcquirerOptions {
 	now?: () => number;
 }
 
+export class ByteLimitExceededError extends Error {
+	override readonly name = "ByteLimitExceededError";
+}
+
 export class MediaTransportConfigurationError extends Error {
 	override readonly name = "MediaTransportConfigurationError";
 }
@@ -213,15 +217,16 @@ export function createGuardedMediaAcquirer(
 				const neverFetchUrls = new Set(
 					Array.from(context?.neverFetchUrls ?? [], normalizeComparableUrl),
 				);
-				const response = await fetchFollowingSafeRedirects(
-					descriptor,
-					options.resolver,
-					options.transport,
-					limits.maxRedirects,
-					controller.signal,
+				const response = await fetchGuardedResource({
+					url: descriptor.url,
+					accept: descriptor.releaseAsset ? "application/octet-stream" : "image/*",
+					resolver: options.resolver,
+					transport: options.transport,
+					maxRedirects: limits.maxRedirects,
+					signal: controller.signal,
 					deadline,
 					neverFetchUrls,
-				);
+				});
 				const bytes = await readBoundedBody(response, maximumBytes, controller.signal);
 				assertBeforeDeadline(controller.signal, deadline, now);
 				const checksum = await verifyMultihash(bytes, descriptor.checksum);
@@ -377,16 +382,28 @@ function createMediaAggregateBudget(limits: MediaSetLimits): MediaAggregateBudge
 	};
 }
 
-async function fetchFollowingSafeRedirects(
-	descriptor: CanonicalMediaDescriptor,
-	resolver: MediaHostnameResolver,
-	transport: GuardedMediaTransport,
-	maxRedirects: number,
-	signal: AbortSignal,
-	deadline: number,
-	neverFetchUrls: ReadonlySet<string>,
-): Promise<Response> {
-	let url = descriptor.url;
+export interface GuardedResourceRequest {
+	url: string;
+	accept: string;
+	resolver: MediaHostnameResolver;
+	transport: GuardedMediaTransport;
+	maxRedirects: number;
+	signal: AbortSignal;
+	deadline: number;
+	neverFetchUrls: ReadonlySet<string>;
+}
+
+export async function fetchGuardedResource({
+	url: initialUrl,
+	accept,
+	resolver,
+	transport,
+	maxRedirects,
+	signal,
+	deadline,
+	neverFetchUrls,
+}: GuardedResourceRequest): Promise<Response> {
+	let url = initialUrl;
 	for (let redirect = 0; redirect <= maxRedirects; redirect += 1) {
 		if (signal.aborted) throw new Error("display media acquisition deadline exceeded");
 		const parsed = validateMediaUrl(url);
@@ -404,9 +421,7 @@ async function fetchFollowingSafeRedirects(
 			transport.fetch({
 				url: parsed.toString(),
 				allowedAddresses: addresses,
-				headers: {
-					accept: descriptor.releaseAsset ? "application/octet-stream" : "image/*",
-				},
+				headers: { accept },
 				redirect: "manual",
 				signal,
 				deadline,
@@ -489,7 +504,7 @@ function parseIpv4(address: string): number[] | null {
 	return octets;
 }
 
-async function readBoundedBody(
+export async function readBoundedBody(
 	response: Response,
 	maximumBytes: number,
 	signal: AbortSignal,
@@ -497,7 +512,7 @@ async function readBoundedBody(
 	const declaredLength = Number(response.headers.get("content-length"));
 	if (Number.isFinite(declaredLength) && declaredLength > maximumBytes) {
 		await cancelResponseBody(response);
-		throw new Error("display media exceeds the byte limit");
+		throw new ByteLimitExceededError("display media exceeds the byte limit");
 	}
 	const reader = response.body?.getReader();
 	if (!reader) throw new Error("display media response body is missing");
@@ -511,7 +526,9 @@ async function readBoundedBody(
 			done = next.done;
 			if (next.value) {
 				total += next.value.byteLength;
-				if (total > maximumBytes) throw new Error("display media exceeds the byte limit");
+				if (total > maximumBytes) {
+					throw new ByteLimitExceededError("display media exceeds the byte limit");
+				}
 				chunks.push(next.value);
 			}
 		}

@@ -1,7 +1,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, apiSuccess, handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { handleBylineUpdate } from "#api/handlers/bylines.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { bylineUpdateBody } from "#api/schemas.js";
@@ -36,8 +36,9 @@ export const PUT: APIRoute = async ({ params, request, locals }) => {
 	const denied = requirePerm(user, "bylines:manage");
 	if (denied) return denied;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const body = await parseBody(request, bylineUpdateBody);
 	if (isParseError(body)) return body;

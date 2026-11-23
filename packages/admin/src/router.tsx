@@ -28,9 +28,12 @@ import {
 } from "@tanstack/react-router";
 import * as React from "react";
 
+import type { OutsideValue } from "./co-editing/types.js";
+import { NestedBreadcrumb, useBreadcrumbLabel } from "./components/AdminBreadcrumbs.js";
 import { BlockTypeList } from "./components/BlockTypeList.js";
 import { EMPTY_BYLINE_FILTER, type BylineFilterState } from "./components/BylineFilter";
 import type { BylineFormValues } from "./components/BylineFormDialog.js";
+import type { SyncProblem } from "./components/co-editing/SyncStatus.js";
 import { CommentInbox } from "./components/comments/CommentInbox";
 import { ContentEditor, type ReferenceEntryRow } from "./components/ContentEditor";
 import {
@@ -135,6 +138,7 @@ import {
 	renameMediaFolder,
 	deleteMediaFolder,
 	ApiResponseError,
+	isListConflict,
 	isTerminalRequestError,
 	useCurrentUser,
 	type AdminManifest,
@@ -144,11 +148,13 @@ import {
 	type BylineCreditInput,
 	type ContentSeoInput,
 	type ContentItem,
+	type UpdateContentInput,
 	type CurrentUser,
 	type MediaUploadOptions,
 	type Revision,
 	type RevisionListItem,
 	type RevisionListResponse,
+	type UserListItem,
 } from "./lib/api";
 import { useAdminLayout } from "./lib/api/admin-layout.js";
 import {
@@ -159,13 +165,29 @@ import {
 	bulkCommentAction,
 	type CommentStatus,
 } from "./lib/api/comments";
+import { saveRecoveryRevision, type RecoveryInput } from "./lib/api/rooms.js";
 import { runBulkAction } from "./lib/bulk";
 import { parseCalendarSearch } from "./lib/calendar";
+import { copyEditsText } from "./lib/co-editing/copy-edits.js";
+import { useCoEditing } from "./lib/co-editing/hooks.js";
+import { RoomOperationsContext } from "./lib/co-editing/operations.js";
+import { whenOutsideValuesUnfocused } from "./lib/co-editing/outside-values.js";
+import {
+	RoomSaveError,
+	type CoEditing,
+	type RoomEditing,
+	type RoomEvent,
+} from "./lib/co-editing/types.js";
 import { canDuplicateEntry, canPublishEntry, entryEditAccess } from "./lib/content-permissions";
 import { describeContentValidationError } from "./lib/content-validation-errors";
+import { invalidateContentViews } from "./lib/invalidate-content-views.js";
 import { usePluginPage } from "./lib/plugin-context";
 import { getPluginBlocks } from "./lib/pluginBlocks";
-import { withAutosavedDraft } from "./lib/revision-list-cache.js";
+import {
+	autosavedDraftKey,
+	lastAutosavedDrafts,
+	withAutosavedDraft,
+} from "./lib/revision-list-cache.js";
 import { sanitizeRedirectUrl } from "./lib/url";
 import { usePagedQuery } from "./lib/use-paged-query";
 import { useEntryLock } from "./lib/useEntryLock";
@@ -188,6 +210,7 @@ interface ContentUpdateChanges {
 	skipRevision?: boolean;
 	seo?: ContentSeoInput;
 	references?: Record<string, string[]>;
+	expected?: UpdateContentInput["expected"];
 	/** Optimistic-concurrency token from the latest response. */
 	_rev?: string;
 }
@@ -195,15 +218,27 @@ interface ContentUpdateChanges {
 interface ContentUpdateMutationInput {
 	targetId: string;
 	targetLocale?: string;
-	source: "editor" | "auxiliary";
+	/** `outside`: a value outside a room's document, saved at once without `_rev`. */
+	source: "editor" | "auxiliary" | "outside";
 	changes: ContentUpdateChanges;
 }
+
+/** The values outside a room's document that save through the entry's update route. */
+type OutsideValueChanges = Pick<
+	ContentUpdateChanges,
+	"seo" | "authorId" | "bylines" | "references" | "expected"
+>;
+
+/** How many times a list change is rebased on a fresh read before its failure shows. */
+const LIST_SAVE_ATTEMPTS = 3;
 
 interface AutosaveMutationInput {
 	targetId: string;
 	targetLocale?: string;
 	changes: Pick<ContentUpdateChanges, "data" | "slug" | "bylines" | "references" | "_rev">;
 	referenceRows?: Record<string, ReferenceEntryRow[]>;
+	/** Keep the draft revision this autosave replaces, as a manual save does. */
+	keepReplacedRevision?: boolean;
 }
 
 function isSaveConflict(error: unknown): boolean {
@@ -264,9 +299,20 @@ function patchAutosaveQueries(
 		fields: Record<string, { validation?: Record<string, unknown> }>;
 		/** The draft revision the entry had when the autosave was sent. */
 		previousDraftId: string | null;
+		/** Whether the server kept that draft revision. */
+		keepPreviousDraft: boolean;
 	},
 ) {
-	const { collection, id, savedItem, payload, referenceRows, fields, previousDraftId } = params;
+	const {
+		collection,
+		id,
+		savedItem,
+		payload,
+		referenceRows,
+		fields,
+		previousDraftId,
+		keepPreviousDraft,
+	} = params;
 	const draftRevisionId = savedItem.draftRevisionId;
 
 	if (draftRevisionId) {
@@ -312,7 +358,15 @@ function patchAutosaveQueries(
 			authorId: me?.id ?? savedItem.authorId,
 			createdAt,
 			author: me ? { id: me.id, name: me.name?.trim() || null } : null,
+			editedBy: null,
 		};
+		const autosaved = lastAutosavedDrafts(queryClient);
+		const autosavedKey = autosavedDraftKey(collection, id);
+		const previousIsAutosave =
+			previousDraftId !== null && autosaved.get(autosavedKey) === previousDraftId;
+		// An autosave that kept the draft it replaced wrote a revision the next autosave keeps too.
+		if (keepPreviousDraft) autosaved.delete(autosavedKey);
+		else autosaved.set(autosavedKey, draftRevisionId);
 		for (const [queryKey, list] of lists) {
 			if (!list) continue;
 			queryClient.setQueryData(
@@ -320,8 +374,10 @@ function patchAutosaveQueries(
 				withAutosavedDraft(list, {
 					draft,
 					previousDraftId,
+					previousIsAutosave,
 					liveRevisionId: savedItem.liveRevisionId ?? null,
 					limit: revisionListLimit(queryKey),
+					keepPrevious: keepPreviousDraft,
 				}),
 			);
 		}
@@ -332,9 +388,10 @@ function patchAutosaveQueries(
 				.cancelQueries({ queryKey: listsKey })
 				.then(() => queryClient.invalidateQueries({ queryKey: listsKey }));
 		} else {
-			// The patched lists stay on screen; the next list that mounts, or view that opens,
-			// reads the exact server copy.
-			void queryClient.invalidateQueries({ queryKey: listsKey, refetchType: "none" });
+			// The patch is a guess: the server keeps a previous draft that wasn't an autosave, and
+			// the new draft can name people this client doesn't know about. Open lists read the
+			// server's copy now, and the rest when they next mount.
+			void queryClient.invalidateQueries({ queryKey: listsKey, refetchType: "active" });
 		}
 	}
 
@@ -683,16 +740,14 @@ function ContentListPage() {
 	const deleteMutation = useMutation({
 		mutationFn: (id: string) => deleteContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
 	const restoreMutation = useMutation({
 		mutationFn: (id: string) => restoreContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 		onError: (mutationError) => {
 			toastManager.add({
@@ -706,14 +761,14 @@ function ContentListPage() {
 	const permanentDeleteMutation = useMutation({
 		mutationFn: (id: string) => permanentDeleteContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
 	const duplicateMutation = useMutation({
 		mutationFn: (id: string) => duplicateContent(collection, id),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 		},
 		onError: (mutationError) => {
 			toastManager.add({
@@ -749,7 +804,7 @@ function ContentListPage() {
 			}
 		},
 		onSettled: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
@@ -772,7 +827,7 @@ function ContentListPage() {
 			}
 		},
 		onSettled: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
@@ -793,8 +848,7 @@ function ContentListPage() {
 			}
 		},
 		onSettled: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 		},
 	});
 
@@ -929,7 +983,7 @@ function ContentNewPage() {
 			references?: Record<string, string[]>;
 		}) => createContent(collection, { ...data, locale: pickerLocale }),
 		onSuccess: (result) => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 			void navigate({
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
@@ -1068,6 +1122,11 @@ const ROLE_AUTHOR = 30;
 const ROLE_EDITOR = 40;
 
 const EMPTY_FIELDS: AdminManifest["collections"][string]["fields"] = {};
+/**
+ * How long opening an entry keeps its loading state while it joins the entry's room. After that
+ * the stored entry shows read-only until the room is ready.
+ */
+const CO_EDITING_LOADING_CAP_MS = 1500;
 
 function ContentEditPage() {
 	const { t } = useLingui();
@@ -1123,19 +1182,347 @@ function ContentEditPage() {
 	// refuses what the role can't do.
 	const editAccess = rawItem && currentUser ? entryEditAccess(currentUser, rawItem) : "full";
 	const canPublish = !rawItem || !currentUser || canPublishEntry(currentUser, rawItem);
+	const revisionIdentity = `${collection}:${id}:${activeLocale ?? ""}`;
+	// The room repeats a refused save at every update, so each refusal shows once until a save works.
+	const refusedSavesRef = React.useRef(new Set<string>());
+	const roomRef = React.useRef<RoomEditing | null>(null);
+	const reloadOutsideValues = (values: readonly OutsideValue[]) => {
+		const terms = values.filter((value) => value === "terms");
+		const others = values.filter((value) => value !== "terms");
+		if (terms.length > 0) {
+			void whenOutsideValuesUnfocused(terms).then(() =>
+				queryClient.invalidateQueries({ queryKey: ["entry-terms", collection, id] }),
+			);
+		}
+		if (others.length > 0) {
+			void whenOutsideValuesUnfocused(others).then(() =>
+				queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
+			);
+		}
+	};
+	const handleRoomEvent = (event: RoomEvent) => {
+		switch (event.kind) {
+			case "outdated": {
+				// The form stays, but a room holding the entry grants no lock to save it with.
+				const snapshot = joinSnapshotRef.current;
+				joinSnapshotRef.current = null;
+				const updated = (description: string) =>
+					toastManager.add({ title: t`The admin was updated`, description, variant: "info" });
+				const stillHere = t`Your edits are still on this page. Reload it to edit with others.`;
+				if (!snapshot || snapshot.identity !== revisionIdentity) {
+					updated(stillHere);
+					return;
+				}
+				void saveRecoveryRevision({ collection, id, locale: activeLocale }, snapshot.form).then(
+					() =>
+						updated(
+							t`Your unsaved edits are in a recovery revision. Reload the page to edit with others.`,
+						),
+					(error: unknown) => {
+						toastManager.add({
+							title: t`Your unsaved edits couldn’t be kept`,
+							description: error instanceof Error ? error.message : t`An error occurred`,
+							variant: "error",
+						});
+						updated(stillHere);
+					},
+				);
+				return;
+			}
+			case "recovered":
+				toastManager.add({
+					title: t`Your unsaved edits are in a recovery revision`,
+					description: t`Find it in this entry’s revisions.`,
+					variant: "info",
+				});
+				return;
+			case "refused": {
+				const key = `${revisionIdentity}\n${event.code}\n${event.message}`;
+				if (refusedSavesRef.current.has(key)) return;
+				refusedSavesRef.current.add(key);
+				toastManager.add({
+					title: t`Your latest edits couldn’t be saved`,
+					description: event.message,
+					variant: "error",
+				});
+				return;
+			}
+			case "checkpoint":
+				refusedSavesRef.current.clear();
+				if (event.editedBy.length > 0) {
+					void invalidateContentViews(queryClient, { collection, id }, "none");
+					void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+					void queryClient.invalidateQueries({ queryKey: ["publishEditedBy", collection, id] });
+					// Only the first save after a publish or discard gives the entry a draft of its own.
+					if (!rawItem?.draftRevisionId || rawItem.draftRevisionId === rawItem.liveRevisionId) {
+						void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+					}
+				}
+				return;
+			case "values":
+				reloadOutsideValues(event.values);
+				return;
+			case "reconnected":
+			case "operation": {
+				void invalidateContentViews(queryClient, { collection, id });
+				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
+				void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
+				void queryClient.invalidateQueries({ queryKey: ["publishEditedBy", collection, id] });
+				if (event.kind === "reconnected" || event.by === currentUser?.id) return;
+				const name =
+					roomRef.current?.presence.getUsers().find((user) => user.id === event.by)?.name ??
+					queryClient
+						.getQueryData<{ items: UserListItem[] }>(["users"])
+						?.items.find((user) => user.id === event.by)?.name ??
+					t`Someone`;
+				toastManager.add({
+					title: t`${name} changed this entry`,
+					description: t`They changed its publishing or schedule, or replaced its draft.`,
+				});
+				return;
+			}
+			default:
+				return;
+		}
+	};
+	const coEditing = useCoEditing({
+		collection,
+		entryId: id,
+		locale: activeLocale,
+		manifest,
+		onEvent: handleRoomEvent,
+	});
+	// The mode the session last settled in. A Take over or Join from single-editor mode keeps the
+	// edit lock running while its join is in flight, so the lock's own takeover can follow.
+	const [settledCoEditing, setSettledCoEditing] = React.useState<{
+		identity: string;
+		mode: Exclude<CoEditing["mode"], "pending">;
+	} | null>(null);
+	const coEditingMode =
+		coEditing.mode !== "pending"
+			? coEditing.mode
+			: settledCoEditing?.identity === revisionIdentity
+				? settledCoEditing.mode
+				: null;
+	// A room owns the document, so after one the form still holds the entry as the page loaded
+	// it. The fields wait until the entry's current item replaces it.
+	const [leftRoomEntry, setLeftRoomEntry] = React.useState<string | null>(null);
+	if (
+		coEditing.mode !== "pending" &&
+		(settledCoEditing?.identity !== revisionIdentity || settledCoEditing.mode !== coEditing.mode)
+	) {
+		if (
+			settledCoEditing?.identity === revisionIdentity &&
+			settledCoEditing.mode === "room" &&
+			coEditing.mode === "single-editor"
+		) {
+			setLeftRoomEntry(revisionIdentity);
+		}
+		setSettledCoEditing({ identity: revisionIdentity, mode: coEditing.mode });
+	}
+	const leavingRoom = leftRoomEntry === revisionIdentity;
+	React.useEffect(() => {
+		if (!leavingRoom) return;
+		const identity = revisionIdentity;
+		const draftRevisionId = rawItem?.draftRevisionId;
+		void Promise.all([
+			queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
+			draftRevisionId
+				? queryClient.invalidateQueries({ queryKey: ["revision", draftRevisionId] })
+				: undefined,
+		]).then(() => {
+			resetEditorItem(id);
+			setLeftRoomEntry((current) => (current === identity ? null : current));
+			return undefined;
+		});
+	}, [leavingRoom]);
+	const [loadingCapEntry, setLoadingCapEntry] = React.useState<string | null>(null);
+	// The editor stays mounted across a switch to a cached entry, so only one that isn't showing
+	// yet waits for the room.
+	const editorShownRef = React.useRef(false);
+	// A reset drops the replica. Until the next one syncs, the form would show the entry as the
+	// page loaded it, so the fields wait for it. Values outside the document still save as they do
+	// in the room.
+	const lastRoomRef = React.useRef<RoomEditing | null>(null);
+	if (coEditing.mode === "room") lastRoomRef.current = coEditing.room;
+	const resetting = coEditing.mode === "pending" && coEditingMode === "room";
+	const waitingForRoom =
+		coEditingMode === null && !editorShownRef.current && loadingCapEntry !== revisionIdentity;
+	React.useEffect(() => {
+		if (!waitingForRoom) return;
+		const timer = window.setTimeout(
+			setLoadingCapEntry,
+			CO_EDITING_LOADING_CAP_MS,
+			revisionIdentity,
+		);
+		return () => window.clearTimeout(timer);
+	}, [waitingForRoom, revisionIdentity]);
+	// A reload the user turns down in the browser's prompt leaves the tab as it was.
+	const lastRoomViewRef = React.useRef<Extract<CoEditing, { mode: "room" }> | null>(null);
+	if (coEditing.mode === "room") lastRoomViewRef.current = coEditing;
+	else if (coEditing.mode !== "reloading") lastRoomViewRef.current = null;
+	const roomView =
+		coEditing.mode === "room"
+			? coEditing
+			: coEditing.mode === "reloading"
+				? lastRoomViewRef.current
+				: null;
+	roomRef.current = roomView?.room ?? (resetting ? lastRoomRef.current : null);
+	const roomBlocked = roomView
+		? roomView.offline || !roomView.editable || roomView.kept !== null
+		: resetting || leavingRoom;
+	/** Edits from before joining whose recovery revision failed, which the person can copy or keep again. */
+	const [unkeptEdits, setUnkeptEdits] = React.useState<{
+		identity: string;
+		form: RecoveryInput;
+		/** Null until a recovery revision has failed. */
+		error: string | null;
+		retrying: boolean;
+	} | null>(null);
+	if (unkeptEdits && unkeptEdits.identity !== revisionIdentity) setUnkeptEdits(null);
+	const shownIdentityRef = React.useRef(revisionIdentity);
+	shownIdentityRef.current = revisionIdentity;
+	// A recovery that lands after a switch to another entry leaves that entry's edits alone.
+	const keepEdits = async (identity: string, form: RecoveryInput) => {
+		try {
+			await saveRecoveryRevision({ collection, id, locale: activeLocale }, form);
+		} catch (error) {
+			const message = error instanceof Error ? error.message : t`An error occurred`;
+			setUnkeptEdits((current) =>
+				current?.identity === identity ||
+				(current === null && shownIdentityRef.current === identity)
+					? { identity, form, error: message, retrying: false }
+					: current,
+			);
+			return;
+		}
+		setUnkeptEdits((current) => (current?.identity === identity ? null : current));
+		if (shownIdentityRef.current === identity) handleRoomEvent({ kind: "recovered" });
+	};
+	let roomSync: SyncProblem | null | undefined;
+	if (coEditing.mode === "pending") {
+		roomSync = { kind: "joining", waiting: coEditing.waiting };
+	} else if (roomView && unkeptEdits?.error != null) {
+		const { identity, form, error } = unkeptEdits;
+		roomSync = {
+			kind: "not-kept",
+			error,
+			retrying: unkeptEdits.retrying,
+			copy: () => copyEditsText(collectionFields, (name) => form.data[name]),
+			retry: () => {
+				setUnkeptEdits({ ...unkeptEdits, retrying: true });
+				void keepEdits(identity, form);
+			},
+		};
+	} else if (roomView?.kept) {
+		roomSync = {
+			kind: "not-saved",
+			reason: roomView.kept,
+			reload: coEditing.mode === "room" ? roomView.reload : () => window.location.reload(),
+		};
+	} else if (roomView) {
+		roomSync = roomView.offline ? { kind: "offline", unreachable: roomView.unreachable } : null;
+	}
+	const sendReferencesRef = React.useRef<(() => Promise<boolean>) | null>(null);
+	/** With `draft`, for an operation that takes the draft, which a reference change saves to. */
+	const prepareRoomOperation = React.useCallback(
+		async ({ draft = false }: { draft?: boolean } = {}) => {
+			const room = roomRef.current;
+			if (!room) return;
+			const notSaved = t`Your edits couldn’t be saved, so this didn’t run. Try again.`;
+			if (draft && !(await (sendReferencesRef.current?.() ?? true))) throw new Error(notSaved);
+			try {
+				await room.whenCovered({ save: true });
+			} catch (error) {
+				throw new Error(
+					error instanceof RoomSaveError && error.reason === "refused" ? error.message : notSaved,
+					{ cause: error },
+				);
+			}
+		},
+		[t],
+	);
+	const inRoom = roomView !== null;
+	const roomOperations = React.useMemo(
+		() => ({ prepare: prepareRoomOperation, blocked: roomBlocked, inRoom }),
+		[prepareRoomOperation, roomBlocked, inRoom],
+	);
+	const toastManagerRef = React.useRef(toastManager);
+	toastManagerRef.current = toastManager;
+	/** Shows a failure the operation's control has nowhere to show, and passes it on. */
+	const failWithToast = React.useCallback(
+		(title: string) =>
+			(error: unknown): never => {
+				toastManagerRef.current.add({
+					title,
+					description: error instanceof Error ? error.message : t`An error occurred`,
+					variant: "error",
+				});
+				throw error;
+			},
+		[t],
+	);
+	const handlePreviewNotSaved = React.useCallback(() => {
+		toastManagerRef.current.add({
+			title: t`Preview opens once your edits are saved`,
+			description: t`Try again in a moment.`,
+			variant: "error",
+		});
+	}, [t]);
+	const entryDeleted = coEditing.mode === "single-editor" && coEditing.deleted;
+	const showsEditor =
+		Boolean(manifest?.collections[collection]) &&
+		!isLoading &&
+		!(itemError && !rawItem) &&
+		!waitingForRoom &&
+		!(coEditing.mode === "reloading" && !roomView);
+	React.useLayoutEffect(() => {
+		editorShownRef.current = showsEditor;
+	});
 	const entryLock = useEntryLock({
 		collection,
 		entryId: id,
 		locale: activeLocale,
-		ready: Boolean(rawItem) && editAccess !== null,
+		ready:
+			Boolean(rawItem) && editAccess !== null && coEditingMode === "single-editor" && !entryDeleted,
 	});
+	const readFormRef = React.useRef<(() => RecoveryInput) | null>(null);
+	/**
+	 * Unsaved single-editor edits as a Take over or Join found them. A room's document replaces
+	 * the form, so a room keeps them in a recovery revision. In single-editor mode the lock's
+	 * takeover keeps the form, which autosaves them.
+	 */
+	const joinSnapshotRef = React.useRef<{
+		from: CoEditing;
+		identity: string;
+		form: RecoveryInput;
+	} | null>(null);
+	const takeOverOrJoin = () => {
+		if (coEditing.mode !== "single-editor") return;
+		const form = isEditorDirtyRef.current ? readFormRef.current?.() : undefined;
+		joinSnapshotRef.current = form ? { from: coEditing, identity: revisionIdentity, form } : null;
+		coEditing.takeOver(entryLock.takeOver, { unsaved: Boolean(form) });
+	};
+	React.useEffect(() => {
+		const snapshot = joinSnapshotRef.current;
+		// Until the session answers the click, it shows the view the click came from.
+		if (!snapshot || coEditing === snapshot.from || coEditing.mode === "pending") return;
+		joinSnapshotRef.current = null;
+		if (coEditing.mode !== "room" || snapshot.identity !== revisionIdentity) return;
+		setUnkeptEdits({
+			identity: snapshot.identity,
+			form: snapshot.form,
+			error: null,
+			retrying: true,
+		});
+		void keepEdits(snapshot.identity, snapshot.form);
+	}, [coEditing]);
 	const revisionTokensRef = React.useRef(new Map<string, string | undefined>());
 	const revisionVersionsRef = React.useRef(new Map<string, number>());
 	// The draft revision of the entry version each token names, which an autosave sent with that
 	// token replaces.
 	const tokenDraftRevisionsRef = React.useRef(new Map<string, string | null>());
 	const activeRevisionEntryRef = React.useRef("");
-	const revisionIdentity = `${collection}:${id}:${activeLocale ?? ""}`;
 	if (activeRevisionEntryRef.current !== revisionIdentity) {
 		activeRevisionEntryRef.current = revisionIdentity;
 		revisionTokensRef.current.delete(id);
@@ -1203,20 +1590,36 @@ function ContentEditPage() {
 	);
 	const publishRequestRef = React.useRef<Promise<void> | null>(null);
 
+	const handleFieldFocused = React.useCallback(() => {
+		const { field: _, ...preservedSearch } = searchParams;
+		void navigate({ search: preservedSearch as never, replace: true });
+	}, [searchParams, navigate]);
+
 	React.useEffect(() => {
 		if (typeof searchParams.field !== "string" || isLoading) return;
+		const rootField = searchParams.field.split(".")[0] ?? "";
+		const rootDefinition = (roomView?.manifest?.collections[collection]?.fields ??
+			collectionFields)[rootField];
+		// Blocks fields reveal and focus their own nested controls after mounting them.
+		if (searchParams.field.includes(".") && rootDefinition?.kind === "blocks") return;
 
 		const timeoutId = requestIdleCallback(() => {
 			const el = document.getElementById(`field-${searchParams.field}`);
 			if (el) {
 				el.scrollIntoView({ behavior: "smooth", block: "center" });
 				el.focus();
-				const { field: _, ...preservedSearch } = searchParams;
-				void navigate({ search: preservedSearch as never, replace: true });
+				handleFieldFocused();
 			}
 		});
 		return () => cancelIdleCallback(timeoutId);
-	}, [searchParams, isLoading, navigate]);
+	}, [
+		searchParams,
+		isLoading,
+		handleFieldFocused,
+		roomView?.manifest,
+		collection,
+		collectionFields,
+	]);
 
 	// Fetch translations when i18n is enabled
 	const { data: translationsData } = useQuery({
@@ -1334,6 +1737,7 @@ function ContentEditPage() {
 			const contentRefresh = queryClient.invalidateQueries({
 				queryKey: ["content", collection, targetId],
 			});
+			void invalidateContentViews(queryClient, { collection, id: targetId });
 			// Also invalidate revisions since a new one was created
 			void queryClient.invalidateQueries({
 				queryKey: ["revisions", collection, targetId],
@@ -1399,14 +1803,14 @@ function ContentEditPage() {
 		(
 			error: unknown,
 			targetId: string,
-			source: "editor" | "autosave" | "auxiliary",
+			source: "editor" | "autosave" | "auxiliary" | "outside",
 			toastTitle = t`Failed to save`,
 		) => {
 			if (editorShows(targetId) && entryLock.reportWriteError(error, targetId)) return;
 			const message =
 				describeContentValidationError(error, collectionFields) ??
 				(error instanceof Error ? error.message : t`An error occurred`);
-			if (source !== "auxiliary" && editorShows(targetId)) {
+			if ((source === "editor" || source === "autosave") && editorShows(targetId)) {
 				setEditorSaveError((current) => ({
 					entryId: targetId,
 					message,
@@ -1420,11 +1824,14 @@ function ContentEditPage() {
 	);
 
 	const updateMutation = useMutation({
-		mutationFn: async ({ targetId, targetLocale, changes }: ContentUpdateMutationInput) => {
+		mutationFn: async ({ targetId, targetLocale, source, changes }: ContentUpdateMutationInput) => {
 			const savedItem = await updateContent(
 				collection,
 				targetId,
-				{ ...changes, _rev: revisionTokensRef.current.get(targetId) },
+				{
+					...changes,
+					_rev: source === "outside" ? undefined : revisionTokensRef.current.get(targetId),
+				},
 				{ locale: targetLocale },
 			);
 			recordWriteRevision(targetId, savedItem);
@@ -1453,6 +1860,8 @@ function ContentEditPage() {
 		},
 		onError: async (error, variables) => {
 			if (await recoverInEditor(error, variables.targetId)) return;
+			// The outside save reads the entry again and retries, and reports the last failure.
+			if (variables.source === "outside" && isListConflict(error)) return;
 			handleContentUpdateError(error, variables.targetId, variables.source);
 		},
 		onSettled: (_, __, variables) => {
@@ -1466,7 +1875,10 @@ function ContentEditPage() {
 			const savedItem = await updateContent(
 				collection,
 				id,
-				{ publishedAt, _rev: revisionTokensRef.current.get(id) },
+				{
+					publishedAt,
+					_rev: roomRef.current ? undefined : revisionTokensRef.current.get(id),
+				},
 				{ locale: rawItem?.locale ?? activeLocale },
 			);
 			recordWriteRevision(id, savedItem);
@@ -1499,11 +1911,20 @@ function ContentEditPage() {
 						])?.draftRevisionId ?? null),
 			};
 		},
-		mutationFn: async ({ targetId, targetLocale, changes }: AutosaveMutationInput) => {
+		mutationFn: async ({
+			targetId,
+			targetLocale,
+			changes,
+			keepReplacedRevision,
+		}: AutosaveMutationInput) => {
 			const savedItem = await updateContent(
 				collection,
 				targetId,
-				{ ...changes, skipRevision: true, _rev: revisionTokensRef.current.get(targetId) },
+				{
+					...changes,
+					skipRevision: !keepReplacedRevision,
+					_rev: revisionTokensRef.current.get(targetId),
+				},
 				{ locale: targetLocale },
 			);
 			recordWriteRevision(targetId, savedItem);
@@ -1524,9 +1945,11 @@ function ContentEditPage() {
 				referenceRows: variables.referenceRows,
 				fields: collectionFields,
 				previousDraftId: started?.previousDraftId ?? null,
+				keepPreviousDraft: Boolean(variables.keepReplacedRevision),
 			});
 			// Keep the cache fresh without refetching older server state back into the form
 			// while the user is still typing.
+			void invalidateContentViews(queryClient, { collection, id: variables.targetId }, "none");
 		},
 		onError: async (err, variables) => {
 			if (await recoverInEditor(err, variables.targetId)) return;
@@ -1556,6 +1979,7 @@ function ContentEditPage() {
 			if (savedReferences) {
 				void queryClient.invalidateQueries({ queryKey: ["content", collection, id] });
 			}
+			void invalidateContentViews(queryClient, { collection, id });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Published`, description: t`Content is now live` });
 		},
@@ -1580,6 +2004,7 @@ function ContentEditPage() {
 			void queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
+			void invalidateContentViews(queryClient, { collection, id });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			toastManager.add({ title: t`Unpublished`, description: t`Content removed from public view` });
 		},
@@ -1601,6 +2026,7 @@ function ContentEditPage() {
 			await queryClient.invalidateQueries({
 				queryKey: ["content", collection, id],
 			});
+			void invalidateContentViews(queryClient, { collection, id });
 			void queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] });
 			resetEditorItem(id, { discarded: true });
 			toastManager.add({
@@ -1651,6 +2077,7 @@ function ContentEditPage() {
 		mutationFn: (scheduledAt: string) =>
 			scheduleContent(collection, id, scheduledAt, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
+			void invalidateContentViews(queryClient, { collection, id });
 			toastManager.add({
 				title: t`Scheduled`,
 				description: t`Content has been scheduled for publishing`,
@@ -1662,6 +2089,7 @@ function ContentEditPage() {
 		mutationFn: () =>
 			unscheduleContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
+			void invalidateContentViews(queryClient, { collection, id });
 			toastManager.add({
 				title: t`Unscheduled`,
 				description: t`Content reverted to draft`,
@@ -1687,8 +2115,7 @@ function ContentEditPage() {
 				translationOf: id,
 			}),
 		onSuccess: (result) => {
-			void queryClient.invalidateQueries({ queryKey: ["translations", collection, id] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
+			void invalidateContentViews(queryClient);
 			void navigate({
 				to: "/content/$collection/$id",
 				params: { collection, id: result.id },
@@ -1713,8 +2140,7 @@ function ContentEditPage() {
 	const deleteMutation = useMutation({
 		mutationFn: () => deleteContent(collection, id, { locale: rawItem?.locale ?? activeLocale }),
 		onSuccess: () => {
-			void queryClient.invalidateQueries({ queryKey: ["content", collection] });
-			void queryClient.invalidateQueries({ queryKey: ["content", collection, "trash"] });
+			void invalidateContentViews(queryClient);
 			void navigate({
 				to: "/content/$collection",
 				params: { collection },
@@ -1724,7 +2150,13 @@ function ContentEditPage() {
 		},
 	});
 
-	const pluginBlocks = React.useMemo(() => (manifest ? getPluginBlocks(manifest) : []), [manifest]);
+	// A room's editors keep the manifest the session joined with. A schema change closes the room
+	// for this client as outdated, and the admin reloads.
+	const editorManifest = roomView?.manifest ?? manifest;
+	const pluginBlocks = React.useMemo(
+		() => (editorManifest ? getPluginBlocks(editorManifest) : []),
+		[editorManifest],
+	);
 
 	// Stable handler identities: these flow into the memoized
 	// ContentSettingsPanel, so fresh arrows on every mutation-state flip
@@ -1757,21 +2189,78 @@ function ContentEditPage() {
 			bylines?: BylineCreditInput[];
 			references?: Record<string, string[]>;
 			referenceRows?: Record<string, ReferenceEntryRow[]>;
+			keepReplacedRevision?: boolean;
 		}) => {
-			const { referenceRows, ...changes } = payload;
+			const { referenceRows, keepReplacedRevision, ...changes } = payload;
 			void serializeEditorSave(() =>
 				autosaveMutation.mutateAsync({
 					targetId: id,
 					targetLocale: rawItem?.locale ?? activeLocale,
 					changes,
 					referenceRows,
+					keepReplacedRevision,
 				}),
 			).catch(() => undefined);
 		},
 		[activeLocale, autosaveMutation.mutateAsync, id, rawItem?.locale, serializeEditorSave],
 	);
+	const saveOutsideValues = React.useCallback(
+		async (
+			values:
+				| OutsideValueChanges
+				| ((latest: ContentItem) => OutsideValueChanges | Promise<OutsideValueChanges>),
+		): Promise<ContentItem> => {
+			for (let attempt = 1; ; attempt++) {
+				let changes = values;
+				if (typeof changes === "function") {
+					try {
+						// oxlint-disable-next-line no-await-in-loop -- a retry rebases on a fresh read
+						const latest = await queryClient.fetchQuery({
+							queryKey: ["content", collection, id, { locale: activeLocale }],
+							queryFn: () => fetchContent(collection, id, { locale: activeLocale }),
+							staleTime: 0,
+						});
+						// oxlint-disable-next-line no-await-in-loop -- a retry rebases on a fresh read
+						changes = await changes(latest);
+					} catch (error) {
+						handleContentUpdateError(error, id, "outside");
+						throw error;
+					}
+				}
+				try {
+					// oxlint-disable-next-line no-await-in-loop -- one attempt at a time
+					return await updateMutation.mutateAsync({
+						targetId: id,
+						targetLocale: rawItem?.locale ?? activeLocale,
+						source: "outside",
+						// Reference edges save as autosaves do, without a revision.
+						changes: changes.references ? { ...changes, skipRevision: true } : changes,
+					});
+				} catch (error) {
+					if (!isListConflict(error)) throw error;
+					if (typeof values !== "function" || attempt >= LIST_SAVE_ATTEMPTS) {
+						handleContentUpdateError(error, id, "outside");
+						throw error;
+					}
+				}
+			}
+		},
+		[
+			activeLocale,
+			collection,
+			handleContentUpdateError,
+			id,
+			queryClient,
+			rawItem?.locale,
+			updateMutation.mutateAsync,
+		],
+	);
 	const handleAuthorChange = React.useCallback(
 		(authorId: string | null) => {
+			if (roomRef.current) {
+				saveOutsideValues({ authorId }).catch(() => undefined);
+				return;
+			}
 			updateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
@@ -1779,7 +2268,7 @@ function ContentEditPage() {
 				changes: { authorId },
 			});
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, saveOutsideValues, updateMutation.mutate],
 	);
 	const handlePublishedAtChange = React.useCallback(
 		async (
@@ -1819,18 +2308,25 @@ function ContentEditPage() {
 
 	const handleSeoChange = React.useCallback(
 		(seo: ContentSeoInput) => {
+			if (roomRef.current) {
+				return saveOutsideValues({ seo }).then(
+					() => true,
+					() => false,
+				);
+			}
 			updateMutation.mutate({
 				targetId: id,
 				targetLocale: rawItem?.locale ?? activeLocale,
 				source: "auxiliary",
 				changes: { seo },
 			});
+			return undefined;
 		},
-		[activeLocale, id, rawItem?.locale, updateMutation.mutate],
+		[activeLocale, id, rawItem?.locale, saveOutsideValues, updateMutation.mutate],
 	);
 
 	const handlePublish = React.useCallback(
-		(payload: {
+		(payload?: {
 			data: Record<string, unknown>;
 			slug?: string;
 			bylines?: BylineCreditInput[];
@@ -1839,6 +2335,13 @@ function ContentEditPage() {
 			if (publishRequestRef.current) return publishRequestRef.current;
 
 			const request = (async () => {
+				// Only a room publishes without a payload: it saves the edits, and the route publishes
+				// that save.
+				if (!payload) {
+					await prepareRoomOperation({ draft: true }).catch(failWithToast(t`Failed to publish`));
+					await publishMutation.mutateAsync({ revision: undefined, savedReferences: false });
+					return;
+				}
 				const savedItem = await serializeEditorSave(() =>
 					updateMutation.mutateAsync({
 						targetId: id,
@@ -1862,10 +2365,13 @@ function ContentEditPage() {
 		},
 		[
 			activeLocale,
+			failWithToast,
 			id,
+			prepareRoomOperation,
 			publishMutation.mutateAsync,
 			rawItem?.locale,
 			serializeEditorSave,
+			t,
 			updateMutation.mutateAsync,
 		],
 	);
@@ -1878,6 +2384,11 @@ function ContentEditPage() {
 			if (unpublishRequestRef.current) return unpublishRequestRef.current;
 
 			const request = (async () => {
+				if (roomRef.current) {
+					await prepareRoomOperation().catch(failWithToast(t`Failed to unpublish`));
+					await unpublishMutation.mutateAsync(undefined);
+					return;
+				}
 				const savedItem = await serializeEditorSave(async () => {
 					if (!payload) return;
 					return updateMutation.mutateAsync({
@@ -1900,22 +2411,24 @@ function ContentEditPage() {
 		},
 		[
 			activeLocale,
+			failWithToast,
 			id,
+			prepareRoomOperation,
 			rawItem?.locale,
 			serializeEditorSave,
+			t,
 			unpublishMutation.mutateAsync,
 			updateMutation.mutateAsync,
 		],
 	);
 	// The confirmation shows a failure, except a refusal the lock explains:
 	// that resolves, so the confirmation closes and the lock notice takes over.
-	const handleDiscardDraft = React.useCallback(
-		() =>
-			discardDraftMutation.mutateAsync().catch((error: unknown) => {
-				if (!entryLock.reportWriteError(error, id)) throw error;
-			}),
-		[discardDraftMutation.mutateAsync, entryLock.reportWriteError, id],
-	);
+	const handleDiscardDraft = React.useCallback(async () => {
+		if (roomRef.current) await prepareRoomOperation();
+		return discardDraftMutation.mutateAsync().catch((error: unknown) => {
+			if (!entryLock.reportWriteError(error, id)) throw error;
+		});
+	}, [discardDraftMutation.mutateAsync, entryLock.reportWriteError, id, prepareRoomOperation]);
 	const handleSchedule = React.useCallback(
 		async (
 			scheduledAt: string,
@@ -1926,6 +2439,7 @@ function ContentEditPage() {
 				references?: Record<string, string[]>;
 			},
 		) => {
+			if (roomRef.current) await prepareRoomOperation({ draft: true });
 			const savedItem = await serializeEditorSave(async () => {
 				if (!payload) return;
 				return updateMutation.mutateAsync({
@@ -1950,6 +2464,7 @@ function ContentEditPage() {
 			applyScheduleChange,
 			entryLock.reportWriteError,
 			id,
+			prepareRoomOperation,
 			rawItem?.locale,
 			scheduleMutation.mutateAsync,
 			serializeEditorSave,
@@ -1963,6 +2478,9 @@ function ContentEditPage() {
 			bylines?: BylineCreditInput[];
 			references?: Record<string, string[]>;
 		}) => {
+			if (roomRef.current) {
+				await prepareRoomOperation().catch(failWithToast(t`Failed to unschedule`));
+			}
 			const savedItem = await serializeEditorSave(async () => {
 				if (!payload) return;
 				return updateMutation.mutateAsync({
@@ -1978,21 +2496,23 @@ function ContentEditPage() {
 		[
 			activeLocale,
 			applyScheduleChange,
+			failWithToast,
 			id,
+			prepareRoomOperation,
 			rawItem?.locale,
 			serializeEditorSave,
+			t,
 			unscheduleMutation.mutateAsync,
 			updateMutation.mutateAsync,
 		],
 	);
 	// As with discarding, a refusal the lock explains closes the confirmation.
-	const handleDelete = React.useCallback(
-		() =>
-			deleteMutation.mutateAsync().catch((error: unknown) => {
-				if (!entryLock.reportWriteError(error, id)) throw error;
-			}),
-		[deleteMutation.mutateAsync, entryLock.reportWriteError, id],
-	);
+	const handleDelete = React.useCallback(async () => {
+		if (roomRef.current) await prepareRoomOperation();
+		return deleteMutation.mutateAsync().catch((error: unknown) => {
+			if (!entryLock.reportWriteError(error, id)) throw error;
+		});
+	}, [deleteMutation.mutateAsync, entryLock.reportWriteError, id, prepareRoomOperation]);
 	const handleTranslate = React.useCallback(
 		(locale: string) => translateMutation.mutate(locale),
 		[translateMutation.mutate],
@@ -2017,6 +2537,7 @@ function ContentEditPage() {
 	);
 	const handlePluginEntryRefresh = React.useCallback(async () => {
 		await Promise.all([
+			invalidateContentViews(queryClient, { collection, id }),
 			queryClient.invalidateQueries({ queryKey: ["entry-terms", collection, id] }),
 			queryClient.invalidateQueries({ queryKey: ["content", collection, id] }),
 			queryClient.invalidateQueries({ queryKey: ["revisions", collection, id] }),
@@ -2050,13 +2571,78 @@ function ContentEditPage() {
 		return <ErrorScreen error={itemError.message} />;
 	}
 
-	return (
+	if (!showsEditor) {
+		return <LoadingScreen />;
+	}
+
+	const readOnlyBanner = (
+		<Banner
+			title={t`Read-only`}
+			description={
+				rawItem && currentUser && entryEditAccess(currentUser, { ...rawItem, status: "draft" })
+					? t`Your role can edit your own entries only while they are drafts.`
+					: t`Your role can't edit this entry.`
+			}
+		/>
+	);
+	let readOnly = true;
+	let notice: React.ReactNode = null;
+	if (roomView) {
+		readOnly = !roomView.editable;
+		// Kept edits show on the save button, which these banners would contradict.
+		if (roomView.kept === null && coEditing.mode === "reloading") {
+			notice = (
+				<Banner
+					title={t`Reloading the admin`}
+					description={t`EmDash or this entry’s fields changed since you opened it.`}
+					action={
+						<Button
+							size="sm"
+							variant="secondary"
+							type="button"
+							onClick={() => window.location.reload()}
+						>
+							{t`Reload`}
+						</Button>
+					}
+				/>
+			);
+		} else if (roomView.kept === null && roomView.access === "view") {
+			notice = readOnlyBanner;
+		}
+	} else if (entryDeleted) {
+		notice = (
+			<Banner
+				variant="alert"
+				title={t`This entry was moved to Trash or deleted`}
+				description={t`It’s shown read-only. An entry in Trash can be restored from there.`}
+			/>
+		);
+	} else if (editAccess === null) {
+		notice = readOnlyBanner;
+	} else if (coEditingMode === "single-editor") {
+		readOnly = entryLock.readOnly || coEditing.mode !== "single-editor";
+		notice = (
+			<EntryLockNotice
+				state={entryLock.state}
+				onTakeOver={takeOverOrJoin}
+				onReadInstead={entryLock.readInstead}
+				isTakingOver={entryLock.isTakingOver || coEditing.mode !== "single-editor"}
+				takeOverFailed={entryLock.takeOverFailed}
+				canJoin={coEditing.mode !== "single-editor" || coEditing.canJoin}
+			/>
+		);
+	}
+
+	const editor = (
 		<ContentEditor
 			collection={collection}
 			collectionLabel={collectionConfig.labelSingular || collectionConfig.label}
 			item={item}
+			focusField={typeof searchParams.field === "string" ? searchParams.field : undefined}
+			onFieldFocused={handleFieldFocused}
 			timezone={manifest.timezone ?? "UTC"}
-			fields={collectionConfig.fields}
+			fields={(editorManifest?.collections[collection] ?? collectionConfig).fields}
 			isSaving={
 				updateMutation.isPending || publishedAtMutation.isPending || publishMutation.isPending
 			}
@@ -2106,32 +2692,24 @@ function ContentEditPage() {
 			availableBylinesLoaded={bylinesLoaded}
 			onQuickCreateByline={handleQuickCreateByline}
 			onQuickEditByline={handleQuickEditByline}
-			manifest={manifest ?? null}
+			manifest={editorManifest ?? null}
 			onEntryRefresh={handlePluginEntryRefresh}
-			readOnly={entryLock.readOnly || editAccess === null}
-			notice={
-				editAccess === null ? (
-					<Banner
-						title={t`Read-only`}
-						description={
-							rawItem &&
-							currentUser &&
-							entryEditAccess(currentUser, { ...rawItem, status: "draft" })
-								? t`Your role can edit your own entries only while they are drafts.`
-								: t`Your role can't edit this entry.`
-						}
-					/>
-				) : (
-					<EntryLockNotice
-						state={entryLock.state}
-						onTakeOver={entryLock.takeOver}
-						onReadInstead={entryLock.readInstead}
-						isTakingOver={entryLock.isTakingOver}
-						takeOverFailed={entryLock.takeOverFailed}
-					/>
-				)
-			}
+			readOnly={readOnly}
+			notice={notice}
+			room={roomView?.room ?? null}
+			roomResetting={resetting}
+			fieldsLoading={resetting || leavingRoom}
+			roomSync={roomSync}
+			unkeptEdits={unkeptEdits !== null}
+			roomBlocked={roomBlocked}
+			onSaveOutsideValues={saveOutsideValues}
+			onPreviewNotSaved={handlePreviewNotSaved}
+			readFormRef={readFormRef}
+			sendReferencesRef={sendReferencesRef}
 		/>
+	);
+	return (
+		<RoomOperationsContext.Provider value={roomOperations}>{editor}</RoomOperationsContext.Provider>
 	);
 }
 
@@ -2385,16 +2963,35 @@ function MediaPage() {
 		[currentUser],
 	);
 
+	const folderCrumb = folder !== undefined && (
+		<NestedBreadcrumb
+			label={
+				currentFolderQuery.data?.name ?? (currentFolderQuery.isLoading ? undefined : t`Folder`)
+			}
+		/>
+	);
+
 	if (currentFolderQuery.error && !missingFolder) {
-		return <ErrorScreen error={currentFolderQuery.error.message} />;
+		return (
+			<>
+				{folderCrumb}
+				<ErrorScreen error={currentFolderQuery.error.message} />
+			</>
+		);
 	}
 
 	if (error) {
-		return <ErrorScreen error={error.message} />;
+		return (
+			<>
+				{folderCrumb}
+				<ErrorScreen error={error.message} />
+			</>
+		);
 	}
 
 	return (
 		<MediaLibrary
+			focusHeadingOnMount={folderChanged}
 			items={isRecoveringPage ? [] : (data?.items ?? [])}
 			isLoading={paginationPending}
 			pagination={{
@@ -2615,7 +3212,10 @@ const mediaUsageSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/media-usage",
 	component: MediaUsageSettings,
-	staticData: { pageTitle: msg`Media Usage` },
+	staticData: {
+		pageTitle: msg`Media Usage`,
+		breadcrumb: { parent: "/settings", label: msg`Media usage tracking` },
+	},
 });
 
 // Security settings route
@@ -2623,7 +3223,10 @@ const securitySettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/security",
 	component: SecuritySettingsWrapper,
-	staticData: { pageTitle: msg`Security Settings` },
+	staticData: {
+		pageTitle: msg`Security Settings`,
+		breadcrumb: { parent: "/settings", label: msg`Security` },
+	},
 	validateSearch: (search: Record<string, unknown>): { addPasskey?: boolean } =>
 		search.addPasskey === true || search.addPasskey === 1 || search.addPasskey === "1"
 			? { addPasskey: true }
@@ -2644,7 +3247,10 @@ const allowedDomainsSettingsRoute = createRoute({
 			<AllowedDomainsSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Allowed Domains` },
+	staticData: {
+		pageTitle: msg`Allowed Domains`,
+		breadcrumb: { parent: "/settings", label: msg`Self-Signup Domains` },
+	},
 });
 
 // API tokens settings route
@@ -2656,7 +3262,7 @@ const apiTokenSettingsRoute = createRoute({
 			<ApiTokenSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`API Tokens` },
+	staticData: { pageTitle: msg`API Tokens`, breadcrumb: { parent: "/settings" } },
 });
 
 // Email settings route
@@ -2668,7 +3274,10 @@ const emailSettingsRoute = createRoute({
 			<EmailSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Email Settings` },
+	staticData: {
+		pageTitle: msg`Email Settings`,
+		breadcrumb: { parent: "/settings", label: msg`Email` },
+	},
 });
 
 // Backup settings route
@@ -2680,14 +3289,14 @@ const backupSettingsRoute = createRoute({
 			<BackupSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Backups` },
+	staticData: { pageTitle: msg`Backups`, breadcrumb: { parent: "/settings" } },
 });
 
 const transferSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/transfer",
 	component: TransferSettingsPage,
-	staticData: { pageTitle: msg`Transfer` },
+	staticData: { pageTitle: msg`Transfer`, breadcrumb: { parent: "/settings" } },
 	validateSearch: (search: Record<string, unknown>): { start?: "import" } =>
 		search.start === "import" ? { start: "import" } : {},
 });
@@ -2701,6 +3310,7 @@ const sidebarsSettingsRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/settings/sidebars",
 	component: SidebarsSettingsPage,
+	staticData: { breadcrumb: { parent: "/settings", label: msg`Sidebars` } },
 	validateSearch: (search: Record<string, unknown>): { tab?: "editor" } =>
 		search.tab === "editor" ? { tab: "editor" } : {},
 });
@@ -2719,7 +3329,10 @@ const generalSettingsRoute = createRoute({
 			<GeneralSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`General Settings` },
+	staticData: {
+		pageTitle: msg`General Settings`,
+		breadcrumb: { parent: "/settings", label: msg`General` },
+	},
 });
 
 // Social settings route
@@ -2731,7 +3344,10 @@ const socialSettingsRoute = createRoute({
 			<SocialSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Social Settings` },
+	staticData: {
+		pageTitle: msg`Social Settings`,
+		breadcrumb: { parent: "/settings", label: msg`Social Links` },
+	},
 });
 
 // SEO settings route
@@ -2743,7 +3359,10 @@ const seoSettingsRoute = createRoute({
 			<SeoSettings />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`SEO Settings` },
+	staticData: {
+		pageTitle: msg`SEO Settings`,
+		breadcrumb: { parent: "/settings", label: msg`SEO` },
+	},
 });
 
 // Plugin manager route
@@ -2766,7 +3385,7 @@ const registryBrowseRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/registry",
 	component: RegistryBrowsePage,
-	staticData: { pageTitle: msg`Plugin Registry` },
+	staticData: { pageTitle: msg`Plugin Registry`, breadcrumb: { label: msg`Registry` } },
 });
 
 function RegistryBrowsePage() {
@@ -2824,7 +3443,10 @@ const registryDetailRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/plugins/registry/$publisher/$slug",
 	component: RegistryDetailPage,
-	staticData: { pageTitle: msg`Plugin Details` },
+	staticData: {
+		pageTitle: msg`Plugin Details`,
+		breadcrumb: { parent: "/plugins/registry", dynamic: true },
+	},
 });
 
 function RegistryDetailPage() {
@@ -2899,7 +3521,7 @@ const menuEditorRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/menus/$name",
 	component: MenuEditor,
-	staticData: { pageTitle: msg`Edit menu` },
+	staticData: { pageTitle: msg`Edit menu`, breadcrumb: { parent: "/menus", dynamic: true } },
 	validateSearch: (search: Record<string, unknown>) => {
 		return {
 			locale: typeof search.locale === "string" ? search.locale : undefined,
@@ -2948,7 +3570,10 @@ const sectionEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/sections/$slug",
 	component: SectionEditor,
-	staticData: { pageTitle: msg`Edit section` },
+	staticData: {
+		pageTitle: msg`Edit section`,
+		breadcrumb: { parent: "/sections", dynamic: true },
+	},
 });
 
 // Users route
@@ -3098,7 +3723,7 @@ const contentTypesNewRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/new",
 	component: ContentTypesNewPage,
-	staticData: { pageTitle: msg`New content type` },
+	staticData: { pageTitle: msg`New content type`, breadcrumb: { parent: "/content-types" } },
 });
 
 function ContentTypesNewPage() {
@@ -3134,7 +3759,7 @@ const relationsListRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/relations",
 	component: RelationsListPage,
-	staticData: { pageTitle: msg`Relations` },
+	staticData: { pageTitle: msg`Relations`, breadcrumb: { parent: "/content-types" } },
 });
 
 function RelationsListPage() {
@@ -3195,7 +3820,10 @@ const contentTypesEditRoute = createRoute({
 	getParentRoute: () => adminLayoutRoute,
 	path: "/content-types/$slug",
 	component: ContentTypesEditPage,
-	staticData: { pageTitle: msg`Edit content type` },
+	staticData: {
+		pageTitle: msg`Edit content type`,
+		breadcrumb: { parent: "/content-types", dynamic: true },
+	},
 });
 
 function ContentTypesEditPage() {
@@ -3212,6 +3840,7 @@ function ContentTypesEditPage() {
 		queryKey: ["schema", "collections", slug],
 		queryFn: () => fetchCollection(slug),
 	});
+	useBreadcrumbLabel(collection?.label ?? (isLoading ? undefined : t`Edit content type`));
 
 	const updateMutation = useMutation({
 		mutationFn: async (input: UpdateCollectionInput) => {
@@ -3379,7 +4008,10 @@ const pluginSettingsRoute = createRoute({
 			<PluginSettingsPage />
 		</RequireAdmin>
 	),
-	staticData: { pageTitle: msg`Plugin Settings` },
+	staticData: {
+		pageTitle: msg`Plugin Settings`,
+		breadcrumb: { parent: "/plugins-manager", dynamic: true },
+	},
 });
 
 function PluginSettingsPage() {
@@ -3516,7 +4148,7 @@ function LoadingScreen() {
 	const { t } = useLingui();
 	return (
 		<div className="flex items-center justify-center min-h-screen">
-			<div className="text-center">
+			<div className="flex flex-col items-center text-center">
 				<Loader />
 				<p className="mt-4 text-kumo-subtle">{t`Loading configuration...`}</p>
 			</div>

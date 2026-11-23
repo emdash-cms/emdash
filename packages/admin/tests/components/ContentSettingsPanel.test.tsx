@@ -1,21 +1,29 @@
 import { Toasty } from "@cloudflare/kumo";
 import { i18n, setupI18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, fireEvent } from "@testing-library/react";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import type { ContentEditorProps } from "../../src/components/ContentEditor";
 import {
 	ContentSettingsPanel,
 	EditorActions,
+	PublishActions,
 	type ContentSettingsPanelProps,
 	type EditorActionsProps,
 } from "../../src/components/ContentSettingsPanel";
 import type { BlockSidebarPanel } from "../../src/components/PortableTextEditor";
-import type { AdminManifest, BylineSummary, ContentItem } from "../../src/lib/api";
+import {
+	fetchRevisionEditors,
+	type AdminManifest,
+	type BylineSummary,
+	type ContentItem,
+	type RevisionAuthor,
+} from "../../src/lib/api";
 import type { ContentEditorPanelContext } from "../../src/lib/content-editor-panels";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import {
@@ -62,6 +70,7 @@ vi.mock("../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchBylines: vi.fn(async () => ({ items: [], nextCursor: null })),
+		fetchRevisionEditors: vi.fn(),
 	};
 });
 
@@ -1880,6 +1889,12 @@ describe("EditorActions", () => {
 		await expect.element(unpublish).toBeInTheDocument();
 
 		await unpublish.click();
+		expect(props.onUnpublish).not.toHaveBeenCalled();
+		const confirm = screen
+			.getByRole("dialog", { name: "Unpublish Post?" })
+			.getByRole("button", { name: "Unpublish", exact: true });
+		await expect.element(confirm).toBeVisible();
+		confirm.element().click();
 		expect(props.onUnpublish).toHaveBeenCalled();
 	});
 
@@ -1952,4 +1967,200 @@ describe("EditorActions", () => {
 			.element(screen.getByRole("button", { name: "Save", exact: true }))
 			.toBeInTheDocument();
 	});
+
+	describe("who edited the entry, in the publish confirmation", () => {
+		const ana: RevisionAuthor = { id: "u-ana", name: "Ana Lima" };
+		const sam: RevisionAuthor = { id: "u-sam", name: "Sam Okafor" };
+
+		const withLiveVersion = () =>
+			makeBarProps({
+				isLive: true,
+				hasPendingChanges: true,
+				revisions: { collection: "posts", entryId: "item-1", liveRevisionId: "rev-2" },
+			});
+
+		const openConfirmation = async (screen: Awaited<ReturnType<typeof render>>) => {
+			await screen.getByRole("button", { name: "Publish changes", exact: true }).click();
+			const dialog = screen.getByRole("dialog", { name: "Publish changes?" });
+			await expect.element(dialog).toBeVisible();
+			return dialog;
+		};
+
+		it("names everyone who edited it since the live version, read when it opens", async () => {
+			vi.mocked(fetchRevisionEditors).mockResolvedValue([ana, sam]);
+			const screen = await render(<EditorActions {...withLiveVersion()} />);
+			await expect
+				.element(screen.getByRole("button", { name: "Publish changes", exact: true }))
+				.toBeVisible();
+			expect(fetchRevisionEditors).not.toHaveBeenCalled();
+
+			const dialog = await openConfirmation(screen);
+
+			await expect
+				.element(
+					dialog.getByText(`Edited by ${isolated("Ana Lima")} and ${isolated("Sam Okafor")}`, {
+						exact: true,
+					}),
+				)
+				.toBeVisible();
+			expect(fetchRevisionEditors).toHaveBeenCalledWith(
+				"posts",
+				"item-1",
+				expect.objectContaining({ since: "rev-2" }),
+			);
+		});
+
+		it("names no one from the list it read before, only from a read since it opened", async () => {
+			vi.mocked(fetchRevisionEditors).mockResolvedValueOnce([ana]);
+			// Keeps reads fresh for a minute, as the admin does.
+			const queryClient = new QueryClient({
+				defaultOptions: { queries: { staleTime: 60_000, retry: false } },
+			});
+			const screen = await render(<EditorActions {...withLiveVersion()} />, {
+				wrapper: ({ children }) => (
+					<QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+				),
+			});
+			let dialog = await openConfirmation(screen);
+			await expect.element(dialog.getByText("Edited by Ana Lima", { exact: true })).toBeVisible();
+			dialog.getByRole("button", { name: "Cancel" }).element().click();
+			await expect.element(dialog).not.toBeInTheDocument();
+
+			let respond!: (editors: RevisionAuthor[]) => void;
+			vi.mocked(fetchRevisionEditors).mockReturnValueOnce(
+				new Promise((resolve) => {
+					respond = resolve;
+				}),
+			);
+			dialog = await openConfirmation(screen);
+			await vi.waitFor(() => expect(fetchRevisionEditors).toHaveBeenCalledTimes(2));
+			expect(dialog.element().textContent).not.toContain("Edited by");
+
+			respond([sam, ana]);
+			await expect
+				.element(
+					dialog.getByText(`Edited by ${isolated("Sam Okafor")} and ${isolated("Ana Lima")}`, {
+						exact: true,
+					}),
+				)
+				.toBeVisible();
+		});
+
+		it("names no one, and still publishes, when the editors can't be read", async () => {
+			vi.mocked(fetchRevisionEditors).mockRejectedValue(
+				new Error("Failed to fetch revision editors"),
+			);
+			const props = withLiveVersion();
+			const screen = await render(<EditorActions {...props} />);
+			const dialog = await openConfirmation(screen);
+			await vi.waitFor(() => expect(fetchRevisionEditors).toHaveBeenCalled());
+			await new Promise((resolve) => setTimeout(resolve, 0));
+
+			expect(dialog.element().textContent).not.toContain("Edited by");
+			dialog.getByRole("button", { name: "Publish changes", exact: true }).element().click();
+			expect(props.onPublish).toHaveBeenCalledOnce();
+		});
+	});
 });
+
+describe("PublishActions", () => {
+	it("publishes with Enter from the Publish button", async () => {
+		const onPublish = vi.fn();
+		const screen = await render(
+			<PublishActions isLive={false} hasPendingChanges={false} onPublish={onPublish} />,
+		);
+		const opener = screen.getByRole("button", { name: "Publish now", exact: true });
+		await expect.element(opener).toBeVisible();
+		const trigger = opener.element();
+		trigger.focus();
+
+		await userEvent.keyboard("{Enter}");
+		const dialog = page.getByRole("dialog", { name: "Publish now?" });
+		await expect
+			.element(dialog.getByRole("button", { name: "Publish now", exact: true }))
+			.toHaveFocus();
+		expect(trigger.getAttribute("aria-expanded")).toBe("true");
+		await userEvent.keyboard("{Enter}");
+
+		expect(onPublish).toHaveBeenCalledOnce();
+		await expect.element(dialog).not.toBeInTheDocument();
+		await vi.waitFor(() => expect(document.activeElement).toBe(trigger));
+	});
+
+	it("opens on Cancel when publishing now would remove a schedule", async () => {
+		const onPublish = vi.fn();
+		const screen = await render(
+			<PublishActions
+				isLive={false}
+				hasPendingChanges={false}
+				publishingState="scheduled"
+				onPublish={onPublish}
+			/>,
+		);
+		const opener = screen.getByRole("button", { name: "Publish now", exact: true });
+		await expect.element(opener).toBeVisible();
+		opener.element().focus();
+
+		await userEvent.keyboard("{Enter}");
+		const dialog = page.getByRole("dialog", { name: "Publish now?" });
+		await expect.element(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+		await userEvent.keyboard("{Enter}");
+
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(onPublish).not.toHaveBeenCalled();
+	});
+
+	it("unpublishes with Enter from the Unpublish button", async () => {
+		const onUnpublish = vi.fn();
+		const screen = await render(
+			<PublishActions
+				collectionLabel="Post"
+				isLive
+				hasPendingChanges={false}
+				onUnpublish={onUnpublish}
+			/>,
+		);
+		const opener = screen.getByRole("button", { name: "Unpublish Post", exact: true });
+		await expect.element(opener).toBeVisible();
+		opener.element().focus();
+
+		await userEvent.keyboard("{Enter}");
+		const dialog = page.getByRole("dialog", { name: "Unpublish Post?" });
+		await expect
+			.element(dialog.getByRole("button", { name: "Unpublish", exact: true }))
+			.toHaveFocus();
+		expect(onUnpublish).not.toHaveBeenCalled();
+		await userEvent.keyboard("{Enter}");
+
+		expect(onUnpublish).toHaveBeenCalledOnce();
+		await expect.element(dialog).not.toBeInTheDocument();
+	});
+
+	it("doesn't unpublish when the dialog is cancelled", async () => {
+		const onUnpublish = vi.fn();
+		const screen = await render(
+			<PublishActions
+				collectionLabel="Post"
+				isLive
+				hasPendingChanges={false}
+				onUnpublish={onUnpublish}
+			/>,
+		);
+		const opener = screen.getByRole("button", { name: "Unpublish Post", exact: true });
+		await expect.element(opener).toBeVisible();
+		opener.element().focus();
+
+		await userEvent.keyboard("{Enter}");
+		const dialog = page.getByRole("dialog", { name: "Unpublish Post?" });
+		await expect.element(dialog).toBeVisible();
+		await userEvent.keyboard("{Escape}");
+
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(onUnpublish).not.toHaveBeenCalled();
+	});
+});
+
+/** A name in a sentence that names several people, isolated from the text around it. */
+function isolated(name: string): string {
+	return `\u2068${name}\u2069`;
+}

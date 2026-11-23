@@ -78,6 +78,7 @@ The content routes store two statuses from a WordPress import:
 | `pending` | `draft` |
 | `private` | `draft` |
 | `future`, `trash`, or another value | `draft` |
+| Any status on a password-protected post (WXR import) | `draft` |
 
 The importer does not preserve WordPress pending, private, scheduled, or trash semantics. Review those entries before publishing them in EmDash.
 
@@ -162,7 +163,7 @@ Its `data` value contains `success`, `collectionsCreated`, `fieldsCreated`, and 
 - `file`: the WXR file.
 - `config`: a JSON string containing `postTypeMappings`, `skipExisting`, optional `authorMappings`, optional `importSections`, and an optional import-wide `locale`.
 
-Its `data` value contains `success`, `imported`, `skipped`, `errors`, `byCollection`, and optional section and taxonomy summaries.
+Its `data` value contains `success`, `imported`, `skipped`, `errors`, `byCollection`, and optional section and taxonomy summaries. When the request imports password-protected posts, `data` also contains `passwordProtected`, which lists each one as `{ id, collection, title }`.
 
 ### Copy media
 

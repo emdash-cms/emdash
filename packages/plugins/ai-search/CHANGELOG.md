@@ -1,5 +1,23 @@
 # @emdash-cms/plugin-ai-search
 
+## 0.1.2
+
+### Patch Changes
+
+- [#4940](https://github.com/emdash-cms/emdash/pull/4940) [`a570e5d`](https://github.com/emdash-cms/emdash/commit/a570e5d8b6bcac947483ba01ffa61fbb8c34ebc5) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates `@cloudflare/kumo` to 2.19.0. These packages now require exactly `@cloudflare/kumo@2.19.0`, so sites and plugins that install Kumo themselves should upgrade to that version to match the admin's prebuilt styles. Update `emdash` and the Forms, Field Kit, AI Moderation and AI Search plugins together, since their earlier releases require Kumo 2.15.0.
+  
+  In the admin, date pickers use Kumo's refreshed day and month buttons, and button labels are vertically centred.
+  
+  Plugin admin pages built with Kumo may need changes for `Radio.Group` tests, `DatePicker` style overrides and `Dialog` maximum heights. [Upgrade to Kumo 2.19](https://docs.emdashcms.com/plugins/creating-native-plugins/distributing/#upgrade-to-kumo-219) describes each change, and [Match the admin's Kumo version](https://docs.emdashcms.com/plugins/creating-native-plugins/distributing/#match-the-admins-kumo-version) explains how a plugin pins Kumo.
+
+## 0.1.1
+
+### Patch Changes
+
+- [#4308](https://github.com/emdash-cms/emdash/pull/4308) [`4df65eb`](https://github.com/emdash-cms/emdash/commit/4df65eba3e4dd2f990c92f65a4748117182949d5) Thanks [@khoinguyenpham04](https://github.com/khoinguyenpham04)! - Updates `@cloudflare/kumo` to 2.15.0. These packages now require exactly `@cloudflare/kumo@2.15.0`, so sites and plugins that install Kumo themselves should upgrade to that version to match the admin's prebuilt styles. Update `emdash` and the Forms, Field Kit, AI Moderation and AI Search plugins together: their earlier releases require Kumo 2.6.0, and these plugin releases need an `emdash` release with this change. Updating only one side leaves Kumo 2.15 next to an admin built for 2.6.
+  
+  In the admin, Select menus now open below their field instead of over it, and text sized `text-base` or `text-lg` has a taller line (1.5), so labels and headings take slightly more height. Kumo's `DropdownMenu` now spaces item icons itself, so plugin admin pages should remove any margin classes such as `me-2` from the elements they pass as an item's `icon`.
+
 ## 0.1.0
 
 ### Minor Changes

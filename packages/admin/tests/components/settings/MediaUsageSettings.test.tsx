@@ -31,10 +31,6 @@ vi.mock("../../../src/lib/api/current-user.js", () => ({
 	useCurrentUser: currentUserMock,
 }));
 
-vi.mock("../../../src/components/settings/BackToSettingsLink.js", () => ({
-	BackToSettingsLink: () => <a href="/settings">Back to Settings</a>,
-}));
-
 const {
 	MEDIA_USAGE_ACTIVATION_QUERY_KEY,
 	MEDIA_USAGE_PROGRESS_QUERY_KEY,

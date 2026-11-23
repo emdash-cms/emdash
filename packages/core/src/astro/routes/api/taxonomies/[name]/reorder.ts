@@ -11,7 +11,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleTermReorder } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { reorderTermsBody } from "#api/schemas.js";
@@ -25,8 +25,9 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { name } = params;
 	if (!name) return apiError("VALIDATION_ERROR", "Taxonomy name required", 400);
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "taxonomies:manage");
 	if (denied) return denied;

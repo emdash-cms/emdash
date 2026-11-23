@@ -19,7 +19,7 @@ import {
 } from "../lib/api";
 import { getPluginBlocks } from "../lib/pluginBlocks";
 import { slugify } from "../lib/utils";
-import { ArrowPrev } from "./ArrowIcons.js";
+import { useBreadcrumbLabel } from "./AdminBreadcrumbs.js";
 import { GalleryDetailPanel } from "./editor/GalleryDetailPanel";
 import type { GalleryAttributes } from "./editor/GalleryNode";
 import { ImageDetailPanel, type ImageAttributes } from "./editor/ImageDetailPanel";
@@ -29,7 +29,6 @@ import {
 	type BlockSidebarPanel,
 	type PluginBlockDef,
 } from "./PortableTextEditor";
-import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
 
 export function SectionEditor() {
@@ -48,6 +47,7 @@ export function SectionEditor() {
 		queryFn: () => fetchSection(slug),
 		staleTime: Infinity,
 	});
+	useBreadcrumbLabel(section?.title ?? (isLoading ? undefined : t`Edit section`));
 
 	const { data: manifest } = useQuery({
 		queryKey: ["manifest"],
@@ -86,16 +86,7 @@ export function SectionEditor() {
 	if (error || !section) {
 		return (
 			<div className="space-y-6">
-				<div className="flex items-center gap-4">
-					<RouterLinkButton
-						to="/sections"
-						aria-label={t`Back to sections`}
-						variant="ghost"
-						shape="square"
-						icon={<ArrowPrev />}
-					/>
-					<h1 className="text-2xl font-semibold leading-tight">{t`Section Not Found`}</h1>
-				</div>
+				<h1 className="text-2xl font-semibold leading-tight">{t`Section Not Found`}</h1>
 				<div className="rounded-lg border bg-kumo-base p-6">
 					<p className="text-kumo-subtle">
 						{error ? error.message : t`Section "${slug}" could not be found.`}
@@ -189,15 +180,6 @@ function SectionEditorForm({ section, isSaving, pluginBlocks, onSave }: SectionE
 	return (
 		<div className="space-y-6">
 			<EditorHeader
-				leading={
-					<RouterLinkButton
-						to="/sections"
-						aria-label={t`Back to sections`}
-						variant="ghost"
-						shape="square"
-						icon={<ArrowPrev />}
-					/>
-				}
 				actions={<SaveButton isSaving={isSaving} isDirty={isDirty} onClick={handleSave} />}
 			>
 				<h1 className="truncate text-2xl font-semibold">{section.title}</h1>

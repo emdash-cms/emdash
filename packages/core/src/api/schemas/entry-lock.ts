@@ -25,10 +25,15 @@ export const entryLockHolderSchema = z
 export const entryLockStatusSchema = z
 	.object({
 		enabled: z.boolean().meta({
-			description: "Whether the collection takes edit locks at all",
+			description:
+				"Whether the collection takes edit locks at all. Always true while a room is open",
 		}),
 		holder: entryLockHolderSchema.nullable(),
 		heldByCaller: z.boolean(),
+		room: z.boolean().meta({
+			description:
+				"Whether a co-editing room holds the entry. The room then stands as the holder, and taking the lock deletes every user lock on the entry instead of granting one.",
+		}),
 	})
 	.meta({ id: "EntryLockStatus" });
 

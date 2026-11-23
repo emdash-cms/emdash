@@ -13,7 +13,7 @@
 
 import type { APIRoute } from "astro";
 
-import { apiError, apiSuccess, handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { handleReactionCounts, handleReactionToggle } from "#api/handlers/comment-reactions.js";
 import { hashIp } from "#api/handlers/comments.js";
 import { isParseError, parseBody } from "#api/parse.js";
@@ -31,8 +31,9 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 		return apiError("VALIDATION_ERROR", "Collection and content ID required", 400);
 	}
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	try {
 		// Salted voter hash from request IP (same primitive as comment ip_hash).
@@ -63,8 +64,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		return apiError("VALIDATION_ERROR", "Collection and content ID required", 400);
 	}
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	try {
 		const body = await parseBody(request, createReactionBody);

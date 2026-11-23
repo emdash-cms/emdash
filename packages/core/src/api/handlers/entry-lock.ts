@@ -3,6 +3,7 @@ import { ulid } from "ulidx";
 
 import { EntryLockRepository, type EntryLock } from "../../database/repositories/entry-locks.js";
 import type { Database } from "../../database/types.js";
+import { roomId, type RoomHost } from "../../rooms/types.js";
 import { ErrorCode } from "../errors.js";
 import type { ApiResult } from "../types.js";
 
@@ -23,12 +24,19 @@ export interface EntryLockHolder {
 }
 
 export interface EntryLockStatus {
-	/** Whether the collection takes edit locks at all. */
+	/** Whether the collection takes edit locks at all. Always true while a room is open. */
 	enabled: boolean;
-	/** The live lease, whoever holds it. */
+	/** The live lease, whoever holds it. While a room is open, one that stands for the room. */
 	holder: EntryLockHolder | null;
 	/** Whether `holder` is the caller. */
 	heldByCaller: boolean;
+	/** Whether a co-editing room holds the entry, which then grants no lock. */
+	room: boolean;
+}
+
+/** The rooms that can hold an entry instead of a lock, where co-editing runs. */
+export interface EntryLockOptions {
+	rooms?: Pick<RoomHost, "isOpen"> | null;
 }
 
 export interface EntryLockRefusal {
@@ -48,6 +56,43 @@ function toHolder(lock: EntryLock): EntryLockHolder {
 
 function holderLabel(holder: EntryLockHolder): string {
 	return holder.userName?.trim() ? holder.userName : "Another editor";
+}
+
+/** The refusal a write gets while `lock` holds the entry. */
+export function entryLockedBy(lock: EntryLock): EntryLockRefusal {
+	const details = toHolder(lock);
+	return {
+		code: ErrorCode.ENTRY_LOCKED,
+		message: `${holderLabel(details)} is holding this entry`,
+		details,
+	};
+}
+
+/**
+ * An open room reports a holder of its own, so single-editor tabs, which treat any holder as
+ * taken, open read-only, and keep their heartbeat because locking reads as enabled.
+ */
+function roomStatus(): EntryLockStatus {
+	const now = Date.now();
+	return {
+		enabled: true,
+		holder: {
+			userId: "",
+			userName: null,
+			acquiredAt: new Date(now).toISOString(),
+			expiresAt: new Date(now + ENTRY_LOCK_LEASE_MS).toISOString(),
+		},
+		heldByCaller: false,
+		room: true,
+	};
+}
+
+async function isRoomOpen(
+	options: EntryLockOptions,
+	collection: string,
+	entryId: string,
+): Promise<boolean> {
+	return (await options.rooms?.isOpen(roomId({ collection, id: entryId }))) ?? false;
 }
 
 async function isLockingEnabled(db: Kysely<Database>, collection: string): Promise<boolean | null> {
@@ -72,20 +117,28 @@ function collectionNotFound(collection: string): ApiResult<never> {
 
 /**
  * Takes the entry's lock for `userId`, or reports who is holding it. A
- * take-over is only granted when the caller asks for one.
+ * take-over is only granted when the caller asks for one. While a room is
+ * open, deletes every lock on the entry and grants none.
  */
 export async function handleEntryLockAcquire(
 	db: Kysely<Database>,
 	collection: string,
 	entryId: string,
 	userId: string,
-	options: { takeover?: boolean; token?: string } = {},
+	options: EntryLockOptions & { takeover?: boolean; token?: string } = {},
 ): Promise<ApiResult<EntryLockStatus>> {
 	try {
+		if (await isRoomOpen(options, collection, entryId)) {
+			await new EntryLockRepository(db).releaseEntry(collection, entryId);
+			return { success: true, data: roomStatus() };
+		}
 		const enabled = await isLockingEnabled(db, collection);
 		if (enabled === null) return collectionNotFound(collection);
 		if (!enabled) {
-			return { success: true, data: { enabled: false, holder: null, heldByCaller: false } };
+			return {
+				success: true,
+				data: { enabled: false, holder: null, heldByCaller: false, room: false },
+			};
 		}
 
 		const claim = await new EntryLockRepository(db).acquire({
@@ -103,6 +156,7 @@ export async function handleEntryLockAcquire(
 				enabled: true,
 				holder: toHolder(claim.lock),
 				heldByCaller: claim.outcome === "acquired",
+				room: false,
 			},
 		};
 	} catch (error) {
@@ -119,12 +173,19 @@ export async function handleEntryLockRead(
 	collection: string,
 	entryId: string,
 	userId: string,
+	options: EntryLockOptions = {},
 ): Promise<ApiResult<EntryLockStatus>> {
 	try {
+		if (await isRoomOpen(options, collection, entryId)) {
+			return { success: true, data: roomStatus() };
+		}
 		const enabled = await isLockingEnabled(db, collection);
 		if (enabled === null) return collectionNotFound(collection);
 		if (!enabled) {
-			return { success: true, data: { enabled: false, holder: null, heldByCaller: false } };
+			return {
+				success: true,
+				data: { enabled: false, holder: null, heldByCaller: false, room: false },
+			};
 		}
 
 		const lock = await new EntryLockRepository(db).findLive(collection, entryId);
@@ -134,6 +195,7 @@ export async function handleEntryLockRead(
 				enabled: true,
 				holder: lock ? toHolder(lock) : null,
 				heldByCaller: lock?.userId === userId,
+				room: false,
 			},
 		};
 	} catch (error) {
@@ -195,12 +257,5 @@ export async function claimEntryLockForWrite(
 	if (heldByCaller) return null;
 
 	const holder = await repo.findEnforceable(collection, entryId);
-	if (!holder) return null;
-
-	const details = toHolder(holder);
-	return {
-		code: ErrorCode.ENTRY_LOCKED,
-		message: `${holderLabel(details)} is holding this entry`,
-		details,
-	};
+	return holder ? entryLockedBy(holder) : null;
 }

@@ -14,6 +14,7 @@ import { ulid } from "ulidx";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Database } from "../../../src/database/types.js";
+import { setSiteSettings } from "../../../src/settings/index.js";
 import {
 	connectMcpHarness,
 	extractJson,
@@ -310,6 +311,22 @@ describe("settings_update", () => {
 		expect((data.seo as { titleSeparator?: string }).titleSeparator).toBe(" | ");
 	});
 
+	it("stores seo.robotsTxt and seo.disallowAiTraining when the site has no robots.txt override", async () => {
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+		const result = await harness.client.callTool({
+			name: "settings_update",
+			arguments: {
+				seo: { robotsTxt: "User-agent: *\nDisallow: /nowhere\n", disallowAiTraining: true },
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const data = extractJson<SiteSettingsResponse>(result);
+		expect(data.seo).toEqual({
+			robotsTxt: "User-agent: *\nDisallow: /nowhere\n",
+			disallowAiTraining: true,
+		});
+	});
+
 	it("removes media references while preserving sibling SEO settings", async () => {
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		await harness.client.callTool({
@@ -386,5 +403,87 @@ describe("settings_update", () => {
 			arguments: { title: "x" },
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
+	});
+});
+
+describe("settings_update when src/pages/robots.txt overrides the injected route", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			runtimeOptions: { config: { robotsTxtOverridden: true } },
+		});
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	async function storedSettings() {
+		const result = await harness.client.callTool({ name: "settings_get", arguments: {} });
+		return extractJson<SiteSettingsResponse>(result);
+	}
+
+	it.each([
+		{ field: "robotsTxt", seo: { robotsTxt: "User-agent: *\nDisallow: /nowhere\n" } },
+		{ field: "disallowAiTraining", seo: { disallowAiTraining: true } },
+	])("rejects seo.$field without storing it", async ({ seo }) => {
+		const result = await harness.client.callTool({
+			name: "settings_update",
+			arguments: { title: "Unchanged", seo },
+		});
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toContain("ROBOTS_TXT_OVERRIDDEN");
+
+		const settings = await storedSettings();
+		expect(settings.title).toBeUndefined();
+		expect(settings.seo).toBeUndefined();
+	});
+
+	it("accepts the stored values sent back with another SEO change", async () => {
+		const robotsTxt = "User-agent: *\nDisallow: /nowhere\n";
+		await setSiteSettings({ seo: { robotsTxt, disallowAiTraining: true } }, db);
+
+		const result = await harness.client.callTool({
+			name: "settings_update",
+			arguments: { seo: { robotsTxt, disallowAiTraining: true, titleSeparator: " | " } },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		const { seo } = await storedSettings();
+		expect(seo?.titleSeparator).toBe(" | ");
+	});
+
+	it("rejects a changed robotsTxt even when one is already stored", async () => {
+		await setSiteSettings({ seo: { robotsTxt: "User-agent: *\n" } }, db);
+
+		const result = await harness.client.callTool({
+			name: "settings_update",
+			arguments: { seo: { robotsTxt: "User-agent: *\nDisallow: /\n" } },
+		});
+		expect(extractText(result)).toContain("ROBOTS_TXT_OVERRIDDEN");
+		const { seo } = await storedSettings();
+		expect(seo?.robotsTxt).toBe("User-agent: *\n");
+	});
+
+	it("still clears both fields and updates other SEO settings", async () => {
+		await setSiteSettings({ seo: { robotsTxt: "User-agent: *\n", disallowAiTraining: true } }, db);
+
+		const result = await harness.client.callTool({
+			name: "settings_update",
+			arguments: { seo: { robotsTxt: "", disallowAiTraining: false, titleSeparator: " | " } },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		const { seo } = await storedSettings();
+		expect(seo?.robotsTxt).toBeFalsy();
+		expect(seo?.disallowAiTraining).toBe(false);
+		expect(seo?.titleSeparator).toBe(" | ");
 	});
 });
