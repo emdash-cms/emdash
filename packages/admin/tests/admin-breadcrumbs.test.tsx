@@ -365,7 +365,7 @@ describe("admin breadcrumbs", () => {
 
 		it("forgets a folder's scroll position when Media is left before the library loads", async () => {
 			const tall = document.createElement("style");
-			// Padding on main would make main itself taller than its column instead of scrollable.
+			// Makes main's content taller than its column so main scrolls.
 			tall.textContent = 'main::after { content: ""; display: block; block-size: 2000px; }';
 			document.head.append(tall);
 			try {
