@@ -1912,10 +1912,14 @@ msgid "admin"
 msgstr "admin"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "Admin"
+
+#: packages/admin/src/components/Sidebar.tsx:461
+msgctxt "navigation group"
+msgid "Admin"
+msgstr ""
 
 #: packages/admin/src/components/Sidebar.tsx:742
 msgid "Admin navigation"
@@ -2526,10 +2530,13 @@ msgstr "Autoriserer..."
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:769
 #: packages/admin/src/components/RelationForm.tsx:386
-#: packages/admin/src/components/settings/transfer/ImportReview.tsx:306
-#: packages/admin/src/components/settings/transfer/labels.ts:8
 msgid "Authors"
 msgstr "Forfattere"
+
+#: packages/admin/src/components/settings/transfer/labels.ts:8
+msgctxt "site transfer record kind: user accounts"
+msgid "Authors"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:170
 msgid "Authors will be assigned to users on this site"
@@ -13556,13 +13563,17 @@ msgstr "Sikkerhedsindstillinger"
 msgid "See where this file is used."
 msgstr "Se, hvor denne fil bruges."
 
-#: packages/admin/src/components/BylineFieldEditor.tsx:59
-#: packages/admin/src/components/FieldEditor.tsx:693
-#: packages/admin/src/components/FieldEditor.tsx:1706
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:172
 msgid "Select"
 msgstr "Vælg"
+
+#: packages/admin/src/components/BylineFieldEditor.tsx:59
+#: packages/admin/src/components/FieldEditor.tsx:693
+#: packages/admin/src/components/FieldEditor.tsx:1706
+msgctxt "field type"
+msgid "Select"
+msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
 #: packages/admin/src/components/ContentEditor.tsx:5145

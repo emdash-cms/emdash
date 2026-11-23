@@ -1912,8 +1912,12 @@ msgid "admin"
 msgstr ""
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/users/roleDefinitions.ts:42
+msgid "Admin"
+msgstr ""
+
+#: packages/admin/src/components/Sidebar.tsx:461
+msgctxt "navigation group"
 msgid "Admin"
 msgstr ""
 
@@ -2526,8 +2530,11 @@ msgstr ""
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:769
 #: packages/admin/src/components/RelationForm.tsx:386
-#: packages/admin/src/components/settings/transfer/ImportReview.tsx:306
+msgid "Authors"
+msgstr ""
+
 #: packages/admin/src/components/settings/transfer/labels.ts:8
+msgctxt "site transfer record kind: user accounts"
 msgid "Authors"
 msgstr ""
 
@@ -13550,11 +13557,15 @@ msgstr ""
 msgid "See where this file is used."
 msgstr ""
 
+#: packages/admin/src/components/MediaPickerModal.tsx:891
+#: packages/admin/src/components/Settings.tsx:172
+msgid "Select"
+msgstr ""
+
 #: packages/admin/src/components/BylineFieldEditor.tsx:59
 #: packages/admin/src/components/FieldEditor.tsx:693
 #: packages/admin/src/components/FieldEditor.tsx:1706
-#: packages/admin/src/components/MediaPickerModal.tsx:891
-#: packages/admin/src/components/Settings.tsx:172
+msgctxt "field type"
 msgid "Select"
 msgstr ""
 
