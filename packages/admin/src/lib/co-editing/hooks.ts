@@ -94,7 +94,7 @@ export function useRoomPeers(room: RoomEditing | null, field?: string): readonly
 	return React.useSyncExternalStore(room?.presence.subscribe ?? subscribeToNothing, read);
 }
 
-/** Tells the room which user this tab belongs to, before the first paint, so colors never shift. */
+/** Tells the room which user this tab belongs to, before the first paint, so its other tabs never show. */
 export function useRoomSelf(room: RoomEditing | null, userId: string | null): void {
 	React.useLayoutEffect(() => {
 		room?.presence.setSelf(userId);
