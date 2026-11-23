@@ -2618,7 +2618,7 @@ msgstr "Назад"
 
 #: packages/admin/src/components/ContentEditor.tsx:2761
 msgid "Back to {collectionLabel} list"
-msgstr "Назад до списку"
+msgstr "Назад до списку: {collectionLabel}"
 
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:209
 msgid "Back to editing"
