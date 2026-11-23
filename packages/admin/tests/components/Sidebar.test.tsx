@@ -29,8 +29,10 @@ import {
 	Gear,
 	Trophy,
 	ClockCounterClockwise,
+	Folders,
 	IdentificationCard,
 	SquaresFour,
+	Tag,
 } from "@phosphor-icons/react";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -410,6 +412,27 @@ describe("buildNavGroups", () => {
 			"/taxonomies/genre?locale=de",
 		);
 		expect(genre?.kind === "item" && genre.item.id).toBe("/taxonomies/genre");
+	});
+
+	it("picks each taxonomy's icon from whether it is hierarchical, not from its name", () => {
+		const groups = build({
+			manifest: {
+				collections: posts,
+				taxonomies: [
+					{ name: "topics", label: "Topics", hierarchical: false },
+					{ name: "regions", label: "Regions", hierarchical: true },
+					{ name: "tag", label: "Tags", hierarchical: true },
+				],
+			},
+		});
+		const icons = new Map(
+			group(groups, "manage")?.entries.flatMap((entry) =>
+				entry.kind === "item" ? [[entry.item.label, entry.item.icon] as const] : [],
+			),
+		);
+		expect(icons.get("Topics")).toBe(Tag);
+		expect(icons.get("Regions")).toBe(Folders);
+		expect(icons.get("Tags")).toBe(Folders);
 	});
 
 	it("gives a root plugin page an ID without the trailing slash", () => {

@@ -3,6 +3,7 @@ import * as React from "react";
 
 import { useRoomPeers } from "../../lib/co-editing/hooks.js";
 import type { RoomEditing } from "../../lib/co-editing/types.js";
+import { userColor, userColorProps } from "../../lib/user-color.js";
 import { cn } from "../../lib/utils.js";
 import { useAfterFirstPaint, useLeavingItems } from "./presence-motion.js";
 
@@ -33,7 +34,7 @@ export function FieldPresence({ room, field }: { room: RoomEditing; field: strin
 				<span
 					key={user.id}
 					dir="auto"
-					data-author-color={user.color}
+					{...userColorProps(userColor(user.id))}
 					className={cn(
 						"emdash-presence-pill min-w-0 truncate",
 						animate && ENTER,

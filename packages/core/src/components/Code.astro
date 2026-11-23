@@ -22,11 +22,12 @@ if (!node?.code) {
 
 const { code, language, filename } = node;
 const languageClass = language ? `language-${language}` : "";
+const label = filename || (language ? `Code: ${language}` : "Code");
 ---
 
 <div class="emdash-code">
 	{filename && <div class="emdash-code-filename">{filename}</div>}
-	<pre class={languageClass}><code class={languageClass}>{code}</code></pre>
+	<pre class={languageClass} tabindex="0" role="region" aria-label={label}><code class={languageClass}>{code}</code></pre>
 </div>
 
 <style>
@@ -47,6 +48,10 @@ const languageClass = language ? `language-${language}` : "";
 		background: #1e1e1e;
 		border-radius: 0.5rem;
 		overflow-x: auto;
+	}
+	.emdash-code pre:focus-visible {
+		outline: 2px solid #767676;
+		outline-offset: -4px;
 	}
 	.emdash-code-filename + pre {
 		border-radius: 0 0 0.5rem 0.5rem;

@@ -38,6 +38,8 @@ function withTestDeadline<T>(promise: Promise<T>, ms = 200): Promise<T> {
 	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }
 
+const globalState = globalThis as Record<symbol, unknown>;
+
 /** A simple in-memory backend with call spies, isolated per test. */
 function spyBackend(): ObjectCacheBackend & { store: Map<string, string> } {
 	const store = new Map<string, string>();
@@ -503,6 +505,36 @@ describe("cachedQuery", () => {
 		expect(load.mock.calls.length).toBe(calls);
 	});
 
+	it("falls back to the last known epoch when a shared read rejects", async () => {
+		const backend = spyBackend();
+		__setObjectCacheBackendForTests(backend, { revalidate: 1000 });
+		backend.store.set("em:posts:k", encode({ e: [7], v: { n: 7 } }));
+		const now = Date.now();
+		const epochCache = globalState[Symbol.for("emdash:object-cache:epochs")] as Map<
+			string,
+			{ value: number; at: number; promise: Promise<number>; promiseAt: number }
+		>;
+		epochCache.set("posts", {
+			value: 7,
+			at: 0,
+			promise: Promise.reject(new Error("request ended")),
+			promiseAt: now,
+		});
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		await expect(cachedQuery({ namespace: "posts", key: "k", load })).resolves.toEqual({ n: 7 });
+		expect(load).not.toHaveBeenCalled();
+	});
+
+	it("falls back when a shared backend initialization was rejected by its owner", async () => {
+		__setObjectCacheBackendForTests(null, { timeout: 20 });
+		__setObjectCacheBackendInitForTests(Promise.reject(new Error("request ended")), Date.now());
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		await expect(cachedQuery({ namespace: "t", key: "k", load })).resolves.toEqual({ n: 1 });
+		expect(load).toHaveBeenCalledTimes(1);
+	});
+
 	it("reclaims a dead backend initialization after its deadline", async () => {
 		__setObjectCacheBackendForTests(null, { timeout: 20 });
 		vi.spyOn(Date, "now").mockReturnValue(10_000);
@@ -829,6 +861,21 @@ describe("last content write stamp", () => {
 		__setObjectCacheBackendForTests(null);
 	});
 
+	it("falls back when a shared last-content-write read was rejected by its owner", async () => {
+		const state = globalState[Symbol.for("emdash:object-cache:last-content-write")] as {
+			value: number;
+			at: number;
+			promise?: Promise<number>;
+			promiseAt?: number;
+		};
+		state.value = 11;
+		state.at = 0;
+		state.promise = Promise.reject(new Error("request ended"));
+		state.promiseAt = Date.now();
+
+		await expect(getLastContentWriteAt()).resolves.toBe(11);
+	});
+
 	it("stamps lastContentWriteAt when invalidating a content: namespace", async () => {
 		expect(await getLastContentWriteAt()).toBe(0);
 		const before = Date.now();
@@ -921,6 +968,36 @@ describe("change marker", () => {
 			.mock.calls.map(([key]) => key)
 			.filter((key) => key.includes(":epoch:") || key === MARKER);
 	}
+
+	it("falls back when a shared change-marker read was rejected by its owner", async () => {
+		const now = clock;
+		const epochCache = globalState[Symbol.for("emdash:object-cache:epochs")] as Map<
+			string,
+			{ value: number; at: number; readAt: number; token: string }
+		>;
+		epochCache.set("content:v2:listings", {
+			value: 4,
+			at: now - 2_000,
+			readAt: now,
+			token: "owner-token",
+		});
+		const markerState = globalState[Symbol.for("emdash:object-cache:change-marker")] as {
+			marker: { token: string; writtenAt: number } | null;
+			at: number;
+			failed: boolean;
+			promise?: Promise<unknown>;
+			promiseAt?: number;
+		};
+		markerState.marker = { token: "owner-token", writtenAt: now - SETTLE_MS };
+		markerState.promise = Promise.reject(new Error("request ended"));
+		markerState.promiseAt = now;
+
+		const load = vi.fn(() => Promise.resolve({ n: 1 }));
+		await expect(
+			cachedQuery({ namespace: contentNamespaces("listings"), key: "entry", load }),
+		).resolves.toEqual({ n: 1 });
+		expect(load).toHaveBeenCalledTimes(1);
+	});
 
 	async function render(load: () => Promise<unknown>): Promise<void> {
 		await cachedQuery({

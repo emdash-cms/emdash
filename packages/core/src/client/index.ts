@@ -191,6 +191,7 @@ export interface MediaUsageOccurrenceDetail {
 		| "file_field"
 		| "portable_text_image"
 		| "portable_text_video"
+		| "link"
 		| "unknown";
 }
 
@@ -1643,9 +1644,11 @@ export class EmDashClient {
 		let code = "UNKNOWN_ERROR";
 		let message = `HTTP ${response.status}`;
 		let details: Record<string, unknown> | undefined;
+		let text = "";
 
 		try {
-			const json = (await response.json()) as {
+			text = await response.text();
+			const json = JSON.parse(text) as {
 				error?: { code?: string; message?: string; details?: Record<string, unknown> };
 			};
 			if (json.error) {
@@ -1654,8 +1657,7 @@ export class EmDashClient {
 				details = json.error.details;
 			}
 		} catch {
-			// Response body isn't JSON — use status text
-			message = response.statusText || message;
+			message = text.trim().slice(0, 500) || response.statusText || message;
 		}
 
 		throw new EmDashApiError(response.status, code, message, details);

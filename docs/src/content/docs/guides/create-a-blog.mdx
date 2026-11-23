@@ -162,8 +162,8 @@ if (!slug) return Astro.rewrite("/404");
 const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
 
 if (error) return new Response("Unable to load post", { status: 500 });
-if (!post) return Astro.rewrite("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+if (!post) return Astro.rewrite("/404");
 ---
 
 <article>

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import "../../dist/styles.css";
 import { FieldEditor } from "../../src/components/FieldEditor.js";
 import type { BlockType, CreateFieldInput } from "../../src/lib/api/schema.js";
 import { render } from "../utils/render.js";
@@ -78,5 +79,43 @@ describe("FieldEditor blocks configuration", () => {
 				validation: { allowedTypes: ["hero"], maxItems: 20 },
 			}),
 		);
+	});
+
+	it("keeps a block type's card the same height when it's ticked", async () => {
+		const screen = await render(<FieldEditor open onOpenChange={vi.fn()} onSave={vi.fn()} />);
+		screen
+			.getByRole("button", { name: /^Blocks/ })
+			.element()
+			.click();
+		const checkbox = screen.getByRole("checkbox", { name: "Hero" });
+		await expect.element(checkbox).toBeInTheDocument();
+		const card = screen
+			.getByRole("group", { name: "Allowed block types" })
+			.element().firstElementChild!;
+		const unticked = card.getBoundingClientRect().height;
+		expect(screen.getByRole("button", { name: "Move Hero up" }).query()).toBeNull();
+
+		checkbox.element().click();
+		await expect.element(screen.getByRole("button", { name: "Move Hero up" })).toBeVisible();
+		expect(card.getBoundingClientRect().height).toBe(unticked);
+	});
+
+	it("starts a block type's version line where its name starts", async () => {
+		const screen = await render(<FieldEditor open onOpenChange={vi.fn()} onSave={vi.fn()} />);
+		screen
+			.getByRole("button", { name: /^Blocks/ })
+			.element()
+			.click();
+		const startOfText = (element: Element) => {
+			const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT).nextNode()!;
+			const range = document.createRange();
+			range.selectNodeContents(text);
+			return range.getBoundingClientRect().left;
+		};
+
+		const name = screen.getByText("Hero", { exact: true });
+		await expect.element(name).toBeVisible();
+		const version = screen.getByText("v1").element();
+		expect(startOfText(version)).toBeCloseTo(startOfText(name.element()), 0);
 	});
 });

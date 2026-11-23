@@ -614,6 +614,22 @@ importers:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260911.1)
 
+  apps/plugin-review:
+    dependencies:
+      '@earendil-works/pi-ai':
+        specifier: 0.80.6
+        version: 0.80.6(@modelcontextprotocol/sdk@1.29.0(@cfworker/json-schema@4.1.1)(zod@4.6.7))(ws@8.21.3)(zod@4.6.7)
+    devDependencies:
+      typescript:
+        specifier: 'catalog:'
+        version: 6.0.3
+      vitest:
+        specifier: 'catalog:'
+        version: 4.1.10(@opentelemetry/api@1.9.0)(@types/node@26.1.1)(@vitest/browser-playwright@4.1.10)(@vitest/ui@4.1.10)(jsdom@26.1.0)(vite@8.3.1(@types/node@26.1.1)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.21.0)(yaml@2.9.1))
+      wrangler:
+        specifier: 'catalog:'
+        version: 4.125.0(@cloudflare/workers-types@5.20260911.1)
+
   apps/plugins-site:
     dependencies:
       '@astrojs/cloudflare':
@@ -2240,6 +2256,9 @@ importers:
       highlight.js:
         specifier: 'catalog:'
         version: 11.11.2
+      htmlparser2:
+        specifier: ^8.0.2
+        version: 8.0.2
       jose:
         specifier: ^6.1.3
         version: 6.1.3

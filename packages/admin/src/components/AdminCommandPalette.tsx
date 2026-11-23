@@ -19,12 +19,7 @@ import { useHotkeys } from "react-hotkeys-hook";
 
 import { apiFetch, type AdminManifest } from "../lib/api/client.js";
 import { useCurrentUser } from "../lib/api/current-user";
-import {
-	ADMIN_NAV_ICONS,
-	getCollectionNavIcon,
-	getTaxonomyNavIcon,
-	resolveNavIcon,
-} from "./admin-navigation-icons.js";
+import { ADMIN_NAV_ICONS, getCollectionNavIcon, resolveNavIcon } from "./admin-navigation-icons.js";
 import {
 	declaredLabelTranslator,
 	resolvePluginPageLabel,
@@ -210,7 +205,7 @@ export function buildNavItems(
 			title: msg`Categories`,
 			to: "/taxonomies/$taxonomy",
 			params: { taxonomy: "category" },
-			icon: getTaxonomyNavIcon("category"),
+			icon: ADMIN_NAV_ICONS.taxonomy,
 			minRole: ROLE_EDITOR,
 			keywords: ["taxonomy"],
 		},
@@ -219,7 +214,7 @@ export function buildNavItems(
 			title: msg`Tags`,
 			to: "/taxonomies/$taxonomy",
 			params: { taxonomy: "tag" },
-			icon: getTaxonomyNavIcon("tag"),
+			icon: ADMIN_NAV_ICONS.tags,
 			minRole: ROLE_EDITOR,
 			keywords: ["taxonomy"],
 		},

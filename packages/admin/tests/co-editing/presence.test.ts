@@ -55,27 +55,6 @@ describe("presence", () => {
 		expect(room.getUsers("body")).toEqual([]);
 	});
 
-	it("gives each person the same color in every client, repeating colors past four people", () => {
-		const people = ["u-ana", "u-ben", "u-cleo", "u-dev", "u-eli", "u-fay"];
-		const views = people.map((self) => {
-			const { mine, presence: room } = presence(self);
-			for (const other of people) if (other !== self) peer(mine, other);
-			return room;
-		});
-
-		for (const person of people) {
-			const colors = views.map((room) => room.colorOf(person));
-			expect(new Set(colors).size, person).toBe(1);
-			for (const room of views) {
-				const listed = room.getUsers().find((user) => user.id === person);
-				if (listed) expect(listed.color).toBe(colors[0]);
-			}
-		}
-		const firstFour = new Set(people.slice(0, 4).map((person) => views[0]!.colorOf(person)));
-		expect(firstFour.size).toBe(4);
-		expect([...firstFour]).not.toContain("neutral");
-	});
-
 	it("keeps its arrays while cursors move, and replaces only the fields someone left or entered", () => {
 		const { mine, presence: room } = presence("u-me");
 		const ana = peer(mine, "u-ana", "title");
