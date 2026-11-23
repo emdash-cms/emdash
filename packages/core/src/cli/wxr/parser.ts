@@ -484,17 +484,18 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 			const tag = tagName.toLowerCase();
 			const text = currentText.trim();
 
-			// Site-level metadata (in channel)
-			if (currentPath.includes("channel") && !currentItem) {
+			// Site metadata: only direct children of <channel> (never nested
+			// blocks such as <image><title>/<link>/<description>).
+			if (currentPath.length === 3 && currentPath[0] === "rss" && currentPath[1] === "channel") {
 				switch (tag) {
 					case "title":
-						if (!data.site.title) data.site.title = text;
+						data.site.title = text;
 						break;
 					case "link":
-						if (!data.site.link) data.site.link = text;
+						data.site.link = text;
 						break;
 					case "description":
-						if (!data.site.description) data.site.description = text;
+						data.site.description = text;
 						break;
 					case "language":
 						data.site.language = text;

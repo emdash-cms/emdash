@@ -38,6 +38,49 @@ describe("parseWxr", () => {
 		expect(result.site.language).toBe("en-US");
 	});
 
+	it("ignores channel <image> title, link, and description in both orders (stream and string)", async () => {
+		const imageBlock = `<image>
+      <url>https://example.com/logo.png</url>
+      <title>Channel Logo Title</title>
+      <link>https://example.com/logo-link</link>
+      <description>Channel Logo Description</description>
+    </image>`;
+
+		const imageBefore = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    ${imageBlock}
+    <title>Real Site Title</title>
+    <link>https://example.com</link>
+    <description>Real Site Description</description>
+  </channel>
+</rss>`;
+
+		const imageAfter = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <title>Real Site Title</title>
+    <link>https://example.com</link>
+    ${imageBlock}
+  </channel>
+</rss>`;
+
+		for (const parse of [
+			(xml: string) => parseWxr(createStream(xml)),
+			(xml: string) => parseWxrString(xml),
+		]) {
+			const before = await parse(imageBefore);
+			expect(before.site.title).toBe("Real Site Title");
+			expect(before.site.link).toBe("https://example.com");
+			expect(before.site.description).toBe("Real Site Description");
+
+			const after = await parse(imageAfter);
+			expect(after.site.title).toBe("Real Site Title");
+			expect(after.site.link).toBe("https://example.com");
+			expect(after.site.description ?? "").toBe("");
+		}
+	});
+
 	it("parses posts", async () => {
 		const wxr = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
