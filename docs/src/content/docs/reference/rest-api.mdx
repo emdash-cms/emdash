@@ -346,7 +346,7 @@ Content-Type: application/json
 }
 ```
 
-On a revision-enabled collection, changing a published entry creates a draft while the previous version stays live; call the compare operation to review both versions, then publish the draft or discard it. On a collection without revisions, updates write directly to the live entry (see [Content Lifecycle](/reference/content-lifecycle/)). Unpublishing keeps the content and its publication date, cancels any pending schedule, and removes the entry from the live site.
+On a revision-enabled collection, updating field data or reference selections on a published entry creates a draft while the previous version stays live (metadata such as bylines, SEO, or a slug-only save can apply immediately); call the compare operation to review both versions, then publish the draft or discard it. On a collection without revisions, updates write directly to the stored entry (see [Content Lifecycle](/reference/content-lifecycle/)). Unpublishing keeps the content and its publication date, cancels any pending schedule, and removes the entry from the live site.
 
 Creation and update bodies accept byline credits, and content responses include the primary byline and ordered credits. The content list can filter by stored byline IDs and optionally include an author's inferred byline. Creating and managing the byline records themselves is available through the [MCP byline tools](/reference/mcp-server/#byline-tools), not the public REST contract.
 
@@ -648,7 +648,7 @@ Disabling search preserves the stored tokenizer for the next enable operation. T
 
 ## Comments and redirects
 
-Public comment submissions follow the site's comment moderation settings and any `comment:moderate` hook: they enter the moderation queue by default, or are approved immediately when moderation is set to `none`, for previously approved commenters under `first_time` moderation, or when a moderation hook approves them. Admin comment operations list all statuses, return counts, update one status, perform bulk moderation, and permanently delete a comment. A `429` response means the submission rate limit was reached.
+The active `comment:moderate` hook approves a public comment submission, holds it as pending, or marks it as spam. By default, the built-in moderator applies the collection's moderation setting (`all`, `first_time` by default, or `none`) and can auto-approve signed-in CMS users. Admin comment operations list all statuses, return counts, update one status, perform bulk moderation, and permanently delete a comment. A `429` response means the submission rate limit was reached.
 
 Redirect operations manage redirect rules and the recorded 404 log separately. Pruning removes entries selected by the request body, while `DELETE /redirects/404s` clears the entire log. Neither operation deletes redirect rules.
 

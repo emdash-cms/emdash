@@ -19,7 +19,7 @@ timestamps. “No change” means the operation preserves the stored value.
 
 | Action | Starting state | Result | Revision effect | `publishedAt` | `scheduledAt` | Repeated call |
 | --- | --- | --- | --- | --- | --- | --- |
-| Save changes | Any active entry | Status does not change | On a revision-enabled collection, replaces the draft revision while the live revision remains public | No change | No change | A supplied `_rev` (or `expected` for bylines or references) refuses a stale save; omitting them makes the REST write unconditional |
+| Save changes | Any active entry | Status does not change | On a revision-enabled collection, replaces the draft revision while the live revision remains public | No change | No change | `_rev` refuses a stale entry write; `expected` refuses with `LIST_CONFLICT` if stored bylines or references changed. Omitting `_rev` skips the entry-version check (except where draft-only edit permissions enforce one) |
 | Publish | Draft, scheduled, or published | Published | Promotes the draft revision to live and clears the draft pointer | Set on first publish; preserved on later publishes unless an authorized caller overrides it | Cleared | Preserves the live content and publication time, but returns a new `_rev` |
 | Publish when due | Scheduled, or published with a scheduled draft | Published | Same as publish | Uses the scheduled time on first publish; preserves the existing value when publishing a new draft over live content | Cleared | A later scheduler pass skips an entry whose schedule was already cleared |
 | Unpublish | Any active entry | Draft | Clears the live pointer; preserves the existing draft or, on a revision-enabled collection, creates one from the live revision | Preserved | Cleared | An entry that is already a plain draft does not change |
@@ -61,7 +61,7 @@ unless an authorized request uses the supported lock override.
 | Move to Trash | `content:delete_own` or `content:delete_any` | Not accepted | Not accepted | Enforced | `content:beforeDelete`, `content:afterDelete` |
 | Restore from Trash | `content:edit_own` or `content:edit_any` | Not accepted | Not accepted | Not enforced | `content:afterRestore` |
 | Delete permanently | `content:delete_permanent` | Not accepted | Not accepted | Not enforced | `content:afterDelete` |
-| Restore a revision | `content:edit_own` or `content:edit_any` | Not accepted | Not accepted | Enforced | None for standard revisions; `content:beforeSave`, `content:afterSave` for recovery revisions |
+| Restore a revision | `content:edit_own` or `content:edit_any` | Not accepted | Not accepted | Enforced | None for standard revisions; `content:beforeSave`, `content:afterSave` for recovery revisions (which restore through the normal save path) |
 
 The `content:afterDelete` event sets `permanent` to `false` when an entry moves to Trash and `true`
 after permanent deletion. Successful after-hooks run after the state change and may run after the
