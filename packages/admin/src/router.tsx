@@ -1596,7 +1596,7 @@ function ContentEditPage() {
 	}, [searchParams, navigate]);
 
 	React.useEffect(() => {
-		if (typeof searchParams.field !== "string" || isLoading) return;
+		if (typeof searchParams.field !== "string" || !showsEditor) return;
 		const rootField = searchParams.field.split(".")[0] ?? "";
 		const rootDefinition = (roomView?.manifest?.collections[collection]?.fields ??
 			collectionFields)[rootField];
@@ -1614,7 +1614,7 @@ function ContentEditPage() {
 		return () => cancelIdleCallback(timeoutId);
 	}, [
 		searchParams,
-		isLoading,
+		showsEditor,
 		handleFieldFocused,
 		roomView?.manifest,
 		collection,

@@ -179,6 +179,30 @@ describe("ContentEditPage opened from a field link on the site", () => {
 		await expect.poll(() => router.state.location.search).toEqual({ locale: "en" });
 	});
 
+	it("focuses the linked field when the editor shows after the entry has loaded", async () => {
+		const mockedFetch = globalThis.fetch;
+		const joinHeld = Promise.withResolvers<void>();
+		let joinRequested = false;
+		globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+			const url = input instanceof Request ? input.url : input instanceof URL ? input.href : input;
+			if (init?.method === "POST" && url.endsWith("/content/pages/page_1/room")) {
+				joinRequested = true;
+				await joinHeld.promise;
+			}
+			return mockedFetch(input, init);
+		}) as typeof fetch;
+
+		const { router } = await openField("items.0.label");
+		await expect.poll(() => joinRequested).toBe(true);
+		await new Promise((resolve) => requestIdleCallback(resolve));
+		await new Promise((resolve) => requestIdleCallback(resolve));
+		expect(document.getElementById("field-items.0.label")).toBeNull();
+		joinHeld.resolve();
+
+		await expect.poll(() => document.activeElement?.id).toBe("field-items.0.label");
+		await expect.poll(() => router.state.location.search).toEqual({ locale: "en" });
+	});
+
 	it("keeps the legacy cleanup for a top-level file field wrapper", async () => {
 		mockFetch.on("GET", "/_emdash/api/manifest", {
 			data: {
