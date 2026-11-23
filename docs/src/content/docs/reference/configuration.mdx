@@ -982,9 +982,8 @@ s3({
 ```
 
 Runtime `S3_*` resolution reads `process.env` and is intended for Node.js
-deployments. On Cloudflare Workers, prefer the [`r2(config)`](#r2config) adapter
-or pass explicit values to `s3({...})` rather than relying on `process.env`
-population. See [Storage Options](/deployment/storage/#s3-compatible-storage) for
+deployments. On Cloudflare Workers, use the [`r2(config)`](#r2config) adapter
+instead. See [Storage Options](/deployment/storage/#s3-compatible-storage) for
 details.
 
 ## Object cache adapters
