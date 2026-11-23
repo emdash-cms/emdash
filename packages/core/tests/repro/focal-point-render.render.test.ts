@@ -164,6 +164,24 @@ it("marks only images that carry a placeholder", async () => {
 	expect(none).not.toContain("data-emdash-placeholder");
 });
 
+it("does not mark an image whose caller style replaces the placeholder", async () => {
+	const container = await AstroContainer.create();
+	const html = await container.renderToString(EmDashImage, {
+		props: {
+			image: {
+				id: "m",
+				src: "https://example.com/logo.png",
+				blurhash: "LEHV6nWB2yk8pyo0adR*.7kCMdnj",
+			},
+			style: "background-color: white;",
+		},
+		locals,
+	});
+
+	expect(html).toContain('style="background-color: white;"');
+	expect(html).not.toContain("data-emdash-placeholder");
+});
+
 it("puts the gallery placeholder on the image, not behind its caption", async () => {
 	const container = await AstroContainer.create();
 	const html = (
