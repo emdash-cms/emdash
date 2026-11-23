@@ -81,6 +81,48 @@ describe("parseWxr", () => {
 		}
 	});
 
+	it("rejects with the cause and tears down the parser when the input stream errors mid-stream", async () => {
+		const cause = new Error("simulated download drop");
+		let pushed = false;
+		const failingStream = new Readable({
+			read() {
+				if (!pushed) {
+					pushed = true;
+					this.push(
+						'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Partial',
+					);
+					return;
+				}
+				this.destroy(cause);
+			},
+		});
+
+		await expect(parseWxr(failingStream)).rejects.toBe(cause);
+
+		// A second error or late data on an already-errored stream must not
+		// produce an unhandled 'error' event or double-reject.
+		const multiErrorStream = new Readable({ read() {} });
+		const pending = parseWxr(multiErrorStream);
+		multiErrorStream.push(
+			'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Partial',
+		);
+		const firstCause = new Error("first stream error");
+		multiErrorStream.emit("error", firstCause);
+		multiErrorStream.emit("error", new Error("second stream error"));
+		multiErrorStream.push("</title></channel></rss>");
+		multiErrorStream.push(null);
+
+		await expect(pending).rejects.toBe(firstCause);
+
+		// Normal stream still resolves cleanly.
+		const ok = await parseWxr(
+			createStream(
+				'<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>Healthy Site</title></channel></rss>',
+			),
+		);
+		expect(ok.site.title).toBe("Healthy Site");
+	});
+
 	it("parses posts", async () => {
 		const wxr = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
