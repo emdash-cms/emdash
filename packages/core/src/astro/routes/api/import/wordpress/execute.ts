@@ -231,16 +231,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			if (cursor || incomingChunk) {
 				return apiError("VALIDATION_ERROR", "Taxonomy preparation cannot be resumed", 400);
 			}
-			let taxonomyPlan: TaxonomyImportPlan;
-			try {
-				taxonomyPlan = await prepareTaxonomies(wxr, emdash, config.locale);
-			} catch (error) {
-				if (isWxrTaxonomyConflictError(error)) {
-					console.error("[WXR_IMPORT_TAXONOMY_CONFLICT]", error);
-					return apiError("WXR_IMPORT_TAXONOMY_CONFLICT", error.publicMessage, 409);
-				}
-				throw error;
-			}
+			const taxonomyPlan = await prepareTaxonomies(wxr, emdash, config.locale);
+			if (taxonomyPlan instanceof Response) return taxonomyPlan;
 			const result = emptyImportResult();
 			result.taxonomies = {
 				termsCreated: taxonomyPlan.termsCreated,
@@ -283,48 +275,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			);
 		}
 
-		// Pre-create taxonomy terms (categories, tags, custom taxonomies) so
-		// per-post assignments can resolve to existing rows. Done before any
-		// content insert because WXR exports list terms at the top of the
-		// file but per-item assignments only reference them by slug.
-		const taxonomyPlan = await preImportWxrTaxonomies(
-			emdash.db,
-			wxr.posts,
-			wxr.categories,
-			wxr.tags,
-			wxr.terms,
-			config.locale,
-		);
-
-		// Multilingual imports (WPML / Polylang -- see #1080) need a term
-		// row at each per-post locale, all sharing the canonical term's
-		// `translation_group`. Without this, `getTermsForEntry(..., locale)`
-		// on non-canonical translations comes back empty.
-		//
-		// The mirror raises `WxrTaxonomyConflictError` with an operator-
-		// actionable message when an existing locale row has an
-		// incompatible group. Surface its `publicMessage` directly so the
-		// admin UI can tell the user which (taxonomy, slug, locale) needs
-		// reconciliation. Other errors (DB connectivity, unexpected
-		// repository failures) re-throw to the outer catch where
-		// `handleError` masks them with the generic "Failed to import
-		// content" -- exposing raw DB errors to clients would leak schema
-		// names and bypass the AGENTS.md "never expose error.message" rule.
-		const postLocales = new Set<string>();
-		for (const post of wxr.posts) {
-			if (post.locale) postLocales.add(post.locale);
-		}
-		if (postLocales.size > 0) {
-			try {
-				await mirrorTermsToLocales(emdash.db, taxonomyPlan, postLocales, config.locale);
-			} catch (mirrorError) {
-				if (isWxrTaxonomyConflictError(mirrorError)) {
-					console.error("[WXR_IMPORT_TAXONOMY_CONFLICT]", mirrorError);
-					return apiError("WXR_IMPORT_TAXONOMY_CONFLICT", mirrorError.publicMessage, 409);
-				}
-				throw mirrorError;
-			}
-		}
+		const taxonomyPlan = await prepareTaxonomies(wxr, emdash, config.locale);
+		if (taxonomyPlan instanceof Response) return taxonomyPlan;
 
 		// Import content (locale from config scopes all items)
 		const result = await importContent(
@@ -444,27 +396,42 @@ async function runContentChunk(
 	};
 }
 
+/**
+ * Create the export's terms before any entry, since entries reference them by
+ * slug only, and mirror them into the locales the entries use. A taxonomy
+ * conflict comes back as a 409 carrying its operator-facing message; any
+ * other error reaches the route's generic import error, which keeps database
+ * details out of the response.
+ */
 async function prepareTaxonomies(
 	wxr: Awaited<ReturnType<typeof parseWxrString>>,
 	emdash: EmDashHandlers,
 	locale: string | undefined,
-): Promise<TaxonomyImportPlan> {
-	const taxonomyPlan = await preImportWxrTaxonomies(
-		emdash.db,
-		wxr.posts,
-		wxr.categories,
-		wxr.tags,
-		wxr.terms,
-		locale,
-	);
-	const postLocales = new Set<string>();
-	for (const post of wxr.posts) {
-		if (post.locale) postLocales.add(post.locale);
+): Promise<TaxonomyImportPlan | Response> {
+	try {
+		const taxonomyPlan = await preImportWxrTaxonomies(
+			emdash.db,
+			wxr.posts,
+			wxr.categories,
+			wxr.tags,
+			wxr.terms,
+			locale,
+		);
+		const postLocales = new Set<string>();
+		for (const post of wxr.posts) {
+			if (post.locale) postLocales.add(post.locale);
+		}
+		if (postLocales.size > 0) {
+			await mirrorTermsToLocales(emdash.db, taxonomyPlan, postLocales, locale);
+		}
+		return taxonomyPlan;
+	} catch (error) {
+		if (isWxrTaxonomyConflictError(error)) {
+			console.error("[WXR_IMPORT_TAXONOMY_CONFLICT]", error);
+			return apiError("WXR_IMPORT_TAXONOMY_CONFLICT", error.publicMessage, 409);
+		}
+		throw error;
 	}
-	if (postLocales.size > 0) {
-		await mirrorTermsToLocales(emdash.db, taxonomyPlan, postLocales, locale);
-	}
-	return taxonomyPlan;
 }
 
 export async function importContent(

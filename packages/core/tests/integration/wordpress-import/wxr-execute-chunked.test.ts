@@ -456,6 +456,47 @@ describe("WXR execute chunked import", () => {
 		}
 	});
 
+	it("reports a taxonomy conflict as 409 with or without the taxonomy phase", async () => {
+		const wxr = makeWxr(0).replace(
+			"<channel>",
+			`<channel>
+		<wp:category>
+			<wp:term_id>101</wp:term_id>
+			<wp:category_nicename>novyny</wp:category_nicename>
+			<wp:cat_name><![CDATA[Новини]]></wp:cat_name>
+		</wp:category>
+		<wp:category>
+			<wp:term_id>108</wp:term_id>
+			<wp:category_nicename>news</wp:category_nicename>
+			<wp:cat_name><![CDATA[News]]></wp:cat_name>
+		</wp:category>
+		<wp:term>
+			<wp:term_id>105</wp:term_id>
+			<wp:term_taxonomy>term_translations</wp:term_taxonomy>
+			<wp:term_slug>pll_65a1b2c3d4f60</wp:term_slug>
+			<wp:term_name><![CDATA[pll_65a1b2c3d4f60]]></wp:term_name>
+			<wp:term_description><![CDATA[a:2:{s:2:"uk";i:101;s:2:"en";i:108;}]]></wp:term_description>
+		</wp:term>`,
+		);
+		// The two translations already exist, each in a group of its own.
+		const repo = new TaxonomyRepository(harness.db);
+		await repo.create({ name: "category", slug: "novyny", label: "Новини", locale: "uk" });
+		await repo.create({ name: "category", slug: "news", label: "News", locale: "en" });
+		const execute = async (extra: { phase?: string } = {}) => {
+			const response = await executePost(
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion
+				buildContext(buildFormData(wxr, extra), harness.emdash) as any,
+			);
+			return { status: response.status, body: await response.json() };
+		};
+
+		const chunked = await execute({ phase: "taxonomy" });
+		expect(chunked.status).toBe(409);
+		expect(chunked.body.error.code).toBe("WXR_IMPORT_TAXONOMY_CONFLICT");
+		expect(chunked.body.error.message).toMatch(/"category\/novyny".*"category\/news"/);
+		expect(await execute()).toEqual(chunked);
+	});
+
 	it("rejects a cursor when the WXR file changes", async () => {
 		const wxr = makeWxr(35);
 		const prepared = await prepareChunkedImport(wxr, harness.emdash);
