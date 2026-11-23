@@ -635,4 +635,31 @@ describe("editorial comment drafts", () => {
 			),
 		);
 	});
+
+	it("keeps the comment being written when its text is deleted", async () => {
+		vi.mocked(createEditorialThread).mockImplementation(async (_entry, input) => ({
+			...textThread("thread-new", "content", "x", ""),
+			anchor: input.anchor,
+		}));
+		const screen = await renderEntry({ fields, data });
+		const { editor, dom } = editorFor("Content");
+
+		dom.focus();
+		selectText(editor, "brown");
+		await userEvent.keyboard(COMMENT_SHORTCUT);
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		const composer = margin.getByRole("textbox", { name: "Comment" });
+		await composer.fill("Which shade?");
+		editor.commands.deleteSelection();
+
+		await expect.element(composer).toBeVisible();
+		await expect.element(composer).toHaveValue("Which shade?");
+		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+		await vi.waitFor(() =>
+			expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+				expect.anything(),
+				expect.objectContaining({ body: "Which shade?" }),
+			),
+		);
+	});
 });

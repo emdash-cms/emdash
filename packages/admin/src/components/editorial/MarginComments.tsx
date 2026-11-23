@@ -24,6 +24,7 @@ import { ConfirmDialog } from "../ConfirmDialog.js";
 import {
 	editorialCommentsKey,
 	getEditorialHighlights,
+	getEditorialPending,
 	locateAnchor,
 } from "../editor/EditorialCommentsExtension.js";
 import { isEditorAnchor, type EditorialCommentsState } from "./useEditorialComments.js";
@@ -323,14 +324,28 @@ export function MarginComments({
 		? visible.filter((thread) => highlighted.has(thread.id) || fieldThreads.has(thread.id))
 		: [];
 	const listed = visible.filter((thread) => !inPlace.includes(thread));
-	const draftInPlace = positioned && (draft?.range != null || fieldThreads.has("draft"));
+	const draftAnchor = draft?.anchor;
+	const draftField = draftAnchor && isEditorAnchor(draftAnchor) ? draftAnchor.field : null;
+	const draftEditor = draftField ? editors.get(draftField) : undefined;
+	const draftPending =
+		draft?.range && draftEditor && !draftEditor.isDestroyed
+			? getEditorialPending(draftEditor.state)
+			: null;
+	// The editor takes a draft's range after the first render, and drops it once its text is deleted.
+	const [shownDraft, setShownDraft] = React.useState<typeof draft>(null);
+	React.useEffect(() => {
+		if (draftPending && draft) setShownDraft(draft);
+	}, [draftPending, draft]);
+	const draftLost = draft?.range != null && shownDraft === draft && !draftPending;
+	const draftInPlace =
+		positioned && !draftLost && (draft?.range != null || fieldThreads.has("draft"));
+	const [draftBody, setDraftBody] = React.useState({ draft, body: "" });
+	const draftText = draftBody.draft === draft ? draftBody.body : "";
 	const positionedIds = React.useMemo(
 		() => [...inPlace.map((thread) => thread.id), ...(draftInPlace ? ["draft"] : [])],
 		// oxlint-disable-next-line react-hooks/exhaustive-deps -- recompute only when the set of ids changes
 		[inPlace.map((thread) => thread.id).join(), draftInPlace],
 	);
-	const draftAnchor = draft?.anchor;
-	const draftField = draftAnchor && isEditorAnchor(draftAnchor) ? draftAnchor.field : null;
 	const editorFieldsKey = [
 		...new Set([
 			...highlights.map((highlight) => highlight.field),
@@ -358,7 +373,12 @@ export function MarginComments({
 	const draftCard = draft && (
 		<DraftCard
 			key="draft"
-			focusKey={!draftInPlace || "draft" in tops ? JSON.stringify(draft.anchor) : null}
+			focusKey={
+				!draftLost && (!draftInPlace || "draft" in tops) ? JSON.stringify(draft.anchor) : null
+			}
+			detached={draftLost}
+			body={draftText}
+			onBodyChange={(value) => setDraftBody({ draft, body: value })}
 			quote={draft.anchor.type === "text" ? draft.anchor.quote : null}
 			currentUser={currentUser}
 			pending={comments.actions.createThread.isPending}
@@ -495,21 +515,27 @@ export function MarginComments({
 function DraftCard({
 	focusKey,
 	quote,
+	detached,
+	body,
+	onBodyChange,
 	currentUser,
 	pending,
 	onCancel,
 	onSubmit,
 }: {
-	/** Null while the card is hidden for measuring. Each new key moves focus to the composer. */
+	/** Null while the card is hidden for measuring or has lost its text. Each new key moves focus to the composer. */
 	focusKey: string | null;
 	quote: string | null;
+	detached: boolean;
+	/** Held by the margin, so the text survives the card moving between the list and its anchor. */
+	body: string;
+	onBodyChange: (body: string) => void;
 	currentUser: EditorialCommentsUser | undefined;
 	pending: boolean;
 	onCancel: () => void;
 	onSubmit: (body: string) => void;
 }) {
 	const { t } = useLingui();
-	const [body, setBody] = React.useState("");
 	const cardRef = React.useRef<HTMLDivElement>(null);
 	// A hidden element can't take focus, so `autoFocus` would miss a card that mounts before it's placed.
 	React.useEffect(() => {
@@ -527,10 +553,10 @@ function DraftCard({
 				/>
 				<span className="truncate text-sm font-medium">{currentUser?.name ?? t`You`}</span>
 			</div>
-			{quote && <Quote text={quote} />}
+			{quote && <Quote text={quote} detached={detached} />}
 			<CommentComposer
 				value={body}
-				onChange={setBody}
+				onChange={onBodyChange}
 				label={t`Comment`}
 				placeholder={t`Add a comment`}
 				submitLabel={t`Comment`}
