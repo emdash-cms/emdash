@@ -186,17 +186,17 @@ msgstr "(zu neu)"
 #. placeholder {0}: items.length
 #. placeholder {0}: orphan.rowCount
 #: packages/admin/src/components/ContentTypeList.tsx:187
-#: packages/admin/src/components/RepeaterField.tsx:159
+#: packages/admin/src/components/RepeaterField.tsx:166
 msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# Element)} other {(# Elemente)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4820
+#: packages/admin/src/components/ContentEditor.tsx:4824
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} von # Zeichen, mindestens {min}} other {{counted} von # Zeichen, mindestens {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4825
+#: packages/admin/src/components/ContentEditor.tsx:4829
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} von # Zeichen} other {{counted} von # Zeichen}}"
 
@@ -243,7 +243,7 @@ msgid "{0, plural, one {# entry} other {# entries}}"
 msgstr "{0, plural, one {# Eintrag} other {# Einträge}}"
 
 #. placeholder {0}: count ?? issues.length
-#: packages/admin/src/components/BlocksField.tsx:567
+#: packages/admin/src/components/BlocksField.tsx:579
 msgid "{0, plural, one {# field needs attention} other {# fields need attention}}"
 msgstr "{0, plural, one {# Feld erfordert Aufmerksamkeit} other {# Felder erfordern Aufmerksamkeit}}"
 
@@ -321,7 +321,7 @@ msgstr "{0, plural, one {# Menü wird importiert} other {# Menüs werden importi
 #. placeholder {0}: users.length
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:69
 msgid "{0, plural, one {# other person here} other {# other people here}}"
-msgstr ""
+msgstr "{0, plural, one {# weitere Person hier} other {# weitere Personen hier}}"
 
 #. placeholder {0}: capabilities.length
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:224
@@ -415,7 +415,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {# Video hinzufügen} other {# Videos hinzufügen}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:4830
+#: packages/admin/src/components/ContentEditor.tsx:4834
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Mindestens # Zeichen} other {Mindestens # Zeichen}}"
 
@@ -457,7 +457,7 @@ msgstr "{0, plural, one {# weiteres anzeigen} other {# weitere anzeigen}}"
 #. placeholder {0}: users.length
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:156
 msgid "{0, plural, one {Show the # person here} other {Show the # people here}}"
-msgstr ""
+msgstr "{0, plural, one {# anwesende Person anzeigen} other {# anwesende Personen anzeigen}}"
 
 #. placeholder {0}: stats.userCount
 #: packages/admin/src/components/Dashboard.tsx:428
@@ -743,7 +743,7 @@ msgstr "{label} — keine Übersetzung"
 msgid "{label} — view translation"
 msgstr "{label} — Übersetzung anzeigen"
 
-#: packages/admin/src/components/BlocksField.tsx:1736
+#: packages/admin/src/components/BlocksField.tsx:1758
 msgid "{label} · version {versionNumber}"
 msgstr "{label} · Version {versionNumber}"
 
@@ -753,7 +753,7 @@ msgid "{label} {position}"
 msgstr "{label} {position}"
 
 #: packages/admin/src/components/BlockListField.tsx:1037
-#: packages/admin/src/components/BlocksField.tsx:1687
+#: packages/admin/src/components/BlocksField.tsx:1709
 msgid "{label} actions"
 msgstr "Aktionen für {label}"
 
@@ -789,7 +789,7 @@ msgstr "Optionen für {label}"
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
-#: packages/admin/src/components/BlocksField.tsx:2371
+#: packages/admin/src/components/BlocksField.tsx:2393
 msgid "{label}: {value}"
 msgstr "{label}: {value}"
 
@@ -797,7 +797,7 @@ msgstr "{label}: {value}"
 msgid "{lateness} late"
 msgstr "{lateness} überfällig"
 
-#: packages/admin/src/components/BlocksField.tsx:1325
+#: packages/admin/src/components/BlocksField.tsx:1337
 msgid "{list} +{more}"
 msgstr "{list} +{more}"
 
@@ -829,7 +829,7 @@ msgstr "{maximum, plural, one {Verwende höchstens # Element} other {Verwende h�
 msgid "{maximum, plural, one {Use at most # character} other {Use at most # characters}}"
 msgstr "{maximum, plural, one {Verwende höchstens # Zeichen} other {Verwende höchstens # Zeichen}}"
 
-#: packages/admin/src/components/BlocksField.tsx:505
+#: packages/admin/src/components/BlocksField.tsx:517
 msgid "{maxItems, plural, one {This field holds up to # block.} other {This field holds up to # blocks.}}"
 msgstr "{maxItems, plural, one {Dieses Feld nimmt bis zu # Block auf.} other {Dieses Feld nimmt bis zu # Blöcke auf.}}"
 
@@ -851,29 +851,29 @@ msgstr "{minimum, plural, one {Verwende mindestens # Zeichen} other {Verwende mi
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:155
 msgid "{more, plural, one {Show # more person} other {Show # more people}}"
-msgstr ""
+msgstr "{more, plural, one {# weitere Person anzeigen} other {# weitere Personen anzeigen}}"
 
 #: packages/admin/src/components/BlockListField.tsx:677
-#: packages/admin/src/components/BlocksField.tsx:1129
+#: packages/admin/src/components/BlocksField.tsx:1141
 msgid "{moved} is already first"
 msgstr "{moved} ist bereits an erster Stelle"
 
 #: packages/admin/src/components/BlockListField.tsx:677
-#: packages/admin/src/components/BlocksField.tsx:1130
+#: packages/admin/src/components/BlocksField.tsx:1142
 msgid "{moved} is already last"
 msgstr "{moved} ist bereits an letzter Stelle"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:64
 msgid "{name} · Editing {field}"
-msgstr ""
+msgstr "{name} · Bearbeitet gerade „{field}“"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:62
 msgid "{name} · Viewing"
-msgstr ""
+msgstr "{name} · Sieht zu"
 
 #: packages/admin/src/router.tsx:1279
 msgid "{name} changed this entry"
-msgstr ""
+msgstr "{name} hat diesen Eintrag geändert"
 
 #: packages/admin/src/lib/content-validation-errors.ts:76
 msgid "{name} does not match the required format."
@@ -941,7 +941,7 @@ msgstr "{origin} leitet auf {target} weiter. Gib stattdessen diese Adresse ein."
 
 #: packages/admin/src/components/revisions/revision-format.ts:131
 msgid "{others, plural, one {# other person} other {# other people}}"
-msgstr ""
+msgstr "{others, plural, one {noch # Person} other {noch # Personen}}"
 
 #: packages/admin/src/components/Dashboard.tsx:158
 msgid "{overdueCount, plural, one {One scheduled item is overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.} other {# scheduled items are overdue and the scheduler heartbeat is stale. Run `npx emdash doctor` and verify the deployed Cron Trigger.}}"
@@ -1029,27 +1029,27 @@ msgstr "{selectedCount, plural, one {# Element in den Papierkorb verschieben? Du
 
 #: packages/admin/src/components/ContentList.tsx:625
 msgid "{selectedCount, plural, one {Publish # item?} other {Publish # items?}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {# Element veröffentlichen?} other {# Elemente veröffentlichen?}}"
 
 #: packages/admin/src/components/ContentList.tsx:666
 msgid "{selectedCount, plural, one {Set # item to draft?} other {Set # items to draft?}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {# Element auf Entwurf setzen?} other {# Elemente auf Entwurf setzen?}}"
 
 #: packages/admin/src/components/ContentList.tsx:631
 msgid "{selectedCount, plural, one {This removes its schedule and publishes it immediately.} other {This removes their schedules and publishes them immediately.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {Dadurch wird die Planung aufgehoben und das Element sofort veröffentlicht.} other {Dadurch werden die Planungen aufgehoben und die Elemente sofort veröffentlicht.}}"
 
 #: packages/admin/src/components/ContentList.tsx:672
 msgid "{selectedCount, plural, one {This removes its schedule. Visitors won't see it until you publish it again.} other {This removes their schedules. Visitors won't see them until you publish them again.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {Dadurch wird die Planung aufgehoben. Besucher sehen das Element erst wieder, wenn du es erneut veröffentlichst.} other {Dadurch werden die Planungen aufgehoben. Besucher sehen die Elemente erst wieder, wenn du sie erneut veröffentlichst.}}"
 
 #: packages/admin/src/components/ContentList.tsx:635
 msgid "{selectedCount, plural, one {Visitors will see it immediately.} other {Visitors will see them immediately.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {Besucher sehen es sofort.} other {Besucher sehen sie sofort.}}"
 
 #: packages/admin/src/components/ContentList.tsx:677
 msgid "{selectedCount, plural, one {Visitors won't see it until you publish it again.} other {Visitors won't see them until you publish them again.}}"
-msgstr ""
+msgstr "{selectedCount, plural, one {Besucher sehen es erst wieder, wenn du es erneut veröffentlichst.} other {Besucher sehen sie erst wieder, wenn du sie erneut veröffentlichst.}}"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:235
 msgid "{sent, plural, one {Emailed # user} other {Emailed # users}}"
@@ -1095,11 +1095,11 @@ msgstr "{title} ist jetzt veröffentlicht."
 msgid "{title} now goes live {when}."
 msgstr "{title} wird jetzt am {when} veröffentlicht."
 
-#: packages/admin/src/components/BlocksField.tsx:1023
+#: packages/admin/src/components/BlocksField.tsx:1035
 msgid "{toFix, plural, one {# to fix. Go to the problem} other {# to fix. Go to the next problem}}"
 msgstr "{toFix, plural, one {# Problem. Zum Problem} other {# Probleme. Zum nächsten Problem}}"
 
-#: packages/admin/src/components/BlocksField.tsx:1029
+#: packages/admin/src/components/BlocksField.tsx:1041
 msgid "{toFix, plural, one {# to fix} other {# to fix}}"
 msgstr "{toFix, plural, one {# Problem} other {# Probleme}}"
 
@@ -1169,7 +1169,7 @@ msgstr "← Zurück"
 #: packages/admin/src/components/presence/FieldPresence.tsx:48
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:152
 msgid "+{more}"
-msgstr ""
+msgstr "+{more}"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:418
 msgid "<0>{from}</0> becomes <1>{to}</1>"
@@ -1187,7 +1187,7 @@ msgstr "<0>{name}</0> bearbeitet diesen Eintrag gerade. Öffne ihn schreibgesch�
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "<0>{name}</0> hat diesen Eintrag jetzt in Bearbeitung, deshalb werden deine Änderungen nicht mehr gespeichert. Übernimm ihn wieder, um weiterzuarbeiten."
 
-#: packages/admin/src/components/BlocksField.tsx:1496
+#: packages/admin/src/components/BlocksField.tsx:1518
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
 msgid "<0>Alt-click</0> to add above"
 msgstr "<0>Alt-Klick</0> zum Einfügen darüber"
@@ -1196,12 +1196,12 @@ msgstr "<0>Alt-Klick</0> zum Einfügen darüber"
 msgid "<0>Click</0> to add below"
 msgstr "<0>Klick</0> zum Einfügen darunter"
 
-#: packages/admin/src/components/BlocksField.tsx:1542
+#: packages/admin/src/components/BlocksField.tsx:1564
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
 msgid "<0>Click</0> to open menu"
 msgstr "<0>Klicken</0> für das Menü"
 
-#: packages/admin/src/components/BlocksField.tsx:1538
+#: packages/admin/src/components/BlocksField.tsx:1560
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
 msgid "<0>Drag</0> to move"
 msgstr "<0>Ziehen</0> zum Verschieben"
@@ -1388,13 +1388,13 @@ msgstr "Aus den Namen der beiden Seiten lässt sich kein Slug erzeugen. Gib ihn 
 #: packages/admin/src/components/BylineFieldEditor.tsx:128
 #: packages/admin/src/components/BylineFieldEditor.tsx:372
 #: packages/admin/src/components/ContentTypeEditor.tsx:238
-#: packages/admin/src/components/FieldEditor.tsx:439
-#: packages/admin/src/components/FieldEditor.tsx:1178
+#: packages/admin/src/components/FieldEditor.tsx:440
+#: packages/admin/src/components/FieldEditor.tsx:1180
 msgid "A slug cannot be generated from this label. Type one manually using lowercase letters, numbers, and underscores."
 msgstr "Aus dieser Bezeichnung lässt sich kein Slug erzeugen. Gib ihn selbst ein, nur mit Kleinbuchstaben, Ziffern und Unterstrichen."
 
-#: packages/admin/src/components/FieldEditor.tsx:483
-#: packages/admin/src/components/FieldEditor.tsx:1679
+#: packages/admin/src/components/FieldEditor.tsx:484
+#: packages/admin/src/components/FieldEditor.tsx:1681
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr "Aus dieser Bezeichnung lässt sich kein Slug erzeugen. Gib ihn selbst ein."
 
@@ -1540,7 +1540,7 @@ msgstr "Aktiv"
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
-#: packages/admin/src/components/FieldEditor.tsx:1532
+#: packages/admin/src/components/FieldEditor.tsx:1534
 msgid "Active v{0}"
 msgstr "Aktiv v{0}"
 
@@ -1573,7 +1573,7 @@ msgstr "{singularLower} zu 1 Beitrag hinzufügen"
 msgid "Add {singularLower} to posts"
 msgstr "{singularLower} zu Beiträgen hinzufügen"
 
-#: packages/admin/src/components/BlocksField.tsx:2310
+#: packages/admin/src/components/BlocksField.tsx:2332
 msgid "Add a caption"
 msgstr "Bildunterschrift hinzufügen"
 
@@ -1598,35 +1598,35 @@ msgstr "Lege ein Profil an, um eine Person oder ein Team in deinen Inhalten name
 msgid "Add another byline"
 msgstr "Weitere Autorenangabe hinzufügen"
 
-#: packages/admin/src/components/BlocksField.tsx:1154
+#: packages/admin/src/components/BlocksField.tsx:1166
 msgid "Add at least {minItems} blocks."
 msgstr "Füge mindestens {minItems} Blöcke hinzu."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:138
-#: packages/admin/src/components/FieldEditor.tsx:387
+#: packages/admin/src/components/FieldEditor.tsx:388
 msgid "Add at least one option."
 msgstr "Füge mindestens eine Option hinzu."
 
-#: packages/admin/src/components/FieldEditor.tsx:474
-#: packages/admin/src/components/FieldEditor.tsx:1617
+#: packages/admin/src/components/FieldEditor.tsx:475
+#: packages/admin/src/components/FieldEditor.tsx:1619
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Füge mindestens ein untergeordnetes Feld hinzu, um die Struktur des wiederholbaren Feldes zu definieren."
 
-#: packages/admin/src/components/BlocksField.tsx:986
+#: packages/admin/src/components/BlocksField.tsx:998
 #: packages/admin/src/components/BlockTypePicker.tsx:80
 msgid "Add block"
 msgstr "Block hinzufügen"
 
-#: packages/admin/src/components/BlocksField.tsx:1717
+#: packages/admin/src/components/BlocksField.tsx:1739
 msgid "Add block above"
 msgstr "Block darüber einfügen"
 
-#: packages/admin/src/components/BlocksField.tsx:1494
-#: packages/admin/src/components/BlocksField.tsx:1718
+#: packages/admin/src/components/BlocksField.tsx:1516
+#: packages/admin/src/components/BlocksField.tsx:1740
 msgid "Add block below"
 msgstr "Block darunter einfügen"
 
-#: packages/admin/src/components/BlocksField.tsx:1513
+#: packages/admin/src/components/BlocksField.tsx:1535
 msgid "Add block below {label}"
 msgstr "Block unter {label} einfügen"
 
@@ -1670,8 +1670,8 @@ msgid "Add Domain"
 msgstr "Domain hinzufügen"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:808
-#: packages/admin/src/components/FieldEditor.tsx:1008
-#: packages/admin/src/components/FieldEditor.tsx:1826
+#: packages/admin/src/components/FieldEditor.tsx:1010
+#: packages/admin/src/components/FieldEditor.tsx:1828
 msgid "Add Field"
 msgstr "Feld hinzufügen"
 
@@ -1691,7 +1691,7 @@ msgstr "Füge Felder hinzu, um die Struktur deiner Inhalte zu definieren"
 msgid "Add First Field"
 msgstr "Erstes Feld hinzufügen"
 
-#: packages/admin/src/components/RepeaterField.tsx:181
+#: packages/admin/src/components/RepeaterField.tsx:188
 msgid "Add First Item"
 msgstr "Erstes Element hinzufügen"
 
@@ -1708,7 +1708,7 @@ msgstr "Bilder zur Galerie hinzufügen"
 msgid "Add item"
 msgstr "Element hinzufügen"
 
-#: packages/admin/src/components/RepeaterField.tsx:165
+#: packages/admin/src/components/RepeaterField.tsx:172
 msgid "Add Item"
 msgstr "Element hinzufügen"
 
@@ -1760,8 +1760,8 @@ msgstr "Einen oder mehrere Link-Buttons hinzufügen"
 msgid "Add Passkey"
 msgstr "Passkey hinzufügen"
 
-#: packages/admin/src/components/ContentEditor.tsx:4734
-#: packages/admin/src/components/ContentEditor.tsx:4734
+#: packages/admin/src/components/ContentEditor.tsx:4738
+#: packages/admin/src/components/ContentEditor.tsx:4738
 msgid "Add reference"
 msgstr "Referenz hinzufügen"
 
@@ -1791,7 +1791,7 @@ msgstr "Auswahl hinzufügen"
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "SEO-Metadatenfelder hinzufügen (Titel, Beschreibung, Bild) und in die Sitemap aufnehmen"
 
-#: packages/admin/src/components/FieldEditor.tsx:1604
+#: packages/admin/src/components/FieldEditor.tsx:1606
 msgid "Add Sub-Field"
 msgstr "Untergeordnetes Feld hinzufügen"
 
@@ -1925,12 +1925,12 @@ msgstr "Admin-Navigation"
 msgid "Administrator"
 msgstr "Administrator"
 
-#: packages/admin/src/components/BlocksField.tsx:2432
+#: packages/admin/src/components/BlocksField.tsx:2454
 #: packages/admin/src/components/PortableTextEditor.tsx:501
 msgid "Advanced"
 msgstr "Erweitert"
 
-#: packages/admin/src/components/BlocksField.tsx:2415
+#: packages/admin/src/components/BlocksField.tsx:2437
 msgid "Advanced: {blockLabel}"
 msgstr "Erweitert: {blockLabel}"
 
@@ -2053,7 +2053,7 @@ msgstr "Alle Uploads abgeschlossen"
 msgid "Allow MCP tokens with plugin-tool scope to invoke these routes."
 msgstr "Erlaube MCP-Tokens mit dem Bereich „plugin-tool“, diese Routen aufzurufen."
 
-#: packages/admin/src/components/FieldEditor.tsx:1412
+#: packages/admin/src/components/FieldEditor.tsx:1414
 msgid "Allow multiple references"
 msgstr "Mehrere Referenzen erlauben"
 
@@ -2066,8 +2066,8 @@ msgstr "Benutzern von bestimmten Domains die Registrierung erlauben"
 msgid "Allow visitors to leave comments on this collection's content"
 msgstr "Besuchern erlauben, die Inhalte dieser Sammlung zu kommentieren"
 
-#: packages/admin/src/components/FieldEditor.tsx:1439
-#: packages/admin/src/components/FieldEditor.tsx:1456
+#: packages/admin/src/components/FieldEditor.tsx:1441
+#: packages/admin/src/components/FieldEditor.tsx:1458
 msgid "Allowed block types"
 msgstr "Erlaubte Blocktypen"
 
@@ -2238,7 +2238,7 @@ msgid "Another editor"
 msgstr "Eine andere Person"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:151
-#: packages/admin/src/components/FieldEditor.tsx:519
+#: packages/admin/src/components/FieldEditor.tsx:520
 msgid "Another field already uses this slug. Enter a different one."
 msgstr "Ein anderes Feld verwendet diesen Slug bereits. Gib einen anderen ein."
 
@@ -2266,7 +2266,7 @@ msgstr "Eine andere Beziehung verwendet diesen Slug bereits. Gib einen anderen e
 msgid "Another section already uses this slug. Enter a different one."
 msgstr "Ein anderer Abschnitt verwendet diesen Slug bereits. Gib einen anderen ein."
 
-#: packages/admin/src/components/FieldEditor.tsx:489
+#: packages/admin/src/components/FieldEditor.tsx:490
 msgid "Another sub-field already uses this slug. Enter a different one."
 msgstr "Ein anderes untergeordnetes Feld verwendet diesen Slug bereits. Gib einen anderen ein."
 
@@ -2297,7 +2297,7 @@ msgstr "Beliebig viele"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:60
 msgid "Anything typed into the changed fields during the restore will be lost."
-msgstr ""
+msgstr "Was während der Wiederherstellung in die geänderten Felder eingegeben wird, geht verloren."
 
 #: packages/admin/src/components/Settings.tsx:105
 #: packages/admin/src/components/Settings.tsx:109
@@ -2373,7 +2373,7 @@ msgstr "Freigegeben"
 msgid "Approving…"
 msgstr "Wird freigegeben…"
 
-#: packages/admin/src/components/FieldEditor.tsx:729
+#: packages/admin/src/components/FieldEditor.tsx:730
 msgid "Arbitrary JSON data"
 msgstr "Beliebige JSON-Daten"
 
@@ -2434,11 +2434,11 @@ msgstr "Über MCP verbundene Assistenten brauchen die Freigabe eines Admins, um 
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:4853
+#: packages/admin/src/components/ContentEditor.tsx:4857
 msgid "At least {min}"
 msgstr "Mindestens {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4850
+#: packages/admin/src/components/ContentEditor.tsx:4854
 msgid "At most {max}"
 msgstr "Höchstens {max}"
 
@@ -2609,7 +2609,7 @@ msgstr "Zurück"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:501
-#: packages/admin/src/components/FieldEditor.tsx:1814
+#: packages/admin/src/components/FieldEditor.tsx:1816
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
 #: packages/admin/src/components/WordPressImport.tsx:2609
@@ -2702,7 +2702,7 @@ msgstr "Vor dem Senden:"
 msgid "Before you continue:"
 msgstr "Bevor du fortfährst:"
 
-#: packages/admin/src/components/ContentEditor.tsx:4847
+#: packages/admin/src/components/ContentEditor.tsx:4851
 msgid "Between {min} and {max}"
 msgstr "Zwischen {min} und {max}"
 
@@ -2742,7 +2742,7 @@ msgstr "Blocktyp-Versionen"
 msgid "Block types"
 msgstr "Blocktypen"
 
-#: packages/admin/src/components/FieldEditor.tsx:1446
+#: packages/admin/src/components/FieldEditor.tsx:1448
 msgid "Block types could not be loaded."
 msgstr "Blocktypen konnten nicht geladen werden."
 
@@ -2750,7 +2750,7 @@ msgstr "Blocktypen konnten nicht geladen werden."
 msgid "Blockers"
 msgstr "Hindernisse"
 
-#: packages/admin/src/components/FieldEditor.tsx:752
+#: packages/admin/src/components/FieldEditor.tsx:753
 msgid "Blocks"
 msgstr "Blöcke"
 
@@ -2760,8 +2760,8 @@ msgid "Bold"
 msgstr "Fett"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:58
-#: packages/admin/src/components/FieldEditor.tsx:680
-#: packages/admin/src/components/FieldEditor.tsx:1698
+#: packages/admin/src/components/FieldEditor.tsx:681
+#: packages/admin/src/components/FieldEditor.tsx:1700
 msgid "Boolean"
 msgstr "Boolean"
 
@@ -2775,7 +2775,7 @@ msgstr "Beide Referenzfelder dieser Beziehung teilen sich diese Limits, sodass s
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:17
 msgid "Breadcrumb"
-msgstr ""
+msgstr "Breadcrumb"
 
 #: packages/admin/src/components/SeoPanel.tsx:317
 msgid "Brief summary shown below the title in search results"
@@ -2934,7 +2934,7 @@ msgstr "Kann Inhalte ansehen"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:150
 msgid "Can’t reach EmDash"
-msgstr ""
+msgstr "EmDash ist nicht erreichbar"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:325
 #: packages/admin/src/components/BulkTagDialog.tsx:506
@@ -2947,7 +2947,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
-#: packages/admin/src/components/FieldEditor.tsx:1819
+#: packages/admin/src/components/FieldEditor.tsx:1821
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
@@ -3076,7 +3076,7 @@ msgstr "Zellen verbunden"
 msgid "Center"
 msgstr "Zentriert"
 
-#: packages/admin/src/components/FieldEditor.tsx:1066
+#: packages/admin/src/components/FieldEditor.tsx:1068
 msgid "Change"
 msgstr "Ändern"
 
@@ -3122,7 +3122,7 @@ msgstr "Veröffentlichungsdatum ändern: {0}"
 msgid "Change schedule"
 msgstr "Planung ändern"
 
-#: packages/admin/src/components/FieldEditor.tsx:1012
+#: packages/admin/src/components/FieldEditor.tsx:1014
 msgid "Change the field's label and what it accepts."
 msgstr "Ändere die Bezeichnung des Felds und was es aufnimmt."
 
@@ -3321,7 +3321,7 @@ msgstr "Wird geprüft…"
 msgid "Choose {label}"
 msgstr "{label} wählen"
 
-#: packages/admin/src/components/FieldEditor.tsx:426
+#: packages/admin/src/components/FieldEditor.tsx:427
 msgid "Choose a collection."
 msgstr "Wähle eine Sammlung."
 
@@ -3356,7 +3356,7 @@ msgstr "Wähle ein nicht leeres {0}-Bild."
 msgid "Choose a recognized timezone for reliable date display."
 msgstr "Wähle eine gültige Zeitzone, damit Datumsangaben zuverlässig angezeigt werden."
 
-#: packages/admin/src/components/FieldEditor.tsx:425
+#: packages/admin/src/components/FieldEditor.tsx:426
 msgid "Choose a relationship."
 msgstr "Wähle eine Beziehung."
 
@@ -3384,7 +3384,7 @@ msgstr "Wähle ein Bild aus der Bibliothek oder lade ein neues hoch."
 msgid "Choose another option"
 msgstr "Andere Option wählen"
 
-#: packages/admin/src/components/FieldEditor.tsx:502
+#: packages/admin/src/components/FieldEditor.tsx:503
 msgid "Choose at least one block type."
 msgstr "Wähle mindestens einen Blocktyp."
 
@@ -3426,7 +3426,7 @@ msgstr "Wähle dieselbe Paketdatei erneut aus, um den Upload abzuschließen."
 msgid "Choose Touch ID or another available credential manager, then confirm with your fingerprint or Mac password."
 msgstr "Wähle Touch ID oder einen anderen verfügbaren Passwortmanager und bestätige dann mit deinem Fingerabdruck oder deinem Mac-Passwort."
 
-#: packages/admin/src/components/FieldEditor.tsx:1014
+#: packages/admin/src/components/FieldEditor.tsx:1016
 msgid "Choose what kind of content the field holds."
 msgstr "Wähle, welche Art von Inhalt das Feld aufnimmt."
 
@@ -3534,7 +3534,7 @@ msgstr "Klicke auf diesen Link, um dich bei {siteName} anzumelden:"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:19
 msgid "Click to copy"
-msgstr ""
+msgstr "Zum Kopieren klicken"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:275
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:324
@@ -3603,7 +3603,7 @@ msgstr "Code-Block"
 msgid "Code block actions"
 msgstr "Aktionen für Code-Block"
 
-#: packages/admin/src/components/BlocksField.tsx:1062
+#: packages/admin/src/components/BlocksField.tsx:1074
 msgid "Collapse all"
 msgstr "Alle einklappen"
 
@@ -3740,7 +3740,7 @@ msgstr "Registrierung abschließen"
 msgid "Component"
 msgstr "Komponente"
 
-#: packages/admin/src/components/FieldEditor.tsx:1008
+#: packages/admin/src/components/FieldEditor.tsx:1010
 msgid "Configure Field"
 msgstr "Feld konfigurieren"
 
@@ -3803,7 +3803,7 @@ msgstr "Verbunden am {0}"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:146
 msgid "Connecting to the live version of this entry."
-msgstr ""
+msgstr "Der aktuelle Stand dieses Eintrags wird geladen."
 
 #: packages/auth-atproto/src/admin.tsx:111
 #: packages/auth-atproto/src/admin.tsx:200
@@ -3887,7 +3887,11 @@ msgstr "Inhalt ist nicht mehr öffentlich einsehbar"
 msgid "Content reverted to draft"
 msgstr "Inhalt auf Entwurf zurückgesetzt"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:286
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:351
+msgid "Content search is unavailable. Paste a URL instead."
+msgstr "Die Inhaltssuche ist nicht verfügbar. Füge stattdessen eine URL ein."
+
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:299
 msgid "Content search results"
 msgstr "Suchergebnisse für Inhalte"
 
@@ -3991,7 +3995,7 @@ msgstr "In die Zwischenablage kopiert"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:18
 msgid "Copy"
-msgstr ""
+msgstr "Kopieren"
 
 #: packages/admin/src/components/settings/transfer/CopyableDigest.tsx:43
 msgid "Copy {label}"
@@ -4012,7 +4016,7 @@ msgstr "Einladungslink kopieren"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:238
 msgid "Copy my edits"
-msgstr ""
+msgstr "Meine Änderungen kopieren"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:576
 msgid "Copy receipt"
@@ -4123,7 +4127,7 @@ msgstr "Ob das Medienelement oder der gewählte Ordner noch existiert, ließ sic
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:223
 msgid "Couldn’t copy. Select the text on the page and copy it instead."
-msgstr ""
+msgstr "Kopieren fehlgeschlagen. Markiere den Text auf der Seite und kopiere ihn stattdessen selbst."
 
 #: packages/admin/src/components/WordPressImport.tsx:1317
 msgid "Couldn't detect WordPress"
@@ -4131,9 +4135,9 @@ msgstr "WordPress wurde nicht erkannt"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:147
 msgid "Couldn’t join. Try again."
-msgstr ""
+msgstr "Verbindung fehlgeschlagen. Versuche es erneut."
 
-#: packages/admin/src/components/ContentEditor.tsx:4711
+#: packages/admin/src/components/ContentEditor.tsx:4715
 msgid "Couldn't load all references."
 msgstr "Nicht alle Referenzen konnten geladen werden."
 
@@ -4267,7 +4271,7 @@ msgstr "{0}-Übersetzung erstellen"
 msgid "Create {singularLower}"
 msgstr "{singularLower} erstellen"
 
-#: packages/admin/src/components/FieldEditor.tsx:1450
+#: packages/admin/src/components/FieldEditor.tsx:1452
 msgid "Create a block type before adding a blocks field."
 msgstr "Erstelle einen Blocktyp, bevor du ein Feld vom Typ „Blöcke“ hinzufügst."
 
@@ -4361,7 +4365,7 @@ msgstr "Weiterleitung für diesen Pfad erstellen"
 msgid "Create redirect rules to manage URL changes."
 msgstr "Erstelle Weiterleitungsregeln, um URL-Änderungen zu verwalten."
 
-#: packages/admin/src/components/FieldEditor.tsx:1089
+#: packages/admin/src/components/FieldEditor.tsx:1091
 msgid "Create relation"
 msgstr "Beziehung erstellen"
 
@@ -4580,8 +4584,8 @@ msgstr "Seitenleiste anpassen"
 msgid "Daily automatic backups"
 msgstr "Tägliche automatische Backups"
 
-#: packages/admin/src/components/FieldEditor.tsx:1792
-#: packages/admin/src/components/FieldEditor.tsx:1795
+#: packages/admin/src/components/FieldEditor.tsx:1794
+#: packages/admin/src/components/FieldEditor.tsx:1797
 #: packages/admin/src/components/ImageFieldRenderer.tsx:562
 msgid "Dark mode variant"
 msgstr "Dark-Mode-Variante"
@@ -4605,12 +4609,12 @@ msgstr "In der Datenbank verwaltete Definitionen für Felder vom Typ „Blöcke�
 msgid "Date"
 msgstr "Datum"
 
-#: packages/admin/src/components/FieldEditor.tsx:686
-#: packages/admin/src/components/FieldEditor.tsx:1699
+#: packages/admin/src/components/FieldEditor.tsx:687
+#: packages/admin/src/components/FieldEditor.tsx:1701
 msgid "Date & Time"
 msgstr "Datum & Uhrzeit"
 
-#: packages/admin/src/components/FieldEditor.tsx:687
+#: packages/admin/src/components/FieldEditor.tsx:688
 msgid "Date and time picker"
 msgstr "Datums- und Uhrzeitauswahl"
 
@@ -4630,7 +4634,7 @@ msgstr "Datumsformat"
 msgid "Date range"
 msgstr "Zeitraum"
 
-#: packages/admin/src/components/FieldEditor.tsx:669
+#: packages/admin/src/components/FieldEditor.tsx:670
 msgid "Decimal number"
 msgstr "Dezimalzahl"
 
@@ -4685,7 +4689,7 @@ msgstr "Definiere die Struktur deiner Inhalte"
 msgid "Defined in code"
 msgstr "Im Code definiert"
 
-#: packages/admin/src/components/BlocksField.tsx:1184
+#: packages/admin/src/components/BlocksField.tsx:1196
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4765,7 +4769,7 @@ msgstr "Widget-Bereich {0} löschen"
 msgid "Delete {0}?"
 msgstr "{0} löschen?"
 
-#: packages/admin/src/components/BlocksField.tsx:1182
+#: packages/admin/src/components/BlocksField.tsx:1194
 msgid "Delete {confirmName}?"
 msgstr "{confirmName} löschen?"
 
@@ -4914,8 +4918,8 @@ msgstr "Widget löschen?"
 msgid "Deleted"
 msgstr "Gelöscht"
 
-#: packages/admin/src/components/BlocksField.tsx:902
-#: packages/admin/src/components/BlocksField.tsx:928
+#: packages/admin/src/components/BlocksField.tsx:914
+#: packages/admin/src/components/BlocksField.tsx:940
 msgid "Deleted {name}"
 msgstr "{name} gelöscht"
 
@@ -4930,7 +4934,7 @@ msgstr "Beim Löschen von „{0}“ werden auch alle darin enthaltenen Begriffe 
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "Beim Löschen von „{0}“ {1, plural, one {wird auch # gespeicherter Wert} other {werden auch # gespeicherte Werte}} über alle Autorenangaben hinweg entfernt. Dies kann nicht rückgängig gemacht werden."
 
-#: packages/admin/src/components/BlocksField.tsx:1185
+#: packages/admin/src/components/BlocksField.tsx:1197
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1853
@@ -4960,7 +4964,7 @@ msgstr "Wird gelöscht…"
 #. placeholder {0}: blocker.slug
 #: packages/admin/src/components/settings/transfer/labels.ts:109
 msgid "Deletion of collection “{0}” failed. Retry it by sending {body} to {action} before importing."
-msgstr ""
+msgstr "Das Löschen der Sammlung „{0}“ ist fehlgeschlagen. Starte es vor dem Import erneut, indem du {body} an {action} sendest."
 
 #: packages/admin/src/lib/api/marketplace.ts:446
 #: packages/admin/src/lib/api/marketplace.ts:457
@@ -5455,7 +5459,7 @@ msgstr "Doppelte Weiterleitungen wurden nicht berücksichtigt"
 msgid "Duplicated {copied}"
 msgstr "{copied} dupliziert"
 
-#: packages/admin/src/components/BlocksField.tsx:844
+#: packages/admin/src/components/BlocksField.tsx:856
 msgid "Duplicated {name}"
 msgstr "{name} dupliziert"
 
@@ -5588,7 +5592,7 @@ msgstr "Dark-Mode-Medienelement bearbeiten"
 msgid "Edit Domain"
 msgstr "Domain bearbeiten"
 
-#: packages/admin/src/components/FieldEditor.tsx:1008
+#: packages/admin/src/components/FieldEditor.tsx:1010
 msgid "Edit Field"
 msgstr "Feld bearbeiten"
 
@@ -5714,11 +5718,11 @@ msgstr "Alt-Text bearbeitet"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:475
 msgid "Edited by <0>{people}</0>"
-msgstr ""
+msgstr "Bearbeitet von <0>{people}</0>"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:311
 msgid "Editing {field}"
-msgstr ""
+msgstr "Bearbeitet gerade „{field}“"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:301
 msgid "Editing is paused until the import finishes. Keep this page open; if you leave, the import continues when you come back."
@@ -5764,7 +5768,7 @@ msgstr "Editor-Seitenleiste zurückgesetzt"
 msgid "Editor sidebar sections"
 msgstr "Bereiche der Editor-Seitenleiste"
 
-#: packages/admin/src/components/FieldEditor.tsx:1790
+#: packages/admin/src/components/FieldEditor.tsx:1792
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Redakteure können ein zweites Bild wählen, das die Website im Dark Mode anzeigt."
 
@@ -5875,15 +5879,15 @@ msgstr "EmDash {latest} ist verfügbar (du verwendest {0})"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:145
 msgid "EmDash couldn’t join this entry yet and keeps trying every few seconds."
-msgstr ""
+msgstr "EmDash konnte sich noch nicht mit diesem Eintrag verbinden und versucht es alle paar Sekunden erneut."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:172
 msgid "EmDash couldn’t keep the edits you made before joining as a recovery revision. Copy them, or try again."
-msgstr ""
+msgstr "EmDash konnte die Änderungen, die du vor dem Verbinden gemacht hast, nicht als Revision sichern. Kopiere sie oder versuche es erneut."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:168
 msgid "EmDash couldn’t merge them or keep them as a recovery revision. Your edits are still on this page."
-msgstr ""
+msgstr "EmDash konnte sie weder zusammenführen noch als Revision sichern. Deine Änderungen sind noch auf dieser Seite."
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1955
 msgid "EmDash does not keep the previous image."
@@ -5907,7 +5911,7 @@ msgstr "EmDash erhält niemals deine PIN, dein Passwort oder deine biometrischen
 
 #: packages/admin/src/router.tsx:2597
 msgid "EmDash or this entry’s fields changed since you opened it."
-msgstr ""
+msgstr "EmDash oder die Felder dieses Eintrags haben sich geändert, seit du ihn geöffnet hast."
 
 #: packages/admin/src/components/settings/transfer/ExportDownload.tsx:39
 msgid "EmDash site package"
@@ -6022,7 +6026,7 @@ msgid "Enter a full URL, such as https://example.com."
 msgstr "Gib eine vollständige URL ein, z. B. https://example.com."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:119
-#: packages/admin/src/components/FieldEditor.tsx:341
+#: packages/admin/src/components/FieldEditor.tsx:342
 #: packages/admin/src/components/MenuEditor.tsx:136
 #: packages/admin/src/components/MenuEditor.tsx:254
 #: packages/admin/src/components/MenuList.tsx:40
@@ -6031,7 +6035,7 @@ msgstr "Gib eine vollständige URL ein, z. B. https://example.com."
 msgid "Enter a label."
 msgstr "Gib eine Bezeichnung ein."
 
-#: packages/admin/src/components/FieldEditor.tsx:344
+#: packages/admin/src/components/FieldEditor.tsx:345
 msgid "Enter a maximum that is at least the minimum."
 msgstr "Gib ein Maximum ein, das mindestens so groß ist wie das Minimum."
 
@@ -6056,11 +6060,11 @@ msgstr "Gib eine Zahl von höchstens {max} ein."
 msgid "Enter a number of {min} or more."
 msgstr "Gib eine Zahl von mindestens {min} ein."
 
-#: packages/admin/src/components/FieldEditor.tsx:345
+#: packages/admin/src/components/FieldEditor.tsx:346
 msgid "Enter a number of 100 or less."
 msgstr "Gib eine Zahl von höchstens 100 ein."
 
-#: packages/admin/src/components/FieldEditor.tsx:343
+#: packages/admin/src/components/FieldEditor.tsx:344
 msgid "Enter a number."
 msgstr "Gib eine Zahl ein."
 
@@ -6075,7 +6079,7 @@ msgstr "Gib eine gültige Zeitzone ein, um zu speichern"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:127
 #: packages/admin/src/components/BylineFormDialog.tsx:317
-#: packages/admin/src/components/FieldEditor.tsx:340
+#: packages/admin/src/components/FieldEditor.tsx:341
 #: packages/admin/src/components/RelationForm.tsx:173
 #: packages/admin/src/components/Sections.tsx:98
 #: packages/admin/src/components/TaxonomyManager.tsx:106
@@ -6106,7 +6110,7 @@ msgstr "Gib eine URL ein."
 msgid "Enter a valid email address, such as name@example.com."
 msgstr "Gib eine gültige E-Mail-Adresse ein, z. B. name@example.com."
 
-#: packages/admin/src/components/FieldEditor.tsx:453
+#: packages/admin/src/components/FieldEditor.tsx:454
 msgid "Enter a valid regular expression."
 msgstr "Gib einen gültigen regulären Ausdruck ein."
 
@@ -6115,7 +6119,7 @@ msgid "Enter a valid time"
 msgstr "Gib eine gültige Uhrzeit ein"
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:4901
+#: packages/admin/src/components/ContentEditor.tsx:4905
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Gib eine gültige URL ein (z. B. https://example.com)"
 
@@ -6123,11 +6127,11 @@ msgstr "Gib eine gültige URL ein (z. B. https://example.com)"
 msgid "Enter a whole number"
 msgstr "Gib eine ganze Zahl ein"
 
-#: packages/admin/src/components/FieldEditor.tsx:342
+#: packages/admin/src/components/FieldEditor.tsx:343
 msgid "Enter a whole number of 0 or more."
 msgstr "Gib eine ganze Zahl von mindestens 0 ein."
 
-#: packages/admin/src/components/FieldEditor.tsx:412
+#: packages/admin/src/components/FieldEditor.tsx:413
 msgid "Enter a whole number of 1 or more."
 msgstr "Gib eine ganze Zahl von mindestens 1 ein."
 
@@ -6191,13 +6195,13 @@ msgstr "Gib die URL deiner WordPress-Website ein"
 msgid "Entries"
 msgstr "Einträge"
 
-#: packages/admin/src/components/FieldEditor.tsx:1126
-#: packages/admin/src/components/FieldEditor.tsx:1379
+#: packages/admin/src/components/FieldEditor.tsx:1128
+#: packages/admin/src/components/FieldEditor.tsx:1381
 msgid "Entries that link to this one"
 msgstr "Einträge, die auf diesen Eintrag verweisen"
 
-#: packages/admin/src/components/FieldEditor.tsx:1125
-#: packages/admin/src/components/FieldEditor.tsx:1378
+#: packages/admin/src/components/FieldEditor.tsx:1127
+#: packages/admin/src/components/FieldEditor.tsx:1380
 msgid "Entries this one links to"
 msgstr "Einträge, auf die dieser Eintrag verweist"
 
@@ -6294,7 +6298,7 @@ msgstr "Die bestehenden Inhalte sind indexiert. Neue Änderungen werden automati
 msgid "Exists"
 msgstr "Vorhanden"
 
-#: packages/admin/src/components/BlocksField.tsx:1062
+#: packages/admin/src/components/BlocksField.tsx:1074
 msgid "Expand all"
 msgstr "Alle ausklappen"
 
@@ -6436,7 +6440,7 @@ msgstr "Kommunikation mit dem Plugin fehlgeschlagen"
 msgid "Failed to compare revisions"
 msgstr "Vergleichen der Revisionen fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:391
+#: packages/admin/src/lib/api/media.ts:392
 msgid "Failed to confirm upload"
 msgstr "Bestätigen des Uploads fehlgeschlagen"
 
@@ -6503,7 +6507,7 @@ msgstr "Erstellen des Inhalts fehlgeschlagen"
 msgid "Failed to create field"
 msgstr "Erstellen des Felds fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:257
+#: packages/admin/src/lib/api/media.ts:258
 msgid "Failed to create media folder"
 msgstr "Erstellen des Medienordners fehlgeschlagen"
 
@@ -6597,15 +6601,15 @@ msgstr "Löschen des Inhalts fehlgeschlagen"
 msgid "Failed to delete field"
 msgstr "Löschen des Felds fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:872
+#: packages/admin/src/lib/api/media.ts:873
 msgid "Failed to delete from provider"
 msgstr "Löschen beim Anbieter fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:729
+#: packages/admin/src/lib/api/media.ts:730
 msgid "Failed to delete media"
 msgstr "Löschen der Datei fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:279
+#: packages/admin/src/lib/api/media.ts:280
 msgid "Failed to delete media folder"
 msgstr "Löschen des Medienordners fehlgeschlagen"
 
@@ -6802,27 +6806,27 @@ msgstr "Abrufen der Felder fehlgeschlagen"
 msgid "Failed to fetch manifest"
 msgstr "Abrufen des Manifests fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:179
+#: packages/admin/src/lib/api/media.ts:180
 msgid "Failed to fetch media"
 msgstr "Abrufen der Medien fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:244
+#: packages/admin/src/lib/api/media.ts:245
 msgid "Failed to fetch media folder"
 msgstr "Abrufen des Medienordners fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:236
+#: packages/admin/src/lib/api/media.ts:237
 msgid "Failed to fetch media folders"
 msgstr "Abrufen der Medienordner fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:197
+#: packages/admin/src/lib/api/media.ts:198
 msgid "Failed to fetch media item"
 msgstr "Abrufen des Medienelements fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:805
+#: packages/admin/src/lib/api/media.ts:806
 msgid "Failed to fetch media providers"
 msgstr "Abrufen der Medienanbieter fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:220
+#: packages/admin/src/lib/api/media.ts:221
 msgid "Failed to fetch media usage details"
 msgstr "Abrufen der Verwendungsdetails fehlgeschlagen"
 
@@ -6860,7 +6864,7 @@ msgstr "Abrufen der Plugin-Einstellungen fehlgeschlagen"
 msgid "Failed to fetch plugins"
 msgstr "Abrufen der Plugins fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:835
+#: packages/admin/src/lib/api/media.ts:836
 msgid "Failed to fetch provider media"
 msgstr "Abrufen der Medien vom Anbieter fehlgeschlagen"
 
@@ -6891,7 +6895,7 @@ msgstr "Abrufen der Revision fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:669
 msgid "Failed to fetch revision editors"
-msgstr ""
+msgstr "Abrufen der Bearbeiter der Revisionen fehlgeschlagen"
 
 #: packages/admin/src/lib/api/content.ts:649
 msgid "Failed to fetch revisions"
@@ -6986,7 +6990,7 @@ msgstr "Abrufen der Authentifizierungsoptionen fehlgeschlagen"
 msgid "Failed to get registration options"
 msgstr "Abrufen der Registrierungsoptionen fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:358
+#: packages/admin/src/lib/api/media.ts:359
 msgid "Failed to get upload URL"
 msgstr "Abrufen der Upload-URL fehlgeschlagen"
 
@@ -7186,7 +7190,7 @@ msgstr "Aufheben der Eintragssperre fehlgeschlagen"
 msgid "Failed to remove passkey"
 msgstr "Entfernen des Passkeys fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:270
+#: packages/admin/src/lib/api/media.ts:271
 msgid "Failed to rename media folder"
 msgstr "Umbenennen des Medienordners fehlgeschlagen"
 
@@ -7220,7 +7224,7 @@ msgstr "Neuanordnen der Begriffe fehlgeschlagen"
 msgid "Failed to reorder widgets"
 msgstr "Neuanordnen der Widgets fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:717
+#: packages/admin/src/lib/api/media.ts:718
 msgid "Failed to replace media image"
 msgstr "Ersetzen des Medienbilds fehlgeschlagen"
 
@@ -7256,7 +7260,7 @@ msgstr "Speichern fehlgeschlagen"
 
 #: packages/admin/src/lib/api/rooms.ts:90
 msgid "Failed to save a recovery revision"
-msgstr ""
+msgstr "Sichern der Änderungen als Revision fehlgeschlagen"
 
 #: packages/admin/src/components/settings/BackupSettings.tsx:103
 msgid "Failed to save backup settings"
@@ -7393,7 +7397,7 @@ msgstr "Aktualisieren der Domain fehlgeschlagen"
 msgid "Failed to update field"
 msgstr "Aktualisieren des Felds fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:753
+#: packages/admin/src/lib/api/media.ts:754
 msgid "Failed to update media"
 msgstr "Aktualisieren der Medien fehlgeschlagen"
 
@@ -7455,15 +7459,15 @@ msgstr "Aktualisieren des Widgets fehlgeschlagen"
 msgid "Failed to upload a package file"
 msgstr "Hochladen einer Paketdatei fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:416
+#: packages/admin/src/lib/api/media.ts:417
 msgid "Failed to upload file"
 msgstr "Hochladen der Datei fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:649
+#: packages/admin/src/lib/api/media.ts:650
 msgid "Failed to upload media"
 msgstr "Hochladen der Medien fehlgeschlagen"
 
-#: packages/admin/src/lib/api/media.ts:860
+#: packages/admin/src/lib/api/media.ts:861
 msgid "Failed to upload to provider"
 msgstr "Hochladen zum Anbieter fehlgeschlagen"
 
@@ -7514,15 +7518,15 @@ msgstr "Feld erstellt"
 msgid "Field deleted"
 msgstr "Feld gelöscht"
 
-#: packages/admin/src/components/FieldEditor.tsx:1644
+#: packages/admin/src/components/FieldEditor.tsx:1646
 msgid "Field label"
 msgstr "Feldbezeichnung"
 
-#: packages/admin/src/components/FieldEditor.tsx:1154
+#: packages/admin/src/components/FieldEditor.tsx:1156
 msgid "Field Label"
 msgstr "Feldbezeichnung"
 
-#: packages/admin/src/components/FieldEditor.tsx:1163
+#: packages/admin/src/components/FieldEditor.tsx:1165
 msgid "Field slugs cannot be changed after creation"
 msgstr "Feld-Slugs können nach dem Erstellen nicht mehr geändert werden"
 
@@ -7534,7 +7538,7 @@ msgstr "Der Feldtyp kann nach dem Erstellen nicht mehr geändert werden."
 msgid "Field updated"
 msgstr "Feld aktualisiert"
 
-#: packages/admin/src/components/FieldEditor.tsx:1675
+#: packages/admin/src/components/FieldEditor.tsx:1677
 msgid "field_slug"
 msgstr "field_slug"
 
@@ -7548,7 +7552,7 @@ msgstr "Felder"
 msgid "Fields created:"
 msgstr "Erstellte Felder:"
 
-#: packages/admin/src/components/FieldEditor.tsx:716
+#: packages/admin/src/components/FieldEditor.tsx:717
 msgid "File"
 msgstr "Datei"
 
@@ -7557,7 +7561,7 @@ msgstr "Datei"
 msgid "File {0}"
 msgstr "Datei {0}"
 
-#: packages/admin/src/components/FieldEditor.tsx:717
+#: packages/admin/src/components/FieldEditor.tsx:718
 msgid "File from media library"
 msgstr "Datei aus der Medienbibliothek"
 
@@ -7649,7 +7653,7 @@ msgstr "Filter: {activeCount} ausgewählt"
 
 #: packages/admin/src/router.tsx:1235
 msgid "Find it in this entry’s revisions."
-msgstr ""
+msgstr "Du findest sie unter den Revisionen dieses Eintrags."
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:590
 msgid "Finish any current edits."
@@ -7871,7 +7875,7 @@ msgstr "Zum Dashboard"
 msgid "Go to sign-in"
 msgstr "Zur Anmeldung"
 
-#: packages/admin/src/components/BlocksField.tsx:1016
+#: packages/admin/src/components/BlocksField.tsx:1028
 msgid "Go to the next problem"
 msgstr "Zum nächsten Problem"
 
@@ -8036,7 +8040,7 @@ msgstr "Vor Suchmaschinen verbergen"
 
 #: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Hide settings"
-msgstr ""
+msgstr "Einstellungen ausblenden"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:294
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:301
@@ -8065,7 +8069,7 @@ msgstr "Aufrufe"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Eintrag sperren, solange ihn jemand bearbeitet, und andere Schreibzugriffe abweisen"
 
-#: packages/admin/src/components/ContentEditor.tsx:4285
+#: packages/admin/src/components/ContentEditor.tsx:4289
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Enthält eine Eintrags-ID. Lege unter Inhaltstypen eine Zielsammlung fest, um stattdessen Einträge auszuwählen."
 
@@ -8216,8 +8220,8 @@ msgid "visualEditing.image"
 msgstr "Bild"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
-#: packages/admin/src/components/FieldEditor.tsx:710
-#: packages/admin/src/components/FieldEditor.tsx:1702
+#: packages/admin/src/components/FieldEditor.tsx:711
+#: packages/admin/src/components/FieldEditor.tsx:1704
 #: packages/admin/src/components/PortableTextEditor.tsx:2474
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
@@ -8244,7 +8248,7 @@ msgstr "Bildaktionen"
 msgid "Image controls"
 msgstr "Bildoptionen"
 
-#: packages/admin/src/components/FieldEditor.tsx:711
+#: packages/admin/src/components/FieldEditor.tsx:712
 msgid "Image from media library"
 msgstr "Bild aus der Medienbibliothek"
 
@@ -8456,7 +8460,7 @@ msgstr "Im Papierkorb"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "Öffne in den Windows-Einstellungen zuerst „Konten“, dann „Anmeldeoptionen“, und richte eine PIN ein. Fingerabdruck und Gesichtserkennung sind optional."
 
-#: packages/admin/src/components/BlocksField.tsx:1353
+#: packages/admin/src/components/BlocksField.tsx:1365
 msgid "Inactive version"
 msgstr "Inaktive Version"
 
@@ -8481,7 +8485,7 @@ msgstr "Spaltenbreite vergrößern"
 msgid "Index existing content and keep Used in results up to date."
 msgstr "Bestehende Inhalte indexieren und die Ergebnisse unter „Verwendet in“ aktuell halten."
 
-#: packages/admin/src/components/FieldEditor.tsx:1213
+#: packages/admin/src/components/FieldEditor.tsx:1215
 #: packages/admin/src/components/RegistryPluginDetail.tsx:588
 msgid "Indexed"
 msgstr "Indexiert"
@@ -8640,8 +8644,8 @@ msgstr "Installiert:"
 msgid "Installing..."
 msgstr "Wird installiert..."
 
-#: packages/admin/src/components/FieldEditor.tsx:674
-#: packages/admin/src/components/FieldEditor.tsx:1697
+#: packages/admin/src/components/FieldEditor.tsx:675
+#: packages/admin/src/components/FieldEditor.tsx:1699
 msgid "Integer"
 msgstr "Ganzzahl"
 
@@ -8653,7 +8657,7 @@ msgstr "UNGÜLTIGES HANDLE"
 msgid "Invalid invite link"
 msgstr "Ungültiger Einladungslink"
 
-#: packages/admin/src/components/ContentEditor.tsx:4994
+#: packages/admin/src/components/ContentEditor.tsx:4998
 msgid "Invalid JSON"
 msgstr "Ungültiges JSON"
 
@@ -8713,7 +8717,7 @@ msgstr "Isolierter Frame"
 
 #: packages/admin/src/components/ContentEditor.tsx:2968
 msgid "It has formatting this editor can’t keep."
-msgstr ""
+msgstr "Sie enthält Formatierungen, die dieser Editor nicht beibehalten kann."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:507
 msgid "It is stored by the authenticator or credential manager you selected in the secure system prompt."
@@ -8725,7 +8729,7 @@ msgstr "Er wurde an anderer Stelle gestartet, daher kann der Plan nicht mehr ge�
 
 #: packages/admin/src/router.tsx:2618
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
-msgstr ""
+msgstr "Er wird schreibgeschützt angezeigt. Einträge im Papierkorb lassen sich dort wiederherstellen."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3645
 #: packages/admin/src/components/PortableTextEditor.tsx:5202
@@ -8735,7 +8739,7 @@ msgstr "Kursiv"
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/BlockListField.tsx:401
 #: packages/admin/src/components/PortableTextEditor.tsx:1795
-#: packages/admin/src/components/RepeaterField.tsx:252
+#: packages/admin/src/components/RepeaterField.tsx:268
 msgid "Item {0}"
 msgstr "Element {0}"
 
@@ -8784,31 +8788,31 @@ msgstr "job_title"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:148
 msgid "Join"
-msgstr ""
+msgstr "Mitbearbeiten"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:167
 msgid "Join them to edit it together, or open it read-only."
-msgstr ""
+msgstr "Bearbeite ihn gemeinsam mit ihnen oder öffne ihn schreibgeschützt."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:143
 msgid "Joining this entry"
-msgstr ""
+msgstr "Verbindung wird hergestellt"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:148
 msgid "Joining..."
-msgstr ""
+msgstr "Wird verbunden..."
 
 #: packages/admin/src/components/ContentEditor.tsx:3261
 #: packages/admin/src/components/SaveButton.tsx:54
 msgid "Joining…"
-msgstr ""
+msgstr "Wird verbunden…"
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:65
 msgid "JS"
 msgstr "JS"
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:41
-#: packages/admin/src/components/FieldEditor.tsx:728
+#: packages/admin/src/components/FieldEditor.tsx:729
 msgid "JSON"
 msgstr "JSON"
 
@@ -8863,11 +8867,11 @@ msgstr "Tippe weiter, um die Liste einzugrenzen."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:153
 msgid "Keep typing. Your edits stay in this tab and save once EmDash can be reached again, so keep the tab open. Until then, you can’t publish or preview."
-msgstr ""
+msgstr "Schreib einfach weiter. Deine Änderungen bleiben in diesem Tab und werden gespeichert, sobald EmDash wieder erreichbar ist. Lass den Tab deshalb geöffnet. Bis dahin kannst du weder veröffentlichen noch eine Vorschau öffnen."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:159
 msgid "Keep typing. Your edits stay in this tab and save when you’re back online, so keep the tab open. Until then, you can’t publish or preview."
-msgstr ""
+msgstr "Schreib einfach weiter. Deine Änderungen bleiben in diesem Tab und werden gespeichert, sobald du wieder online bist. Lass den Tab deshalb geöffnet. Bis dahin kannst du weder veröffentlichen noch eine Vorschau öffnen."
 
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:315
 #: packages/admin/src/components/SectionEditor.tsx:287
@@ -8880,8 +8884,8 @@ msgid "Kotlin"
 msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:341
-#: packages/admin/src/components/FieldEditor.tsx:1151
-#: packages/admin/src/components/FieldEditor.tsx:1630
+#: packages/admin/src/components/FieldEditor.tsx:1153
+#: packages/admin/src/components/FieldEditor.tsx:1632
 #: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/MenuEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:615
@@ -9017,7 +9021,7 @@ msgstr "Lizenz"
 msgid "Limit"
 msgstr "Limit"
 
-#: packages/admin/src/components/BlocksField.tsx:2326
+#: packages/admin/src/components/BlocksField.tsx:2348
 #: packages/admin/src/components/PortableTextEditor.tsx:5386
 msgid "Link"
 msgstr "Link"
@@ -9034,7 +9038,7 @@ msgstr "Link-Optionen"
 msgid "Link this byline to a user or mark it as a guest profile."
 msgstr "Ordne diese Autorenangabe einem Benutzer zu oder markiere sie als Gastprofil."
 
-#: packages/admin/src/components/FieldEditor.tsx:723
+#: packages/admin/src/components/FieldEditor.tsx:724
 msgid "Link to another content item"
 msgstr "Link zu einem anderen Inhaltselement"
 
@@ -9187,7 +9191,7 @@ msgid "Loading approval requests…"
 msgstr "Freigabeanfragen werden geladen…"
 
 #: packages/admin/src/components/BlockTypeList.tsx:51
-#: packages/admin/src/components/FieldEditor.tsx:1443
+#: packages/admin/src/components/FieldEditor.tsx:1445
 msgid "Loading block types…"
 msgstr "Blocktypen werden geladen…"
 
@@ -9262,7 +9266,7 @@ msgstr "Plugins werden geladen..."
 msgid "Loading redirects..."
 msgstr "Weiterleitungen werden geladen..."
 
-#: packages/admin/src/components/ContentEditor.tsx:4719
+#: packages/admin/src/components/ContentEditor.tsx:4723
 msgid "Loading references..."
 msgstr "Referenzen werden geladen..."
 
@@ -9405,8 +9409,8 @@ msgstr "Logo & Favicon"
 msgid "Long text"
 msgstr "Langtext"
 
-#: packages/admin/src/components/FieldEditor.tsx:662
-#: packages/admin/src/components/FieldEditor.tsx:1695
+#: packages/admin/src/components/FieldEditor.tsx:663
+#: packages/admin/src/components/FieldEditor.tsx:1697
 msgid "Long Text"
 msgstr "Langtext"
 
@@ -9533,15 +9537,15 @@ msgstr "Suche im Marktplatz fehlgeschlagen"
 msgid "Matched by email"
 msgstr "Anhand der E-Mail zugeordnet"
 
-#: packages/admin/src/components/FieldEditor.tsx:1761
+#: packages/admin/src/components/FieldEditor.tsx:1763
 msgid "Max Items"
 msgstr "Max. Elemente"
 
-#: packages/admin/src/components/FieldEditor.tsx:1237
+#: packages/admin/src/components/FieldEditor.tsx:1239
 msgid "Max Length"
 msgstr "Max. Länge"
 
-#: packages/admin/src/components/FieldEditor.tsx:1275
+#: packages/admin/src/components/FieldEditor.tsx:1277
 msgid "Max Value"
 msgstr "Max. Wert"
 
@@ -9549,7 +9553,7 @@ msgstr "Max. Wert"
 msgid "Maximum"
 msgstr "Maximum"
 
-#: packages/admin/src/components/FieldEditor.tsx:1561
+#: packages/admin/src/components/FieldEditor.tsx:1563
 msgid "Maximum blocks"
 msgstr "Maximale Anzahl Blöcke"
 
@@ -9771,19 +9775,19 @@ msgstr "Migrationsleitfaden"
 msgid "Migration key"
 msgstr "Migrationsschlüssel"
 
-#: packages/admin/src/components/FieldEditor.tsx:1751
+#: packages/admin/src/components/FieldEditor.tsx:1753
 msgid "Min Items"
 msgstr "Min. Elemente"
 
-#: packages/admin/src/components/FieldEditor.tsx:1227
+#: packages/admin/src/components/FieldEditor.tsx:1229
 msgid "Min Length"
 msgstr "Min. Länge"
 
-#: packages/admin/src/components/FieldEditor.tsx:1265
+#: packages/admin/src/components/FieldEditor.tsx:1267
 msgid "Min Value"
 msgstr "Min. Wert"
 
-#: packages/admin/src/components/FieldEditor.tsx:1550
+#: packages/admin/src/components/FieldEditor.tsx:1552
 msgid "Minimum blocks"
 msgstr "Minimale Anzahl Blöcke"
 
@@ -9842,7 +9846,7 @@ msgstr "Weitere Formatierungen"
 
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:16
 msgid "More information"
-msgstr ""
+msgstr "Weitere Informationen"
 
 #: packages/admin/src/components/DialogSection.tsx:28
 #: packages/admin/src/components/FieldHelpLabel.tsx:110
@@ -9880,8 +9884,8 @@ msgstr "„{title}“ in den Papierkorb verschieben? Du kannst es später wieder
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4686
-#: packages/admin/src/components/FieldEditor.tsx:1521
+#: packages/admin/src/components/ContentEditor.tsx:4690
+#: packages/admin/src/components/FieldEditor.tsx:1523
 msgid "Move {0} down"
 msgstr "{0} nach unten verschieben"
 
@@ -9897,8 +9901,8 @@ msgstr "{0} nach hinten verschieben"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4675
-#: packages/admin/src/components/FieldEditor.tsx:1504
+#: packages/admin/src/components/ContentEditor.tsx:4679
+#: packages/admin/src/components/FieldEditor.tsx:1506
 msgid "Move {0} up"
 msgstr "{0} nach oben verschieben"
 
@@ -9970,7 +9974,7 @@ msgstr "{filename} an Position {0} verschoben."
 msgid "Moved {moved} to position {position} of {total}"
 msgstr "{moved} an Position {position} von {total} verschoben"
 
-#: packages/admin/src/components/BlocksField.tsx:855
+#: packages/admin/src/components/BlocksField.tsx:867
 #: packages/admin/src/components/useDragAnnouncements.ts:72
 msgid "Moved {name} to position {position} of {total}"
 msgstr "{name} an Position {position} von {total} verschoben"
@@ -10064,15 +10068,15 @@ msgstr "Du ziehst von einer anderen EmDash-Website um?"
 msgid "Moving to trash..."
 msgstr "Wird in den Papierkorb verschoben..."
 
-#: packages/admin/src/components/FieldEditor.tsx:698
+#: packages/admin/src/components/FieldEditor.tsx:699
 msgid "Multi Select"
 msgstr "Mehrfachauswahl"
 
-#: packages/admin/src/components/FieldEditor.tsx:663
+#: packages/admin/src/components/FieldEditor.tsx:664
 msgid "Multi-line plain text"
 msgstr "Mehrzeilige Texteingabe"
 
-#: packages/admin/src/components/FieldEditor.tsx:699
+#: packages/admin/src/components/FieldEditor.tsx:700
 msgid "Multiple choices from options"
 msgstr "Mehrfachauswahl aus Optionen"
 
@@ -10097,7 +10101,7 @@ msgstr "Mein wunderbarer Blog"
 msgid "Name"
 msgstr "Name"
 
-#: packages/admin/src/components/FieldEditor.tsx:1015
+#: packages/admin/src/components/FieldEditor.tsx:1017
 msgid "Name the field and choose what it accepts."
 msgstr "Benenne das Feld und wähle, was es aufnimmt."
 
@@ -10250,7 +10254,7 @@ msgstr "Neueste"
 msgid "News"
 msgstr "News"
 
-#: packages/admin/src/components/FieldEditor.tsx:1822
+#: packages/admin/src/components/FieldEditor.tsx:1824
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "Weiter"
@@ -10324,7 +10328,7 @@ msgstr "Noch keine freigegebenen Kommentare."
 msgid "No block types defined"
 msgstr "Keine Blocktypen definiert"
 
-#: packages/admin/src/components/BlocksField.tsx:1147
+#: packages/admin/src/components/BlocksField.tsx:1159
 msgid "No blocks yet"
 msgstr "Noch keine Blöcke"
 
@@ -10494,12 +10498,12 @@ msgstr "Kein Einladungs-Token angegeben"
 
 #: packages/admin/src/components/BlockListField.tsx:885
 #: packages/admin/src/components/PortableTextEditor.tsx:1718
-#: packages/admin/src/components/RepeaterField.tsx:172
+#: packages/admin/src/components/RepeaterField.tsx:179
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
 msgstr "Noch keine Elemente"
 
-#: packages/admin/src/components/FieldEditor.tsx:1766
+#: packages/admin/src/components/FieldEditor.tsx:1768
 msgid "No limit"
 msgstr "Kein Limit"
 
@@ -10532,7 +10536,7 @@ msgstr "Keine passenden Autorenangaben"
 msgid "No matching bylines."
 msgstr "Keine passenden Autorenangaben."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:341
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:356
 msgid "No matching content found."
 msgstr "Keine passenden Inhalte gefunden."
 
@@ -10553,8 +10557,8 @@ msgstr "Keine passenden Schlagwörter"
 msgid "No matching timezones"
 msgstr "Keine passenden Zeitzonen"
 
-#: packages/admin/src/components/FieldEditor.tsx:1242
-#: packages/admin/src/components/FieldEditor.tsx:1280
+#: packages/admin/src/components/FieldEditor.tsx:1244
+#: packages/admin/src/components/FieldEditor.tsx:1282
 msgid "No maximum"
 msgstr "Kein Maximum"
 
@@ -10575,8 +10579,8 @@ msgstr "Noch keine Menüpunkte"
 msgid "No menus yet"
 msgstr "Noch keine Menüs"
 
-#: packages/admin/src/components/FieldEditor.tsx:1232
-#: packages/admin/src/components/FieldEditor.tsx:1270
+#: packages/admin/src/components/FieldEditor.tsx:1234
+#: packages/admin/src/components/FieldEditor.tsx:1272
 msgid "No minimum"
 msgstr "Kein Minimum"
 
@@ -10632,7 +10636,7 @@ msgstr "Keine Weiterleitungen entsprechen diesen Filtern"
 msgid "No redirects yet"
 msgstr "Noch keine Weiterleitungen"
 
-#: packages/admin/src/components/ContentEditor.tsx:4629
+#: packages/admin/src/components/ContentEditor.tsx:4633
 msgid "No references selected."
 msgstr "Keine Referenzen ausgewählt."
 
@@ -10645,7 +10649,7 @@ msgid "No relations yet."
 msgstr "Noch keine Beziehungen."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:1064
-#: packages/admin/src/components/RepeaterField.tsx:403
+#: packages/admin/src/components/RepeaterField.tsx:434
 msgid "No results"
 msgstr "Keine Ergebnisse"
 
@@ -10751,7 +10755,7 @@ msgstr "In dieser Version nicht enthalten"
 #: packages/admin/src/components/SaveButton.tsx:56
 #: packages/admin/src/components/SaveButton.tsx:57
 msgid "Not saved"
-msgstr ""
+msgstr "Nicht gespeichert"
 
 #: packages/admin/src/components/ContentEditor.tsx:3277
 msgid "Not saved yet"
@@ -10786,15 +10790,15 @@ msgstr "Noch nichts für die Vorschau vorhanden."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:197
 msgid "Nothing you change here will be saved."
-msgstr ""
+msgstr "Was du hier änderst, wird nicht gespeichert."
 
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:104
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:385
 msgid "Now · {time}"
 msgstr "Jetzt · {time}"
 
-#: packages/admin/src/components/FieldEditor.tsx:668
-#: packages/admin/src/components/FieldEditor.tsx:1696
+#: packages/admin/src/components/FieldEditor.tsx:669
+#: packages/admin/src/components/FieldEditor.tsx:1698
 msgid "Number"
 msgstr "Zahl"
 
@@ -10824,7 +10828,7 @@ msgstr "Aus"
 #: packages/admin/src/components/ContentEditor.tsx:3263
 #: packages/admin/src/components/SaveButton.tsx:55
 msgid "Offline"
-msgstr ""
+msgstr "Offline"
 
 #: packages/admin/src/components/SeoImageField.tsx:88
 msgid "OG Image"
@@ -10893,7 +10897,7 @@ msgid "Open"
 msgstr "Öffnen"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4664
+#: packages/admin/src/components/ContentEditor.tsx:4668
 msgid "Open {0} in a new tab"
 msgstr "{0} in neuem Tab öffnen"
 
@@ -10951,8 +10955,8 @@ msgstr "Windows-Einstellungen öffnen"
 msgid "Open WordPress Profile"
 msgstr "WordPress-Profil öffnen"
 
-#: packages/admin/src/components/FieldEditor.tsx:1293
-#: packages/admin/src/components/FieldEditor.tsx:1715
+#: packages/admin/src/components/FieldEditor.tsx:1295
+#: packages/admin/src/components/FieldEditor.tsx:1717
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -10988,8 +10992,8 @@ msgid "Optional tooltip on hover"
 msgstr "Optionaler Tooltip beim Darüberfahren mit der Maus"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:432
-#: packages/admin/src/components/FieldEditor.tsx:1290
-#: packages/admin/src/components/FieldEditor.tsx:1708
+#: packages/admin/src/components/FieldEditor.tsx:1292
+#: packages/admin/src/components/FieldEditor.tsx:1710
 msgid "Options (one per line)"
 msgstr "Optionen (eine pro Zeile)"
 
@@ -11027,7 +11031,7 @@ msgstr "Reihenfolge"
 msgid "Order saved"
 msgstr "Reihenfolge gespeichert"
 
-#: packages/admin/src/components/FieldEditor.tsx:753
+#: packages/admin/src/components/FieldEditor.tsx:754
 msgid "Ordered page-building blocks"
 msgstr "Liste von Blöcken für den Seitenaufbau"
 
@@ -11051,11 +11055,11 @@ msgstr "Sonstige"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:152
 msgid "Other people’s edits show here again once EmDash can be reached."
-msgstr ""
+msgstr "Änderungen anderer Personen erscheinen hier wieder, sobald EmDash erreichbar ist."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:158
 msgid "Other people’s edits show here again once you’re back online."
-msgstr ""
+msgstr "Änderungen anderer Personen erscheinen hier wieder, sobald du wieder online bist."
 
 #: packages/admin/src/components/editor/DocumentOutline.tsx:242
 #: packages/admin/src/lib/editor-sections.ts:38
@@ -11239,7 +11243,7 @@ msgstr "Passwort"
 #. placeholder {0}: result.passwordProtected.length
 #: packages/admin/src/components/WordPressImport.tsx:2413
 msgid "Password-Protected Entries ({0})"
-msgstr ""
+msgstr "Passwortgeschützte Einträge ({0})"
 
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:248
 msgid "Paste an embed code or an https link…"
@@ -11257,7 +11261,7 @@ msgstr "Füge deinen Migrationsschlüssel ein"
 msgid "Path"
 msgstr "Pfad"
 
-#: packages/admin/src/components/FieldEditor.tsx:1250
+#: packages/admin/src/components/FieldEditor.tsx:1252
 msgid "Pattern (Regex)"
 msgstr "Muster (Regex)"
 
@@ -11303,11 +11307,11 @@ msgstr "Ausstehende Änderungen"
 #: packages/admin/src/components/EntryLockNotice.tsx:162
 #: packages/admin/src/components/EntryLockNotice.tsx:189
 msgid "People are editing this entry together"
-msgstr ""
+msgstr "Mehrere Personen bearbeiten diesen Eintrag gemeinsam"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:307
 msgid "People in this entry"
-msgstr ""
+msgstr "Personen in diesem Eintrag"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:545
 msgid "People shown publicly on this post."
@@ -11353,7 +11357,7 @@ msgstr "{label} aufgenommen."
 msgid "Picked up {name}, position {position} of {total}"
 msgstr "{name} aufgenommen, Position {position} von {total}"
 
-#: packages/admin/src/components/FieldEditor.tsx:1879
+#: packages/admin/src/components/FieldEditor.tsx:1881
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "Verweist dieser Eintrag auf andere, können Redakteure deren Reihenfolge per Drag-and-drop festlegen. In der Gegenrichtung erscheinen alle Einträge, die auf ihn verweisen; diese Liste lässt sich nicht umsortieren."
 
@@ -11669,7 +11673,7 @@ msgstr "Vorschau von {0}"
 
 #: packages/admin/src/router.tsx:1467
 msgid "Preview opens once your edits are saved"
-msgstr ""
+msgstr "Die Vorschau öffnet sich, sobald deine Änderungen gespeichert sind"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:579
 msgid "Preview unavailable for this format"
@@ -11870,11 +11874,11 @@ msgstr "In Warteschlange"
 msgid "Quick action on the dashboard"
 msgstr "Schnellaktion im Dashboard"
 
-#: packages/admin/src/components/FieldEditor.tsx:1343
+#: packages/admin/src/components/FieldEditor.tsx:1345
 msgid "Quick create a relationship"
 msgstr "Neue Beziehung automatisch erstellen"
 
-#: packages/admin/src/components/FieldEditor.tsx:1415
+#: packages/admin/src/components/FieldEditor.tsx:1417
 msgid "Quick create names the relationship after this field and this collection, takes how many entries it holds from the switch above, and puts no limit on how many entries link back the other way. <0>Create the relationship yourself</0> to set its slug, the name each side goes by, and both limits, then pick it above."
 msgstr "Bei der automatischen Erstellung wird die Beziehung nach diesem Feld und dieser Sammlung benannt; wie viele Einträge sie aufnimmt, kommt vom Schalter oben, und wie viele Einträge in der Gegenrichtung verweisen, ist nicht begrenzt. <0>Erstelle die Beziehung selbst</0>, um ihren Slug, die Namen beider Seiten und beide Limits festzulegen, und wähle sie dann oben aus."
 
@@ -12060,17 +12064,17 @@ msgstr "Weiterleitungen, die zu einer Endlosschleife führen, werden deaktiviert
 msgid "Redo"
 msgstr "Wiederholen"
 
-#: packages/admin/src/components/FieldEditor.tsx:722
-#: packages/admin/src/components/FieldEditor.tsx:1302
+#: packages/admin/src/components/FieldEditor.tsx:723
+#: packages/admin/src/components/FieldEditor.tsx:1304
 msgid "Reference"
 msgstr "Referenz"
 
-#: packages/admin/src/components/FieldEditor.tsx:1105
-#: packages/admin/src/components/FieldEditor.tsx:1108
-#: packages/admin/src/components/FieldEditor.tsx:1323
-#: packages/admin/src/components/FieldEditor.tsx:1358
-#: packages/admin/src/components/FieldEditor.tsx:1361
-#: packages/admin/src/components/FieldEditor.tsx:1394
+#: packages/admin/src/components/FieldEditor.tsx:1107
+#: packages/admin/src/components/FieldEditor.tsx:1110
+#: packages/admin/src/components/FieldEditor.tsx:1325
+#: packages/admin/src/components/FieldEditor.tsx:1360
+#: packages/admin/src/components/FieldEditor.tsx:1363
+#: packages/admin/src/components/FieldEditor.tsx:1396
 msgid "Referenced collection"
 msgstr "Referenzierte Sammlung"
 
@@ -12132,10 +12136,10 @@ msgstr "Verzeichnis"
 msgid "Relations"
 msgstr "Beziehungen"
 
-#: packages/admin/src/components/FieldEditor.tsx:1079
-#: packages/admin/src/components/FieldEditor.tsx:1310
-#: packages/admin/src/components/FieldEditor.tsx:1313
-#: packages/admin/src/components/FieldEditor.tsx:1338
+#: packages/admin/src/components/FieldEditor.tsx:1081
+#: packages/admin/src/components/FieldEditor.tsx:1312
+#: packages/admin/src/components/FieldEditor.tsx:1315
+#: packages/admin/src/components/FieldEditor.tsx:1340
 msgid "Relationship"
 msgstr "Beziehung"
 
@@ -12154,7 +12158,7 @@ msgstr "Release Notes"
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:109
 #: packages/admin/src/router.tsx:2605
 msgid "Reload"
-msgstr ""
+msgstr "Neu laden"
 
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:325
 msgid "Reload after updating EmDash before trying again."
@@ -12166,7 +12170,7 @@ msgstr "Seite neu laden"
 
 #: packages/admin/src/router.tsx:2596
 msgid "Reloading the admin"
-msgstr ""
+msgstr "Der Adminbereich wird neu geladen"
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:489
 msgid "Reloading the plan…"
@@ -12178,8 +12182,8 @@ msgid "visualEditing.removeImage"
 msgstr "Entfernen"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:109
-#: packages/admin/src/components/ContentEditor.tsx:5187
-#: packages/admin/src/components/ContentEditor.tsx:5253
+#: packages/admin/src/components/ContentEditor.tsx:5191
+#: packages/admin/src/components/ContentEditor.tsx:5257
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:359
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:823
@@ -12200,7 +12204,7 @@ msgstr "Entfernen"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:4699
+#: packages/admin/src/components/ContentEditor.tsx:4703
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -12218,8 +12222,8 @@ msgid "Remove {entry}"
 msgstr "{entry} entfernen"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:5185
-#: packages/admin/src/components/ContentEditor.tsx:5251
+#: packages/admin/src/components/ContentEditor.tsx:5189
+#: packages/admin/src/components/ContentEditor.tsx:5255
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -12264,7 +12268,7 @@ msgstr "Bild entfernen?"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/PortableTextEditor.tsx:1834
-#: packages/admin/src/components/RepeaterField.tsx:288
+#: packages/admin/src/components/RepeaterField.tsx:304
 msgid "Remove item {0}"
 msgstr "Element {0} entfernen"
 
@@ -12287,7 +12291,7 @@ msgstr "Passkey entfernen?"
 msgid "Remove schedule"
 msgstr "Planung aufheben"
 
-#: packages/admin/src/components/FieldEditor.tsx:1741
+#: packages/admin/src/components/FieldEditor.tsx:1743
 msgid "Remove sub-field"
 msgstr "Untergeordnetes Feld entfernen"
 
@@ -12417,7 +12421,7 @@ msgstr "Neu anordnen"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:1555
+#: packages/admin/src/components/BlocksField.tsx:1577
 #: packages/admin/src/components/BylineCreditsEditor.tsx:693
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
@@ -12427,11 +12431,11 @@ msgstr "{0} neu anordnen"
 msgid "Reorder {label}"
 msgstr "{label} neu anordnen"
 
-#: packages/admin/src/components/FieldEditor.tsx:746
+#: packages/admin/src/components/FieldEditor.tsx:747
 msgid "Repeater"
 msgstr "Wiederholbares Feld"
 
-#: packages/admin/src/components/FieldEditor.tsx:747
+#: packages/admin/src/components/FieldEditor.tsx:748
 msgid "Repeating group of fields"
 msgstr "Wiederholbare Gruppe von Feldern"
 
@@ -12442,9 +12446,9 @@ msgstr "Ersetzen"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:99
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:198
-#: packages/admin/src/components/ContentEditor.tsx:5142
-#: packages/admin/src/components/ContentEditor.tsx:5177
-#: packages/admin/src/components/ContentEditor.tsx:5243
+#: packages/admin/src/components/ContentEditor.tsx:5146
+#: packages/admin/src/components/ContentEditor.tsx:5181
+#: packages/admin/src/components/ContentEditor.tsx:5247
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12466,7 +12470,7 @@ msgstr "Ersetzen"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:97
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:5141
+#: packages/admin/src/components/ContentEditor.tsx:5145
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12504,7 +12508,7 @@ msgstr "Originalbild ersetzen?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "„Original ersetzen“ ist nur mit dem Seitenverhältnis „Original“ möglich."
 
-#: packages/admin/src/components/ContentEditor.tsx:4734
+#: packages/admin/src/components/ContentEditor.tsx:4738
 msgid "Replace reference"
 msgstr "Referenz ersetzen"
 
@@ -12569,8 +12573,8 @@ msgstr "Slug erforderlich, bevor Inhalte veröffentlicht werden können"
 #: packages/admin/src/components/block-field-notes.tsx:159
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:984
-#: packages/admin/src/components/FieldEditor.tsx:1193
-#: packages/admin/src/components/FieldEditor.tsx:1723
+#: packages/admin/src/components/FieldEditor.tsx:1195
+#: packages/admin/src/components/FieldEditor.tsx:1725
 #: packages/admin/src/routes/byline-schema.tsx:235
 msgid "Required"
 msgstr "Erforderlich"
@@ -12714,13 +12718,13 @@ msgstr "Wird wiederhergestellt…"
 msgid "Results"
 msgstr "Ergebnisse"
 
-#: packages/admin/src/components/BlocksField.tsx:1354
-#: packages/admin/src/components/FieldEditor.tsx:1488
+#: packages/admin/src/components/BlocksField.tsx:1366
+#: packages/admin/src/components/FieldEditor.tsx:1490
 msgid "Retired"
 msgstr "Eingestellt"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:4713
+#: packages/admin/src/components/ContentEditor.tsx:4717
 #: packages/admin/src/components/ContentPickerModal.tsx:278
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12869,7 +12873,7 @@ msgstr "Widerrufen?"
 msgid "Revoking..."
 msgstr "Wird widerrufen..."
 
-#: packages/admin/src/components/FieldEditor.tsx:704
+#: packages/admin/src/components/FieldEditor.tsx:705
 msgid "Rich Text"
 msgstr "Rich Text"
 
@@ -12877,7 +12881,7 @@ msgstr "Rich Text"
 msgid "Rich text content"
 msgstr "Rich-Text-Inhalt"
 
-#: packages/admin/src/components/FieldEditor.tsx:705
+#: packages/admin/src/components/FieldEditor.tsx:706
 #: packages/admin/src/components/PortableTextEditor.tsx:2737
 msgid "Rich text editor"
 msgstr "Rich-Text-Editor"
@@ -13085,7 +13089,7 @@ msgstr "„{0}“ gespeichert."
 msgid "Saved immediately; term changes do not wait for Publish changes."
 msgstr "Sofort gespeichert; Änderungen an Begriffen gelten auch ohne „Änderungen veröffentlichen“."
 
-#: packages/admin/src/components/FieldEditor.tsx:1406
+#: packages/admin/src/components/FieldEditor.tsx:1408
 msgid "Saving a collection here turns this field into an entry picker. Its stored entry IDs move to the relationship, and the field can no longer be searched or filtered on."
 msgstr "Wenn du hier eine Sammlung auswählst und speicherst, wird dieses Feld zu einer Eintragsauswahl. Die gespeicherten Eintrags-IDs werden in die Beziehung übertragen, und nach dem Feld kann nicht mehr gesucht oder gefiltert werden."
 
@@ -13096,7 +13100,7 @@ msgstr "Beim Speichern entsteht ein Entwurf, der nicht auf der Website erscheint
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:3268
 #: packages/admin/src/components/ContentEditor.tsx:3273
-#: packages/admin/src/components/FieldEditor.tsx:1826
+#: packages/admin/src/components/FieldEditor.tsx:1828
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
@@ -13336,11 +13340,11 @@ msgstr "Suchmaschinenverifizierung"
 msgid "Search engines can index this site. Switch back to staging to hide it again, for example during a relaunch."
 msgstr "Suchmaschinen können diese Website indexieren. Wechsle zurück zu Staging, um sie wieder zu verbergen, etwa während eines Relaunchs."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:79
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:85
 msgid "Search failed"
 msgstr "Suche fehlgeschlagen"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:337
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:352
 msgid "Search failed. Check your connection and try again."
 msgstr "Suche fehlgeschlagen. Prüfe deine Verbindung und versuche es erneut."
 
@@ -13374,8 +13378,8 @@ msgstr "{label} durchsuchen oder erstellen"
 msgid "Search or create {label}…"
 msgstr "{label} durchsuchen oder erstellen…"
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:269
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:270
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:282
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:283
 msgid "Search or type a URL"
 msgstr "Suchen oder URL eingeben"
 
@@ -13444,7 +13448,7 @@ msgid "Search..."
 msgstr "Suchen..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:986
-#: packages/admin/src/components/FieldEditor.tsx:1206
+#: packages/admin/src/components/FieldEditor.tsx:1208
 msgid "Searchable"
 msgstr "Durchsuchbar"
 
@@ -13553,17 +13557,17 @@ msgid "See where this file is used."
 msgstr "Zeigt, wo diese Datei verwendet wird."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:59
-#: packages/admin/src/components/FieldEditor.tsx:692
-#: packages/admin/src/components/FieldEditor.tsx:1700
+#: packages/admin/src/components/FieldEditor.tsx:693
+#: packages/admin/src/components/FieldEditor.tsx:1702
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:172
 msgid "Select"
 msgstr "Einfachauswahl"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:5141
-#: packages/admin/src/components/ContentEditor.tsx:5202
-#: packages/admin/src/components/ContentEditor.tsx:5263
+#: packages/admin/src/components/ContentEditor.tsx:5145
+#: packages/admin/src/components/ContentEditor.tsx:5206
+#: packages/admin/src/components/ContentEditor.tsx:5267
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13574,7 +13578,7 @@ msgstr "{label} auswählen"
 msgid "Select {title}"
 msgstr "{title} auswählen"
 
-#: packages/admin/src/components/FieldEditor.tsx:1399
+#: packages/admin/src/components/FieldEditor.tsx:1401
 msgid "Select a collection"
 msgstr "Sammlung auswählen"
 
@@ -13595,7 +13599,7 @@ msgstr "Speicherort auswählen"
 msgid "Select a menu..."
 msgstr "Ein Menü auswählen..."
 
-#: packages/admin/src/components/FieldEditor.tsx:1092
+#: packages/admin/src/components/FieldEditor.tsx:1094
 msgid "Select a relationship"
 msgstr "Beziehung auswählen"
 
@@ -13612,7 +13616,7 @@ msgstr "Alle auf dieser Seite auswählen"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr "Wähle und konfiguriere den Anbieter, über den alle ausgehenden E-Mails zugestellt werden."
 
-#: packages/admin/src/components/ContentEditor.tsx:4737
+#: packages/admin/src/components/ContentEditor.tsx:4741
 msgid "Select at least one entry."
 msgstr "Wähle mindestens einen Eintrag aus."
 
@@ -13645,8 +13649,8 @@ msgstr "Favicon auswählen"
 msgid "Select Favicon"
 msgstr "Favicon auswählen"
 
-#: packages/admin/src/components/ContentEditor.tsx:5204
-#: packages/admin/src/components/ContentEditor.tsx:5269
+#: packages/admin/src/components/ContentEditor.tsx:5208
+#: packages/admin/src/components/ContentEditor.tsx:5273
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Datei auswählen"
@@ -13702,7 +13706,7 @@ msgstr "Wähle aus, welche Inhaltstypen importiert werden sollen."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
 #: packages/admin/src/components/PortableTextEditor.tsx:1933
-#: packages/admin/src/components/RepeaterField.tsx:401
+#: packages/admin/src/components/RepeaterField.tsx:432
 msgid "Select..."
 msgstr "Auswählen..."
 
@@ -13942,8 +13946,8 @@ msgstr "Bild-URL zum Teilen fehlt"
 msgid "Short text"
 msgstr "Kurztext"
 
-#: packages/admin/src/components/FieldEditor.tsx:656
-#: packages/admin/src/components/FieldEditor.tsx:1694
+#: packages/admin/src/components/FieldEditor.tsx:657
+#: packages/admin/src/components/FieldEditor.tsx:1696
 msgid "Short Text"
 msgstr "Kurztext"
 
@@ -13981,7 +13985,7 @@ msgstr "Beitragsanzahl anzeigen"
 
 #: packages/admin/src/components/SettingsPanelToggle.tsx:211
 msgid "Show settings"
-msgstr ""
+msgstr "Einstellungen anzeigen"
 
 #: packages/admin/src/components/Widgets.tsx:145
 msgid "Show thumbnails"
@@ -14096,11 +14100,11 @@ msgstr "Abschließen der Registrierung fehlgeschlagen"
 msgid "Signup request failed"
 msgstr "Registrierungsanfrage fehlgeschlagen"
 
-#: packages/admin/src/components/FieldEditor.tsx:693
+#: packages/admin/src/components/FieldEditor.tsx:694
 msgid "Single choice from options"
 msgstr "Einzelauswahl aus Optionen"
 
-#: packages/admin/src/components/FieldEditor.tsx:657
+#: packages/admin/src/components/FieldEditor.tsx:658
 msgid "Single line text input"
 msgstr "Einzeilige Texteingabe"
 
@@ -14229,13 +14233,13 @@ msgstr "Übersprungen"
 #: packages/admin/src/components/ContentTypeEditor.tsx:133
 #: packages/admin/src/components/ContentTypeEditor.tsx:507
 #: packages/admin/src/components/ContentTypeList.tsx:218
-#: packages/admin/src/components/FieldEditor.tsx:734
-#: packages/admin/src/components/FieldEditor.tsx:1164
-#: packages/admin/src/components/FieldEditor.tsx:1167
-#: packages/admin/src/components/FieldEditor.tsx:1170
-#: packages/admin/src/components/FieldEditor.tsx:1656
-#: packages/admin/src/components/FieldEditor.tsx:1659
-#: packages/admin/src/components/FieldEditor.tsx:1662
+#: packages/admin/src/components/FieldEditor.tsx:735
+#: packages/admin/src/components/FieldEditor.tsx:1166
+#: packages/admin/src/components/FieldEditor.tsx:1169
+#: packages/admin/src/components/FieldEditor.tsx:1172
+#: packages/admin/src/components/FieldEditor.tsx:1658
+#: packages/admin/src/components/FieldEditor.tsx:1661
+#: packages/admin/src/components/FieldEditor.tsx:1664
 #: packages/admin/src/components/RelationForm.tsx:435
 #: packages/admin/src/components/RelationForm.tsx:440
 #: packages/admin/src/components/RelationForm.tsx:444
@@ -14361,7 +14365,7 @@ msgstr "Einige Referenzen verweisen auf Inhalte, die nicht im Paket enthalten si
 
 #: packages/admin/src/router.tsx:1277
 msgid "Someone"
-msgstr ""
+msgstr "Jemand"
 
 #: packages/admin/src/components/InviteAcceptPage.tsx:160
 #: packages/admin/src/components/SignupPage.tsx:288
@@ -14581,11 +14585,11 @@ msgstr "Stil"
 msgid "Style changed:"
 msgstr "Formatierung geändert:"
 
-#: packages/admin/src/components/FieldEditor.tsx:1654
+#: packages/admin/src/components/FieldEditor.tsx:1656
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr "Slugs untergeordneter Felder können nach dem Erstellen nicht mehr geändert werden."
 
-#: packages/admin/src/components/FieldEditor.tsx:1578
+#: packages/admin/src/components/FieldEditor.tsx:1580
 msgid "Sub-Fields"
 msgstr "Untergeordnete Felder"
 
@@ -14812,7 +14816,7 @@ msgstr "Test-E-Mail an {to} gesendet"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/BlocksField.tsx:2325
+#: packages/admin/src/components/BlocksField.tsx:2347
 #: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr "Text"
@@ -14843,7 +14847,7 @@ msgstr "das Feld {0} in {1}, das Einträge auswählt, auf die es verweist"
 
 #: packages/admin/src/router.tsx:1210
 msgid "The admin was updated"
-msgstr ""
+msgstr "Der Adminbereich wurde aktualisiert"
 
 #: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
@@ -15032,7 +15036,7 @@ msgstr "Das Menü heißt jetzt „{0}“."
 msgid "The name of your site, used in the header and metadata"
 msgstr "Der Name deiner Website, der in der Kopfzeile und in den Metadaten verwendet wird"
 
-#: packages/admin/src/components/FieldEditor.tsx:1440
+#: packages/admin/src/components/FieldEditor.tsx:1442
 msgid "The order controls how block types appear in the picker."
 msgstr "Die Reihenfolge bestimmt, wie Blocktypen in der Auswahl erscheinen."
 
@@ -15134,11 +15138,11 @@ msgstr "Das Plugin hat diese Änderungen nicht gespeichert. Prüfe sie, bevor du
 
 #: packages/admin/src/components/ContentEditor.tsx:2673
 msgid "The plugin proposed a value this editor can't load."
-msgstr ""
+msgstr "Das Plugin hat einen Wert vorgeschlagen, den dieser Editor nicht laden kann."
 
 #: packages/admin/src/components/ContentEditor.tsx:2678
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
-msgstr ""
+msgstr "Das Ergebnis des Plugins enthält Formatierungen, die dieser Editor nicht darstellen kann, deshalb wurde es nicht übernommen."
 
 #: packages/admin/src/components/ContentEditor.tsx:1890
 #: packages/admin/src/components/ContentEditor.tsx:2667
@@ -15166,12 +15170,12 @@ msgstr "Das angegebene Bild ist nicht mehr verfügbar. Wähle ein neues Bild aus
 msgid "The referenced logo is no longer available. Pick a new one or remove the reference."
 msgstr "Das angegebene Logo ist nicht mehr verfügbar. Wähle ein neues Logo aus oder entferne den Verweis."
 
-#: packages/admin/src/components/FieldEditor.tsx:1308
+#: packages/admin/src/components/FieldEditor.tsx:1310
 msgid "The relationship and the referenced collection cannot be changed after creation. How many entries this field accepts is set on the relationship."
 msgstr "Beziehung und referenzierte Sammlung lassen sich nach dem Erstellen nicht mehr ändern. Wie viele Einträge dieses Feld aufnimmt, wird in der Beziehung festgelegt."
 
-#: packages/admin/src/components/FieldEditor.tsx:1103
-#: packages/admin/src/components/FieldEditor.tsx:1356
+#: packages/admin/src/components/FieldEditor.tsx:1105
+#: packages/admin/src/components/FieldEditor.tsx:1358
 msgid "The relationship decides the referenced collection and how many entries this field accepts."
 msgstr "Die Beziehung bestimmt die referenzierte Sammlung und wie viele Einträge dieses Feld aufnimmt."
 
@@ -15306,7 +15310,7 @@ msgstr "Weiterleitungen werden vor dem Import nicht auf Endlosschleifen geprüft
 
 #: packages/admin/src/components/WordPressImport.tsx:2416
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
-msgstr ""
+msgstr "Diese Einträge sind in WordPress passwortgeschützt. EmDash kennt keine Passwörter für einzelne Einträge, deshalb wurden sie als Entwürfe importiert. Prüfe jeden einzelnen, bevor du ihn veröffentlichst."
 
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:295
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
@@ -15314,13 +15318,13 @@ msgstr "Diese Tools bleiben nach der Installation deaktiviert, bis du den Agent-
 
 #: packages/admin/src/router.tsx:1280
 msgid "They changed its publishing or schedule, or replaced its draft."
-msgstr ""
+msgstr "Die Veröffentlichung oder Planung wurde geändert oder der Entwurf ersetzt."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:921
 msgid "This also removes:"
 msgstr "Dadurch wird außerdem Folgendes entfernt:"
 
-#: packages/admin/src/components/BlocksField.tsx:1765
+#: packages/admin/src/components/BlocksField.tsx:1787
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr "Dieser Block kann nicht bearbeitet werden, weil die Definition für seine Version nicht verfügbar ist."
 
@@ -15329,7 +15333,7 @@ msgstr "Dieser Block kann nicht bearbeitet werden, weil die Definition für sein
 msgid "This block embeds a page from {0}."
 msgstr "Dieser Block bettet eine Seite von {0} ein."
 
-#: packages/admin/src/components/BlocksField.tsx:2157
+#: packages/admin/src/components/BlocksField.tsx:2179
 msgid "This block has no fields."
 msgstr "Dieser Block hat keine Felder."
 
@@ -15337,25 +15341,25 @@ msgstr "Dieser Block hat keine Felder."
 msgid "This block runs JavaScript."
 msgstr "Dieser Block führt JavaScript aus."
 
-#: packages/admin/src/components/BlocksField.tsx:959
+#: packages/admin/src/components/BlocksField.tsx:971
 msgid "This block type can no longer be added to this field, so the block can't be restored after you delete it."
 msgstr "Dieser Blocktyp kann diesem Feld nicht mehr hinzugefügt werden. Nach dem Löschen lässt sich der Block daher nicht wiederherstellen."
 
-#: packages/admin/src/components/BlocksField.tsx:952
+#: packages/admin/src/components/BlocksField.tsx:964
 msgid "This block uses an older version of its type, so it can't be restored after you delete it."
 msgstr "Dieser Block verwendet eine ältere Version seines Typs. Nach dem Löschen lässt sich der Block daher nicht wiederherstellen."
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3221
 msgid "This block was deleted, so your changes can't be saved."
-msgstr ""
+msgstr "Dieser Block wurde gelöscht, deshalb können deine Änderungen nicht gespeichert werden."
 
-#: packages/admin/src/components/BlocksField.tsx:954
+#: packages/admin/src/components/BlocksField.tsx:966
 msgid "This block's stored definition is unavailable, so it can't be restored after you delete it."
 msgstr "Die Definition für die Version dieses Blocks ist nicht verfügbar. Nach dem Löschen lässt sich der Block daher nicht wiederherstellen."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:198
 msgid "This browser can’t join them, so nothing you change here will be saved."
-msgstr ""
+msgstr "Mit diesem Browser kannst du nicht mitbearbeiten, deshalb wird nichts gespeichert, was du hier änderst."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:225
 msgid "This browser keeps the whole package in memory until the download finishes. For an export this size, use a Chromium-based browser, which saves straight to disk, or run emdash site export from the CLI."
@@ -15420,7 +15424,7 @@ msgstr "Dieser Eintrag existiert nicht oder ist nicht veröffentlicht. Mit deine
 msgid "This entry doesn't exist or was deleted."
 msgstr "Dieser Eintrag existiert nicht oder wurde gelöscht."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:221
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:234
 msgid "This entry has no URL until it is published. Paste a URL instead."
 msgstr "Dieser Eintrag hat erst eine URL, wenn er veröffentlicht ist. Füge stattdessen eine URL ein."
 
@@ -15434,7 +15438,7 @@ msgstr "Dieser Eintrag ist schreibgeschützt, weil das Schema Feldtypen verwende
 
 #: packages/admin/src/components/ContentEditor.tsx:2318
 msgid "This entry is still loading."
-msgstr ""
+msgstr "Dieser Eintrag wird noch geladen."
 
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:409
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
@@ -15442,11 +15446,11 @@ msgstr "Dieser Eintrag hätte {lateness} veröffentlicht werden sollen, wurde ab
 
 #: packages/admin/src/router.tsx:2617
 msgid "This entry was moved to Trash or deleted"
-msgstr ""
+msgstr "Dieser Eintrag wurde in den Papierkorb verschoben oder gelöscht"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:167
 msgid "This entry was moved to Trash or deleted. Your edits are still on this page."
-msgstr ""
+msgstr "Dieser Eintrag wurde in den Papierkorb verschoben oder gelöscht. Deine Änderungen sind noch auf dieser Seite."
 
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:224
 msgid "This export is large"
@@ -15479,30 +15483,30 @@ msgstr "Dieses Feld akzeptiert keine {mimeType}-Dateien."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Dieses Feld erwartet eine Liste. Der gespeicherte Wert bleibt unverändert, bis du ihn durch eine leere Liste ersetzt, wodurch er gelöscht wird. Kopiere vorher alles, was du daraus noch brauchst."
 
-#: packages/admin/src/components/ContentEditor.tsx:5275
+#: packages/admin/src/components/ContentEditor.tsx:5279
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "Das ist ein Pflichtfeld"
 
-#: packages/admin/src/components/FieldEditor.tsx:1849
+#: packages/admin/src/components/FieldEditor.tsx:1851
 msgid "This field lists entries that link to this one."
 msgstr "Dieses Feld listet Einträge auf, die auf diesen Eintrag verweisen."
 
-#: packages/admin/src/components/FieldEditor.tsx:1118
-#: packages/admin/src/components/FieldEditor.tsx:1371
+#: packages/admin/src/components/FieldEditor.tsx:1120
+#: packages/admin/src/components/FieldEditor.tsx:1373
 msgid "This field picks"
 msgstr "Dieses Feld enthält"
 
-#: packages/admin/src/components/FieldEditor.tsx:1848
+#: packages/admin/src/components/FieldEditor.tsx:1850
 msgid "This field picks entries this one links to."
 msgstr "Dieses Feld wählt Einträge aus, auf die dieser Eintrag verweist."
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1860
+#: packages/admin/src/components/FieldEditor.tsx:1862
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "Dieses Feld zeigt die <0>{0}</0>, auf die dieser Eintrag ({linkingSide}) verweist"
 
-#: packages/admin/src/components/FieldEditor.tsx:1865
+#: packages/admin/src/components/FieldEditor.tsx:1867
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "Dieses Feld zeigt die Einträge (<0>{linkingSide}</0>), die auf diesen Eintrag ({linkedSide}) verweisen"
 
@@ -15542,7 +15546,7 @@ msgstr "Das ist eine WordPress-Website."
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Das ist nicht das Paket, mit dem der Import gestartet wurde. Wähle dieselbe Datei erneut aus."
 
-#: packages/admin/src/components/editor/LinkDestinationInput.tsx:332
+#: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr "Dieser Link kann nicht verwendet werden. Gib eine Web-Adresse ein, z. B. https://example.com."
 
@@ -15727,7 +15731,7 @@ msgid "This site was set up with starter content. It has no entries of its own, 
 msgstr "Diese Website wurde mit Vorlageninhalten eingerichtet. Sie hat keine eigenen Einträge, und der Import löscht die Vorlageninhalte, bevor er die Inhalte des Pakets hinzufügt."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:161
-#: packages/admin/src/components/FieldEditor.tsx:521
+#: packages/admin/src/components/FieldEditor.tsx:522
 msgid "This slug is reserved. Enter a different one."
 msgstr "Dieser Slug ist reserviert. Gib einen anderen ein."
 
@@ -15977,7 +15981,7 @@ msgstr "Papierkorb ist leer."
 msgid "Trash pagination"
 msgstr "Seitennavigation im Papierkorb"
 
-#: packages/admin/src/components/FieldEditor.tsx:681
+#: packages/admin/src/components/FieldEditor.tsx:682
 msgid "True/false toggle"
 msgstr "Boolean-Schalter"
 
@@ -16022,7 +16026,7 @@ msgstr "Versuche es erneut"
 
 #: packages/admin/src/router.tsx:1468
 msgid "Try again in a moment."
-msgstr ""
+msgstr "Versuche es gleich noch einmal."
 
 #: packages/admin/src/components/MediaLibrary.tsx:629
 msgid "Try again."
@@ -16109,7 +16113,7 @@ msgstr "Zwei Datensätze weisen denselben Wert auf, der jedoch eindeutig sein mu
 #: packages/admin/src/components/BylineFieldEditor.tsx:385
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
-#: packages/admin/src/components/FieldEditor.tsx:1686
+#: packages/admin/src/components/FieldEditor.tsx:1688
 #: packages/admin/src/components/MediaLibrary.tsx:1147
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
@@ -16189,7 +16193,7 @@ msgid "Uninstalling..."
 msgstr "Wird deinstalliert..."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:985
-#: packages/admin/src/components/FieldEditor.tsx:1198
+#: packages/admin/src/components/FieldEditor.tsx:1200
 msgid "Unique"
 msgstr "Eindeutig"
 
@@ -16231,7 +16235,7 @@ msgstr "Unbenannter Benutzer"
 #: packages/admin/src/components/ContentSettingsPanel.tsx:534
 #: packages/admin/src/components/ContentSettingsPanel.tsx:535
 msgid "Unpublish"
-msgstr ""
+msgstr "Zurückziehen"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:527
 msgid "Unpublish {itemLabel}"
@@ -16239,7 +16243,7 @@ msgstr "{itemLabel} zurückziehen"
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:532
 msgid "Unpublish {itemLabel}?"
-msgstr ""
+msgstr "{itemLabel} zurückziehen?"
 
 #: packages/admin/src/router.tsx:2009
 msgid "Unpublished"
@@ -16276,7 +16280,7 @@ msgstr "Ungespeicherte Inhalte können nach außen gelangen"
 msgid "Unscheduled"
 msgstr "Planung aufgehoben"
 
-#: packages/admin/src/components/BlocksField.tsx:1355
+#: packages/admin/src/components/BlocksField.tsx:1367
 #: packages/admin/src/components/ContentTypeEditor.tsx:983
 msgid "Unsupported"
 msgstr "Nicht unterstützt"
@@ -16297,7 +16301,7 @@ msgstr "Bis {0}"
 msgid "Untitled"
 msgstr "Unbenannt"
 
-#: packages/admin/src/components/ContentEditor.tsx:5101
+#: packages/admin/src/components/ContentEditor.tsx:5105
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Unbenannte Datei"
@@ -16329,7 +16333,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr "Aktualisierung"
 
-#: packages/admin/src/components/FieldEditor.tsx:1826
+#: packages/admin/src/components/FieldEditor.tsx:1828
 msgid "Update Field"
 msgstr "Feld aktualisieren"
 
@@ -16531,8 +16535,8 @@ msgid "Uploading video…"
 msgstr "Video wird hochgeladen…"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:57
-#: packages/admin/src/components/FieldEditor.tsx:740
-#: packages/admin/src/components/FieldEditor.tsx:1701
+#: packages/admin/src/components/FieldEditor.tsx:741
+#: packages/admin/src/components/FieldEditor.tsx:1703
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/MenuEditor.tsx:847
 #: packages/admin/src/components/PortableTextEditor.tsx:1415
@@ -16554,7 +16558,7 @@ msgid "URL template (e.g. /blog/:slug)"
 msgstr "URL-Muster (z. B. /blog/:slug)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:135
-#: packages/admin/src/components/FieldEditor.tsx:735
+#: packages/admin/src/components/FieldEditor.tsx:736
 msgid "URL-friendly identifier"
 msgstr "URL-freundlicher Bezeichner"
 
@@ -16618,7 +16622,7 @@ msgid "Use 587 (STARTTLS) or 465 (implicit TLS)."
 msgstr "Verwende 587 (STARTTLS) oder 465 (implizites TLS)."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:133
-#: packages/admin/src/components/FieldEditor.tsx:351
+#: packages/admin/src/components/FieldEditor.tsx:352
 #: packages/admin/src/components/RelationForm.tsx:178
 #: packages/admin/src/components/TaxonomyManager.tsx:131
 msgid "Use 63 characters or fewer."
@@ -16652,7 +16656,7 @@ msgid "Use lowercase letters, numbers, and hyphens."
 msgstr "Verwende Kleinbuchstaben, Ziffern und Bindestriche."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:131
-#: packages/admin/src/components/FieldEditor.tsx:349
+#: packages/admin/src/components/FieldEditor.tsx:350
 #: packages/admin/src/components/RelationForm.tsx:176
 #: packages/admin/src/components/TaxonomyManager.tsx:129
 msgid "Use lowercase letters, numbers, and underscores, starting with a letter."
@@ -16757,7 +16761,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Benutzer mit E-Mail-Adressen dieser Domains können sich ohne Einladung registrieren. Ihnen wird anschließend die angegebene Rolle automatisch zugewiesen."
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/FieldEditor.tsx:1533
+#: packages/admin/src/components/FieldEditor.tsx:1535
 msgid "v{0}"
 msgstr "v{0}"
 
@@ -16770,8 +16774,8 @@ msgstr "v{0} verfügbar"
 msgid "Validating the package"
 msgstr "Paket wird validiert"
 
-#: packages/admin/src/components/FieldEditor.tsx:1224
-#: packages/admin/src/components/FieldEditor.tsx:1262
+#: packages/admin/src/components/FieldEditor.tsx:1226
+#: packages/admin/src/components/FieldEditor.tsx:1264
 msgid "Validation"
 msgstr "Validierung"
 
@@ -16815,7 +16819,7 @@ msgstr "Version"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:1746
+#: packages/admin/src/components/BlocksField.tsx:1768
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -16896,7 +16900,7 @@ msgstr "{license}-Lizenz auf spdx.org anzeigen"
 
 #: packages/admin/src/components/presence/PresenceAvatars.tsx:311
 msgid "Viewing"
-msgstr ""
+msgstr "Sieht zu"
 
 #: packages/admin/src/components/revisions/useRevisionView.ts:518
 msgid "Viewing the version from {when} by {name}."
@@ -16933,7 +16937,7 @@ msgstr "Besucher sehen diese Änderungen sofort."
 
 #: packages/admin/src/components/ContentSettingsPanel.tsx:533
 msgid "Visitors won't see it until you publish it again. It stays as a draft."
-msgstr ""
+msgstr "Besucher sehen den Eintrag erst wieder, wenn du ihn erneut veröffentlichst. Er bleibt als Entwurf erhalten."
 
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:58
 msgid "Vue"
@@ -16950,7 +16954,7 @@ msgstr "Warten auf den Passkey..."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:143
 msgid "Waiting to join"
-msgstr ""
+msgstr "Warten auf Verbindung"
 
 #: packages/admin/src/components/MarketplaceBrowse.tsx:335
 msgid "Warn"
@@ -16986,7 +16990,7 @@ msgstr "Wir schicken dir einen Link, um dich ohne Passwort anzumelden."
 msgid "We've sent a verification link to <0>{email}</0>"
 msgstr "Wir haben einen Bestätigungslink an <0>{email}</0> gesendet"
 
-#: packages/admin/src/components/FieldEditor.tsx:741
+#: packages/admin/src/components/FieldEditor.tsx:742
 msgid "Web address"
 msgstr "Web-Adresse"
 
@@ -17041,7 +17045,7 @@ msgstr "Was ist ein Passkey?"
 msgid "What it leaves out"
 msgstr "Was nicht enthalten ist"
 
-#: packages/admin/src/components/FieldEditor.tsx:1880
+#: packages/admin/src/components/FieldEditor.tsx:1882
 msgid "What the direction changes"
 msgstr "Auswirkung der Richtung"
 
@@ -17090,7 +17094,7 @@ msgstr "Wo wird er gespeichert?"
 msgid "Which content types can use this taxonomy"
 msgstr "Inhaltstypen, die diese Taxonomie nutzen können"
 
-#: packages/admin/src/components/FieldEditor.tsx:675
+#: packages/admin/src/components/FieldEditor.tsx:676
 msgid "Whole number"
 msgstr "Ganze Zahl"
 
@@ -17353,7 +17357,7 @@ msgstr "Du benötigst Redakteur-Berechtigungen, um Kommentare zu moderieren."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:165
 msgid "You no longer have edit access to this entry. Your edits are still on this page."
-msgstr ""
+msgstr "Du darfst diesen Eintrag nicht mehr bearbeiten. Deine Änderungen sind noch auf dieser Seite."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:96
 msgid "You no longer hold this entry"
@@ -17387,7 +17391,7 @@ msgstr "Du registrierst dich als <0>{roleName}</0>"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:156
 msgid "You’re offline"
-msgstr ""
+msgstr "Du bist offline"
 
 #. placeholder {0}: window.location.host
 #: packages/admin/src/components/settings/GeneralSettings.tsx:400
@@ -17430,15 +17434,15 @@ msgstr "Dein Browser unterstützt keine Passkeys. Bitte verwende einen modernen 
 
 #: packages/admin/src/components/ContentEditor.tsx:2967
 msgid "Your change to {refusedFieldLabel} wasn’t saved"
-msgstr ""
+msgstr "Deine Änderung am Feld „{refusedFieldLabel}“ wurde nicht gespeichert"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:195
 msgid "Your changes are no longer being saved."
-msgstr ""
+msgstr "Deine Änderungen werden nicht mehr gespeichert."
 
 #: packages/admin/src/components/EntryLockNotice.tsx:194
 msgid "Your changes are no longer being saved. Join them to carry on."
-msgstr ""
+msgstr "Deine Änderungen werden nicht mehr gespeichert. Klicke auf „Mitbearbeiten“, um weiterzuarbeiten."
 
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:202
 msgid "Your credential manager, such as Google Password Manager, saves it and may sync it to your other devices."
@@ -17473,15 +17477,15 @@ msgstr "Dein Entwurf wird durch die Version ({when}) ersetzt. Dein aktueller Ent
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:171
 msgid "Your earlier edits weren’t kept"
-msgstr ""
+msgstr "Deine früheren Änderungen wurden nicht gesichert"
 
 #: packages/admin/src/router.tsx:1211
 msgid "Your edits are still on this page. Reload it to edit with others."
-msgstr ""
+msgstr "Deine Änderungen sind noch auf dieser Seite. Lade die Seite neu, um gemeinsam mit anderen weiterzuarbeiten."
 
 #: packages/admin/src/router.tsx:1432
 msgid "Your edits couldn’t be saved, so this didn’t run. Try again."
-msgstr ""
+msgstr "Deine Änderungen konnten nicht gespeichert werden, deshalb wurde die Aktion nicht ausgeführt. Versuche es erneut."
 
 #: packages/admin/src/components/SetupWizard.tsx:262
 msgid "Your Email"
@@ -17501,11 +17505,11 @@ msgstr "Dein Instagram-Benutzername"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:162
 msgid "Your last edits weren’t saved"
-msgstr ""
+msgstr "Deine letzten Änderungen wurden nicht gespeichert"
 
 #: packages/admin/src/router.tsx:1244
 msgid "Your latest edits couldn’t be saved"
-msgstr ""
+msgstr "Deine neuesten Änderungen konnten nicht gespeichert werden"
 
 #: packages/admin/src/components/settings/SocialSettings.tsx:179
 msgid "Your LinkedIn profile username"
@@ -17570,15 +17574,15 @@ msgstr "Deine ungespeicherten Änderungen gehen verloren."
 
 #: packages/admin/src/router.tsx:1234
 msgid "Your unsaved edits are in a recovery revision"
-msgstr ""
+msgstr "Deine ungespeicherten Änderungen wurden als Revision gesichert"
 
 #: packages/admin/src/router.tsx:1219
 msgid "Your unsaved edits are in a recovery revision. Reload the page to edit with others."
-msgstr ""
+msgstr "Deine ungespeicherten Änderungen wurden als Revision gesichert. Lade die Seite neu, um gemeinsam mit anderen weiterzuarbeiten."
 
 #: packages/admin/src/router.tsx:1223
 msgid "Your unsaved edits couldn’t be kept"
-msgstr ""
+msgstr "Deine ungespeicherten Änderungen konnten nicht gesichert werden"
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1885
 msgid "Your unsaved media changes will be lost."

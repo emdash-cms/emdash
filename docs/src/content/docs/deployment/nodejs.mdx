@@ -7,13 +7,15 @@ import { Aside } from "@astrojs/starlight/components";
 
 This guide uses SQLite and local storage for one server. Use PostgreSQL or libSQL when several instances need one database, and S3-compatible storage when media must survive independently of the server disk.
 
+Built-in full-text search requires SQLite or libSQL with FTS5 support on Node.js. It is unavailable on PostgreSQL. See [Choose a database](/deployment/database/#overview) for search availability across database adapters.
+
 ## Prerequisites
 
 - Node.js v22.23.4 or higher (v22.16.0 is enough on Astro 7.3 or earlier)
 - A Node.js hosting provider or VPS
 - SQLite FTS5 support in the Node.js build when using the built-in SQLite adapter
 
-Search requires FTS5. Its availability depends on how Node.js was compiled, not just the Node.js or SQLite version. Check the exact Node binary used by your server:
+For the built-in SQLite adapter, search requires FTS5. Its availability depends on how Node.js was compiled, not just the Node.js or SQLite version. Check the exact Node binary used by your server:
 
 ```sh
 node --input-type=module -e 'import { DatabaseSync } from "node:sqlite"; const db = new DatabaseSync(":memory:"); db.exec("CREATE VIRTUAL TABLE probe USING fts5(x)"); db.close(); console.log("FTS5 available");'

@@ -25,9 +25,6 @@ const home = homeResult.entry;
 if (Astro.cache?.enabled) {
 	Astro.cache.set(homeResult.cacheHint);
 	Astro.cache.set(projectsResult.cacheHint);
-	// A missing entry carries no tags, so publishing a Home page later
-	// wouldn't clear the cached default layout.
-	if (!home) Astro.cache.set({ tags: ["pages"] });
 }
 
 const projects = projectsResult.entries;

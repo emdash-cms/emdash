@@ -57,6 +57,7 @@ export interface MediaUsageOccurrenceDetail {
 		| "file_field"
 		| "portable_text_image"
 		| "portable_text_video"
+		| "link"
 		| "unknown";
 }
 

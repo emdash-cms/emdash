@@ -45,7 +45,7 @@ export default defineConfig({
 - `swr` lets the cache keep serving a stale entry while it revalidates in the background, so visitors rarely wait on a render once a page is cached.
 - `tags` name the entry for invalidation. Tag each route with the collections it renders, using the collection names: EmDash's built-in invalidation uses collection names, so matching tags are invalidated automatically. A broad extra tag on every cached route (here `all`, which is not a collection name, so EmDash never invalidates it on its own) works as an emergency switch: invalidating it, for example with `context.cache.invalidate({ tags: ["all"] })` in an endpoint you protect yourself, clears everything at once.
 
-The query helpers also return a `cacheHint` you can pass to `Astro.cache.set()` inside the page. Its tags name the exact entry (`getEmDashEntry`), the collection (`getEmDashCollection`), or the chrome resource (`getMenuWithCacheHint`, `getSiteSettingsWithCacheHint`, `getTaxonomyTermsWithCacheHint`, `getWidgetAreaWithCacheHint`). These are the same tags EmDash invalidates on writes, so a page that passes its hints is invalidated when an entry or chrome resource it renders is written, including ones its route rule doesn't name:
+The query helpers also return a `cacheHint` you can pass to `Astro.cache.set()` inside the page. Its tags name the exact entry and its references (`getEmDashEntry`; an entry from a fallback locale or stored under a locale alias also carries the collection, and a miss carries only the collection), the collection (`getEmDashCollection`), or the chrome resource (`getMenuWithCacheHint`, `getSiteSettingsWithCacheHint`, `getTaxonomyTermsWithCacheHint`, `getWidgetAreaWithCacheHint`). These are the same tags EmDash invalidates on writes, so a page that passes its hints is invalidated when an entry or chrome resource it renders is written, including ones its route rule doesn't name:
 
 ```astro title="src/pages/blog/[slug].astro"
 ---
@@ -54,10 +54,19 @@ import { getEmDashEntry } from "emdash";
 const { slug } = Astro.params;
 if (!slug) return Astro.rewrite("/404");
 
-const { entry, cacheHint } = await getEmDashEntry("posts", slug);
+const { entry, error, cacheHint } = await getEmDashEntry("posts", slug);
+if (error) {
+	if (Astro.cache?.enabled) Astro.cache.set(false);
+	return new Response("Could not load the post", { status: 500 });
+}
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+if (!entry) return Astro.rewrite("/404");
 ---
 ```
+
+Set the hint before handling a miss, so that a cached 404 carries the collection tag and publishing the missing entry purges it.
+
+An entry served from a fallback locale, or stored under a legacy locale code such as `en-US` while the site uses `en`, carries the collection tag, because publishing the entry in the requested locale replaces it. On a site where most entries are stored under such a code, publishing any entry purges those pages. Saving the entries under the locale codes the site is configured with avoids this.
 
 `Astro.cache.set()` merges with the route rule, and tags accumulate across calls. The cache hints carry tags but no `maxAge`, so the route rule decides how long a page is cached.
 
@@ -77,7 +86,7 @@ Creating, editing, or deleting a redirect invalidates the cached page at the red
 
 The comment API routes invalidate `[collection, id]` for the commented entry when a submission is approved immediately, when admin moderation moves a comment into or out of approved status, or when deletion removes an approved comment or reply. Bulk moderation and deletion invalidate only the entries whose approved comments change. Pending submissions, moderation between non-approved statuses, and deletion of non-approved comments without approved replies leave the route cache unchanged. Comment moderation through the plugin API (`ctx.comments.moderate`) does not invalidate the route cache.
 
-Restoring an older revision, and changes to bylines and the media library, invalidate no pages. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again. Media files have their own tag; see [Media files](#media-files). Scheduled publishing invalidates the published entries' tags on Cloudflare only; see [Provider differences](#provider-differences).
+Restoring an older revision, and changes to bylines and the media library, invalidate no pages. Cached pages affected by those changes or plugin comment moderation update once they expire or the entry that renders them is saved again. Media files have their own tag; see [Media files](#media-files). Scheduled publishing attempts tag invalidation on Cloudflare, but cached pages can remain stale; Node does not invalidate them. See [Provider differences](#provider-differences) before relying on scheduled content appearing in cached pages.
 
 This is also why the tag convention matters: EmDash invalidates collection names, entry ids, and the `emdash:*` chrome tags. If your route rules use other tag names, the built-in invalidation will not match them and stale entries survive until `maxAge` expires.
 
@@ -107,7 +116,7 @@ Middleware that answers these URLs differently depending on a request header, su
 
 ## Keep responses out of the cache
 
-Route rules match the request path, so they also apply to responses you do not want cached under a long TTL. EmDash keeps responses rendered for a signed-in user, and responses sent with `Cache-Control: private` or `no-store`, out of the route cache automatically, and 404 responses too. Other error responses and your own middleware redirects are the template's job, opted out per request with `Astro.cache.set(false)`.
+Route rules match the request path, so they also apply to responses you do not want cached under a long TTL. EmDash keeps responses rendered for a signed-in user, and responses sent with `Cache-Control: private` or `no-store`, out of the route cache automatically. It limits cacheable 404 responses to a short lifetime, as described below. Other error responses and your own middleware redirects are the template's job, opted out per request with `Astro.cache.set(false)`.
 
 `Astro.cache.set(false)` only holds until the next `Astro.cache.set()` call. A layout renders after the page frontmatter, so a layout that sets a cache hint turns caching back on for a page that opted out. Pass the opt-out to the layout (for example as a prop) and skip its `Astro.cache.set()` calls when it is set.
 
@@ -117,7 +126,15 @@ EmDash's middleware opts these responses out of the route cache itself, so no te
 
 ### Error responses
 
-EmDash keeps every 404 out of the route cache, so publishing a missing entry later shows it right away. Other error responses, such as a 500 rendered on a cached route, inherit the rule's TTL. Opt them out with `Astro.cache.set(false)`.
+For public page paths handled by the redirect middleware, a 404 with active cache options is cached for at most 60 seconds, with no stale-while-revalidate window. A shorter `maxAge`, including zero, is preserved. This covers content misses answered with `Astro.rewrite("/404")`. The options can come from a route rule, the page, or the 404 page and its layout: a tags-only hint available when middleware checks the rendered response is enough, even without a route rule. Hints set later while the body streams may arrive too late; use an explicit route rule for predictable caching and purge tags.
+
+A miss needs the tag of the collection or taxonomy the route looks up. `getEmDashEntry` returns the collection tag in its `cacheHint` when no entry is found, so a detail page that passes the hint before rewriting to `/404` needs no collection tag in its route rule for the miss to be purged. Keep the collection tags for lists the page renders, such as related posts or widgets. For taxonomy archives, tag the route, for example `tags: ["emdash:taxonomy:category"]` on `/category/[slug]`. Publishing an entry invalidates its collection tag, saving a taxonomy term invalidates its taxonomy tag, and adding a redirect invalidates its source path. Without a matching tag, or if a purge fails, new content can keep returning the cached 404 until its short lifetime expires. Shipped template layouts set settings and menu hints, so their content-miss 404s can become cacheable without a route rule, but those hints alone do not purge the miss when new content is published.
+
+Cache hits skip rendering and writing to the 404 log, so the admin's 404 hit counts record origin misses rather than every request. Each distinct missing URL occupies its own cache entry; scanners requesting random slugs get no reuse and can evict useful pages from a size-limited cache such as `memoryCache()`. To keep a miss uncached, call `Astro.cache.set(false)` in the 404 page's frontmatter (or in the miss branch for a directly returned 404), and keep later layout code from re-enabling caching.
+
+URLs that match no Astro route still have no route-cache handle and remain uncached. Internal paths (`/_emdash`, `/_image`) bypass the redirect middleware and do not get this 404 lifetime limit. Paths ending in a file extension match exact redirect rules only; their 404 responses also skip this lifetime limit.
+
+Other error responses, such as a 500 rendered on a cached route, inherit the rule's TTL. Opt them out with `Astro.cache.set(false)`.
 
 ### Redirects in middleware
 
@@ -135,7 +152,7 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 
 - Each server process keeps its own cache, and an invalidation only clears the process that handled the write. If you run several processes or instances, the others keep serving their cached pages until `maxAge` expires.
 - A restart empties the cache.
-- `memoryCache()` only stores a response that has a `maxAge`, so a route without a rule is never cached, even if the page calls `Astro.cache.set()` with a cache hint.
+- `memoryCache()` needs a positive `maxAge` to store a response. EmDash's tags-only cache hints do not normally provide one, but a [cacheable content-miss 404](#error-responses) is an exception: EmDash supplies a lifetime of up to 60 seconds if it sees active cache options when checking the rendered response, even without a route rule. This includes tags supplied by the 404 page or its layout. To keep these misses uncached, call `Astro.cache.set(false)` rather than relying on the absence of a rule.
 - Scheduled publishing does not invalidate the route cache on Node. A page that lists a scheduled entry shows it once its cached copy expires, so keep `maxAge` short on routes that list scheduled content.
 - EmDash does not automatically cache original media files or resized variants with `memoryCache()`. Its cache-key normalization and conditional request handling do not preserve the media endpoint's behavior. Use a compatible provider for media caching; page caching remains available with `memoryCache()`.
 
@@ -145,7 +162,7 @@ Set [`toolbar: "client"`](/reference/configuration/#toolbar) for sites that use 
 - When a cache provider is configured, the `@astrojs/cloudflare` adapter enables the Workers Cache automatically: the build writes `"cache": { "enabled": true }` into the generated Wrangler configuration that `wrangler deploy` picks up.
 - A route without a rule is marked `no-store`, but only if nothing calls `Astro.cache.set()` while it renders. A cache hint without `maxAge`, like the ones from `getSiteSettingsWithCacheHint()` and `getMenuWithCacheHint()`, produces `Cloudflare-CDN-Cache-Control: public` without a lifetime, so the Workers Cache falls back to its [default cache lifetimes](https://developers.cloudflare.com/workers/cache/configuration/#cache-control-semantics) (2 hours for a `200` response). If your layout sets these hints, every page that uses the layout becomes cacheable, with or without a rule.
 - By default the Worker version is part of the cache key, so every deploy starts with an empty cache and the first requests after it render in the Worker. To keep entries across deploys, set `"cache": { "enabled": true, "cross_version_cache": true }` in your Wrangler configuration (see [Cross-version caching](https://developers.cloudflare.com/workers/cache/configuration/#cross-version-caching)). Template changes then only show once the affected entries expire or are invalidated.
-- Scheduled publishing invalidates the tags of the entries it publishes from the Cron Trigger.
+- Scheduled publishing calls the cache provider from the Cron Trigger with the published entries' tags, but Workers Cache purges from cron have been reported to leave cached pages unchanged even when the Workers Cache API returns `{ success: true }` (this result is not exposed through Astro's invalidation API). The content publishes on time; cached pages can keep the old content until expiry or an admin write that changes live content invalidates their tags. See the [upstream report](https://github.com/cloudflare/developer-platform/issues/163). If scheduled content needs to appear promptly, keep `maxAge` short on affected routes and account for the additional stale-serving window allowed by `swr`, or opt those routes out of caching.
 
 #### Purge rate limits
 

@@ -8,6 +8,7 @@ import "../../../dist/styles.css";
 import { RevisionViewBar } from "../../../src/components/revisions/RevisionViewBar";
 import type { RevisionListItem } from "../../../src/lib/api";
 import { RoomOperationsContext } from "../../../src/lib/co-editing/operations";
+import { userColor } from "../../../src/lib/user-color";
 import { render } from "../../utils/render.tsx";
 
 /** A Saturday, so the Wednesday before it reads as "Wednesday", the longest English weekday. */
@@ -72,7 +73,7 @@ function BarAt({
 					editedBy,
 					createdAt,
 				}}
-				authorColor="blue"
+				authorColor={userColor("u-maya")}
 				isCurrent={current}
 				isPublished={published}
 				sameAsCurrent={statuses}

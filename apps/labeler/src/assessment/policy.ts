@@ -1,13 +1,25 @@
 import {
+	type AssessmentFindingCategory,
 	type ListingModerationPolicy,
 	type ModerationCoverage,
 	type NormalizedModerationFinding,
 } from "@emdash-cms/registry-moderation";
 
 import type { ModerationInferenceResult, ModerationModelIdentity } from "../ai/types.js";
+import type {
+	CodeAssessmentIdentity,
+	CodeAssessmentResult,
+	CodeReviewReport,
+} from "../code/assessment.js";
+import type { FindingProvenance } from "../code/integrity.js";
 import type { CheckedModerationLink } from "./links.js";
 
 export const ASSESSMENT_POLICY_ENGINE_VERSION = "listing-assessment-policy-v1";
+
+export type AssessmentFinding = NormalizedModerationFinding<AssessmentFindingCategory> &
+	FindingProvenance;
+
+export const LINK_CHECK_SOURCE = "link-check";
 
 export interface FailedModerationStage {
 	status: "error";
@@ -21,6 +33,13 @@ export interface CompletedModerationStage {
 
 export type ModerationStage = CompletedModerationStage | FailedModerationStage;
 
+export type CodeAssessmentStage =
+	| { status: "complete"; result: CodeAssessmentResult }
+	| (FailedModerationStage & {
+			/** Findings from checks that completed before the stage failed. */
+			findings?: CodeAssessmentResult["findings"];
+	  });
+
 export interface AssessmentPolicyInput {
 	policy: ListingModerationPolicy;
 	expectedTextRefs: readonly string[];
@@ -29,6 +48,8 @@ export interface AssessmentPolicyInput {
 	checkedLinks: readonly CheckedModerationLink[];
 	text?: ModerationStage;
 	images: Readonly<Record<string, ModerationStage>>;
+	/** Present only when the release requires code assessment. */
+	code?: CodeAssessmentStage;
 }
 
 export type AssessmentPolicyOutcome = "pass" | "review" | "error";
@@ -38,10 +59,12 @@ export interface AssessmentPolicyResolution {
 	policyVersion: string;
 	outcome: AssessmentPolicyOutcome;
 	coverage: ModerationCoverage;
-	findings: readonly NormalizedModerationFinding[];
+	findings: readonly AssessmentFinding[];
 	reasonCodes: readonly string[];
 	textIdentity?: ModerationModelIdentity;
 	imageIdentities: readonly ModerationModelIdentity[];
+	codeIdentity?: CodeAssessmentIdentity;
+	codeReviews?: readonly CodeReviewReport[];
 }
 
 export function resolveAssessmentPolicy(input: AssessmentPolicyInput): AssessmentPolicyResolution {
@@ -55,6 +78,9 @@ export function resolveAssessmentPolicy(input: AssessmentPolicyInput): Assessmen
 		text: coverageValue(textRefs.size, textCoverage.text),
 		links: coverageValue(linkRefs.size, textCoverage.links),
 		media: mediaCoverageValue(mediaRefs.size, mediaCoverage.covered, mediaCoverage.failed),
+		...(input.code === undefined
+			? {}
+			: { code: input.code.status === "complete" ? "complete" : "unavailable" }),
 	};
 	const deterministicFindings = input.checkedLinks.flatMap((link) =>
 		link.issues.length === 0
@@ -62,9 +88,10 @@ export function resolveAssessmentPolicy(input: AssessmentPolicyInput): Assessmen
 			: [
 					{
 						category: "malicious-or-deceptive-link" as const,
+						source: LINK_CHECK_SOURCE,
 						recommendation: "review" as const,
 						confidence: 1,
-						summary: "Displayed link requires operator review.",
+						summary: `Displayed link failed the link check: ${link.issues.join(", ")}.`,
 						evidenceRefs: [link.ref],
 					},
 				],
@@ -77,7 +104,12 @@ export function resolveAssessmentPolicy(input: AssessmentPolicyInput): Assessmen
 	];
 	const findings = [
 		...deterministicFindings,
-		...completedResults.flatMap((result) => result.findings),
+		...completedResults.flatMap((result) =>
+			result.findings.map((finding) => ({ source: result.identity.modelId, ...finding })),
+		),
+		...(input.code?.status === "complete"
+			? input.code.result.findings
+			: (input.code?.findings ?? [])),
 	];
 	const imageIdentities = uniqueIdentities(
 		Object.values(input.images).flatMap((stage) =>
@@ -90,12 +122,14 @@ export function resolveAssessmentPolicy(input: AssessmentPolicyInput): Assessmen
 		...Object.entries(input.images).flatMap(([ref, stage]) =>
 			stage.status === "error" ? [`image:${ref}:${stage.code}`] : [],
 		),
+		...(input.code?.status === "error" ? [`code:${input.code.code}`] : []),
 	];
 	const missingRequiredCoverage =
 		coverage.text === "unavailable" ||
 		coverage.links === "unavailable" ||
 		coverage.media === "partial" ||
-		coverage.media === "unavailable";
+		coverage.media === "unavailable" ||
+		coverage.code === "unavailable";
 	if (failures.length > 0 || missingRequiredCoverage) {
 		return resolution(
 			input,
@@ -203,7 +237,7 @@ function resolution(
 	input: AssessmentPolicyInput,
 	outcome: AssessmentPolicyOutcome,
 	coverage: ModerationCoverage,
-	findings: readonly NormalizedModerationFinding[],
+	findings: readonly AssessmentFinding[],
 	reasonCodes: readonly string[],
 	textIdentity: ModerationModelIdentity | undefined,
 	imageIdentities: readonly ModerationModelIdentity[],
@@ -217,6 +251,9 @@ function resolution(
 		reasonCodes,
 		textIdentity,
 		imageIdentities,
+		...(input.code?.status === "complete"
+			? { codeIdentity: input.code.result.identity, codeReviews: input.code.result.reviews }
+			: {}),
 	};
 }
 
