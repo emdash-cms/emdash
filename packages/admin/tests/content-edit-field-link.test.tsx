@@ -173,8 +173,9 @@ describe("ContentEditPage opened from a field link on the site", () => {
 			params: { collection: "pages", id: "page_1" },
 			search: { field: "items.0.label", locale: "en" },
 		});
-		await render(<TestApp />);
+		const screen = await render(<TestApp />);
 
+		await expect.element(screen.getByLabelText("Label")).toBeEnabled();
 		await expect.poll(() => document.activeElement?.id).toBe("field-items.0.label");
 		await expect.poll(() => router.state.location.search).toEqual({ locale: "en" });
 	});
