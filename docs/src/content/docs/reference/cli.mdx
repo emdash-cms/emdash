@@ -65,7 +65,7 @@ npx emdash init [options]
 | `--cwd`      |       | Project working directory           | Current directory |
 | `--force`    | `-f`  | Reapply the template schema when collections already exist | `false` |
 
-Without `--force`, an initialized database is left unchanged. This command opens a local SQLite file directly; use `emdash migrate` for deployment-managed D1, PostgreSQL, libSQL, or Hyperdrive migrations.
+Without `--force`, pending core migrations still run on an initialized database, while the template schema is not reapplied when collections already exist. This command opens a local SQLite file directly; use `emdash migrate` for deployment-managed D1, PostgreSQL, libSQL, or Hyperdrive migrations.
 
 ### `emdash doctor`
 
@@ -324,7 +324,7 @@ npx emdash content update posts 01ABC123 \
 | `--data`          | JSON string with content data                            |
 | `--file`          | Read data from a JSON file                               |
 | `--locale`        | Locale to use when the ID argument is a slug              |
-| `--draft`         | Keep the update as a draft instead of auto-publishing     |
+| `--draft`         | Keep the update as a draft instead of auto-publishing on revision-enabled collections (collections without revisions update the live entry directly; see [Content Lifecycle](/reference/content-lifecycle/)) |
 | `--override-lock` | Write even though another editor has the entry open      |
 
 If the item has changed since your `get`, the server returns 409 Conflict — re-read and try again.
@@ -432,9 +432,9 @@ npx emdash schema delete articles --force
 
 | Option    | Description         |
 | --------- | ------------------- |
-| `--force` | Skip confirmation   |
+| `--force` | Skip confirmation and delete the collection even if it still has content |
 
-Prompts for confirmation unless `--force` is set.
+Prompts for confirmation unless `--force` is set. Passing `--force` also deletes a non-empty collection and its stored entries.
 
 #### `schema add-field <collection> <field>`
 
@@ -856,7 +856,6 @@ The command also writes a raw schema export named `schema.json` beside the selec
 
 | Variable                  | Description                              |
 | ------------------------- | ---------------------------------------- |
-| `EMDASH_DATABASE_URL`     | Override database URL                      |
 | `EMDASH_TOKEN`            | Auth token for remote operations          |
 | `EMDASH_URL`              | Default URL for commands using the shared remote client, `login`, `logout`, and `whoami` |
 | `EMDASH_HEADERS`          | Newline-separated custom request headers for the shared remote client and `login` |

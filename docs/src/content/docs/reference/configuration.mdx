@@ -403,7 +403,7 @@ Options for `access()`:
 | `audience`       | `string`  | —                      | Application Audience (AUD) tag. On Workers, prefer `audienceEnvVar`.                          |
 | `audienceEnvVar` | `string`  | `"CF_ACCESS_AUDIENCE"` | Environment variable to read the audience tag from at runtime                                |
 | `autoProvision`  | `boolean` | `true`                 | Create an EmDash user on first login                                                         |
-| `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)) |
+| `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)). The first user provisioned on a site without an Admin is always assigned Admin (`50`). |
 | `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
 | `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to make names editable in the admin |
 | `roleMapping`    | `object`  | —                      | Map IdP group names or GitHub `org/team` names to EmDash role levels; [first match wins](/guides/authentication/#role-mapping)                                  |
@@ -981,11 +981,11 @@ s3({
 })
 ```
 
-Runtime environment variable resolution is a Node-only feature. On Cloudflare
-Workers, secrets and variables are exposed through the `env` parameter of the
-fetch handler, not through `process.env`, so `S3_*` environment variables are
-not picked up. Workers deployments should either use the [`r2(config)`](#r2config)
-adapter or pass explicit values to `s3({...})`. See
+Runtime `S3_*` resolution reads `process.env`. On Cloudflare Workers, `process.env`
+is populated only when `nodejs_compat` is enabled with a compatibility date on or
+after `2025-04-01` (or with `nodejs_compat_populate_process_env`). Workers deployments
+should prefer the [`r2(config)`](#r2config) adapter, or pass explicit values to
+`s3({...})` when `process.env` is not populated. See
 [Storage Options](/deployment/storage/#s3-compatible-storage) for details.
 
 ## Object cache adapters
@@ -1134,7 +1134,6 @@ EmDash respects these environment variables:
 | ------------------------- | ---------------------------------------- |
 | `EMDASH_SITE_URL`         | Public browser-facing origin (falls back to `SITE_URL`) |
 | `EMDASH_ALLOWED_ORIGINS`  | Comma-separated list of additional origins accepted by passkey verification (multi-subdomain deployments). |
-| `EMDASH_DATABASE_URL`     | Override database URL                    |
 | `EMDASH_ENCRYPTION_KEY`   | Key for encrypting plugin secrets at rest. Operator-provided — never stored in the database. |
 | `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, a stable per-site value is generated and stored in the database. |
 | `EMDASH_IP_SALT`          | Optional override for the commenter-IP hash salt. When unset, a stable per-site value is generated and stored in the database. |
