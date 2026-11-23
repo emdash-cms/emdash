@@ -148,17 +148,17 @@ The error is `Repeaters can be nested only 2 levels deep`, reported at the offen
 
 ### Where the model is read
 
-| Surface | Behavior |
-| --- | --- |
-| REST and MCP schema input | Recursive zod schema; a third level fails at `...subFields[n].type`. `schema_create_field` gains the `repeater` type and `validation.subFields`. |
-| Seed validation and export | Seeds are checked with the same rules. Export rewrites nested `image` values to `$media`. |
-| Block types | Validation and the compatibility diff recurse. Narrowing options, removing a field or changing a type inside a nested repeater is a breaking change and creates a new version, as it does at the top level. |
-| Content validation | The zod schema recurses. Issues use full paths such as `categories.0.products.1.rates.2.price`, and the admin names them "Price (Rates (Products (Categories, item 1), item 2), item 3)". |
-| Media usage | Extraction walks nested image sub-fields and records paths like `categories[0].products[1].rates[2].icon`. Projection fingerprints include nested `subFields` only when present, so flat fingerprints do not change and nothing is rescanned. |
-| Datetime and URL | Normalization and URL safety walk dotted paths such as `products.rates.link`. Persisted descriptors stay `string[]`. |
-| Site transfer | Analysis checks nested URL sub-fields and reports the full path. |
-| Image normalization | Collection and block repeaters normalize nested image values like top-level ones. |
-| Generated types | Codegen emits nested array types. |
+| Surface                    | Behavior                                                                                                                                                                                                                                      |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| REST and MCP schema input  | Recursive zod schema; a third level fails at `...subFields[n].type`. `schema_create_field` gains the `repeater` type and `validation.subFields`.                                                                                              |
+| Seed validation and export | Seeds are checked with the same rules. Export rewrites nested `image` values to `$media`.                                                                                                                                                     |
+| Block types                | Validation and the compatibility diff recurse. Narrowing options, removing a field or changing a type inside a nested repeater is a breaking change and creates a new version, as it does at the top level.                                   |
+| Content validation         | The zod schema recurses. Issues use full paths such as `categories.0.products.1.rates.2.price`, and the admin names them "Price (Rates (Products (Categories, item 1), item 2), item 3)".                                                     |
+| Media usage                | Extraction walks nested image sub-fields and records paths like `categories[0].products[1].rates[2].icon`. Projection fingerprints include nested `subFields` only when present, so flat fingerprints do not change and nothing is rescanned. |
+| Datetime and URL           | Normalization and URL safety walk dotted paths such as `products.rates.link`. Persisted descriptors stay `string[]`.                                                                                                                          |
+| Site transfer              | Analysis checks nested URL sub-fields and reports the full path.                                                                                                                                                                              |
+| Image normalization        | Collection and block repeaters normalize nested image values like top-level ones.                                                                                                                                                             |
+| Generated types            | Codegen emits nested array types.                                                                                                                                                                                                             |
 
 ### Changing a stored sub-field
 
