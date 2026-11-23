@@ -324,8 +324,10 @@ npx emdash content update posts 01ABC123 \
 | `--data`          | JSON string with content data                            |
 | `--file`          | Read data from a JSON file                               |
 | `--locale`        | Locale to use when the ID argument is a slug              |
-| `--draft`         | Keep the update as a draft instead of auto-publishing on revision-enabled collections (collections without revisions update the live entry directly; see [Content Lifecycle](/reference/content-lifecycle/)) |
+| `--draft`         | Keep the update as a draft instead of auto-publishing (revision-enabled collections) |
 | `--override-lock` | Write even though another editor has the entry open      |
+
+On collections without revisions, updates write directly to the stored entry even when `--draft` is set; see [Content Lifecycle](/reference/content-lifecycle/).
 
 If the item has changed since your `get`, the server returns 409 Conflict — re-read and try again.
 

@@ -403,7 +403,7 @@ Options for `access()`:
 | `audience`       | `string`  | —                      | Application Audience (AUD) tag. On Workers, prefer `audienceEnvVar`.                          |
 | `audienceEnvVar` | `string`  | `"CF_ACCESS_AUDIENCE"` | Environment variable to read the audience tag from at runtime                                |
 | `autoProvision`  | `boolean` | `true`                 | Create an EmDash user on first login                                                         |
-| `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)). The first user provisioned on a site without an Admin is always assigned Admin (`50`). |
+| `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)). When the site has no existing users, the first provisioned user is assigned Admin (`50`) regardless of `defaultRole` or `roleMapping` (`syncRoles: true` still re-applies `roleMapping` on later logins). |
 | `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
 | `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to make names editable in the admin |
 | `roleMapping`    | `object`  | —                      | Map IdP group names or GitHub `org/team` names to EmDash role levels; [first match wins](/guides/authentication/#role-mapping)                                  |
@@ -981,12 +981,11 @@ s3({
 })
 ```
 
-Runtime `S3_*` resolution reads `process.env`. On Cloudflare Workers, `process.env`
-is populated only when `nodejs_compat` is enabled with a compatibility date on or
-after `2025-04-01` (or with `nodejs_compat_populate_process_env`). Workers deployments
-should prefer the [`r2(config)`](#r2config) adapter, or pass explicit values to
-`s3({...})` when `process.env` is not populated. See
-[Storage Options](/deployment/storage/#s3-compatible-storage) for details.
+Runtime `S3_*` resolution reads `process.env` and is intended for Node.js
+deployments. On Cloudflare Workers, prefer the [`r2(config)`](#r2config) adapter
+or pass explicit values to `s3({...})` rather than relying on `process.env`
+population. See [Storage Options](/deployment/storage/#s3-compatible-storage) for
+details.
 
 ## Object cache adapters
 
