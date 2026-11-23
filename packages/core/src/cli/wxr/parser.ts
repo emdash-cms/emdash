@@ -262,6 +262,9 @@ export function parsePolylangTranslations(serialized: string): Map<string, numbe
  * records in its `post_translations` taxonomy, which is where a plain export
  * keeps it. The group term's description holds the same `{ lang_code =>
  * post_id }` map as that meta, so both sources give a group the same key.
+ * Posts whose group term is missing, as in an export of posts only, stay
+ * unlinked: such an export has no term translations either, and linked
+ * translations would share the terms of one language.
  */
 function promotePolylangPostTranslations(data: WxrData): void {
 	const groupBySlug = new Map<string, string>();
@@ -273,7 +276,8 @@ function promotePolylangPostTranslations(data: WxrData): void {
 	for (const post of data.posts) {
 		if (post.translationGroup) continue;
 		const slug = post.customTaxonomies?.get(POLYLANG_POST_TRANSLATIONS_TAXONOMY)?.[0];
-		if (slug) post.translationGroup = groupBySlug.get(slug) ?? `pll:${slug}`;
+		const group = slug && groupBySlug.get(slug);
+		if (group) post.translationGroup = group;
 	}
 }
 

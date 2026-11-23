@@ -689,6 +689,28 @@ describe("WXR import: Polylang exports", () => {
 		expect(result.taxonomies?.missingTaxonomies ?? []).toEqual([]);
 	});
 
+	it("leaves the posts of an export without term entries unlinked, each with its own category", async () => {
+		// An export of posts only keeps each post's language and group
+		// assignments but leaves out the term entries: no group descriptions
+		// and no term translations.
+		const postsOnly = polylangWxr.replaceAll(/\s*<wp:(category|tag|term)>[\s\S]*?<\/wp:\1>/g, "");
+		const { result } = await runImport(harness, postsOnly, { locale: "uk" });
+
+		expect(result.errors).toEqual([]);
+		const posts = await harness.db
+			.selectFrom("ec_post" as keyof Database)
+			.select(["id", "locale", "translation_group"])
+			.orderBy("locale")
+			.execute();
+		expect(posts.map((post) => post.locale)).toEqual(["en", "uk"]);
+		expect(posts[0]?.translation_group).not.toBe(posts[1]?.translation_group);
+		const repo = new TaxonomyRepository(harness.db);
+		for (const post of posts) {
+			const shown = await repo.getTermsForEntry("post", post.id, "category", post.locale);
+			expect(shown.map((term) => term.slug)).toEqual([post.locale === "uk" ? "novyny" : "news"]);
+		}
+	});
+
 	it("keeps translated terms in their own locales, linked and with their own labels", async () => {
 		await runImport(harness, polylangWxr, { locale: "uk" });
 
