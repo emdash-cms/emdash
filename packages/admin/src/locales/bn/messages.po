@@ -213,7 +213,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# কালেকশন} other {# কালেকশন}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2313
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {#টি মন্তব্য ইমপোর্ট করা হয়েছে} other {#টি মন্তব্য ইমপোর্ট করা হয়েছে}}"
 
@@ -228,7 +228,7 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# মন্তব্য} other {# মন্তব্য}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2334
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# কনটেন্ট ত্রুটি} other {# কনটেন্ট ত্রুটি}}"
 
@@ -299,7 +299,7 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {#টি MCP টুল} other {#টি MCP টুল}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2329
+#: packages/admin/src/components/WordPressImport.tsx:2339
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# মিডিয়া ত্রুটি} other {# মিডিয়া ত্রুটি}}"
 
@@ -309,9 +309,14 @@ msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {#টি মিডিয়া ফাইল ইমপোর্ট করা হয়েছে} other {#টি মিডিয়া ফাইল ইমপোর্ট করা হয়েছে}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2305
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {#টি মেনু ইমপোর্ট করা হয়েছে} other {#টি মেনু ইমপোর্ট করা হয়েছে}}"
+
+#. placeholder {0}: result.menus.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2314
+msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
+msgstr ""
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1953
@@ -340,7 +345,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr ""
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2568
+#: packages/admin/src/components/WordPressImport.tsx:2578
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {#টি পোস্ট} other {#টি পোস্ট}}"
 
@@ -677,7 +682,7 @@ msgstr "{count, plural, one {# ফাইল} other {# ফাইল}}"
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2411
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# আইটেম} other {# আইটেম}}"
 
@@ -805,11 +810,11 @@ msgstr ""
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {\"{searchQuery}\"-এর সাথে মিলে যাওয়া #টি আইটেম} other {\"{searchQuery}\"-এর সাথে মিলে যাওয়া #টি আইটেম}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2555
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{totalCount}টির মধ্যে {matchedCount}টি অ্যাসাইন করা হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:2543
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{totalCount} জন লেখকের মধ্যে {matchedCount} জন ইমেইলের মাধ্যমে মিলেছে"
 
@@ -2021,7 +2026,7 @@ msgstr "সব কালেকশন"
 msgid "All comments require approval"
 msgstr "সব মন্তব্যের জন্য অনুমোদন প্রয়োজন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2600
+#: packages/admin/src/components/WordPressImport.tsx:2610
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "ইমপোর্ট করা সব কনটেন্ট কোনো লেখকের সাথে যুক্ত থাকবে না। পরে কনটেন্ট এডিটর থেকে লেখক পুনরায় নির্ধারণ করতে পারবেন।"
 
@@ -2426,7 +2431,7 @@ msgstr "এই সেটআপ সম্পন্ন করতে একজন �
 msgid "Aspect ratio"
 msgstr "অ্যাসপেক্ট রেশিও"
 
-#: packages/admin/src/components/WordPressImport.tsx:2538
+#: packages/admin/src/components/WordPressImport.tsx:2548
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "WordPress লেখকদের EmDash ব্যবহারকারীদের সাথে যুক্ত করুন। পোস্টগুলো নির্বাচিত ব্যবহারকারীর নামে দেখানো হবে।"
 
@@ -2496,7 +2501,7 @@ msgstr "প্রমাণীকরণ বাতিল হয়েছে বা
 msgid "Author"
 msgstr "লেখক"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Author Mapping"
 msgstr "লেখক ম্যাপিং"
 
@@ -2619,7 +2624,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2609
+#: packages/admin/src/components/WordPressImport.tsx:2619
 msgid "Back"
 msgstr "ফিরে যান"
 
@@ -3661,7 +3666,7 @@ msgstr "কালেকশন"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "কালেকশন ও ফিল্ড, খসড়া, রিভিশন, নির্ধারিত পোস্ট ও ট্র্যাশসহ সব কনটেন্ট, অনুবাদ, ট্যাক্সোনমি, বাইলাইন, মিডিয়া ফাইল, মেনু, উইজেট, সেকশন, রিডাইরেক্ট, SEO এবং সাইট সেটিংস।"
 
-#: packages/admin/src/components/WordPressImport.tsx:2377
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Collections created:"
 msgstr "তৈরি হওয়া কালেকশন:"
 
@@ -3845,7 +3850,7 @@ msgid "Content digest"
 msgstr "কনটেন্ট ডাইজেস্ট"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2462
+#: packages/admin/src/components/WordPressImport.tsx:2472
 msgid "Content Errors ({0})"
 msgstr "কনটেন্ট ত্রুটি ({0})"
 
@@ -3929,7 +3934,7 @@ msgstr "একই গ্রুপের কনটেন্ট টাইপগু
 msgid "Content using this media item may show a broken reference."
 msgstr "এই মিডিয়া আইটেম ব্যবহারকারী কনটেন্টে ভাঙা রেফারেন্স দেখা যেতে পারে।"
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "Content was skipped because it already exists"
 msgstr "কনটেন্ট আগে থেকেই বিদ্যমান থাকায় বাদ দেওয়া হয়েছে"
 
@@ -3948,7 +3953,7 @@ msgstr "চালিয়ে যান"
 msgid "Continue →"
 msgstr "চালিয়ে যান →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2611
+#: packages/admin/src/components/WordPressImport.tsx:2621
 msgid "Continue Import"
 msgstr "ইমপোর্ট চালিয়ে যান"
 
@@ -7555,7 +7560,7 @@ msgstr ""
 msgid "Fields"
 msgstr "ফিল্ড"
 
-#: packages/admin/src/components/WordPressImport.tsx:2383
+#: packages/admin/src/components/WordPressImport.tsx:2393
 msgid "Fields created:"
 msgstr "তৈরি হওয়া ফিল্ড:"
 
@@ -7873,7 +7878,7 @@ msgstr ""
 msgid "Go live {countdown}"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2510
 #: packages/admin/src/router.tsx:4184
 msgid "Go to Dashboard"
 msgstr "ড্যাশবোর্ডে যান"
@@ -8346,7 +8351,7 @@ msgstr "খসড়া, কাস্টম পোস্ট টাইপ, ACF �
 msgid "Import an existing EmDash site"
 msgstr "একটি বিদ্যমান EmDash সাইট ইমপোর্ট করুন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2498
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Import Another File"
 msgstr "আরেকটি ফাইল ইমপোর্ট করুন"
 
@@ -8359,11 +8364,11 @@ msgstr "ইমপোর্ট সক্ষমতা"
 msgid "Import complete"
 msgstr "ইমপোর্ট সম্পন্ন হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:2354
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Import Complete"
 msgstr "ইমপোর্ট সম্পন্ন হয়েছে"
 
-#: packages/admin/src/components/WordPressImport.tsx:2355
+#: packages/admin/src/components/WordPressImport.tsx:2365
 msgid "Import Completed with Errors"
 msgstr "ত্রুটিসহ ইমপোর্ট সম্পন্ন হয়েছে"
 
@@ -8408,7 +8413,7 @@ msgstr "EmDash Exporter-এর মাধ্যমে ইমপোর্ট ক�
 msgid "Imported"
 msgstr "ইমপোর্ট করা"
 
-#: packages/admin/src/components/WordPressImport.tsx:2394
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Imported by Collection"
 msgstr "কালেকশন অনুযায়ী ইমপোর্ট করা হয়েছে"
 
@@ -8996,7 +9001,7 @@ msgstr ""
 msgid "Leave empty to keep current password"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2579
+#: packages/admin/src/components/WordPressImport.tsx:2589
 msgid "Leave unassigned"
 msgstr "অনির্ধারিত রাখুন"
 
@@ -9493,12 +9498,12 @@ msgstr ""
 msgid "Manual"
 msgstr "ম্যানুয়াল"
 
-#: packages/admin/src/components/WordPressImport.tsx:2536
+#: packages/admin/src/components/WordPressImport.tsx:2546
 msgid "Map Authors"
 msgstr "লেখক ম্যাপ করুন"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2584
+#: packages/admin/src/components/WordPressImport.tsx:2594
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "WordPress ব্যবহারকারী {0}-কে EmDash ব্যবহারকারীর সাথে ম্যাপ করুন"
 
@@ -9589,7 +9594,7 @@ msgid "Media details"
 msgstr "মিডিয়ার বিস্তারিত"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2480
+#: packages/admin/src/components/WordPressImport.tsx:2490
 msgid "Media Errors ({0})"
 msgstr "মিডিয়া ত্রুটি ({0})"
 
@@ -9598,15 +9603,15 @@ msgstr "মিডিয়া ত্রুটি ({0})"
 msgid "Media folders"
 msgstr "মিডিয়া ফোল্ডার"
 
-#: packages/admin/src/components/WordPressImport.tsx:2442
+#: packages/admin/src/components/WordPressImport.tsx:2452
 msgid "Media Import"
 msgstr "মিডিয়া ইমপোর্ট"
 
-#: packages/admin/src/components/WordPressImport.tsx:2353
+#: packages/admin/src/components/WordPressImport.tsx:2363
 msgid "Media Import Complete"
 msgstr "মিডিয়া ইমপোর্ট সম্পন্ন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2374
 msgid "Media import was skipped"
 msgstr "মিডিয়া ইমপোর্ট এড়িয়ে যাওয়া হয়েছে"
 
@@ -10435,7 +10440,7 @@ msgstr "কোনো ইমেইল প্রোভাইডার কনফি
 msgid "No email provider configured. Share this link manually."
 msgstr "কোনো ইমেইল প্রোভাইডার কনফিগার করা হয়নি। এই লিঙ্কটি নিজে শেয়ার করুন।"
 
-#: packages/admin/src/components/WordPressImport.tsx:2598
+#: packages/admin/src/components/WordPressImport.tsx:2608
 msgid "No EmDash users found"
 msgstr "কোনো EmDash ব্যবহারকারী পাওয়া যায়নি"
 
@@ -11248,7 +11253,7 @@ msgid "Password"
 msgstr ""
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2413
+#: packages/admin/src/components/WordPressImport.tsx:2423
 msgid "Password-Protected Entries ({0})"
 msgstr ""
 
@@ -13203,7 +13208,7 @@ msgstr "নির্ধারিত প্রকাশনা"
 msgid "Scheduled publishing needs attention"
 msgstr "নির্ধারিত প্রকাশনায় মনোযোগ প্রয়োজন"
 
-#: packages/admin/src/components/WordPressImport.tsx:2372
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Schema Changes"
 msgstr "স্কিমা পরিবর্তন"
 
@@ -14136,7 +14141,7 @@ msgstr "সাইটের পরিচিতি"
 msgid "Site Identity"
 msgstr "সাইটের পরিচিতি"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2330
 msgid "site identity applied (title, tagline, logo)"
 msgstr "সাইটের পরিচিতি প্রয়োগ করা হয়েছে (শিরোনাম, ট্যাগলাইন, লোগো)"
 
@@ -15319,7 +15324,7 @@ msgstr "থিম"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "ইমপোর্টের আগে লুপ পরীক্ষা করার জন্য রিডাইরেক্টের সংখ্যা অনেক বেশি"
 
-#: packages/admin/src/components/WordPressImport.tsx:2416
+#: packages/admin/src/components/WordPressImport.tsx:2426
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr ""
 

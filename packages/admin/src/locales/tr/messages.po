@@ -213,7 +213,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# koleksiyon} other {# koleksiyon}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2313
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# yorum içe aktarıldı} other {# yorum içe aktarıldı}}"
 
@@ -228,7 +228,7 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# yorum} other {# yorum}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2334
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# içerik hatası} other {# içerik hatası}}"
 
@@ -299,7 +299,7 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# MCP aracı} other {# MCP aracı}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2329
+#: packages/admin/src/components/WordPressImport.tsx:2339
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# medya hatası} other {# medya hatası}}"
 
@@ -309,9 +309,14 @@ msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {# medya dosyası içe aktarıldı} other {# medya dosyası içe aktarıldı}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2305
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {# menü içe aktarıldı} other {# menü içe aktarıldı}}"
+
+#. placeholder {0}: result.menus.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2314
+msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
+msgstr ""
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1953
@@ -340,7 +345,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr ""
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2568
+#: packages/admin/src/components/WordPressImport.tsx:2578
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# gönderi} other {# gönderi}}"
 
@@ -677,7 +682,7 @@ msgstr "{count, plural, one {# dosya} other {# dosya}}"
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2411
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# öğe} other {# öğe}}"
 
@@ -805,11 +810,11 @@ msgstr ""
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {\"{searchQuery}\" ile eşleşen # öğe} other {\"{searchQuery}\" ile eşleşen # öğe}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2555
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{totalCount}'in {matchedCount}'i atandı"
 
-#: packages/admin/src/components/WordPressImport.tsx:2543
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{totalCount} yazarlarından {matchedCount} e-postayla eşleştirildi"
 
@@ -2021,7 +2026,7 @@ msgstr "Tüm koleksiyonlar"
 msgid "All comments require approval"
 msgstr "Tüm yorumlar onay gerektirir"
 
-#: packages/admin/src/components/WordPressImport.tsx:2600
+#: packages/admin/src/components/WordPressImport.tsx:2610
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "İçe aktarılan tüm içeriğin ataması kaldırılacak. Yazarları daha sonra içerik düzenleyiciden yeniden atayabilirsiniz."
 
@@ -2426,7 +2431,7 @@ msgstr "Bu kurulumu tamamlaması için bir yöneticiye başvurun."
 msgid "Aspect ratio"
 msgstr "En boy oranı"
 
-#: packages/admin/src/components/WordPressImport.tsx:2538
+#: packages/admin/src/components/WordPressImport.tsx:2548
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "WordPress yazarlarını EmDash kullanıcılarına atayın. Gönderiler seçilen kullanıcıya atfedilecektir."
 
@@ -2496,7 +2501,7 @@ msgstr "Kimlik doğrulama iptal edildi veya zaman aşımına uğradı. Lütfen t
 msgid "Author"
 msgstr "Yazar"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Author Mapping"
 msgstr "Yazar Eşleme"
 
@@ -2619,7 +2624,7 @@ msgstr "Geri"
 #: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2609
+#: packages/admin/src/components/WordPressImport.tsx:2619
 msgid "Back"
 msgstr "Geri"
 
@@ -3661,7 +3666,7 @@ msgstr "Koleksiyonlar"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "Koleksiyonlar ve alanlar; taslaklar, sürümler, zamanlanmış gönderiler ve çöp kutusu dahil tüm içerik; çeviriler, sınıflandırmalar, yazar bilgileri, medya dosyaları, menüler, widget'lar, bölümler, yönlendirmeler, SEO ve site ayarları."
 
-#: packages/admin/src/components/WordPressImport.tsx:2377
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Collections created:"
 msgstr "Oluşturulan koleksiyonlar:"
 
@@ -3845,7 +3850,7 @@ msgid "Content digest"
 msgstr "İçerik karma değeri"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2462
+#: packages/admin/src/components/WordPressImport.tsx:2472
 msgid "Content Errors ({0})"
 msgstr "İçerik Hataları ({0})"
 
@@ -3929,7 +3934,7 @@ msgstr "Aynı gruptaki içerik türleri kenar çubuğunda daraltılabilir bir kl
 msgid "Content using this media item may show a broken reference."
 msgstr "Bu medya öğesini kullanan içerikte bozuk bir bağlantı görünebilir."
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "Content was skipped because it already exists"
 msgstr "İçerik zaten mevcut olduğundan atlandı"
 
@@ -3948,7 +3953,7 @@ msgstr "Devam et"
 msgid "Continue →"
 msgstr "Devam →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2611
+#: packages/admin/src/components/WordPressImport.tsx:2621
 msgid "Continue Import"
 msgstr "İçe Aktarmaya Devam Et"
 
@@ -7555,7 +7560,7 @@ msgstr "alan_slug"
 msgid "Fields"
 msgstr "Alanlar"
 
-#: packages/admin/src/components/WordPressImport.tsx:2383
+#: packages/admin/src/components/WordPressImport.tsx:2393
 msgid "Fields created:"
 msgstr "Oluşturulan alanlar:"
 
@@ -7873,7 +7878,7 @@ msgstr ""
 msgid "Go live {countdown}"
 msgstr "{countdown} yayına girecek"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2510
 #: packages/admin/src/router.tsx:4184
 msgid "Go to Dashboard"
 msgstr "Kontrol Paneline Git"
@@ -8346,7 +8351,7 @@ msgstr "Taslaklar, özel gönderi türleri, ACF alanları ve SEO verileri dahil 
 msgid "Import an existing EmDash site"
 msgstr "Mevcut bir EmDash sitesini içe aktar"
 
-#: packages/admin/src/components/WordPressImport.tsx:2498
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Import Another File"
 msgstr "Başka Bir Dosyayı İçe Aktar"
 
@@ -8359,11 +8364,11 @@ msgstr "İçe Aktarma Yetenekleri"
 msgid "Import complete"
 msgstr "İçe aktarma tamamlandı"
 
-#: packages/admin/src/components/WordPressImport.tsx:2354
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Import Complete"
 msgstr "İçe Aktarma Tamamlandı"
 
-#: packages/admin/src/components/WordPressImport.tsx:2355
+#: packages/admin/src/components/WordPressImport.tsx:2365
 msgid "Import Completed with Errors"
 msgstr "İçe Aktarma Hatalarla Tamamlandı"
 
@@ -8408,7 +8413,7 @@ msgstr "EmDash Exporter ile içe aktar"
 msgid "Imported"
 msgstr "İçe aktarıldı"
 
-#: packages/admin/src/components/WordPressImport.tsx:2394
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Imported by Collection"
 msgstr "Koleksiyona göre içe aktarıldı"
 
@@ -8996,7 +9001,7 @@ msgstr "Ayrıl"
 msgid "Leave empty to keep current password"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2579
+#: packages/admin/src/components/WordPressImport.tsx:2589
 msgid "Leave unassigned"
 msgstr "Atanmamış olarak bırak"
 
@@ -9493,12 +9498,12 @@ msgstr "Kimlik sağlayıcınız tarafından yönetilir. Adı oradan değiştirin
 msgid "Manual"
 msgstr "Manuel"
 
-#: packages/admin/src/components/WordPressImport.tsx:2536
+#: packages/admin/src/components/WordPressImport.tsx:2546
 msgid "Map Authors"
 msgstr "Yazarları Eşle"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2584
+#: packages/admin/src/components/WordPressImport.tsx:2594
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "WordPress kullanıcısı {0} ile EmDash kullanıcısını eşle"
 
@@ -9589,7 +9594,7 @@ msgid "Media details"
 msgstr "Medya ayrıntıları"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2480
+#: packages/admin/src/components/WordPressImport.tsx:2490
 msgid "Media Errors ({0})"
 msgstr "Medya Hataları ({0})"
 
@@ -9598,15 +9603,15 @@ msgstr "Medya Hataları ({0})"
 msgid "Media folders"
 msgstr "Medya klasörleri"
 
-#: packages/admin/src/components/WordPressImport.tsx:2442
+#: packages/admin/src/components/WordPressImport.tsx:2452
 msgid "Media Import"
 msgstr "Medyayı İçe Aktarma"
 
-#: packages/admin/src/components/WordPressImport.tsx:2353
+#: packages/admin/src/components/WordPressImport.tsx:2363
 msgid "Media Import Complete"
 msgstr "Medya İçe Aktarma Tamamlandı"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2374
 msgid "Media import was skipped"
 msgstr "Medya içe aktarma atlandı"
 
@@ -10435,7 +10440,7 @@ msgstr "Hiçbir e-posta sağlayıcı yapılandırılmadı"
 msgid "No email provider configured. Share this link manually."
 msgstr "Hiçbir e-posta sağlayıcısı yapılandırılmadı. Bu bağlantıyı manuel olarak paylaşın."
 
-#: packages/admin/src/components/WordPressImport.tsx:2598
+#: packages/admin/src/components/WordPressImport.tsx:2608
 msgid "No EmDash users found"
 msgstr "EmDash kullanıcısı bulunamadı"
 
@@ -11248,7 +11253,7 @@ msgid "Password"
 msgstr ""
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2413
+#: packages/admin/src/components/WordPressImport.tsx:2423
 msgid "Password-Protected Entries ({0})"
 msgstr ""
 
@@ -13203,7 +13208,7 @@ msgstr "Zamanlanmış yayın"
 msgid "Scheduled publishing needs attention"
 msgstr "Zamanlanmış yayınlarla ilgilenmeniz gerekiyor"
 
-#: packages/admin/src/components/WordPressImport.tsx:2372
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Schema Changes"
 msgstr "Şema Değişiklikleri"
 
@@ -14136,7 +14141,7 @@ msgstr "Site kimliği"
 msgid "Site Identity"
 msgstr "Site Kimliği"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2330
 msgid "site identity applied (title, tagline, logo)"
 msgstr "site kimliği uygulandı (başlık, slogan, logo)"
 
@@ -15319,7 +15324,7 @@ msgstr "Temalar"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "İçe aktarmadan önce döngü kontrolü yapılamayacak kadar çok yönlendirme var"
 
-#: packages/admin/src/components/WordPressImport.tsx:2416
+#: packages/admin/src/components/WordPressImport.tsx:2426
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr ""
 

@@ -213,7 +213,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {#개 컬렉션} other {#개 컬렉션}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2313
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {#개 댓글 가져옴} other {#개 댓글 가져옴}}"
 
@@ -228,7 +228,7 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {#개 댓글} other {#개 댓글}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2334
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {#개 콘텐츠 오류} other {#개 콘텐츠 오류}}"
 
@@ -299,7 +299,7 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {MCP 도구 #개} other {MCP 도구 #개}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2329
+#: packages/admin/src/components/WordPressImport.tsx:2339
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {#개 미디어 오류} other {#개 미디어 오류}}"
 
@@ -309,9 +309,14 @@ msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {#개 미디어 파일 가져옴} other {#개 미디어 파일 가져옴}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2305
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {#개 메뉴 가져옴} other {#개 메뉴 가져옴}}"
+
+#. placeholder {0}: result.menus.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2314
+msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
+msgstr ""
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1953
@@ -340,7 +345,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr ""
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2568
+#: packages/admin/src/components/WordPressImport.tsx:2578
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {#개 글} other {#개 글}}"
 
@@ -677,7 +682,7 @@ msgstr "{count, plural, one {#개 파일} other {#개 파일}}"
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2411
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {#개 항목} other {#개 항목}}"
 
@@ -805,11 +810,11 @@ msgstr ""
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {\"{searchQuery}\"에 일치하는 항목 #개} other {\"{searchQuery}\"에 일치하는 항목 #개}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2555
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{totalCount} 중 {matchedCount}개가 할당됨"
 
-#: packages/admin/src/components/WordPressImport.tsx:2543
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "작성자 {totalCount}명 중 {matchedCount}명이 이메일로 일치했습니다"
 
@@ -2021,7 +2026,7 @@ msgstr "모든 컬렉션"
 msgid "All comments require approval"
 msgstr "모든 댓글에 승인 필요"
 
-#: packages/admin/src/components/WordPressImport.tsx:2600
+#: packages/admin/src/components/WordPressImport.tsx:2610
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "가져온 모든 콘텐츠는 작성자가 할당되지 않은 상태가 됩니다. 나중에 콘텐츠 편집기에서 작성자를 다시 할당할 수 있습니다."
 
@@ -2426,7 +2431,7 @@ msgstr "관리자에게 이 설정을 완료해 달라고 요청하세요."
 msgid "Aspect ratio"
 msgstr "가로세로 비율"
 
-#: packages/admin/src/components/WordPressImport.tsx:2538
+#: packages/admin/src/components/WordPressImport.tsx:2548
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "EmDash 사용자에게 WordPress 작성자를 할당합니다. 게시물은 선택한 사용자에게 귀속됩니다."
 
@@ -2496,7 +2501,7 @@ msgstr "인증이 취소되었거나 시간이 초과되었습니다. 다시 시
 msgid "Author"
 msgstr "작성자"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Author Mapping"
 msgstr "작성자 매핑"
 
@@ -2619,7 +2624,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2609
+#: packages/admin/src/components/WordPressImport.tsx:2619
 msgid "Back"
 msgstr "뒤로"
 
@@ -3661,7 +3666,7 @@ msgstr "컬렉션"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "컬렉션과 필드, 초안·버전 기록·예약 게시물·휴지통을 포함한 모든 콘텐츠, 번역, 분류, 저자 정보, 미디어 파일, 메뉴, 위젯, 섹션, 리디렉션, SEO 및 사이트 설정."
 
-#: packages/admin/src/components/WordPressImport.tsx:2377
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Collections created:"
 msgstr "생성된 컬렉션:"
 
@@ -3845,7 +3850,7 @@ msgid "Content digest"
 msgstr "콘텐츠 다이제스트"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2462
+#: packages/admin/src/components/WordPressImport.tsx:2472
 msgid "Content Errors ({0})"
 msgstr "콘텐츠 오류({0})"
 
@@ -3929,7 +3934,7 @@ msgstr "같은 그룹의 콘텐츠 유형은 사이드바에서 접고 펼칠 �
 msgid "Content using this media item may show a broken reference."
 msgstr "이 미디어를 사용하는 콘텐츠에서 참조가 깨질 수 있습니다."
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "Content was skipped because it already exists"
 msgstr "콘텐츠가 이미 존재하므로 건너뛰었습니다."
 
@@ -3948,7 +3953,7 @@ msgstr "계속"
 msgid "Continue →"
 msgstr "계속 →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2611
+#: packages/admin/src/components/WordPressImport.tsx:2621
 msgid "Continue Import"
 msgstr "계속 가져오기"
 
@@ -7555,7 +7560,7 @@ msgstr ""
 msgid "Fields"
 msgstr "필드"
 
-#: packages/admin/src/components/WordPressImport.tsx:2383
+#: packages/admin/src/components/WordPressImport.tsx:2393
 msgid "Fields created:"
 msgstr "생성된 필드:"
 
@@ -7873,7 +7878,7 @@ msgstr ""
 msgid "Go live {countdown}"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2510
 #: packages/admin/src/router.tsx:4184
 msgid "Go to Dashboard"
 msgstr "대시보드로 이동"
@@ -8346,7 +8351,7 @@ msgstr "초안, 커스텀 게시물 유형, ACF 필드 및 SEO 데이터를 포�
 msgid "Import an existing EmDash site"
 msgstr "기존 EmDash 사이트 가져오기"
 
-#: packages/admin/src/components/WordPressImport.tsx:2498
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Import Another File"
 msgstr "다른 파일 가져오기"
 
@@ -8359,11 +8364,11 @@ msgstr "가져오기 가능 항목"
 msgid "Import complete"
 msgstr "가져오기 완료"
 
-#: packages/admin/src/components/WordPressImport.tsx:2354
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Import Complete"
 msgstr "가져오기 완료"
 
-#: packages/admin/src/components/WordPressImport.tsx:2355
+#: packages/admin/src/components/WordPressImport.tsx:2365
 msgid "Import Completed with Errors"
 msgstr "가져오기가 완료되었지만 오류가 있습니다"
 
@@ -8408,7 +8413,7 @@ msgstr "EmDash Exporter로 가져오기"
 msgid "Imported"
 msgstr "가져옴"
 
-#: packages/admin/src/components/WordPressImport.tsx:2394
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Imported by Collection"
 msgstr "컬렉션별로 가져옴"
 
@@ -8996,7 +9001,7 @@ msgstr ""
 msgid "Leave empty to keep current password"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2579
+#: packages/admin/src/components/WordPressImport.tsx:2589
 msgid "Leave unassigned"
 msgstr "할당되지 않은 상태로 두기"
 
@@ -9493,12 +9498,12 @@ msgstr ""
 msgid "Manual"
 msgstr "수동"
 
-#: packages/admin/src/components/WordPressImport.tsx:2536
+#: packages/admin/src/components/WordPressImport.tsx:2546
 msgid "Map Authors"
 msgstr "작성자 매핑"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2584
+#: packages/admin/src/components/WordPressImport.tsx:2594
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "WordPress 사용자 {0}을(를) EmDash 사용자에게 매핑"
 
@@ -9589,7 +9594,7 @@ msgid "Media details"
 msgstr "미디어 상세 정보"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2480
+#: packages/admin/src/components/WordPressImport.tsx:2490
 msgid "Media Errors ({0})"
 msgstr "미디어 오류({0})"
 
@@ -9598,15 +9603,15 @@ msgstr "미디어 오류({0})"
 msgid "Media folders"
 msgstr "미디어 폴더"
 
-#: packages/admin/src/components/WordPressImport.tsx:2442
+#: packages/admin/src/components/WordPressImport.tsx:2452
 msgid "Media Import"
 msgstr "미디어 가져오기"
 
-#: packages/admin/src/components/WordPressImport.tsx:2353
+#: packages/admin/src/components/WordPressImport.tsx:2363
 msgid "Media Import Complete"
 msgstr "미디어 가져오기 완료"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2374
 msgid "Media import was skipped"
 msgstr "미디어 가져오기를 건너뛰었습니다."
 
@@ -10435,7 +10440,7 @@ msgstr "이메일 제공업체가 구성되지 않았습니다."
 msgid "No email provider configured. Share this link manually."
 msgstr "이메일 제공업체가 구성되지 않았습니다. 이 링크를 수동으로 공유하세요."
 
-#: packages/admin/src/components/WordPressImport.tsx:2598
+#: packages/admin/src/components/WordPressImport.tsx:2608
 msgid "No EmDash users found"
 msgstr "EmDash 사용자를 찾을 수 없습니다"
 
@@ -11248,7 +11253,7 @@ msgid "Password"
 msgstr ""
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2413
+#: packages/admin/src/components/WordPressImport.tsx:2423
 msgid "Password-Protected Entries ({0})"
 msgstr ""
 
@@ -13203,7 +13208,7 @@ msgstr "예약 게시"
 msgid "Scheduled publishing needs attention"
 msgstr "예약 게시 상태를 확인해야 합니다"
 
-#: packages/admin/src/components/WordPressImport.tsx:2372
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Schema Changes"
 msgstr "스키마 변경 사항"
 
@@ -14136,7 +14141,7 @@ msgstr "사이트 기본 정보"
 msgid "Site Identity"
 msgstr "사이트 기본 정보"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2330
 msgid "site identity applied (title, tagline, logo)"
 msgstr "사이트 기본 정보 적용됨(제목, 사이트 설명, 로고)"
 
@@ -15319,7 +15324,7 @@ msgstr "테마 마켓플레이스"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "리디렉션이 너무 많아 가져오기 전에 순환 여부를 확인할 수 없습니다"
 
-#: packages/admin/src/components/WordPressImport.tsx:2416
+#: packages/admin/src/components/WordPressImport.tsx:2426
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr ""
 

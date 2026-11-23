@@ -213,7 +213,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# collectie} other {# collecties}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2313
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# reactie geïmporteerd} other {# reacties geïmporteerd}}"
 
@@ -228,7 +228,7 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# reactie} other {# reacties}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2334
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# contentfout} other {# contentfouten}}"
 
@@ -299,7 +299,7 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# MCP-tool} other {# MCP-tools}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2329
+#: packages/admin/src/components/WordPressImport.tsx:2339
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# mediafout} other {# mediafouten}}"
 
@@ -309,9 +309,14 @@ msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {# mediabestand geïmporteerd} other {# mediabestanden geïmporteerd}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2305
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {# menu geïmporteerd} other {# menu's geïmporteerd}}"
+
+#. placeholder {0}: result.menus.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2314
+msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
+msgstr ""
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1953
@@ -340,7 +345,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr ""
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2568
+#: packages/admin/src/components/WordPressImport.tsx:2578
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# bericht} other {# berichten}}"
 
@@ -677,7 +682,7 @@ msgstr "{count, plural, one {# bestand} other {# bestanden}}"
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2411
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# item} other {# items}}"
 
@@ -805,11 +810,11 @@ msgstr ""
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# item dat overeenkomt met \"{searchQuery}\"} other {# items die overeenkomen met \"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2555
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{matchedCount} van {totalCount} toegewezen"
 
-#: packages/admin/src/components/WordPressImport.tsx:2543
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{matchedCount} van {totalCount} auteurs gematcht op e-mailadres"
 
@@ -2021,7 +2026,7 @@ msgstr "Alle collecties"
 msgid "All comments require approval"
 msgstr "Alle reacties vereisen goedkeuring"
 
-#: packages/admin/src/components/WordPressImport.tsx:2600
+#: packages/admin/src/components/WordPressImport.tsx:2610
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "Alle geïmporteerde content krijgt geen auteur toegewezen. Je kunt auteurs later opnieuw toewijzen vanuit de contenteditor."
 
@@ -2426,7 +2431,7 @@ msgstr "Vraag een beheerder om deze configuratie te voltooien."
 msgid "Aspect ratio"
 msgstr "Beeldverhouding"
 
-#: packages/admin/src/components/WordPressImport.tsx:2538
+#: packages/admin/src/components/WordPressImport.tsx:2548
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "Wijs WordPress-auteurs toe aan EmDash-gebruikers. Berichten worden toegeschreven aan de geselecteerde gebruiker."
 
@@ -2496,7 +2501,7 @@ msgstr "Authenticatie is geannuleerd of verlopen. Probeer het opnieuw."
 msgid "Author"
 msgstr "Auteur"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Author Mapping"
 msgstr "Auteurstoewijzing"
 
@@ -2619,7 +2624,7 @@ msgstr "Terug"
 #: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2609
+#: packages/admin/src/components/WordPressImport.tsx:2619
 msgid "Back"
 msgstr "Terug"
 
@@ -3661,7 +3666,7 @@ msgstr "Collecties"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "Collecties en velden, alle content inclusief concepten, revisies, geplande berichten en prullenbak, vertalingen, taxonomieën, auteursvermeldingen, mediabestanden, menu's, widgets, secties, omleidingen, SEO en site-instellingen."
 
-#: packages/admin/src/components/WordPressImport.tsx:2377
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Collections created:"
 msgstr "Aangemaakte collecties:"
 
@@ -3845,7 +3850,7 @@ msgid "Content digest"
 msgstr "Hashwaarde van de content"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2462
+#: packages/admin/src/components/WordPressImport.tsx:2472
 msgid "Content Errors ({0})"
 msgstr "Contentfouten ({0})"
 
@@ -3929,7 +3934,7 @@ msgstr "Contenttypes met dezelfde groep delen een uitklapbare map in de zijbalk"
 msgid "Content using this media item may show a broken reference."
 msgstr "Content die dit media-item gebruikt, kan een verbroken verwijzing tonen."
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "Content was skipped because it already exists"
 msgstr "Content is overgeslagen omdat deze al bestaat"
 
@@ -3948,7 +3953,7 @@ msgstr "Doorgaan"
 msgid "Continue →"
 msgstr "Doorgaan →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2611
+#: packages/admin/src/components/WordPressImport.tsx:2621
 msgid "Continue Import"
 msgstr "Doorgaan met importeren"
 
@@ -7555,7 +7560,7 @@ msgstr "veld_slug"
 msgid "Fields"
 msgstr "Velden"
 
-#: packages/admin/src/components/WordPressImport.tsx:2383
+#: packages/admin/src/components/WordPressImport.tsx:2393
 msgid "Fields created:"
 msgstr "Aangemaakte velden:"
 
@@ -7873,7 +7878,7 @@ msgstr ""
 msgid "Go live {countdown}"
 msgstr "Worden gepubliceerd {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2510
 #: packages/admin/src/router.tsx:4184
 msgid "Go to Dashboard"
 msgstr "Ga naar dashboard"
@@ -8346,7 +8351,7 @@ msgstr "Importeer alle content direct, inclusief concepten, custom post types, A
 msgid "Import an existing EmDash site"
 msgstr "Bestaande EmDash-site importeren"
 
-#: packages/admin/src/components/WordPressImport.tsx:2498
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Import Another File"
 msgstr "Nog een bestand importeren"
 
@@ -8359,11 +8364,11 @@ msgstr "Importmogelijkheden"
 msgid "Import complete"
 msgstr "Import voltooid"
 
-#: packages/admin/src/components/WordPressImport.tsx:2354
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Import Complete"
 msgstr "Import voltooid"
 
-#: packages/admin/src/components/WordPressImport.tsx:2355
+#: packages/admin/src/components/WordPressImport.tsx:2365
 msgid "Import Completed with Errors"
 msgstr "Import voltooid met fouten"
 
@@ -8408,7 +8413,7 @@ msgstr "Importeren via EmDash Exporter"
 msgid "Imported"
 msgstr "Geïmporteerd"
 
-#: packages/admin/src/components/WordPressImport.tsx:2394
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Imported by Collection"
 msgstr "Geïmporteerd per collectie"
 
@@ -8996,7 +9001,7 @@ msgstr "Verlaten"
 msgid "Leave empty to keep current password"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2579
+#: packages/admin/src/components/WordPressImport.tsx:2589
 msgid "Leave unassigned"
 msgstr "Niet toewijzen"
 
@@ -9493,12 +9498,12 @@ msgstr "Beheerd door je identiteitsprovider. Wijzig de naam daar."
 msgid "Manual"
 msgstr "Handmatig"
 
-#: packages/admin/src/components/WordPressImport.tsx:2536
+#: packages/admin/src/components/WordPressImport.tsx:2546
 msgid "Map Authors"
 msgstr "Auteurs koppelen"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2584
+#: packages/admin/src/components/WordPressImport.tsx:2594
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "WordPress-gebruiker {0} koppelen aan EmDash-gebruiker"
 
@@ -9589,7 +9594,7 @@ msgid "Media details"
 msgstr "Mediadetails"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2480
+#: packages/admin/src/components/WordPressImport.tsx:2490
 msgid "Media Errors ({0})"
 msgstr "Mediafouten ({0})"
 
@@ -9598,15 +9603,15 @@ msgstr "Mediafouten ({0})"
 msgid "Media folders"
 msgstr "Mediamappen"
 
-#: packages/admin/src/components/WordPressImport.tsx:2442
+#: packages/admin/src/components/WordPressImport.tsx:2452
 msgid "Media Import"
 msgstr "Media-import"
 
-#: packages/admin/src/components/WordPressImport.tsx:2353
+#: packages/admin/src/components/WordPressImport.tsx:2363
 msgid "Media Import Complete"
 msgstr "Media-import voltooid"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2374
 msgid "Media import was skipped"
 msgstr "Media-import is overgeslagen"
 
@@ -10435,7 +10440,7 @@ msgstr "Geen e-mailprovider geconfigureerd"
 msgid "No email provider configured. Share this link manually."
 msgstr "Geen e-mailprovider geconfigureerd. Deel deze link handmatig."
 
-#: packages/admin/src/components/WordPressImport.tsx:2598
+#: packages/admin/src/components/WordPressImport.tsx:2608
 msgid "No EmDash users found"
 msgstr "Geen EmDash-gebruikers gevonden"
 
@@ -11248,7 +11253,7 @@ msgid "Password"
 msgstr ""
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2413
+#: packages/admin/src/components/WordPressImport.tsx:2423
 msgid "Password-Protected Entries ({0})"
 msgstr ""
 
@@ -13203,7 +13208,7 @@ msgstr "Geplande publicatie"
 msgid "Scheduled publishing needs attention"
 msgstr "Ingeplande publicaties vereisen aandacht"
 
-#: packages/admin/src/components/WordPressImport.tsx:2372
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Schema Changes"
 msgstr "Schemawijzigingen"
 
@@ -14136,7 +14141,7 @@ msgstr "Site-identiteit"
 msgid "Site Identity"
 msgstr "Site-identiteit"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2330
 msgid "site identity applied (title, tagline, logo)"
 msgstr "site-identiteit toegepast (titel, tagline, logo)"
 
@@ -15319,7 +15324,7 @@ msgstr "Thema's"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "Er zijn te veel omleidingen om vóór het importeren te controleren of ze lussen vormen"
 
-#: packages/admin/src/components/WordPressImport.tsx:2416
+#: packages/admin/src/components/WordPressImport.tsx:2426
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr ""
 

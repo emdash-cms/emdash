@@ -213,7 +213,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# gyűjtemény} other {# gyűjtemény}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2313
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# hozzászólás importálva} other {# hozzászólás importálva}}"
 
@@ -228,7 +228,7 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# hozzászólás} other {# hozzászólás}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2334
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# tartalmi hiba} other {# tartalmi hiba}}"
 
@@ -299,7 +299,7 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# MCP-eszköz} other {# MCP-eszköz}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2329
+#: packages/admin/src/components/WordPressImport.tsx:2339
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# médiahiba} other {# médiahiba}}"
 
@@ -309,9 +309,14 @@ msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {# médiafájl importálva} other {# médiafájl importálva}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2305
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {# menü importálva} other {# menü importálva}}"
+
+#. placeholder {0}: result.menus.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2314
+msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
+msgstr ""
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1953
@@ -340,7 +345,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr "{0, plural, one {# plugin} other {# plugin}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2568
+#: packages/admin/src/components/WordPressImport.tsx:2578
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# bejegyzés} other {# bejegyzés}}"
 
@@ -677,7 +682,7 @@ msgstr "{count, plural, one {# fájl} other {# fájl}}"
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2411
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# elem} other {# elem}}"
 
@@ -805,11 +810,11 @@ msgstr "{list} +{more}"
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# elem egyezik ezzel: \"{searchQuery}\"} other {# elem egyezik ezzel: \"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2555
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{matchedCount}/{totalCount} hozzárendelve"
 
-#: packages/admin/src/components/WordPressImport.tsx:2543
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{matchedCount}/{totalCount} szerző e-mail alapján megfeleltetve"
 
@@ -2021,7 +2026,7 @@ msgstr "Összes tartalom"
 msgid "All comments require approval"
 msgstr "Minden hozzászóláshoz jóváhagyás szükséges"
 
-#: packages/admin/src/components/WordPressImport.tsx:2600
+#: packages/admin/src/components/WordPressImport.tsx:2610
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "Minden importált tartalom hozzárendelés nélkül marad. A szerzőket később a tartalomszerkesztőben újra hozzárendelheted."
 
@@ -2426,7 +2431,7 @@ msgstr "Kérj meg egy adminisztrátort a beállítás befejezésére."
 msgid "Aspect ratio"
 msgstr "Képarány"
 
-#: packages/admin/src/components/WordPressImport.tsx:2538
+#: packages/admin/src/components/WordPressImport.tsx:2548
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "Rendeld hozzá a WordPress szerzőket EmDash-felhasználókhoz. A bejegyzések a kiválasztott felhasználóhoz lesznek társítva."
 
@@ -2496,7 +2501,7 @@ msgstr "A hitelesítés megszakadt vagy időtúllépés történt. Próbáld új
 msgid "Author"
 msgstr "Szerző"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Author Mapping"
 msgstr "Szerzők megfeleltetése"
 
@@ -2619,7 +2624,7 @@ msgstr "Vissza"
 #: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2609
+#: packages/admin/src/components/WordPressImport.tsx:2619
 msgid "Back"
 msgstr "Vissza"
 
@@ -3661,7 +3666,7 @@ msgstr "Gyűjtemények"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "Gyűjtemények és mezők, minden tartalom a vázlatokkal, verziókkal, ütemezett bejegyzésekkel és lomtárral együtt, fordítások, taxonómiák, szerzők, médiafájlok, menük, widgetek, szakaszok, átirányítások, SEO és weboldal-beállítások."
 
-#: packages/admin/src/components/WordPressImport.tsx:2377
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Collections created:"
 msgstr "Létrehozott gyűjtemények:"
 
@@ -3845,7 +3850,7 @@ msgid "Content digest"
 msgstr "Tartalmi ellenőrzőösszeg"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2462
+#: packages/admin/src/components/WordPressImport.tsx:2472
 msgid "Content Errors ({0})"
 msgstr "Tartalmi hibák ({0})"
 
@@ -3929,7 +3934,7 @@ msgstr "Az azonos csoportba tartozó tartalomtípusok az oldalsávban közös, �
 msgid "Content using this media item may show a broken reference."
 msgstr "Az ezt a médiaelemet használó tartalmakban hibás hivatkozás jelenhet meg."
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "Content was skipped because it already exists"
 msgstr "A tartalom kihagyva, mert már létezik"
 
@@ -3948,7 +3953,7 @@ msgstr "Folytatás"
 msgid "Continue →"
 msgstr "Folytatás →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2611
+#: packages/admin/src/components/WordPressImport.tsx:2621
 msgid "Continue Import"
 msgstr "Import folytatása"
 
@@ -7555,7 +7560,7 @@ msgstr "mezo_slug"
 msgid "Fields"
 msgstr "Mezők"
 
-#: packages/admin/src/components/WordPressImport.tsx:2383
+#: packages/admin/src/components/WordPressImport.tsx:2393
 msgid "Fields created:"
 msgstr "Létrehozott mezők:"
 
@@ -7873,7 +7878,7 @@ msgstr "Élesítés"
 msgid "Go live {countdown}"
 msgstr "Publikálás {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2510
 #: packages/admin/src/router.tsx:4184
 msgid "Go to Dashboard"
 msgstr "Ugrás a vezérlőpultra"
@@ -8346,7 +8351,7 @@ msgstr "Importálj közvetlenül minden tartalmat, beleértve a vázlatokat, egy
 msgid "Import an existing EmDash site"
 msgstr "Meglévő EmDash-weboldal importálása"
 
-#: packages/admin/src/components/WordPressImport.tsx:2498
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Import Another File"
 msgstr "Másik fájl importálása"
 
@@ -8359,11 +8364,11 @@ msgstr "Importálási lehetőségek"
 msgid "Import complete"
 msgstr "Importálás kész"
 
-#: packages/admin/src/components/WordPressImport.tsx:2354
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Import Complete"
 msgstr "Import kész"
 
-#: packages/admin/src/components/WordPressImport.tsx:2355
+#: packages/admin/src/components/WordPressImport.tsx:2365
 msgid "Import Completed with Errors"
 msgstr "Az import hibákkal fejeződött be"
 
@@ -8408,7 +8413,7 @@ msgstr "Importálás EmDash Exporteren keresztül"
 msgid "Imported"
 msgstr "Importálva"
 
-#: packages/admin/src/components/WordPressImport.tsx:2394
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Imported by Collection"
 msgstr "Importálva gyűjtemény szerint"
 
@@ -8996,7 +9001,7 @@ msgstr "Kilépés"
 msgid "Leave empty to keep current password"
 msgstr "A jelenlegi jelszó megtartásához hagyd üresen"
 
-#: packages/admin/src/components/WordPressImport.tsx:2579
+#: packages/admin/src/components/WordPressImport.tsx:2589
 msgid "Leave unassigned"
 msgstr "Maradjon hozzárendelés nélkül"
 
@@ -9493,12 +9498,12 @@ msgstr "Az identitásszolgáltatód kezeli. A nevet ott módosíthatod."
 msgid "Manual"
 msgstr "Kézi"
 
-#: packages/admin/src/components/WordPressImport.tsx:2536
+#: packages/admin/src/components/WordPressImport.tsx:2546
 msgid "Map Authors"
 msgstr "Szerzők megfeleltetése"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2584
+#: packages/admin/src/components/WordPressImport.tsx:2594
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "WordPress-felhasználó ({0}) megfeleltetése EmDash-felhasználónak"
 
@@ -9589,7 +9594,7 @@ msgid "Media details"
 msgstr "Média részletei"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2480
+#: packages/admin/src/components/WordPressImport.tsx:2490
 msgid "Media Errors ({0})"
 msgstr "Médiahibák ({0})"
 
@@ -9598,15 +9603,15 @@ msgstr "Médiahibák ({0})"
 msgid "Media folders"
 msgstr "Médiamappák"
 
-#: packages/admin/src/components/WordPressImport.tsx:2442
+#: packages/admin/src/components/WordPressImport.tsx:2452
 msgid "Media Import"
 msgstr "Média importálása"
 
-#: packages/admin/src/components/WordPressImport.tsx:2353
+#: packages/admin/src/components/WordPressImport.tsx:2363
 msgid "Media Import Complete"
 msgstr "Médiaimport kész"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2374
 msgid "Media import was skipped"
 msgstr "A médiaimport kihagyva"
 
@@ -10435,7 +10440,7 @@ msgstr "Nincs beállított e-mail szolgáltató"
 msgid "No email provider configured. Share this link manually."
 msgstr "Nincs beállított e-mail szolgáltató. Oszd meg ezt a linket kézzel."
 
-#: packages/admin/src/components/WordPressImport.tsx:2598
+#: packages/admin/src/components/WordPressImport.tsx:2608
 msgid "No EmDash users found"
 msgstr "Nem találhatók EmDash-felhasználók"
 
@@ -11248,7 +11253,7 @@ msgid "Password"
 msgstr "Jelszó"
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2413
+#: packages/admin/src/components/WordPressImport.tsx:2423
 msgid "Password-Protected Entries ({0})"
 msgstr "Jelszóval védett bejegyzések ({0})"
 
@@ -13203,7 +13208,7 @@ msgstr "Ütemezett publikálás"
 msgid "Scheduled publishing needs attention"
 msgstr "Az ütemezett publikálás beavatkozást igényel"
 
-#: packages/admin/src/components/WordPressImport.tsx:2372
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Schema Changes"
 msgstr "Sémamódosítások"
 
@@ -14136,7 +14141,7 @@ msgstr "Weboldal arculata"
 msgid "Site Identity"
 msgstr "Weboldal adatai"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2330
 msgid "site identity applied (title, tagline, logo)"
 msgstr "weboldal arculata alkalmazva (cím, jelmondat, logó)"
 
@@ -15319,7 +15324,7 @@ msgstr "Témák"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "Túl sok átirányítás van ahhoz, hogy importálás előtt ellenőrizzük a körkörös hivatkozásokat"
 
-#: packages/admin/src/components/WordPressImport.tsx:2416
+#: packages/admin/src/components/WordPressImport.tsx:2426
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr "Ezeket a bejegyzéseket a WordPress jelszóval védi. Az EmDash nem támogatja a bejegyzésenkénti jelszavas védelmet, így vázlatként importálta őket. Publikálás előtt nézd át mindegyiket."
 

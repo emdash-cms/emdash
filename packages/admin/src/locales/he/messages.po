@@ -214,7 +214,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {אוסף אחד} two {שני אוספים} other {# אוספים}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2313
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {תגובה אחת יובאה} two {שתי תגובות יובאו} other {# תגובות יובאו}}"
 
@@ -229,7 +229,7 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {תגובה אחת} two {שתי תגובות} other {# תגובות}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2334
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {שגיאת תוכן אחת} two {שתי שגיאות תוכן} other {# שגיאות תוכן}}"
 
@@ -300,7 +300,7 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {כלי MCP אחד} two {שני כלי MCP} other {# כלי MCP}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2329
+#: packages/admin/src/components/WordPressImport.tsx:2339
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {שגיאת מדיה אחת} two {שתי שגיאות מדיה} other {# שגיאות מדיה}}"
 
@@ -310,9 +310,14 @@ msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {קובץ מדיה אחד יובא} two {שני קובצי מדיה יובאו} other {# קובצי מדיה יובאו}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2305
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {תפריט אחד יובא} two {שני תפריטים יובאו} other {# תפריטים יובאו}}"
+
+#. placeholder {0}: result.menus.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2314
+msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
+msgstr ""
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1953
@@ -341,7 +346,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr ""
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2568
+#: packages/admin/src/components/WordPressImport.tsx:2578
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {פוסט אחד} two {שני פוסטים} other {# פוסטים}}"
 
@@ -678,7 +683,7 @@ msgstr "{count, plural, one {קובץ אחד} two {שני קבצים} other {# �
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2411
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {פריט אחד} two {שני פריטים} other {# פריטים}}"
 
@@ -806,11 +811,11 @@ msgstr ""
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {פריט אחד תואם ל-\"{searchQuery}\"} two {שני פריטים תואמים ל-\"{searchQuery}\"} other {# פריטים תואמים ל-\"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2555
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "הוקצו {matchedCount} מתוך {totalCount}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2543
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "נמצאה התאמה באימייל עבור {matchedCount} מתוך {totalCount} כותבים/ות"
 
@@ -2022,7 +2027,7 @@ msgstr "כל האוספים"
 msgid "All comments require approval"
 msgstr "כל התגובות דורשות אישור"
 
-#: packages/admin/src/components/WordPressImport.tsx:2600
+#: packages/admin/src/components/WordPressImport.tsx:2610
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "כל התוכן המיובא יהיה ללא שיוך. תוכלו לשייך כותבים/ות מאוחר יותר מעורך התוכן."
 
@@ -2427,7 +2432,7 @@ msgstr "בקשו ממנהל/ת להשלים את ההגדרה הזו."
 msgid "Aspect ratio"
 msgstr "יחס ממדים"
 
-#: packages/admin/src/components/WordPressImport.tsx:2538
+#: packages/admin/src/components/WordPressImport.tsx:2548
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "שייכו כותבים/ות מ-WordPress למשתמשי EmDash. הפוסטים ישויכו למשתמש שנבחר."
 
@@ -2497,7 +2502,7 @@ msgstr "האימות בוטל או שתם זמנו. נסו שוב."
 msgid "Author"
 msgstr "כותב/ת"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Author Mapping"
 msgstr "מיפוי כותבים/ות"
 
@@ -2620,7 +2625,7 @@ msgstr "חזרה"
 #: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2609
+#: packages/admin/src/components/WordPressImport.tsx:2619
 msgid "Back"
 msgstr "חזרה"
 
@@ -3662,7 +3667,7 @@ msgstr "אוספים"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "אוספים ושדות, כל התוכן כולל טיוטות, גרסאות, פוסטים מתוזמנים ופח, תרגומים, טקסונומיות, קרדיטים, קובצי מדיה, תפריטים, וידג׳טים, מקטעים, הפניות, SEO והגדרות אתר."
 
-#: packages/admin/src/components/WordPressImport.tsx:2377
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Collections created:"
 msgstr "אוספים שנוצרו:"
 
@@ -3846,7 +3851,7 @@ msgid "Content digest"
 msgstr "תמצית התוכן"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2462
+#: packages/admin/src/components/WordPressImport.tsx:2472
 msgid "Content Errors ({0})"
 msgstr "שגיאות תוכן ({0})"
 
@@ -3930,7 +3935,7 @@ msgstr "סוגי תוכן עם אותה קבוצה חולקים תיקייה ש�
 msgid "Content using this media item may show a broken reference."
 msgstr "תוכן המשתמש בפריט מדיה זה עשוי להציג קישור שבור."
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "Content was skipped because it already exists"
 msgstr "התוכן דולג כי הוא כבר קיים"
 
@@ -3949,7 +3954,7 @@ msgstr "המשך"
 msgid "Continue →"
 msgstr "המשך ←"
 
-#: packages/admin/src/components/WordPressImport.tsx:2611
+#: packages/admin/src/components/WordPressImport.tsx:2621
 msgid "Continue Import"
 msgstr "המשך ייבוא"
 
@@ -7556,7 +7561,7 @@ msgstr ""
 msgid "Fields"
 msgstr "שדות"
 
-#: packages/admin/src/components/WordPressImport.tsx:2383
+#: packages/admin/src/components/WordPressImport.tsx:2393
 msgid "Fields created:"
 msgstr "שדות שנוצרו:"
 
@@ -7874,7 +7879,7 @@ msgstr ""
 msgid "Go live {countdown}"
 msgstr "יתפרסמו {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2510
 #: packages/admin/src/router.tsx:4184
 msgid "Go to Dashboard"
 msgstr "מעבר ללוח הבקרה"
@@ -8347,7 +8352,7 @@ msgstr "ייבאו ישירות את כל התוכן, כולל טיוטות, ס�
 msgid "Import an existing EmDash site"
 msgstr "ייבוא אתר EmDash קיים"
 
-#: packages/admin/src/components/WordPressImport.tsx:2498
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Import Another File"
 msgstr "ייבוא קובץ נוסף"
 
@@ -8360,11 +8365,11 @@ msgstr "ייבוא הרשאות"
 msgid "Import complete"
 msgstr "הייבוא הושלם"
 
-#: packages/admin/src/components/WordPressImport.tsx:2354
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Import Complete"
 msgstr "הייבוא הושלם"
 
-#: packages/admin/src/components/WordPressImport.tsx:2355
+#: packages/admin/src/components/WordPressImport.tsx:2365
 msgid "Import Completed with Errors"
 msgstr "הייבוא הושלם עם שגיאות"
 
@@ -8409,7 +8414,7 @@ msgstr "ייבוא באמצעות EmDash Exporter"
 msgid "Imported"
 msgstr "יובא"
 
-#: packages/admin/src/components/WordPressImport.tsx:2394
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Imported by Collection"
 msgstr "יובא לפי אוסף"
 
@@ -8997,7 +9002,7 @@ msgstr ""
 msgid "Leave empty to keep current password"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2579
+#: packages/admin/src/components/WordPressImport.tsx:2589
 msgid "Leave unassigned"
 msgstr "השארה ללא שיוך"
 
@@ -9494,12 +9499,12 @@ msgstr ""
 msgid "Manual"
 msgstr "ידני"
 
-#: packages/admin/src/components/WordPressImport.tsx:2536
+#: packages/admin/src/components/WordPressImport.tsx:2546
 msgid "Map Authors"
 msgstr "מיפוי כותבים/ות"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2584
+#: packages/admin/src/components/WordPressImport.tsx:2594
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "מיפוי משתמש WordPress {0} למשתמש EmDash"
 
@@ -9590,7 +9595,7 @@ msgid "Media details"
 msgstr "פרטי מדיה"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2480
+#: packages/admin/src/components/WordPressImport.tsx:2490
 msgid "Media Errors ({0})"
 msgstr "שגיאות מדיה ({0})"
 
@@ -9599,15 +9604,15 @@ msgstr "שגיאות מדיה ({0})"
 msgid "Media folders"
 msgstr "תיקיות מדיה"
 
-#: packages/admin/src/components/WordPressImport.tsx:2442
+#: packages/admin/src/components/WordPressImport.tsx:2452
 msgid "Media Import"
 msgstr "ייבוא מדיה"
 
-#: packages/admin/src/components/WordPressImport.tsx:2353
+#: packages/admin/src/components/WordPressImport.tsx:2363
 msgid "Media Import Complete"
 msgstr "ייבוא המדיה הושלם"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2374
 msgid "Media import was skipped"
 msgstr "ייבוא המדיה דולג"
 
@@ -10436,7 +10441,7 @@ msgstr "לא הוגדר ספק אימייל"
 msgid "No email provider configured. Share this link manually."
 msgstr "לא הוגדר ספק אימייל. שתפו את הקישור הזה ידנית."
 
-#: packages/admin/src/components/WordPressImport.tsx:2598
+#: packages/admin/src/components/WordPressImport.tsx:2608
 msgid "No EmDash users found"
 msgstr "לא נמצאו משתמשי EmDash"
 
@@ -11249,7 +11254,7 @@ msgid "Password"
 msgstr ""
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2413
+#: packages/admin/src/components/WordPressImport.tsx:2423
 msgid "Password-Protected Entries ({0})"
 msgstr ""
 
@@ -13204,7 +13209,7 @@ msgstr "פרסום מתוזמן"
 msgid "Scheduled publishing needs attention"
 msgstr "פרסום מתוזמן דורש תשומת לב"
 
-#: packages/admin/src/components/WordPressImport.tsx:2372
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Schema Changes"
 msgstr "שינויי סכמה"
 
@@ -14137,7 +14142,7 @@ msgstr "זהות האתר"
 msgid "Site Identity"
 msgstr "זהות האתר"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2330
 msgid "site identity applied (title, tagline, logo)"
 msgstr "זהות האתר הוחלה (כותרת, סלוגן, לוגו)"
 
@@ -15320,7 +15325,7 @@ msgstr "ערכות עיצוב"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "יש יותר מדי הפניות כדי לבדוק אם יש בהן לולאות לפני הייבוא"
 
-#: packages/admin/src/components/WordPressImport.tsx:2416
+#: packages/admin/src/components/WordPressImport.tsx:2426
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr ""
 

@@ -213,7 +213,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# bộ sưu tập} other {# bộ sưu tập}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2313
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# bình luận đã nhập} other {# bình luận đã nhập}}"
 
@@ -228,7 +228,7 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# bình luận} other {# bình luận}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2334
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# lỗi nội dung} other {# lỗi nội dung}}"
 
@@ -299,7 +299,7 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# công cụ MCP} other {# công cụ MCP}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2329
+#: packages/admin/src/components/WordPressImport.tsx:2339
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# lỗi ở thư viện} other {# lỗi ở thư viện}}"
 
@@ -309,9 +309,14 @@ msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {# tệp trong thư viện đã nhập} other {# tệp trong thư viện đã nhập}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2305
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {# menu đã nhập} other {# menu đã nhập}}"
+
+#. placeholder {0}: result.menus.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2314
+msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
+msgstr ""
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1953
@@ -340,7 +345,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr "{0, plural, one {# plugin} other {# plugin}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2568
+#: packages/admin/src/components/WordPressImport.tsx:2578
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# bài viết} other {# bài viết}}"
 
@@ -677,7 +682,7 @@ msgstr "{count, plural, one {# tệp} other {# tệp}}"
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2411
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# mục} other {# mục}}"
 
@@ -805,11 +810,11 @@ msgstr "{list} +{more}"
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# mục khớp với \"{searchQuery}\"} other {# mục khớp với \"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2555
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "Đã gán {matchedCount} trên {totalCount}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2543
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{matchedCount} trên {totalCount} tác giả đã khớp theo email"
 
@@ -2021,7 +2026,7 @@ msgstr "Tất cả bộ sưu tập"
 msgid "All comments require approval"
 msgstr "Mọi bình luận đều cần được duyệt"
 
-#: packages/admin/src/components/WordPressImport.tsx:2600
+#: packages/admin/src/components/WordPressImport.tsx:2610
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "Mọi nội dung nhập vào sẽ chưa được gán tác giả. Bạn có thể chỉ định lại tác giả sau khi chỉnh sửa bài viết."
 
@@ -2426,7 +2431,7 @@ msgstr "Hãy nhờ người quản lý hoàn tất thiết lập này."
 msgid "Aspect ratio"
 msgstr "Tỷ lệ khung hình"
 
-#: packages/admin/src/components/WordPressImport.tsx:2538
+#: packages/admin/src/components/WordPressImport.tsx:2548
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "Gán tác giả WordPress cho người dùng EmDash tương ứng. Bài viết sẽ dùng tên tài khoản bạn chọn."
 
@@ -2496,7 +2501,7 @@ msgstr "Xác thực đã bị huỷ hoặc hết thời gian chờ. Vui lòng th
 msgid "Author"
 msgstr "Tác giả"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Author Mapping"
 msgstr "Ghép tác giả"
 
@@ -2619,7 +2624,7 @@ msgstr "Quay lại"
 #: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2609
+#: packages/admin/src/components/WordPressImport.tsx:2619
 msgid "Back"
 msgstr "Quay lại"
 
@@ -3661,7 +3666,7 @@ msgstr "Bộ sưu tập"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "Bộ sưu tập và các trường dữ liệu, toàn bộ nội dung (bao gồm bản nháp, lịch sử chỉnh sửa, bài viết đã đặt lịch và thùng rác), bản dịch, phân loại nội dung, thông tin tác giả, tệp đa phương tiện, menu, tiện ích (widget), mẫu, chuyển hướng đường dẫn, cấu hình SEO và cài đặt trang web."
 
-#: packages/admin/src/components/WordPressImport.tsx:2377
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Collections created:"
 msgstr "Bộ sưu tập đã tạo:"
 
@@ -3845,7 +3850,7 @@ msgid "Content digest"
 msgstr "Mã băm nội dung"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2462
+#: packages/admin/src/components/WordPressImport.tsx:2472
 msgid "Content Errors ({0})"
 msgstr "Lỗi nội dung ({0})"
 
@@ -3929,7 +3934,7 @@ msgstr "Các loại nội dung cùng nhóm sẽ chung một thư mục có thể
 msgid "Content using this media item may show a broken reference."
 msgstr "Nội dung đang dùng tệp này có thể bị lỗi hiển thị hoặc hỏng liên kết."
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "Content was skipped because it already exists"
 msgstr "Nội dung đã bị bỏ qua vì đã tồn tại"
 
@@ -3948,7 +3953,7 @@ msgstr "Tiếp tục"
 msgid "Continue →"
 msgstr "Tiếp tục →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2611
+#: packages/admin/src/components/WordPressImport.tsx:2621
 msgid "Continue Import"
 msgstr "Tiếp tục nhập"
 
@@ -7555,7 +7560,7 @@ msgstr "field_slug"
 msgid "Fields"
 msgstr "Trường"
 
-#: packages/admin/src/components/WordPressImport.tsx:2383
+#: packages/admin/src/components/WordPressImport.tsx:2393
 msgid "Fields created:"
 msgstr "Các trường đã tạo:"
 
@@ -7873,7 +7878,7 @@ msgstr "Bật chế độ chính thức"
 msgid "Go live {countdown}"
 msgstr "Xuất bản {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2510
 #: packages/admin/src/router.tsx:4184
 msgid "Go to Dashboard"
 msgstr "Chuyển đến trang quản trị"
@@ -8346,7 +8351,7 @@ msgstr "Nhập toàn bộ nội dung trực tiếp, gồm bản nháp, loại b�
 msgid "Import an existing EmDash site"
 msgstr "Nhập một trang web EmDash có sẵn"
 
-#: packages/admin/src/components/WordPressImport.tsx:2498
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Import Another File"
 msgstr "Nhập tệp khác"
 
@@ -8359,11 +8364,11 @@ msgstr "Khả năng nhập"
 msgid "Import complete"
 msgstr "Đã nhập xong"
 
-#: packages/admin/src/components/WordPressImport.tsx:2354
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Import Complete"
 msgstr "Đã nhập xong"
 
-#: packages/admin/src/components/WordPressImport.tsx:2355
+#: packages/admin/src/components/WordPressImport.tsx:2365
 msgid "Import Completed with Errors"
 msgstr "Đã nhập xong nhưng có lỗi"
 
@@ -8408,7 +8413,7 @@ msgstr "Nhập qua EmDash Exporter"
 msgid "Imported"
 msgstr "Đã nhập"
 
-#: packages/admin/src/components/WordPressImport.tsx:2394
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Imported by Collection"
 msgstr "Đã nhập theo bộ sưu tập"
 
@@ -8996,7 +9001,7 @@ msgstr "Rời đi"
 msgid "Leave empty to keep current password"
 msgstr "Để trống để giữ mật khẩu hiện tại"
 
-#: packages/admin/src/components/WordPressImport.tsx:2579
+#: packages/admin/src/components/WordPressImport.tsx:2589
 msgid "Leave unassigned"
 msgstr "Không gán"
 
@@ -9493,12 +9498,12 @@ msgstr "Tên được đồng bộ từ dịch vụ đăng nhập liên kết. V
 msgid "Manual"
 msgstr "Thủ công"
 
-#: packages/admin/src/components/WordPressImport.tsx:2536
+#: packages/admin/src/components/WordPressImport.tsx:2546
 msgid "Map Authors"
 msgstr "Ghép tác giả"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2584
+#: packages/admin/src/components/WordPressImport.tsx:2594
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "Ghép tài khoản WordPress {0} với tài khoản EmDash"
 
@@ -9589,7 +9594,7 @@ msgid "Media details"
 msgstr "Chi tiết tệp"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2480
+#: packages/admin/src/components/WordPressImport.tsx:2490
 msgid "Media Errors ({0})"
 msgstr "Lỗi tệp thư viện ({0})"
 
@@ -9598,15 +9603,15 @@ msgstr "Lỗi tệp thư viện ({0})"
 msgid "Media folders"
 msgstr "Thư mục thư viện"
 
-#: packages/admin/src/components/WordPressImport.tsx:2442
+#: packages/admin/src/components/WordPressImport.tsx:2452
 msgid "Media Import"
 msgstr "Nhập tệp thư viện"
 
-#: packages/admin/src/components/WordPressImport.tsx:2353
+#: packages/admin/src/components/WordPressImport.tsx:2363
 msgid "Media Import Complete"
 msgstr "Đã nhập xong tệp thư viện"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2374
 msgid "Media import was skipped"
 msgstr "Đã bỏ qua việc nhập tệp thư viện"
 
@@ -10435,7 +10440,7 @@ msgstr "Chưa cấu hình nhà cung cấp email"
 msgid "No email provider configured. Share this link manually."
 msgstr "Chưa cấu hình nhà cung cấp email. Hãy chia sẻ liên kết này thủ công."
 
-#: packages/admin/src/components/WordPressImport.tsx:2598
+#: packages/admin/src/components/WordPressImport.tsx:2608
 msgid "No EmDash users found"
 msgstr "Không tìm thấy tài khoản EmDash nào"
 
@@ -11248,7 +11253,7 @@ msgid "Password"
 msgstr "Mật khẩu"
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2413
+#: packages/admin/src/components/WordPressImport.tsx:2423
 msgid "Password-Protected Entries ({0})"
 msgstr ""
 
@@ -13203,7 +13208,7 @@ msgstr "Xuất bản đã đặt lịch"
 msgid "Scheduled publishing needs attention"
 msgstr "Lịch xuất bản gặp sự cố"
 
-#: packages/admin/src/components/WordPressImport.tsx:2372
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Schema Changes"
 msgstr "Thay đổi cấu trúc dữ liệu"
 
@@ -14136,7 +14141,7 @@ msgstr "Nhận diện trang web"
 msgid "Site Identity"
 msgstr "Nhận diện trang web"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2330
 msgid "site identity applied (title, tagline, logo)"
 msgstr "đã áp dụng nhận diện trang web (tiêu đề, dòng mô tả, logo)"
 
@@ -15319,7 +15324,7 @@ msgstr "Giao diện"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "Không thể rà soát vòng lặp chuyển hướng do số lượng quá lớn trước khi nhập"
 
-#: packages/admin/src/components/WordPressImport.tsx:2416
+#: packages/admin/src/components/WordPressImport.tsx:2426
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr ""
 

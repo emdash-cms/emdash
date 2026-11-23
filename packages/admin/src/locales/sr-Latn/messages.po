@@ -213,7 +213,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# kolekcija} few {# kolekcije} other {# kolekcija}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2313
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {# komentar uvezen} few {# komentara uvezeno} other {# komentara uvezeno}}"
 
@@ -228,7 +228,7 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# komentar} few {# komentara} other {# komentara}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2334
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# greška sadržaja} few {# greške sadržaja} other {# grešaka sadržaja}}"
 
@@ -299,7 +299,7 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# MCP alat} few {# MCP alata} other {# MCP alata}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2329
+#: packages/admin/src/components/WordPressImport.tsx:2339
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# greška medija} few {# greške medija} other {# grešaka medija}}"
 
@@ -309,9 +309,14 @@ msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {# medijski fajl uvezen} few {# medijska fajla uvezena} other {# medijskih fajlova uvezeno}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2305
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {# meni uvezen} few {# menija uvezena} other {# menija uvezeno}}"
+
+#. placeholder {0}: result.menus.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2314
+msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
+msgstr ""
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1953
@@ -340,7 +345,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr ""
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2568
+#: packages/admin/src/components/WordPressImport.tsx:2578
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# objava} few {# objave} other {# objava}}"
 
@@ -677,7 +682,7 @@ msgstr "{count, plural, one {# fajl} few {# fajla} other {# fajlova}}"
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2411
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# stavka} few {# stavke} other {# stavki}}"
 
@@ -805,11 +810,11 @@ msgstr ""
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# stavka odgovara \"{searchQuery}\"} few {# stavke odgovaraju \"{searchQuery}\"} other {# stavki odgovara \"{searchQuery}\"}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2555
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{matchedCount} od {totalCount} dodeljeno"
 
-#: packages/admin/src/components/WordPressImport.tsx:2543
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{matchedCount} od {totalCount} autora upareno po e-pošti"
 
@@ -2021,7 +2026,7 @@ msgstr "Sve kolekcije"
 msgid "All comments require approval"
 msgstr "Svi komentari zahtevaju odobrenje"
 
-#: packages/admin/src/components/WordPressImport.tsx:2600
+#: packages/admin/src/components/WordPressImport.tsx:2610
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "Sav uvezeni sadržaj ostaće nedodeljen. Autore možeš ponovo dodeliti kasnije iz editora sadržaja."
 
@@ -2426,7 +2431,7 @@ msgstr "Zamoli administratora da dovrši ovo podešavanje."
 msgid "Aspect ratio"
 msgstr "Odnos stranica"
 
-#: packages/admin/src/components/WordPressImport.tsx:2538
+#: packages/admin/src/components/WordPressImport.tsx:2548
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "Dodeli WordPress autore EmDash korisnicima. Objave će se pripisati izabranom korisniku."
 
@@ -2496,7 +2501,7 @@ msgstr "Autentifikacija je otkazana ili je isteklo vreme. Pokušaj ponovo."
 msgid "Author"
 msgstr "Autor"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Author Mapping"
 msgstr "Mapiranje autora"
 
@@ -2619,7 +2624,7 @@ msgstr "visualEditing.back"
 #: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2609
+#: packages/admin/src/components/WordPressImport.tsx:2619
 msgid "Back"
 msgstr "Nazad"
 
@@ -3661,7 +3666,7 @@ msgstr "Kolekcije"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "Kolekcije i polja, sav sadržaj sa nacrtima, revizijama, zakazanim objavama i korpom, prevodi, taksonomije, potpisi, medijski fajlovi, meniji, vidžeti, sekcije, preusmerenja, SEO i podešavanja sajta."
 
-#: packages/admin/src/components/WordPressImport.tsx:2377
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Collections created:"
 msgstr "Kreirane kolekcije:"
 
@@ -3845,7 +3850,7 @@ msgid "Content digest"
 msgstr "Sažetak sadržaja"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2462
+#: packages/admin/src/components/WordPressImport.tsx:2472
 msgid "Content Errors ({0})"
 msgstr "Greške sadržaja ({0})"
 
@@ -3929,7 +3934,7 @@ msgstr "Tipovi sadržaja sa istom grupom dele fasciklu koja može da se skupi u 
 msgid "Content using this media item may show a broken reference."
 msgstr "Sadržaj koji koristi ovaj medij može da prikaže pokvarenu referencu."
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "Content was skipped because it already exists"
 msgstr "Sadržaj je preskočen jer već postoji"
 
@@ -3948,7 +3953,7 @@ msgstr "Nastavi"
 msgid "Continue →"
 msgstr "Nastavi →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2611
+#: packages/admin/src/components/WordPressImport.tsx:2621
 msgid "Continue Import"
 msgstr "Nastavi uvoz"
 
@@ -7555,7 +7560,7 @@ msgstr ""
 msgid "Fields"
 msgstr "Polja"
 
-#: packages/admin/src/components/WordPressImport.tsx:2383
+#: packages/admin/src/components/WordPressImport.tsx:2393
 msgid "Fields created:"
 msgstr "Kreirana polja:"
 
@@ -7873,7 +7878,7 @@ msgstr ""
 msgid "Go live {countdown}"
 msgstr "Objavljuje se {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2510
 #: packages/admin/src/router.tsx:4184
 msgid "Go to Dashboard"
 msgstr "Idi na kontrolnu tablu"
@@ -8346,7 +8351,7 @@ msgstr "Uvezi sav sadržaj direktno uključujući nacrte, prilagođene tipove ob
 msgid "Import an existing EmDash site"
 msgstr "Uvezi postojeći EmDash sajt"
 
-#: packages/admin/src/components/WordPressImport.tsx:2498
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Import Another File"
 msgstr "Uvezi drugi fajl"
 
@@ -8359,11 +8364,11 @@ msgstr "Mogućnosti uvoza"
 msgid "Import complete"
 msgstr "Završen je uvoz"
 
-#: packages/admin/src/components/WordPressImport.tsx:2354
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Import Complete"
 msgstr "Uvoz završen"
 
-#: packages/admin/src/components/WordPressImport.tsx:2355
+#: packages/admin/src/components/WordPressImport.tsx:2365
 msgid "Import Completed with Errors"
 msgstr "Uvoz završen sa greškama"
 
@@ -8408,7 +8413,7 @@ msgstr "Uvezi preko EmDash Exporter-a"
 msgid "Imported"
 msgstr "Uvezeno"
 
-#: packages/admin/src/components/WordPressImport.tsx:2394
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Imported by Collection"
 msgstr "Uvezeno po kolekciji"
 
@@ -8996,7 +9001,7 @@ msgstr ""
 msgid "Leave empty to keep current password"
 msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:2579
+#: packages/admin/src/components/WordPressImport.tsx:2589
 msgid "Leave unassigned"
 msgstr "Ostavi nedodeljeno"
 
@@ -9493,12 +9498,12 @@ msgstr ""
 msgid "Manual"
 msgstr "Ručno"
 
-#: packages/admin/src/components/WordPressImport.tsx:2536
+#: packages/admin/src/components/WordPressImport.tsx:2546
 msgid "Map Authors"
 msgstr "Mapiraj autore"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2584
+#: packages/admin/src/components/WordPressImport.tsx:2594
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "Mapiraj WordPress korisnika {0} na EmDash korisnika"
 
@@ -9589,7 +9594,7 @@ msgid "Media details"
 msgstr "Detalji medija"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2480
+#: packages/admin/src/components/WordPressImport.tsx:2490
 msgid "Media Errors ({0})"
 msgstr "Greške medija ({0})"
 
@@ -9598,15 +9603,15 @@ msgstr "Greške medija ({0})"
 msgid "Media folders"
 msgstr "Fascikle medija"
 
-#: packages/admin/src/components/WordPressImport.tsx:2442
+#: packages/admin/src/components/WordPressImport.tsx:2452
 msgid "Media Import"
 msgstr "Uvoz medija"
 
-#: packages/admin/src/components/WordPressImport.tsx:2353
+#: packages/admin/src/components/WordPressImport.tsx:2363
 msgid "Media Import Complete"
 msgstr "Uvoz medija završen"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2374
 msgid "Media import was skipped"
 msgstr "Preskočen je uvoz medija"
 
@@ -10435,7 +10440,7 @@ msgstr "Nije konfigurisan provajder e-pošte"
 msgid "No email provider configured. Share this link manually."
 msgstr "Nije konfigurisan provajder e-pošte. Podeli ovaj link ručno."
 
-#: packages/admin/src/components/WordPressImport.tsx:2598
+#: packages/admin/src/components/WordPressImport.tsx:2608
 msgid "No EmDash users found"
 msgstr "Nema pronađenih EmDash korisnika"
 
@@ -11248,7 +11253,7 @@ msgid "Password"
 msgstr ""
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2413
+#: packages/admin/src/components/WordPressImport.tsx:2423
 msgid "Password-Protected Entries ({0})"
 msgstr ""
 
@@ -13203,7 +13208,7 @@ msgstr "Zakazano objavljivanje"
 msgid "Scheduled publishing needs attention"
 msgstr "Zakazano objavljivanje zahteva pažnju"
 
-#: packages/admin/src/components/WordPressImport.tsx:2372
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Schema Changes"
 msgstr "Izmene šeme"
 
@@ -14136,7 +14141,7 @@ msgstr "Identitet sajta"
 msgid "Site Identity"
 msgstr "Identitet sajta"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2330
 msgid "site identity applied (title, tagline, logo)"
 msgstr "identitet sajta primenjen (naslov, slogan, logo)"
 
@@ -15319,7 +15324,7 @@ msgstr "Teme"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "Previše je preusmerenja da bi se petlje proverile pre uvoza"
 
-#: packages/admin/src/components/WordPressImport.tsx:2416
+#: packages/admin/src/components/WordPressImport.tsx:2426
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr ""
 

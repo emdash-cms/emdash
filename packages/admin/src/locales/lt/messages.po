@@ -213,7 +213,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# kolekcija} few {# kolekcijos} many {# kolekcijos} other {# kolekcijų}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2313
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {Importuotas # komentaras} few {Importuoti # komentarai} many {Importuota # komentaro} other {Importuota # komentarų}}"
 
@@ -228,7 +228,7 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# komentaras} few {# komentarai} many {# komentaro} other {# komentarų}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2334
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# turinio klaida} few {# turinio klaidos} many {# turinio klaidos} other {# turinio klaidų}}"
 
@@ -299,7 +299,7 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# MCP įrankis} few {# MCP įrankiai} many {# MCP įrankio} other {# MCP įrankių}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2329
+#: packages/admin/src/components/WordPressImport.tsx:2339
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# medijos failų klaida} few {# medijos failų klaidos} many {# medijos failų klaidos} other {# medijos failų klaidų}}"
 
@@ -309,9 +309,14 @@ msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {Importuotas # medijos failas} few {Importuoti # medijos failai} many {Importuota # medijos failo} other {Importuota # medijos failų}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2305
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {Importuotas # meniu} few {Importuoti # meniu} many {Importuota # meniu} other {Importuota # meniu}}"
+
+#. placeholder {0}: result.menus.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2314
+msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
+msgstr ""
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1953
@@ -340,7 +345,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr "{0, plural, one {# įskiepis} few {# įskiepiai} many {# įskiepio} other {# įskiepių}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2568
+#: packages/admin/src/components/WordPressImport.tsx:2578
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# įrašas} few {# įrašai} many {# įrašo} other {# įrašų}}"
 
@@ -677,7 +682,7 @@ msgstr "{count, plural, one {# failas} few {# failai} many {# failo} other {# fa
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2411
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# elementas} few {# elementai} many {# elemento} other {# elementų}}"
 
@@ -805,11 +810,11 @@ msgstr "{list} +{more}"
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# elementas atitinka „{searchQuery}“} few {# elementai atitinka „{searchQuery}“} many {Užklausą „{searchQuery}“ atitinka # elemento} other {Užklausą „{searchQuery}“ atitinka # elementų}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2555
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "Priskirta: {matchedCount} iš {totalCount}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2543
+#: packages/admin/src/components/WordPressImport.tsx:2553
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "Pagal el. paštą susieta autorių: {matchedCount} iš {totalCount}"
 
@@ -2021,7 +2026,7 @@ msgstr "Visos kolekcijos"
 msgid "All comments require approval"
 msgstr "Visus komentarus būtina patvirtinti"
 
-#: packages/admin/src/components/WordPressImport.tsx:2600
+#: packages/admin/src/components/WordPressImport.tsx:2610
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "Importuotas turinys bus be priskirtų autorių. Juos galėsite priskirti vėliau turinio rengyklėje."
 
@@ -2426,7 +2431,7 @@ msgstr "Paprašykite administratoriaus užbaigti sąranką."
 msgid "Aspect ratio"
 msgstr "Kraštinių santykis"
 
-#: packages/admin/src/components/WordPressImport.tsx:2538
+#: packages/admin/src/components/WordPressImport.tsx:2548
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "Susiekite „WordPress“ autorius su „EmDash“ naudotojais. Įrašai bus priskirti pasirinktam naudotojui."
 
@@ -2496,7 +2501,7 @@ msgstr "Tapatybės patvirtinimas atšauktas arba baigėsi jam skirtas laikas. Ba
 msgid "Author"
 msgstr "Autorius"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Author Mapping"
 msgstr "Autorių susiejimas"
 
@@ -2619,7 +2624,7 @@ msgstr "Atgal"
 #: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2609
+#: packages/admin/src/components/WordPressImport.tsx:2619
 msgid "Back"
 msgstr "Atgal"
 
@@ -3661,7 +3666,7 @@ msgstr "Kolekcijos"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "Kolekcijos ir laukai, visas turinys su juodraščiais, versijomis, suplanuotais įrašais ir šiukšlinės turiniu, vertimai, taksonomijos, autorių profiliai, medijos failai, meniu, valdikliai, skiltys, peradresavimai, SEO ir svetainės nustatymai."
 
-#: packages/admin/src/components/WordPressImport.tsx:2377
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Collections created:"
 msgstr "Sukurtos kolekcijos:"
 
@@ -3845,7 +3850,7 @@ msgid "Content digest"
 msgstr "Turinio kontrolinė suma"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2462
+#: packages/admin/src/components/WordPressImport.tsx:2472
 msgid "Content Errors ({0})"
 msgstr "Turinio klaidos ({0})"
 
@@ -3929,7 +3934,7 @@ msgstr "Tai pačiai grupei priskirti turinio tipai šoninėje juostoje rodomi vi
 msgid "Content using this media item may show a broken reference."
 msgstr "Turinyje, kuriame naudojamas šis medijos failas, gali likti neveikianti nuoroda."
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2370
 msgid "Content was skipped because it already exists"
 msgstr "Turinys praleistas, nes jau yra"
 
@@ -3948,7 +3953,7 @@ msgstr "Tęsti"
 msgid "Continue →"
 msgstr "Tęsti →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2611
+#: packages/admin/src/components/WordPressImport.tsx:2621
 msgid "Continue Import"
 msgstr "Tęsti importavimą"
 
@@ -7555,7 +7560,7 @@ msgstr "lauko_adreso_dalis"
 msgid "Fields"
 msgstr "Laukai"
 
-#: packages/admin/src/components/WordPressImport.tsx:2383
+#: packages/admin/src/components/WordPressImport.tsx:2393
 msgid "Fields created:"
 msgstr "Sukurta laukų:"
 
@@ -7873,7 +7878,7 @@ msgstr "Paskelbti"
 msgid "Go live {countdown}"
 msgstr "Paskelbti {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
+#: packages/admin/src/components/WordPressImport.tsx:2510
 #: packages/admin/src/router.tsx:4184
 msgid "Go to Dashboard"
 msgstr "Atverti valdymo skydą"
@@ -8346,7 +8351,7 @@ msgstr "Tiesiogiai importuokite visą turinį, įskaitant juodraščius, pasirin
 msgid "Import an existing EmDash site"
 msgstr "Importuoti esamą „EmDash“ svetainę"
 
-#: packages/admin/src/components/WordPressImport.tsx:2498
+#: packages/admin/src/components/WordPressImport.tsx:2508
 msgid "Import Another File"
 msgstr "Importuoti kitą failą"
 
@@ -8359,11 +8364,11 @@ msgstr "Importavimo galimybės"
 msgid "Import complete"
 msgstr "Importavimas baigtas"
 
-#: packages/admin/src/components/WordPressImport.tsx:2354
+#: packages/admin/src/components/WordPressImport.tsx:2364
 msgid "Import Complete"
 msgstr "Importavimas baigtas"
 
-#: packages/admin/src/components/WordPressImport.tsx:2355
+#: packages/admin/src/components/WordPressImport.tsx:2365
 msgid "Import Completed with Errors"
 msgstr "Importavimas baigtas su klaidomis"
 
@@ -8408,7 +8413,7 @@ msgstr "Importuoti naudojant „EmDash Exporter“"
 msgid "Imported"
 msgstr "Importuota"
 
-#: packages/admin/src/components/WordPressImport.tsx:2394
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Imported by Collection"
 msgstr "Importuota pagal kolekciją"
 
@@ -8996,7 +9001,7 @@ msgstr "Išeiti"
 msgid "Leave empty to keep current password"
 msgstr "Palikite tuščią, jei norite pasilikti dabartinį slaptažodį"
 
-#: packages/admin/src/components/WordPressImport.tsx:2579
+#: packages/admin/src/components/WordPressImport.tsx:2589
 msgid "Leave unassigned"
 msgstr "Nepriskirti"
 
@@ -9493,12 +9498,12 @@ msgstr "Valdo jūsų tapatybės teikėjas. Vardą pakeiskite jo sistemoje."
 msgid "Manual"
 msgstr "Rankinis"
 
-#: packages/admin/src/components/WordPressImport.tsx:2536
+#: packages/admin/src/components/WordPressImport.tsx:2546
 msgid "Map Authors"
 msgstr "Susieti autorius"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2584
+#: packages/admin/src/components/WordPressImport.tsx:2594
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "Susieti „WordPress“ naudotoją {0} su „EmDash“ naudotoju"
 
@@ -9589,7 +9594,7 @@ msgid "Media details"
 msgstr "Medijos failo informacija"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2480
+#: packages/admin/src/components/WordPressImport.tsx:2490
 msgid "Media Errors ({0})"
 msgstr "Medijos klaidos ({0})"
 
@@ -9598,15 +9603,15 @@ msgstr "Medijos klaidos ({0})"
 msgid "Media folders"
 msgstr "Medijos aplankai"
 
-#: packages/admin/src/components/WordPressImport.tsx:2442
+#: packages/admin/src/components/WordPressImport.tsx:2452
 msgid "Media Import"
 msgstr "Medijos importas"
 
-#: packages/admin/src/components/WordPressImport.tsx:2353
+#: packages/admin/src/components/WordPressImport.tsx:2363
 msgid "Media Import Complete"
 msgstr "Medijos importas baigtas"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2374
 msgid "Media import was skipped"
 msgstr "Medijos importas praleistas"
 
@@ -10435,7 +10440,7 @@ msgstr "Nesukonfigūruotas el. pašto paslaugų teikėjas"
 msgid "No email provider configured. Share this link manually."
 msgstr "Nesukonfigūruotas el. pašto paslaugų teikėjas. Pasidalykite šia nuoroda patys."
 
-#: packages/admin/src/components/WordPressImport.tsx:2598
+#: packages/admin/src/components/WordPressImport.tsx:2608
 msgid "No EmDash users found"
 msgstr "„EmDash“ naudotojų nerasta"
 
@@ -11248,7 +11253,7 @@ msgid "Password"
 msgstr "Slaptažodis"
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2413
+#: packages/admin/src/components/WordPressImport.tsx:2423
 msgid "Password-Protected Entries ({0})"
 msgstr "Slaptažodžiu apsaugoti įrašai ({0})"
 
@@ -13203,7 +13208,7 @@ msgstr "Suplanuotas skelbimas"
 msgid "Scheduled publishing needs attention"
 msgstr "Reikia patikrinti suplanuotą skelbimą"
 
-#: packages/admin/src/components/WordPressImport.tsx:2372
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Schema Changes"
 msgstr "Schemos pakeitimai"
 
@@ -14136,7 +14141,7 @@ msgstr "Svetainės tapatybė"
 msgid "Site Identity"
 msgstr "Svetainės tapatybė"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2330
 msgid "site identity applied (title, tagline, logo)"
 msgstr "pritaikyta svetainės tapatybė (pavadinimas, poantraštė, logotipas)"
 
@@ -15319,7 +15324,7 @@ msgstr "Temos"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "Peradresavimų per daug, kad prieš importuojant būtų galima patikrinti, ar nėra ciklų"
 
-#: packages/admin/src/components/WordPressImport.tsx:2416
+#: packages/admin/src/components/WordPressImport.tsx:2426
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr "Šie įrašai „WordPress“ svetainėje apsaugoti slaptažodžiais. „EmDash“ nepalaiko atskirų įrašų slaptažodžių, todėl įrašai importuoti kaip juodraščiai. Prieš skelbdami peržiūrėkite kiekvieną įrašą."
 
