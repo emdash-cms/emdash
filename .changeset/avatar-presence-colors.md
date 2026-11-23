@@ -1,5 +1,5 @@
 ---
-"@emdash-cms/admin": minor
+"@emdash-cms/admin": patch
 ---
 
 Updates co-editing and **Revisions** to color each person from their generated avatar, so someone without a profile picture looks the same in the editor bar, in rich text and in revision history.
