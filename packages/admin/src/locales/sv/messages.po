@@ -743,7 +743,7 @@ msgstr "{label}: ingen översättning"
 msgid "{label} — view translation"
 msgstr "{label}: visa översättning"
 
-#: packages/admin/src/components/BlocksField.tsx:1758
+#: packages/admin/src/components/BlocksField.tsx:1755
 msgid "{label} · version {versionNumber}"
 msgstr "{label} · version {versionNumber}"
 
@@ -753,7 +753,7 @@ msgid "{label} {position}"
 msgstr "{label} {position}"
 
 #: packages/admin/src/components/BlockListField.tsx:1037
-#: packages/admin/src/components/BlocksField.tsx:1709
+#: packages/admin/src/components/BlocksField.tsx:1706
 msgid "{label} actions"
 msgstr "Åtgärder för {label}"
 
@@ -789,7 +789,7 @@ msgstr "Alternativ för {label}"
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
-#: packages/admin/src/components/BlocksField.tsx:2393
+#: packages/admin/src/components/BlocksField.tsx:2390
 msgid "{label}: {value}"
 msgstr "{label}: {value}"
 
@@ -797,7 +797,7 @@ msgstr "{label}: {value}"
 msgid "{lateness} late"
 msgstr "{lateness} försenad"
 
-#: packages/admin/src/components/BlocksField.tsx:1337
+#: packages/admin/src/components/BlocksField.tsx:1334
 msgid "{list} +{more}"
 msgstr "{list} +{more}"
 
@@ -1187,7 +1187,7 @@ msgstr "<0>{name}</0> redigerar den här posten. Öppna den skrivskyddad eller t
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "<0>{name}</0> har nu låst posten, så dina ändringar sparas inte längre. Ta tillbaka den för att fortsätta."
 
-#: packages/admin/src/components/BlocksField.tsx:1518
+#: packages/admin/src/components/BlocksField.tsx:1515
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
 msgid "<0>Alt-click</0> to add above"
 msgstr "<0>Alt-klicka</0> för att lägga till ovanför"
@@ -1196,12 +1196,12 @@ msgstr "<0>Alt-klicka</0> för att lägga till ovanför"
 msgid "<0>Click</0> to add below"
 msgstr "<0>Klicka</0> för att lägga till nedanför"
 
-#: packages/admin/src/components/BlocksField.tsx:1564
+#: packages/admin/src/components/BlocksField.tsx:1561
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
 msgid "<0>Click</0> to open menu"
 msgstr "<0>Klicka</0> för att öppna menyn"
 
-#: packages/admin/src/components/BlocksField.tsx:1560
+#: packages/admin/src/components/BlocksField.tsx:1557
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
 msgid "<0>Drag</0> to move"
 msgstr "<0>Dra</0> för att flytta"
@@ -1394,7 +1394,7 @@ msgid "A slug cannot be generated from this label. Type one manually using lower
 msgstr "Det går inte att skapa en slug från den här etiketten. Skriv en manuellt med gemener, siffror och understreck."
 
 #: packages/admin/src/components/FieldEditor.tsx:484
-#: packages/admin/src/components/FieldEditor.tsx:1681
+#: packages/admin/src/components/FieldEditor.tsx:1685
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr "Det går inte att skapa en slug från den här etiketten. Skriv en manuellt."
 
@@ -1540,7 +1540,7 @@ msgstr "Aktiv"
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
-#: packages/admin/src/components/FieldEditor.tsx:1534
+#: packages/admin/src/components/FieldEditor.tsx:1538
 msgid "Active v{0}"
 msgstr "Aktiv v{0}"
 
@@ -1573,7 +1573,7 @@ msgstr "Lägg till {singularLower} i 1 inlägg"
 msgid "Add {singularLower} to posts"
 msgstr "Lägg till {singularLower} i inlägg"
 
-#: packages/admin/src/components/BlocksField.tsx:2332
+#: packages/admin/src/components/BlocksField.tsx:2329
 msgid "Add a caption"
 msgstr "Lägg till en bildtext"
 
@@ -1598,7 +1598,7 @@ msgstr "Lägg till en person eller ett team som ska krediteras för ditt innehå
 msgid "Add another byline"
 msgstr "Lägg till ytterligare en skribent"
 
-#: packages/admin/src/components/BlocksField.tsx:1166
+#: packages/admin/src/components/BlocksField.tsx:1163
 msgid "Add at least {minItems} blocks."
 msgstr "Lägg till minst {minItems} block."
 
@@ -1608,7 +1608,7 @@ msgid "Add at least one option."
 msgstr "Lägg till minst ett alternativ."
 
 #: packages/admin/src/components/FieldEditor.tsx:475
-#: packages/admin/src/components/FieldEditor.tsx:1619
+#: packages/admin/src/components/FieldEditor.tsx:1623
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Lägg till minst ett underfält för att definiera repeaterstrukturen."
 
@@ -1617,16 +1617,16 @@ msgstr "Lägg till minst ett underfält för att definiera repeaterstrukturen."
 msgid "Add block"
 msgstr "Lägg till block"
 
-#: packages/admin/src/components/BlocksField.tsx:1739
+#: packages/admin/src/components/BlocksField.tsx:1736
 msgid "Add block above"
 msgstr "Lägg till block ovanför"
 
-#: packages/admin/src/components/BlocksField.tsx:1516
-#: packages/admin/src/components/BlocksField.tsx:1740
+#: packages/admin/src/components/BlocksField.tsx:1513
+#: packages/admin/src/components/BlocksField.tsx:1737
 msgid "Add block below"
 msgstr "Lägg till block nedanför"
 
-#: packages/admin/src/components/BlocksField.tsx:1535
+#: packages/admin/src/components/BlocksField.tsx:1532
 msgid "Add block below {label}"
 msgstr "Lägg till block under {label}"
 
@@ -1671,7 +1671,7 @@ msgstr "Lägg till domän"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:808
 #: packages/admin/src/components/FieldEditor.tsx:1010
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Add Field"
 msgstr "Lägg till fält"
 
@@ -1791,7 +1791,7 @@ msgstr "Lägg till valda"
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "Lägg till SEO-metadatafält (titel, beskrivning, bild) och inkludera i webbplatskartan"
 
-#: packages/admin/src/components/FieldEditor.tsx:1606
+#: packages/admin/src/components/FieldEditor.tsx:1610
 msgid "Add Sub-Field"
 msgstr "Lägg till underfält"
 
@@ -1925,12 +1925,12 @@ msgstr "Administrationsnavigering"
 msgid "Administrator"
 msgstr "Administratör"
 
-#: packages/admin/src/components/BlocksField.tsx:2454
+#: packages/admin/src/components/BlocksField.tsx:2451
 #: packages/admin/src/components/PortableTextEditor.tsx:501
 msgid "Advanced"
 msgstr "Avancerat"
 
-#: packages/admin/src/components/BlocksField.tsx:2437
+#: packages/admin/src/components/BlocksField.tsx:2434
 msgid "Advanced: {blockLabel}"
 msgstr "Avancerat: {blockLabel}"
 
@@ -2609,7 +2609,7 @@ msgstr "Tillbaka"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:501
-#: packages/admin/src/components/FieldEditor.tsx:1816
+#: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
 #: packages/admin/src/components/WordPressImport.tsx:2609
@@ -2761,7 +2761,7 @@ msgstr "Fet"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:58
 #: packages/admin/src/components/FieldEditor.tsx:681
-#: packages/admin/src/components/FieldEditor.tsx:1700
+#: packages/admin/src/components/FieldEditor.tsx:1704
 msgid "Boolean"
 msgstr "Boolean"
 
@@ -2947,7 +2947,7 @@ msgstr "Kan inte nå EmDash"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
-#: packages/admin/src/components/FieldEditor.tsx:1821
+#: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
@@ -4584,8 +4584,8 @@ msgstr "Anpassa sidofältet"
 msgid "Daily automatic backups"
 msgstr "Dagliga automatiska säkerhetskopior"
 
-#: packages/admin/src/components/FieldEditor.tsx:1794
-#: packages/admin/src/components/FieldEditor.tsx:1797
+#: packages/admin/src/components/FieldEditor.tsx:1798
+#: packages/admin/src/components/FieldEditor.tsx:1801
 #: packages/admin/src/components/ImageFieldRenderer.tsx:562
 msgid "Dark mode variant"
 msgstr "Variant för mörkt läge"
@@ -4610,7 +4610,7 @@ msgid "Date"
 msgstr "Datum"
 
 #: packages/admin/src/components/FieldEditor.tsx:687
-#: packages/admin/src/components/FieldEditor.tsx:1701
+#: packages/admin/src/components/FieldEditor.tsx:1705
 msgid "Date & Time"
 msgstr "Datum och tid"
 
@@ -4689,7 +4689,7 @@ msgstr "Definiera strukturen på ditt innehåll"
 msgid "Defined in code"
 msgstr "Definierad i kod"
 
-#: packages/admin/src/components/BlocksField.tsx:1196
+#: packages/admin/src/components/BlocksField.tsx:1193
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4769,7 +4769,7 @@ msgstr "Ta bort widgetområdet {0}"
 msgid "Delete {0}?"
 msgstr "Ta bort {0}?"
 
-#: packages/admin/src/components/BlocksField.tsx:1194
+#: packages/admin/src/components/BlocksField.tsx:1191
 msgid "Delete {confirmName}?"
 msgstr "Ta bort {confirmName}?"
 
@@ -4934,7 +4934,7 @@ msgstr "Om du tar bort ”{0}” tas även alla dess termer bort på alla språk
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "Om du tar bort ”{0}” försvinner även {1, plural, one {# sparat värde} other {# sparade värden}} från alla skribenter. Det går inte att ångra."
 
-#: packages/admin/src/components/BlocksField.tsx:1197
+#: packages/admin/src/components/BlocksField.tsx:1194
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1853
@@ -5768,7 +5768,7 @@ msgstr "Redigerarens sidofält har återställts"
 msgid "Editor sidebar sections"
 msgstr "Sektioner i redigerarens sidofält"
 
-#: packages/admin/src/components/FieldEditor.tsx:1792
+#: packages/admin/src/components/FieldEditor.tsx:1796
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Redaktörer kan välja en andra bild som webbplatsen visar i mörkt läge."
 
@@ -7518,7 +7518,7 @@ msgstr "Fält skapat"
 msgid "Field deleted"
 msgstr "Fält borttaget"
 
-#: packages/admin/src/components/FieldEditor.tsx:1646
+#: packages/admin/src/components/FieldEditor.tsx:1650
 msgid "Field label"
 msgstr "Fältetikett"
 
@@ -7538,7 +7538,7 @@ msgstr "Fälttyp kan inte ändras efter att den skapats."
 msgid "Field updated"
 msgstr "Fält uppdaterat"
 
-#: packages/admin/src/components/FieldEditor.tsx:1677
+#: packages/admin/src/components/FieldEditor.tsx:1681
 msgid "field_slug"
 msgstr "falt_slug"
 
@@ -8221,7 +8221,7 @@ msgstr "Bild"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:711
-#: packages/admin/src/components/FieldEditor.tsx:1704
+#: packages/admin/src/components/FieldEditor.tsx:1708
 #: packages/admin/src/components/PortableTextEditor.tsx:2474
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
@@ -8460,7 +8460,7 @@ msgstr "I papperskorgen"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "Öppna Konton och sedan Inloggningsalternativ i Windows-inställningarna och konfigurera en PIN-kod. Fingeravtryck och ansiktsigenkänning är valfria."
 
-#: packages/admin/src/components/BlocksField.tsx:1365
+#: packages/admin/src/components/BlocksField.tsx:1362
 msgid "Inactive version"
 msgstr "Inaktiv version"
 
@@ -8645,7 +8645,7 @@ msgid "Installing..."
 msgstr "Installerar …"
 
 #: packages/admin/src/components/FieldEditor.tsx:675
-#: packages/admin/src/components/FieldEditor.tsx:1699
+#: packages/admin/src/components/FieldEditor.tsx:1703
 msgid "Integer"
 msgstr "Heltal"
 
@@ -8885,7 +8885,7 @@ msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:341
 #: packages/admin/src/components/FieldEditor.tsx:1153
-#: packages/admin/src/components/FieldEditor.tsx:1632
+#: packages/admin/src/components/FieldEditor.tsx:1636
 #: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/MenuEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:615
@@ -9021,7 +9021,7 @@ msgstr "Licens"
 msgid "Limit"
 msgstr "Gräns"
 
-#: packages/admin/src/components/BlocksField.tsx:2348
+#: packages/admin/src/components/BlocksField.tsx:2345
 #: packages/admin/src/components/PortableTextEditor.tsx:5387
 msgid "Link"
 msgstr "Länk"
@@ -9410,7 +9410,7 @@ msgid "Long text"
 msgstr "Lång text"
 
 #: packages/admin/src/components/FieldEditor.tsx:663
-#: packages/admin/src/components/FieldEditor.tsx:1697
+#: packages/admin/src/components/FieldEditor.tsx:1701
 msgid "Long Text"
 msgstr "Lång text"
 
@@ -9537,7 +9537,7 @@ msgstr "Sökningen på marknadsplatsen misslyckades"
 msgid "Matched by email"
 msgstr "Matchad via e-post"
 
-#: packages/admin/src/components/FieldEditor.tsx:1763
+#: packages/admin/src/components/FieldEditor.tsx:1767
 msgid "Max Items"
 msgstr "Max antal"
 
@@ -9553,7 +9553,7 @@ msgstr "Maxvärde"
 msgid "Maximum"
 msgstr "Maxantal"
 
-#: packages/admin/src/components/FieldEditor.tsx:1563
+#: packages/admin/src/components/FieldEditor.tsx:1567
 msgid "Maximum blocks"
 msgstr "Högsta antal block"
 
@@ -9775,7 +9775,7 @@ msgstr "Migreringsguide"
 msgid "Migration key"
 msgstr "Migreringsnyckel"
 
-#: packages/admin/src/components/FieldEditor.tsx:1753
+#: packages/admin/src/components/FieldEditor.tsx:1757
 msgid "Min Items"
 msgstr "Min antal"
 
@@ -9787,7 +9787,7 @@ msgstr "Minlängd"
 msgid "Min Value"
 msgstr "Minvärde"
 
-#: packages/admin/src/components/FieldEditor.tsx:1552
+#: packages/admin/src/components/FieldEditor.tsx:1556
 msgid "Minimum blocks"
 msgstr "Minsta antal block"
 
@@ -9885,7 +9885,7 @@ msgstr "Flytta ”{title}” till papperskorgen? Du kan återställa det senare.
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4690
-#: packages/admin/src/components/FieldEditor.tsx:1523
+#: packages/admin/src/components/FieldEditor.tsx:1527
 msgid "Move {0} down"
 msgstr "Flytta ned {0}"
 
@@ -9902,7 +9902,7 @@ msgstr "Flytta ned {0}"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4679
-#: packages/admin/src/components/FieldEditor.tsx:1506
+#: packages/admin/src/components/FieldEditor.tsx:1508
 msgid "Move {0} up"
 msgstr "Flytta upp {0}"
 
@@ -10254,7 +10254,7 @@ msgstr "Nyaste"
 msgid "News"
 msgstr "Nyheter"
 
-#: packages/admin/src/components/FieldEditor.tsx:1824
+#: packages/admin/src/components/FieldEditor.tsx:1828
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "Nästa"
@@ -10328,7 +10328,7 @@ msgstr "Inga godkända kommentarer ännu."
 msgid "No block types defined"
 msgstr "Inga blocktyper har definierats"
 
-#: packages/admin/src/components/BlocksField.tsx:1159
+#: packages/admin/src/components/BlocksField.tsx:1156
 msgid "No blocks yet"
 msgstr "Inga block ännu"
 
@@ -10503,7 +10503,7 @@ msgstr "Ingen inbjudningstoken angiven"
 msgid "No items yet"
 msgstr "Inga objekt ännu"
 
-#: packages/admin/src/components/FieldEditor.tsx:1768
+#: packages/admin/src/components/FieldEditor.tsx:1772
 msgid "No limit"
 msgstr "Ingen gräns"
 
@@ -10798,7 +10798,7 @@ msgid "Now · {time}"
 msgstr "Nu · {time}"
 
 #: packages/admin/src/components/FieldEditor.tsx:669
-#: packages/admin/src/components/FieldEditor.tsx:1698
+#: packages/admin/src/components/FieldEditor.tsx:1702
 msgid "Number"
 msgstr "Tal"
 
@@ -10956,7 +10956,7 @@ msgid "Open WordPress Profile"
 msgstr "Öppna WordPress-profil"
 
 #: packages/admin/src/components/FieldEditor.tsx:1295
-#: packages/admin/src/components/FieldEditor.tsx:1717
+#: packages/admin/src/components/FieldEditor.tsx:1721
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -10993,7 +10993,7 @@ msgstr "Valfritt verktygstips när du hovrar"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:432
 #: packages/admin/src/components/FieldEditor.tsx:1292
-#: packages/admin/src/components/FieldEditor.tsx:1710
+#: packages/admin/src/components/FieldEditor.tsx:1714
 msgid "Options (one per line)"
 msgstr "Alternativ (ett per rad)"
 
@@ -11357,7 +11357,7 @@ msgstr "{label} har plockats upp."
 msgid "Picked up {name}, position {position} of {total}"
 msgstr "{name} har plockats upp, position {position} av {total}"
 
-#: packages/admin/src/components/FieldEditor.tsx:1881
+#: packages/admin/src/components/FieldEditor.tsx:1885
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "När fältet väljer poster som den här posten länkar till kan redaktörer dra dem i den ordning de vill. Åt andra hållet listas allt som pekar på posten och den listan går inte att sortera om."
 
@@ -12291,7 +12291,7 @@ msgstr "Ta bort passkey?"
 msgid "Remove schedule"
 msgstr "Ta bort schemaläggning"
 
-#: packages/admin/src/components/FieldEditor.tsx:1743
+#: packages/admin/src/components/FieldEditor.tsx:1747
 msgid "Remove sub-field"
 msgstr "Ta bort underfält"
 
@@ -12421,7 +12421,7 @@ msgstr "Ändra ordning"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:1577
+#: packages/admin/src/components/BlocksField.tsx:1574
 #: packages/admin/src/components/BylineCreditsEditor.tsx:693
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
@@ -12574,7 +12574,7 @@ msgstr "Kräv en slug innan innehållet kan publiceras"
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:984
 #: packages/admin/src/components/FieldEditor.tsx:1195
-#: packages/admin/src/components/FieldEditor.tsx:1725
+#: packages/admin/src/components/FieldEditor.tsx:1729
 #: packages/admin/src/routes/byline-schema.tsx:235
 msgid "Required"
 msgstr "Obligatorisk"
@@ -12718,8 +12718,8 @@ msgstr "Återställer …"
 msgid "Results"
 msgstr "Resultat"
 
-#: packages/admin/src/components/BlocksField.tsx:1366
-#: packages/admin/src/components/FieldEditor.tsx:1490
+#: packages/admin/src/components/BlocksField.tsx:1363
+#: packages/admin/src/components/FieldEditor.tsx:1491
 msgid "Retired"
 msgstr "Utfasad"
 
@@ -13100,7 +13100,7 @@ msgstr "När du sparar skapas ett utkast som inte visas på webbplatsen. Du kan 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:3268
 #: packages/admin/src/components/ContentEditor.tsx:3273
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
@@ -13558,7 +13558,7 @@ msgstr "Se var filen används."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:59
 #: packages/admin/src/components/FieldEditor.tsx:693
-#: packages/admin/src/components/FieldEditor.tsx:1702
+#: packages/admin/src/components/FieldEditor.tsx:1706
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:172
 msgid "Select"
@@ -13947,7 +13947,7 @@ msgid "Short text"
 msgstr "Kort text"
 
 #: packages/admin/src/components/FieldEditor.tsx:657
-#: packages/admin/src/components/FieldEditor.tsx:1696
+#: packages/admin/src/components/FieldEditor.tsx:1700
 msgid "Short Text"
 msgstr "Kort text"
 
@@ -14237,9 +14237,9 @@ msgstr "Överhoppad"
 #: packages/admin/src/components/FieldEditor.tsx:1166
 #: packages/admin/src/components/FieldEditor.tsx:1169
 #: packages/admin/src/components/FieldEditor.tsx:1172
-#: packages/admin/src/components/FieldEditor.tsx:1658
-#: packages/admin/src/components/FieldEditor.tsx:1661
-#: packages/admin/src/components/FieldEditor.tsx:1664
+#: packages/admin/src/components/FieldEditor.tsx:1662
+#: packages/admin/src/components/FieldEditor.tsx:1665
+#: packages/admin/src/components/FieldEditor.tsx:1668
 #: packages/admin/src/components/RelationForm.tsx:435
 #: packages/admin/src/components/RelationForm.tsx:440
 #: packages/admin/src/components/RelationForm.tsx:444
@@ -14585,11 +14585,11 @@ msgstr "Stil"
 msgid "Style changed:"
 msgstr "Formatering ändrad:"
 
-#: packages/admin/src/components/FieldEditor.tsx:1656
+#: packages/admin/src/components/FieldEditor.tsx:1660
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr "Underfältens slugs kan inte ändras när de har skapats."
 
-#: packages/admin/src/components/FieldEditor.tsx:1580
+#: packages/admin/src/components/FieldEditor.tsx:1584
 msgid "Sub-Fields"
 msgstr "Underfält"
 
@@ -14816,7 +14816,7 @@ msgstr "Testmejl skickat till {to}"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/BlocksField.tsx:2347
+#: packages/admin/src/components/BlocksField.tsx:2344
 #: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr "Text"
@@ -15324,7 +15324,7 @@ msgstr "Publiceringen, schemaläggningen eller utkastet har ändrats."
 msgid "This also removes:"
 msgstr "Då tas även följande bort:"
 
-#: packages/admin/src/components/BlocksField.tsx:1787
+#: packages/admin/src/components/BlocksField.tsx:1784
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr "Blocket kan inte redigeras eftersom dess lagrade definition inte är tillgänglig."
 
@@ -15333,7 +15333,7 @@ msgstr "Blocket kan inte redigeras eftersom dess lagrade definition inte är til
 msgid "This block embeds a page from {0}."
 msgstr "Det här blocket bäddar in en sida från {0}."
 
-#: packages/admin/src/components/BlocksField.tsx:2179
+#: packages/admin/src/components/BlocksField.tsx:2176
 msgid "This block has no fields."
 msgstr "Det här blocket har inga fält."
 
@@ -15488,7 +15488,7 @@ msgstr "Fältet förväntar sig en lista. Det lagrade värdet ändras inte förr
 msgid "This field is required"
 msgstr "Fältet är obligatoriskt"
 
-#: packages/admin/src/components/FieldEditor.tsx:1851
+#: packages/admin/src/components/FieldEditor.tsx:1855
 msgid "This field lists entries that link to this one."
 msgstr "Fältet listar poster som länkar till den här posten."
 
@@ -15497,16 +15497,16 @@ msgstr "Fältet listar poster som länkar till den här posten."
 msgid "This field picks"
 msgstr "Fältet väljer"
 
-#: packages/admin/src/components/FieldEditor.tsx:1850
+#: packages/admin/src/components/FieldEditor.tsx:1854
 msgid "This field picks entries this one links to."
 msgstr "Fältet väljer poster som den här posten länkar till."
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1862
+#: packages/admin/src/components/FieldEditor.tsx:1866
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "Fältet visar de <0>{0}</0> som den här posten av typen {linkingSide} länkar till"
 
-#: packages/admin/src/components/FieldEditor.tsx:1867
+#: packages/admin/src/components/FieldEditor.tsx:1871
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "Fältet visar posten av typen <0>{linkingSide}</0> som länkar till den här posten av typen {linkedSide}"
 
@@ -16113,7 +16113,7 @@ msgstr "Två poster har samma värde där det måste vara unikt"
 #: packages/admin/src/components/BylineFieldEditor.tsx:385
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
-#: packages/admin/src/components/FieldEditor.tsx:1688
+#: packages/admin/src/components/FieldEditor.tsx:1692
 #: packages/admin/src/components/MediaLibrary.tsx:1147
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
@@ -16280,7 +16280,7 @@ msgstr "Osparat innehåll kan lämna din webbplats"
 msgid "Unscheduled"
 msgstr "Ej schemalagd"
 
-#: packages/admin/src/components/BlocksField.tsx:1367
+#: packages/admin/src/components/BlocksField.tsx:1364
 #: packages/admin/src/components/ContentTypeEditor.tsx:983
 msgid "Unsupported"
 msgstr "Stöds inte"
@@ -16333,7 +16333,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr "Uppdatering"
 
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Update Field"
 msgstr "Uppdatera fält"
 
@@ -16536,7 +16536,7 @@ msgstr "Laddar upp video …"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:57
 #: packages/admin/src/components/FieldEditor.tsx:741
-#: packages/admin/src/components/FieldEditor.tsx:1703
+#: packages/admin/src/components/FieldEditor.tsx:1707
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/MenuEditor.tsx:847
 #: packages/admin/src/components/PortableTextEditor.tsx:1415
@@ -16761,7 +16761,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Användare med e-postadresser från de här domänerna kan registrera sig utan inbjudan. De tilldelas automatiskt den angivna rollen."
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/FieldEditor.tsx:1535
+#: packages/admin/src/components/FieldEditor.tsx:1539
 msgid "v{0}"
 msgstr "v{0}"
 
@@ -16819,7 +16819,7 @@ msgstr "Version"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:1768
+#: packages/admin/src/components/BlocksField.tsx:1765
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -17045,7 +17045,7 @@ msgstr "Vad är en passkey?"
 msgid "What it leaves out"
 msgstr "Vad som inte ingår"
 
-#: packages/admin/src/components/FieldEditor.tsx:1882
+#: packages/admin/src/components/FieldEditor.tsx:1886
 msgid "What the direction changes"
 msgstr "Vad riktningen påverkar"
 

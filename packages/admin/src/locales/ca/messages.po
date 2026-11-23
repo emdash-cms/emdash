@@ -743,7 +743,7 @@ msgstr "{label} — sense traducció"
 msgid "{label} — view translation"
 msgstr "{label} — mostra la traducció"
 
-#: packages/admin/src/components/BlocksField.tsx:1758
+#: packages/admin/src/components/BlocksField.tsx:1755
 msgid "{label} · version {versionNumber}"
 msgstr ""
 
@@ -753,7 +753,7 @@ msgid "{label} {position}"
 msgstr ""
 
 #: packages/admin/src/components/BlockListField.tsx:1037
-#: packages/admin/src/components/BlocksField.tsx:1709
+#: packages/admin/src/components/BlocksField.tsx:1706
 msgid "{label} actions"
 msgstr ""
 
@@ -789,7 +789,7 @@ msgstr "opcions de {label}"
 msgid "{label}, {restored}"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:2393
+#: packages/admin/src/components/BlocksField.tsx:2390
 msgid "{label}: {value}"
 msgstr ""
 
@@ -797,7 +797,7 @@ msgstr ""
 msgid "{lateness} late"
 msgstr "{lateness} de retard"
 
-#: packages/admin/src/components/BlocksField.tsx:1337
+#: packages/admin/src/components/BlocksField.tsx:1334
 msgid "{list} +{more}"
 msgstr ""
 
@@ -1187,7 +1187,7 @@ msgstr "<0>{name}</0> està editant aquesta entrada. Obre-la en només lectura o
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "<0>{name}</0> ara té el control d'aquesta entrada, així que ja no es desen els teus canvis. Recupera-la per continuar."
 
-#: packages/admin/src/components/BlocksField.tsx:1518
+#: packages/admin/src/components/BlocksField.tsx:1515
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
 msgid "<0>Alt-click</0> to add above"
 msgstr ""
@@ -1196,12 +1196,12 @@ msgstr ""
 msgid "<0>Click</0> to add below"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1564
+#: packages/admin/src/components/BlocksField.tsx:1561
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
 msgid "<0>Click</0> to open menu"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1560
+#: packages/admin/src/components/BlocksField.tsx:1557
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
 msgid "<0>Drag</0> to move"
 msgstr ""
@@ -1394,7 +1394,7 @@ msgid "A slug cannot be generated from this label. Type one manually using lower
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:484
-#: packages/admin/src/components/FieldEditor.tsx:1681
+#: packages/admin/src/components/FieldEditor.tsx:1685
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr ""
 
@@ -1540,7 +1540,7 @@ msgstr "Actiu"
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
-#: packages/admin/src/components/FieldEditor.tsx:1534
+#: packages/admin/src/components/FieldEditor.tsx:1538
 msgid "Active v{0}"
 msgstr "Actiu v{0}"
 
@@ -1573,7 +1573,7 @@ msgstr "Afegeix {singularLower} a 1 entrada"
 msgid "Add {singularLower} to posts"
 msgstr "Afegeix {singularLower} a les entrades"
 
-#: packages/admin/src/components/BlocksField.tsx:2332
+#: packages/admin/src/components/BlocksField.tsx:2329
 msgid "Add a caption"
 msgstr ""
 
@@ -1598,7 +1598,7 @@ msgstr "Afegeix una persona o un equip per atribuir-li crèdit al teu contingut.
 msgid "Add another byline"
 msgstr "Afegeix una altra signatura"
 
-#: packages/admin/src/components/BlocksField.tsx:1166
+#: packages/admin/src/components/BlocksField.tsx:1163
 msgid "Add at least {minItems} blocks."
 msgstr "Afegeix com a mínim {minItems} blocs."
 
@@ -1608,7 +1608,7 @@ msgid "Add at least one option."
 msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:475
-#: packages/admin/src/components/FieldEditor.tsx:1619
+#: packages/admin/src/components/FieldEditor.tsx:1623
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Afegeix com a mínim un subcamp per definir l'estructura del repetidor."
 
@@ -1617,16 +1617,16 @@ msgstr "Afegeix com a mínim un subcamp per definir l'estructura del repetidor."
 msgid "Add block"
 msgstr "Afegeix un bloc"
 
-#: packages/admin/src/components/BlocksField.tsx:1739
+#: packages/admin/src/components/BlocksField.tsx:1736
 msgid "Add block above"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1516
-#: packages/admin/src/components/BlocksField.tsx:1740
+#: packages/admin/src/components/BlocksField.tsx:1513
+#: packages/admin/src/components/BlocksField.tsx:1737
 msgid "Add block below"
 msgstr ""
 
-#: packages/admin/src/components/BlocksField.tsx:1535
+#: packages/admin/src/components/BlocksField.tsx:1532
 msgid "Add block below {label}"
 msgstr ""
 
@@ -1671,7 +1671,7 @@ msgstr "Afegeix un domini"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:808
 #: packages/admin/src/components/FieldEditor.tsx:1010
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Add Field"
 msgstr "Afegeix un camp"
 
@@ -1791,7 +1791,7 @@ msgstr "Afegeix la selecció"
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "Afegeix camps de metadades SEO (títol, descripció, imatge) i inclou-los al mapa del lloc"
 
-#: packages/admin/src/components/FieldEditor.tsx:1606
+#: packages/admin/src/components/FieldEditor.tsx:1610
 msgid "Add Sub-Field"
 msgstr "Afegeix un subcamp"
 
@@ -1925,12 +1925,12 @@ msgstr "Navegació d'administració"
 msgid "Administrator"
 msgstr "Administrador"
 
-#: packages/admin/src/components/BlocksField.tsx:2454
+#: packages/admin/src/components/BlocksField.tsx:2451
 #: packages/admin/src/components/PortableTextEditor.tsx:501
 msgid "Advanced"
 msgstr "Avançat"
 
-#: packages/admin/src/components/BlocksField.tsx:2437
+#: packages/admin/src/components/BlocksField.tsx:2434
 msgid "Advanced: {blockLabel}"
 msgstr ""
 
@@ -2609,7 +2609,7 @@ msgstr "visualEditing.back"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:501
-#: packages/admin/src/components/FieldEditor.tsx:1816
+#: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
 #: packages/admin/src/components/WordPressImport.tsx:2609
@@ -2761,7 +2761,7 @@ msgstr "Negreta"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:58
 #: packages/admin/src/components/FieldEditor.tsx:681
-#: packages/admin/src/components/FieldEditor.tsx:1700
+#: packages/admin/src/components/FieldEditor.tsx:1704
 msgid "Boolean"
 msgstr "Booleà"
 
@@ -2947,7 +2947,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
-#: packages/admin/src/components/FieldEditor.tsx:1821
+#: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
@@ -4584,8 +4584,8 @@ msgstr ""
 msgid "Daily automatic backups"
 msgstr "Còpies de seguretat automàtiques diàries"
 
-#: packages/admin/src/components/FieldEditor.tsx:1794
-#: packages/admin/src/components/FieldEditor.tsx:1797
+#: packages/admin/src/components/FieldEditor.tsx:1798
+#: packages/admin/src/components/FieldEditor.tsx:1801
 #: packages/admin/src/components/ImageFieldRenderer.tsx:562
 msgid "Dark mode variant"
 msgstr "Variant de mode fosc"
@@ -4610,7 +4610,7 @@ msgid "Date"
 msgstr "Data"
 
 #: packages/admin/src/components/FieldEditor.tsx:687
-#: packages/admin/src/components/FieldEditor.tsx:1701
+#: packages/admin/src/components/FieldEditor.tsx:1705
 msgid "Date & Time"
 msgstr "Data i hora"
 
@@ -4689,7 +4689,7 @@ msgstr "Defineix l'estructura del teu contingut"
 msgid "Defined in code"
 msgstr "Definit al codi"
 
-#: packages/admin/src/components/BlocksField.tsx:1196
+#: packages/admin/src/components/BlocksField.tsx:1193
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4769,7 +4769,7 @@ msgstr "Elimina l'àrea de ginys {0}"
 msgid "Delete {0}?"
 msgstr "Vols eliminar {0}?"
 
-#: packages/admin/src/components/BlocksField.tsx:1194
+#: packages/admin/src/components/BlocksField.tsx:1191
 msgid "Delete {confirmName}?"
 msgstr ""
 
@@ -4934,7 +4934,7 @@ msgstr "Eliminar \"{0}\" també elimina tots els termes que conté, en tots els 
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "En eliminar \"{0}\" també se suprimirà {1, plural, one {# valor emmagatzemat} other {# valors emmagatzemats}} de totes les signatures. Aquesta acció no es pot desfer."
 
-#: packages/admin/src/components/BlocksField.tsx:1197
+#: packages/admin/src/components/BlocksField.tsx:1194
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1853
@@ -5768,7 +5768,7 @@ msgstr ""
 msgid "Editor sidebar sections"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1792
+#: packages/admin/src/components/FieldEditor.tsx:1796
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Els editors poden seleccionar una segona imatge que el lloc mostra en mode fosc."
 
@@ -7518,7 +7518,7 @@ msgstr "S'ha creat el camp"
 msgid "Field deleted"
 msgstr "S'ha eliminat el camp"
 
-#: packages/admin/src/components/FieldEditor.tsx:1646
+#: packages/admin/src/components/FieldEditor.tsx:1650
 msgid "Field label"
 msgstr "Etiqueta del camp"
 
@@ -7538,7 +7538,7 @@ msgstr "El tipus de camp no es pot canviar després de la creació."
 msgid "Field updated"
 msgstr "S'ha actualitzat el camp"
 
-#: packages/admin/src/components/FieldEditor.tsx:1677
+#: packages/admin/src/components/FieldEditor.tsx:1681
 msgid "field_slug"
 msgstr ""
 
@@ -8221,7 +8221,7 @@ msgstr "visualEditing.image"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:711
-#: packages/admin/src/components/FieldEditor.tsx:1704
+#: packages/admin/src/components/FieldEditor.tsx:1708
 #: packages/admin/src/components/PortableTextEditor.tsx:2474
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
@@ -8460,7 +8460,7 @@ msgstr "A la paperera"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "A Configuració de Windows, obre Comptes i després Opcions d'inici de sessió, i configura un PIN. L'empremta i el reconeixement facial són opcionals."
 
-#: packages/admin/src/components/BlocksField.tsx:1365
+#: packages/admin/src/components/BlocksField.tsx:1362
 msgid "Inactive version"
 msgstr "Versió inactiva"
 
@@ -8645,7 +8645,7 @@ msgid "Installing..."
 msgstr "S'està instal·lant..."
 
 #: packages/admin/src/components/FieldEditor.tsx:675
-#: packages/admin/src/components/FieldEditor.tsx:1699
+#: packages/admin/src/components/FieldEditor.tsx:1703
 msgid "Integer"
 msgstr "Enter"
 
@@ -8885,7 +8885,7 @@ msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:341
 #: packages/admin/src/components/FieldEditor.tsx:1153
-#: packages/admin/src/components/FieldEditor.tsx:1632
+#: packages/admin/src/components/FieldEditor.tsx:1636
 #: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/MenuEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:615
@@ -9021,7 +9021,7 @@ msgstr "Llicència"
 msgid "Limit"
 msgstr "Límit"
 
-#: packages/admin/src/components/BlocksField.tsx:2348
+#: packages/admin/src/components/BlocksField.tsx:2345
 #: packages/admin/src/components/PortableTextEditor.tsx:5387
 msgid "Link"
 msgstr "Enllaç"
@@ -9410,7 +9410,7 @@ msgid "Long text"
 msgstr "Text llarg"
 
 #: packages/admin/src/components/FieldEditor.tsx:663
-#: packages/admin/src/components/FieldEditor.tsx:1697
+#: packages/admin/src/components/FieldEditor.tsx:1701
 msgid "Long Text"
 msgstr "Text llarg"
 
@@ -9537,7 +9537,7 @@ msgstr ""
 msgid "Matched by email"
 msgstr "Coincidents per correu"
 
-#: packages/admin/src/components/FieldEditor.tsx:1763
+#: packages/admin/src/components/FieldEditor.tsx:1767
 msgid "Max Items"
 msgstr "Elements màxims"
 
@@ -9553,7 +9553,7 @@ msgstr "Valor màxim"
 msgid "Maximum"
 msgstr "Màxim"
 
-#: packages/admin/src/components/FieldEditor.tsx:1563
+#: packages/admin/src/components/FieldEditor.tsx:1567
 msgid "Maximum blocks"
 msgstr "Blocs màxims"
 
@@ -9775,7 +9775,7 @@ msgstr "Guia de migració"
 msgid "Migration key"
 msgstr "Clau de migració"
 
-#: packages/admin/src/components/FieldEditor.tsx:1753
+#: packages/admin/src/components/FieldEditor.tsx:1757
 msgid "Min Items"
 msgstr "Elements mínims"
 
@@ -9787,7 +9787,7 @@ msgstr "Longitud mínima"
 msgid "Min Value"
 msgstr "Valor mínim"
 
-#: packages/admin/src/components/FieldEditor.tsx:1552
+#: packages/admin/src/components/FieldEditor.tsx:1556
 msgid "Minimum blocks"
 msgstr "Blocs mínims"
 
@@ -9885,7 +9885,7 @@ msgstr "Vols moure \"{title}\" a la paperera? El podràs restaurar més tard."
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4690
-#: packages/admin/src/components/FieldEditor.tsx:1523
+#: packages/admin/src/components/FieldEditor.tsx:1527
 msgid "Move {0} down"
 msgstr "Mou {0} avall"
 
@@ -9902,7 +9902,7 @@ msgstr "Mou {0} després"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4679
-#: packages/admin/src/components/FieldEditor.tsx:1506
+#: packages/admin/src/components/FieldEditor.tsx:1508
 msgid "Move {0} up"
 msgstr "Mou {0} amunt"
 
@@ -10254,7 +10254,7 @@ msgstr "Més recents"
 msgid "News"
 msgstr "Notícies"
 
-#: packages/admin/src/components/FieldEditor.tsx:1824
+#: packages/admin/src/components/FieldEditor.tsx:1828
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "Següent"
@@ -10328,7 +10328,7 @@ msgstr "Encara no hi ha cap comentari aprovat."
 msgid "No block types defined"
 msgstr "No hi ha tipus de bloc definits"
 
-#: packages/admin/src/components/BlocksField.tsx:1159
+#: packages/admin/src/components/BlocksField.tsx:1156
 msgid "No blocks yet"
 msgstr "Encara no hi ha blocs"
 
@@ -10503,7 +10503,7 @@ msgstr "No s'ha proporcionat cap token d'invitació"
 msgid "No items yet"
 msgstr "Encara no hi ha cap element"
 
-#: packages/admin/src/components/FieldEditor.tsx:1768
+#: packages/admin/src/components/FieldEditor.tsx:1772
 msgid "No limit"
 msgstr "Sense límit"
 
@@ -10798,7 +10798,7 @@ msgid "Now · {time}"
 msgstr "Ara · {time}"
 
 #: packages/admin/src/components/FieldEditor.tsx:669
-#: packages/admin/src/components/FieldEditor.tsx:1698
+#: packages/admin/src/components/FieldEditor.tsx:1702
 msgid "Number"
 msgstr "Nombre"
 
@@ -10956,7 +10956,7 @@ msgid "Open WordPress Profile"
 msgstr "Obre el perfil de WordPress"
 
 #: packages/admin/src/components/FieldEditor.tsx:1295
-#: packages/admin/src/components/FieldEditor.tsx:1717
+#: packages/admin/src/components/FieldEditor.tsx:1721
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -10993,7 +10993,7 @@ msgstr "Descripció emergent opcional en passar-hi per sobre"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:432
 #: packages/admin/src/components/FieldEditor.tsx:1292
-#: packages/admin/src/components/FieldEditor.tsx:1710
+#: packages/admin/src/components/FieldEditor.tsx:1714
 msgid "Options (one per line)"
 msgstr "Opcions (una per línia)"
 
@@ -11357,7 +11357,7 @@ msgstr "S'ha recollit {label}."
 msgid "Picked up {name}, position {position} of {total}"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1881
+#: packages/admin/src/components/FieldEditor.tsx:1885
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "Triar les entrades amb què enllaça aquesta permet als editors arrossegar-les per ordenar-les. L'altra direcció llista tot el que apunta a l'entrada i no es pot reordenar."
 
@@ -12291,7 +12291,7 @@ msgstr "Vols eliminar la clau d'accés?"
 msgid "Remove schedule"
 msgstr "Treu la programació"
 
-#: packages/admin/src/components/FieldEditor.tsx:1743
+#: packages/admin/src/components/FieldEditor.tsx:1747
 msgid "Remove sub-field"
 msgstr "Treu el subcamp"
 
@@ -12421,7 +12421,7 @@ msgstr "Reordena"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:1577
+#: packages/admin/src/components/BlocksField.tsx:1574
 #: packages/admin/src/components/BylineCreditsEditor.tsx:693
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
@@ -12574,7 +12574,7 @@ msgstr "Requereix un slug abans que es pugui publicar el contingut"
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:984
 #: packages/admin/src/components/FieldEditor.tsx:1195
-#: packages/admin/src/components/FieldEditor.tsx:1725
+#: packages/admin/src/components/FieldEditor.tsx:1729
 #: packages/admin/src/routes/byline-schema.tsx:235
 msgid "Required"
 msgstr "Obligatori"
@@ -12718,8 +12718,8 @@ msgstr ""
 msgid "Results"
 msgstr "Resultats"
 
-#: packages/admin/src/components/BlocksField.tsx:1366
-#: packages/admin/src/components/FieldEditor.tsx:1490
+#: packages/admin/src/components/BlocksField.tsx:1363
+#: packages/admin/src/components/FieldEditor.tsx:1491
 msgid "Retired"
 msgstr "Retirat"
 
@@ -13100,7 +13100,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:3268
 #: packages/admin/src/components/ContentEditor.tsx:3273
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
@@ -13558,7 +13558,7 @@ msgstr "Mira on s'utilitza aquest fitxer."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:59
 #: packages/admin/src/components/FieldEditor.tsx:693
-#: packages/admin/src/components/FieldEditor.tsx:1702
+#: packages/admin/src/components/FieldEditor.tsx:1706
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:172
 msgid "Select"
@@ -13947,7 +13947,7 @@ msgid "Short text"
 msgstr "Text curt"
 
 #: packages/admin/src/components/FieldEditor.tsx:657
-#: packages/admin/src/components/FieldEditor.tsx:1696
+#: packages/admin/src/components/FieldEditor.tsx:1700
 msgid "Short Text"
 msgstr "Text curt"
 
@@ -14237,9 +14237,9 @@ msgstr "Omès"
 #: packages/admin/src/components/FieldEditor.tsx:1166
 #: packages/admin/src/components/FieldEditor.tsx:1169
 #: packages/admin/src/components/FieldEditor.tsx:1172
-#: packages/admin/src/components/FieldEditor.tsx:1658
-#: packages/admin/src/components/FieldEditor.tsx:1661
-#: packages/admin/src/components/FieldEditor.tsx:1664
+#: packages/admin/src/components/FieldEditor.tsx:1662
+#: packages/admin/src/components/FieldEditor.tsx:1665
+#: packages/admin/src/components/FieldEditor.tsx:1668
 #: packages/admin/src/components/RelationForm.tsx:435
 #: packages/admin/src/components/RelationForm.tsx:440
 #: packages/admin/src/components/RelationForm.tsx:444
@@ -14585,11 +14585,11 @@ msgstr ""
 msgid "Style changed:"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1656
+#: packages/admin/src/components/FieldEditor.tsx:1660
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1580
+#: packages/admin/src/components/FieldEditor.tsx:1584
 msgid "Sub-Fields"
 msgstr "Subcamps"
 
@@ -14816,7 +14816,7 @@ msgstr ""
 msgid "test@example.com"
 msgstr "test@exemple.com"
 
-#: packages/admin/src/components/BlocksField.tsx:2347
+#: packages/admin/src/components/BlocksField.tsx:2344
 #: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr ""
@@ -15324,7 +15324,7 @@ msgstr ""
 msgid "This also removes:"
 msgstr "Això també treu:"
 
-#: packages/admin/src/components/BlocksField.tsx:1787
+#: packages/admin/src/components/BlocksField.tsx:1784
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr "Aquest bloc no es pot editar perquè la seva definició emmagatzemada no està disponible."
 
@@ -15333,7 +15333,7 @@ msgstr "Aquest bloc no es pot editar perquè la seva definició emmagatzemada no
 msgid "This block embeds a page from {0}."
 msgstr "Aquest bloc incrusta una pàgina de {0}."
 
-#: packages/admin/src/components/BlocksField.tsx:2179
+#: packages/admin/src/components/BlocksField.tsx:2176
 msgid "This block has no fields."
 msgstr ""
 
@@ -15488,7 +15488,7 @@ msgstr "Aquest camp espera una llista. El valor emmagatzemat es manté sense can
 msgid "This field is required"
 msgstr "Aquest camp és obligatori"
 
-#: packages/admin/src/components/FieldEditor.tsx:1851
+#: packages/admin/src/components/FieldEditor.tsx:1855
 msgid "This field lists entries that link to this one."
 msgstr "Aquest camp llista les entrades que enllacen amb aquesta."
 
@@ -15497,16 +15497,16 @@ msgstr "Aquest camp llista les entrades que enllacen amb aquesta."
 msgid "This field picks"
 msgstr "Aquest camp tria"
 
-#: packages/admin/src/components/FieldEditor.tsx:1850
+#: packages/admin/src/components/FieldEditor.tsx:1854
 msgid "This field picks entries this one links to."
 msgstr "Aquest camp tria les entrades amb què enllaça aquesta."
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1862
+#: packages/admin/src/components/FieldEditor.tsx:1866
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "Aquest camp mostrarà <0>{0}</0> amb què enllaça aquest {linkingSide}"
 
-#: packages/admin/src/components/FieldEditor.tsx:1867
+#: packages/admin/src/components/FieldEditor.tsx:1871
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "Aquest camp mostrarà <0>{linkingSide}</0> que enllaça amb aquest {linkedSide}"
 
@@ -16113,7 +16113,7 @@ msgstr "Dos registres tenen el mateix valor allà on ha de ser únic"
 #: packages/admin/src/components/BylineFieldEditor.tsx:385
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
-#: packages/admin/src/components/FieldEditor.tsx:1688
+#: packages/admin/src/components/FieldEditor.tsx:1692
 #: packages/admin/src/components/MediaLibrary.tsx:1147
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
@@ -16280,7 +16280,7 @@ msgstr "El contingut no desat pot sortir del teu lloc"
 msgid "Unscheduled"
 msgstr "Programació anul·lada"
 
-#: packages/admin/src/components/BlocksField.tsx:1367
+#: packages/admin/src/components/BlocksField.tsx:1364
 #: packages/admin/src/components/ContentTypeEditor.tsx:983
 msgid "Unsupported"
 msgstr "No admès"
@@ -16333,7 +16333,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr ""
 
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Update Field"
 msgstr "Actualitza el camp"
 
@@ -16536,7 +16536,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:57
 #: packages/admin/src/components/FieldEditor.tsx:741
-#: packages/admin/src/components/FieldEditor.tsx:1703
+#: packages/admin/src/components/FieldEditor.tsx:1707
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/MenuEditor.tsx:847
 #: packages/admin/src/components/PortableTextEditor.tsx:1415
@@ -16761,7 +16761,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Els usuaris amb adreces electròniques d'aquests dominis es poden registrar sense invitació. Se'ls assignarà automàticament el rol especificat."
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/FieldEditor.tsx:1535
+#: packages/admin/src/components/FieldEditor.tsx:1539
 msgid "v{0}"
 msgstr "v{0}"
 
@@ -16819,7 +16819,7 @@ msgstr "Versió"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:1768
+#: packages/admin/src/components/BlocksField.tsx:1765
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -17045,7 +17045,7 @@ msgstr "Què és una clau d'accés?"
 msgid "What it leaves out"
 msgstr "Què deixa fora"
 
-#: packages/admin/src/components/FieldEditor.tsx:1882
+#: packages/admin/src/components/FieldEditor.tsx:1886
 msgid "What the direction changes"
 msgstr "Què canvia la direcció"
 

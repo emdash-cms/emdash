@@ -743,7 +743,7 @@ msgstr "{label} — chưa có bản dịch"
 msgid "{label} — view translation"
 msgstr "{label} — xem bản dịch"
 
-#: packages/admin/src/components/BlocksField.tsx:1758
+#: packages/admin/src/components/BlocksField.tsx:1755
 msgid "{label} · version {versionNumber}"
 msgstr "{label} · phiên bản {versionNumber}"
 
@@ -753,7 +753,7 @@ msgid "{label} {position}"
 msgstr "{label} {position}"
 
 #: packages/admin/src/components/BlockListField.tsx:1037
-#: packages/admin/src/components/BlocksField.tsx:1709
+#: packages/admin/src/components/BlocksField.tsx:1706
 msgid "{label} actions"
 msgstr "Thao tác {label}"
 
@@ -789,7 +789,7 @@ msgstr "Tuỳ chọn {label}"
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
-#: packages/admin/src/components/BlocksField.tsx:2393
+#: packages/admin/src/components/BlocksField.tsx:2390
 msgid "{label}: {value}"
 msgstr "{label}: {value}"
 
@@ -797,7 +797,7 @@ msgstr "{label}: {value}"
 msgid "{lateness} late"
 msgstr "Trễ {lateness}"
 
-#: packages/admin/src/components/BlocksField.tsx:1337
+#: packages/admin/src/components/BlocksField.tsx:1334
 msgid "{list} +{more}"
 msgstr "{list} +{more}"
 
@@ -1187,7 +1187,7 @@ msgstr "<0>{name}</0> đang sửa mục này. Hãy mở ở chế độ chỉ đ
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "<0>{name}</0> hiện đang sửa mục này, nên các thay đổi của bạn sẽ không còn được lưu. Lấy lại quyền sửa để tiếp tục."
 
-#: packages/admin/src/components/BlocksField.tsx:1518
+#: packages/admin/src/components/BlocksField.tsx:1515
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
 msgid "<0>Alt-click</0> to add above"
 msgstr "<0>Alt + bấm</0> để thêm phía trên"
@@ -1196,12 +1196,12 @@ msgstr "<0>Alt + bấm</0> để thêm phía trên"
 msgid "<0>Click</0> to add below"
 msgstr "<0>Bấm</0> để thêm bên dưới"
 
-#: packages/admin/src/components/BlocksField.tsx:1564
+#: packages/admin/src/components/BlocksField.tsx:1561
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
 msgid "<0>Click</0> to open menu"
 msgstr "<0>Bấm</0> để mở menu"
 
-#: packages/admin/src/components/BlocksField.tsx:1560
+#: packages/admin/src/components/BlocksField.tsx:1557
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
 msgid "<0>Drag</0> to move"
 msgstr "<0>Kéo</0> để di chuyển"
@@ -1394,7 +1394,7 @@ msgid "A slug cannot be generated from this label. Type one manually using lower
 msgstr "Không thể tạo slug từ nhãn này. Vui lòng nhập thủ công bằng cách sử dụng các chữ cái viết thường, chữ số và dấu gạch dưới."
 
 #: packages/admin/src/components/FieldEditor.tsx:484
-#: packages/admin/src/components/FieldEditor.tsx:1681
+#: packages/admin/src/components/FieldEditor.tsx:1685
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr "Không thể tạo slug từ nhãn này. Hãy nhập thủ công."
 
@@ -1540,7 +1540,7 @@ msgstr "Đang hoạt động"
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
-#: packages/admin/src/components/FieldEditor.tsx:1534
+#: packages/admin/src/components/FieldEditor.tsx:1538
 msgid "Active v{0}"
 msgstr "Đang dùng v{0}"
 
@@ -1573,7 +1573,7 @@ msgstr "Thêm {singularLower} vào 1 bài viết"
 msgid "Add {singularLower} to posts"
 msgstr "Thêm {singularLower} vào các bài viết"
 
-#: packages/admin/src/components/BlocksField.tsx:2332
+#: packages/admin/src/components/BlocksField.tsx:2329
 msgid "Add a caption"
 msgstr "Thêm chú thích"
 
@@ -1598,7 +1598,7 @@ msgstr "Thêm cá nhân hoặc nhóm để ghi nhận tác quyền trong nội d
 msgid "Add another byline"
 msgstr "Thêm tác giả khác"
 
-#: packages/admin/src/components/BlocksField.tsx:1166
+#: packages/admin/src/components/BlocksField.tsx:1163
 msgid "Add at least {minItems} blocks."
 msgstr "Hãy thêm ít nhất {minItems} khối."
 
@@ -1608,7 +1608,7 @@ msgid "Add at least one option."
 msgstr "Thêm ít nhất một lựa chọn."
 
 #: packages/admin/src/components/FieldEditor.tsx:475
-#: packages/admin/src/components/FieldEditor.tsx:1619
+#: packages/admin/src/components/FieldEditor.tsx:1623
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Hãy thêm ít nhất một trường con để xác định cấu trúc của nhóm lặp."
 
@@ -1617,16 +1617,16 @@ msgstr "Hãy thêm ít nhất một trường con để xác định cấu trúc
 msgid "Add block"
 msgstr "Thêm khối"
 
-#: packages/admin/src/components/BlocksField.tsx:1739
+#: packages/admin/src/components/BlocksField.tsx:1736
 msgid "Add block above"
 msgstr "Thêm khối phía trên"
 
-#: packages/admin/src/components/BlocksField.tsx:1516
-#: packages/admin/src/components/BlocksField.tsx:1740
+#: packages/admin/src/components/BlocksField.tsx:1513
+#: packages/admin/src/components/BlocksField.tsx:1737
 msgid "Add block below"
 msgstr "Thêm khối bên dưới"
 
-#: packages/admin/src/components/BlocksField.tsx:1535
+#: packages/admin/src/components/BlocksField.tsx:1532
 msgid "Add block below {label}"
 msgstr "Thêm khối bên dưới {label}"
 
@@ -1671,7 +1671,7 @@ msgstr "Thêm tên miền"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:808
 #: packages/admin/src/components/FieldEditor.tsx:1010
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Add Field"
 msgstr "Thêm trường"
 
@@ -1791,7 +1791,7 @@ msgstr "Thêm các mục đã chọn"
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "Thêm các trường metadata SEO (tiêu đề, mô tả, ảnh) và đưa vào sitemap"
 
-#: packages/admin/src/components/FieldEditor.tsx:1606
+#: packages/admin/src/components/FieldEditor.tsx:1610
 msgid "Add Sub-Field"
 msgstr "Thêm trường con"
 
@@ -1925,12 +1925,12 @@ msgstr "Thanh điều hướng quản trị"
 msgid "Administrator"
 msgstr "Quản lý"
 
-#: packages/admin/src/components/BlocksField.tsx:2454
+#: packages/admin/src/components/BlocksField.tsx:2451
 #: packages/admin/src/components/PortableTextEditor.tsx:501
 msgid "Advanced"
 msgstr "Nâng cao"
 
-#: packages/admin/src/components/BlocksField.tsx:2437
+#: packages/admin/src/components/BlocksField.tsx:2434
 msgid "Advanced: {blockLabel}"
 msgstr "Nâng cao: {blockLabel}"
 
@@ -2609,7 +2609,7 @@ msgstr "Quay lại"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:501
-#: packages/admin/src/components/FieldEditor.tsx:1816
+#: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
 #: packages/admin/src/components/WordPressImport.tsx:2609
@@ -2761,7 +2761,7 @@ msgstr "Đậm"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:58
 #: packages/admin/src/components/FieldEditor.tsx:681
-#: packages/admin/src/components/FieldEditor.tsx:1700
+#: packages/admin/src/components/FieldEditor.tsx:1704
 msgid "Boolean"
 msgstr "Đúng/sai"
 
@@ -2947,7 +2947,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
-#: packages/admin/src/components/FieldEditor.tsx:1821
+#: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
@@ -4584,8 +4584,8 @@ msgstr "Tuỳ chỉnh thanh bên"
 msgid "Daily automatic backups"
 msgstr "Sao lưu tự động hằng ngày"
 
-#: packages/admin/src/components/FieldEditor.tsx:1794
-#: packages/admin/src/components/FieldEditor.tsx:1797
+#: packages/admin/src/components/FieldEditor.tsx:1798
+#: packages/admin/src/components/FieldEditor.tsx:1801
 #: packages/admin/src/components/ImageFieldRenderer.tsx:562
 msgid "Dark mode variant"
 msgstr "Biến thể chế độ tối"
@@ -4610,7 +4610,7 @@ msgid "Date"
 msgstr "Ngày"
 
 #: packages/admin/src/components/FieldEditor.tsx:687
-#: packages/admin/src/components/FieldEditor.tsx:1701
+#: packages/admin/src/components/FieldEditor.tsx:1705
 msgid "Date & Time"
 msgstr "Ngày và giờ"
 
@@ -4689,7 +4689,7 @@ msgstr "Xác định cấu trúc nội dung của bạn"
 msgid "Defined in code"
 msgstr "Khai báo trong mã"
 
-#: packages/admin/src/components/BlocksField.tsx:1196
+#: packages/admin/src/components/BlocksField.tsx:1193
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4769,7 +4769,7 @@ msgstr "Xoá khu vực tiện ích {0}"
 msgid "Delete {0}?"
 msgstr "Xoá {0}?"
 
-#: packages/admin/src/components/BlocksField.tsx:1194
+#: packages/admin/src/components/BlocksField.tsx:1191
 msgid "Delete {confirmName}?"
 msgstr "Xoá {confirmName}?"
 
@@ -4934,7 +4934,7 @@ msgstr "Xoá \"{0}\" sẽ xoá toàn bộ phân loại con ở tất cả ngôn 
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "Việc xoá \"{0}\" cũng sẽ xoá {1, plural, one {# giá trị đã lưu} other {# giá trị đã lưu}} trên mọi tác giả. Không thể hoàn tác."
 
-#: packages/admin/src/components/BlocksField.tsx:1197
+#: packages/admin/src/components/BlocksField.tsx:1194
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1853
@@ -5768,7 +5768,7 @@ msgstr "Đã đặt lại thanh bên trình soạn thảo"
 msgid "Editor sidebar sections"
 msgstr "Các phần của thanh bên trình soạn thảo"
 
-#: packages/admin/src/components/FieldEditor.tsx:1792
+#: packages/admin/src/components/FieldEditor.tsx:1796
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Cho phép chọn ảnh thay thế hiển thị trên trang web khi ở chế độ tối."
 
@@ -7518,7 +7518,7 @@ msgstr "Đã tạo trường"
 msgid "Field deleted"
 msgstr "Đã xoá trường"
 
-#: packages/admin/src/components/FieldEditor.tsx:1646
+#: packages/admin/src/components/FieldEditor.tsx:1650
 msgid "Field label"
 msgstr "Nhãn trường"
 
@@ -7538,7 +7538,7 @@ msgstr "Không thể đổi loại trường sau khi tạo."
 msgid "Field updated"
 msgstr "Đã cập nhật trường"
 
-#: packages/admin/src/components/FieldEditor.tsx:1677
+#: packages/admin/src/components/FieldEditor.tsx:1681
 msgid "field_slug"
 msgstr "field_slug"
 
@@ -8221,7 +8221,7 @@ msgstr "Hình ảnh"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:711
-#: packages/admin/src/components/FieldEditor.tsx:1704
+#: packages/admin/src/components/FieldEditor.tsx:1708
 #: packages/admin/src/components/PortableTextEditor.tsx:2474
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
@@ -8460,7 +8460,7 @@ msgstr "Trong thùng rác"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "Trong phần Cài đặt Windows (Windows Settings), hãy mở mục Tài khoản (Accounts), sau đó chọn Tuỳ chọn đăng nhập (Sign-in options) và thiết lập mã PIN. Việc sử dụng vân tay và nhận diện khuôn mặt là tuỳ chọn."
 
-#: packages/admin/src/components/BlocksField.tsx:1365
+#: packages/admin/src/components/BlocksField.tsx:1362
 msgid "Inactive version"
 msgstr "Phiên bản không hoạt động"
 
@@ -8645,7 +8645,7 @@ msgid "Installing..."
 msgstr "Đang cài đặt..."
 
 #: packages/admin/src/components/FieldEditor.tsx:675
-#: packages/admin/src/components/FieldEditor.tsx:1699
+#: packages/admin/src/components/FieldEditor.tsx:1703
 msgid "Integer"
 msgstr "Số nguyên"
 
@@ -8885,7 +8885,7 @@ msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:341
 #: packages/admin/src/components/FieldEditor.tsx:1153
-#: packages/admin/src/components/FieldEditor.tsx:1632
+#: packages/admin/src/components/FieldEditor.tsx:1636
 #: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/MenuEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:615
@@ -9021,7 +9021,7 @@ msgstr "Giấy phép"
 msgid "Limit"
 msgstr "Giới hạn"
 
-#: packages/admin/src/components/BlocksField.tsx:2348
+#: packages/admin/src/components/BlocksField.tsx:2345
 #: packages/admin/src/components/PortableTextEditor.tsx:5387
 msgid "Link"
 msgstr "Liên kết"
@@ -9410,7 +9410,7 @@ msgid "Long text"
 msgstr "Văn bản dài"
 
 #: packages/admin/src/components/FieldEditor.tsx:663
-#: packages/admin/src/components/FieldEditor.tsx:1697
+#: packages/admin/src/components/FieldEditor.tsx:1701
 msgid "Long Text"
 msgstr "Văn bản dài"
 
@@ -9537,7 +9537,7 @@ msgstr "Tìm kiếm trên cửa hàng thất bại"
 msgid "Matched by email"
 msgstr "Khớp theo email"
 
-#: packages/admin/src/components/FieldEditor.tsx:1763
+#: packages/admin/src/components/FieldEditor.tsx:1767
 msgid "Max Items"
 msgstr "Số mục tối đa"
 
@@ -9553,7 +9553,7 @@ msgstr "Giá trị tối đa"
 msgid "Maximum"
 msgstr "Tối đa"
 
-#: packages/admin/src/components/FieldEditor.tsx:1563
+#: packages/admin/src/components/FieldEditor.tsx:1567
 msgid "Maximum blocks"
 msgstr "Số khối tối đa"
 
@@ -9775,7 +9775,7 @@ msgstr "Hướng dẫn chuyển đổi"
 msgid "Migration key"
 msgstr "Khoá di chuyển dữ liệu"
 
-#: packages/admin/src/components/FieldEditor.tsx:1753
+#: packages/admin/src/components/FieldEditor.tsx:1757
 msgid "Min Items"
 msgstr "Số mục tối thiểu"
 
@@ -9787,7 +9787,7 @@ msgstr "Độ dài tối thiểu"
 msgid "Min Value"
 msgstr "Giá trị tối thiểu"
 
-#: packages/admin/src/components/FieldEditor.tsx:1552
+#: packages/admin/src/components/FieldEditor.tsx:1556
 msgid "Minimum blocks"
 msgstr "Số khối tối thiểu"
 
@@ -9885,7 +9885,7 @@ msgstr "Bỏ \"{title}\" vào thùng rác? Bạn có thể khôi phục sau."
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4690
-#: packages/admin/src/components/FieldEditor.tsx:1523
+#: packages/admin/src/components/FieldEditor.tsx:1527
 msgid "Move {0} down"
 msgstr "Di chuyển {0} xuống"
 
@@ -9902,7 +9902,7 @@ msgstr "Chuyển {0} ra sau"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4679
-#: packages/admin/src/components/FieldEditor.tsx:1506
+#: packages/admin/src/components/FieldEditor.tsx:1508
 msgid "Move {0} up"
 msgstr "Di chuyển {0} lên"
 
@@ -10254,7 +10254,7 @@ msgstr "Mới nhất"
 msgid "News"
 msgstr "Tin tức"
 
-#: packages/admin/src/components/FieldEditor.tsx:1824
+#: packages/admin/src/components/FieldEditor.tsx:1828
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "Tiếp theo"
@@ -10328,7 +10328,7 @@ msgstr "Chưa có bình luận nào được duyệt."
 msgid "No block types defined"
 msgstr "Chưa có loại khối nào"
 
-#: packages/admin/src/components/BlocksField.tsx:1159
+#: packages/admin/src/components/BlocksField.tsx:1156
 msgid "No blocks yet"
 msgstr "Chưa có khối nào"
 
@@ -10503,7 +10503,7 @@ msgstr "Không tìm thấy mã mời"
 msgid "No items yet"
 msgstr "Chưa có mục nào"
 
-#: packages/admin/src/components/FieldEditor.tsx:1768
+#: packages/admin/src/components/FieldEditor.tsx:1772
 msgid "No limit"
 msgstr "Không giới hạn"
 
@@ -10798,7 +10798,7 @@ msgid "Now · {time}"
 msgstr "Bây giờ · {time}"
 
 #: packages/admin/src/components/FieldEditor.tsx:669
-#: packages/admin/src/components/FieldEditor.tsx:1698
+#: packages/admin/src/components/FieldEditor.tsx:1702
 msgid "Number"
 msgstr "Số"
 
@@ -10956,7 +10956,7 @@ msgid "Open WordPress Profile"
 msgstr "Mở hồ sơ WordPress"
 
 #: packages/admin/src/components/FieldEditor.tsx:1295
-#: packages/admin/src/components/FieldEditor.tsx:1717
+#: packages/admin/src/components/FieldEditor.tsx:1721
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -10993,7 +10993,7 @@ msgstr "Chú giải khi rê chuột (không bắt buộc)"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:432
 #: packages/admin/src/components/FieldEditor.tsx:1292
-#: packages/admin/src/components/FieldEditor.tsx:1710
+#: packages/admin/src/components/FieldEditor.tsx:1714
 msgid "Options (one per line)"
 msgstr "Các lựa chọn (mỗi dòng một lựa chọn)"
 
@@ -11357,7 +11357,7 @@ msgstr "Đã chọn {label} để di chuyển."
 msgid "Picked up {name}, position {position} of {total}"
 msgstr "Đã chọn {name}, vị trí {position} trong {total}"
 
-#: packages/admin/src/components/FieldEditor.tsx:1881
+#: packages/admin/src/components/FieldEditor.tsx:1885
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "Nếu chọn các mục mà mục này liên kết tới, người sửa nội dung có thể kéo để sắp xếp thứ tự. Chiều ngược lại liệt kê mọi mục trỏ tới mục này và không sắp xếp lại được."
 
@@ -12291,7 +12291,7 @@ msgstr "Xoá khoá truy cập?"
 msgid "Remove schedule"
 msgstr "Huỷ đặt lịch"
 
-#: packages/admin/src/components/FieldEditor.tsx:1743
+#: packages/admin/src/components/FieldEditor.tsx:1747
 msgid "Remove sub-field"
 msgstr "Xoá trường con"
 
@@ -12421,7 +12421,7 @@ msgstr "Sắp xếp lại"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:1577
+#: packages/admin/src/components/BlocksField.tsx:1574
 #: packages/admin/src/components/BylineCreditsEditor.tsx:693
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
@@ -12574,7 +12574,7 @@ msgstr "Yêu cầu có slug trước khi nội dung được xuất bản"
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:984
 #: packages/admin/src/components/FieldEditor.tsx:1195
-#: packages/admin/src/components/FieldEditor.tsx:1725
+#: packages/admin/src/components/FieldEditor.tsx:1729
 #: packages/admin/src/routes/byline-schema.tsx:235
 msgid "Required"
 msgstr "Bắt buộc"
@@ -12718,8 +12718,8 @@ msgstr "Đang khôi phục…"
 msgid "Results"
 msgstr "Kết quả"
 
-#: packages/admin/src/components/BlocksField.tsx:1366
-#: packages/admin/src/components/FieldEditor.tsx:1490
+#: packages/admin/src/components/BlocksField.tsx:1363
+#: packages/admin/src/components/FieldEditor.tsx:1491
 msgid "Retired"
 msgstr "Đã ngừng dùng"
 
@@ -13100,7 +13100,7 @@ msgstr "Khi lưu, bài được tạo ở dạng nháp và chưa hiện trên tr
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:3268
 #: packages/admin/src/components/ContentEditor.tsx:3273
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
@@ -13558,7 +13558,7 @@ msgstr "Xem tệp này được dùng ở đâu."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:59
 #: packages/admin/src/components/FieldEditor.tsx:693
-#: packages/admin/src/components/FieldEditor.tsx:1702
+#: packages/admin/src/components/FieldEditor.tsx:1706
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:172
 msgid "Select"
@@ -13947,7 +13947,7 @@ msgid "Short text"
 msgstr "Văn bản ngắn"
 
 #: packages/admin/src/components/FieldEditor.tsx:657
-#: packages/admin/src/components/FieldEditor.tsx:1696
+#: packages/admin/src/components/FieldEditor.tsx:1700
 msgid "Short Text"
 msgstr "Văn bản ngắn"
 
@@ -14237,9 +14237,9 @@ msgstr "Đã bỏ qua"
 #: packages/admin/src/components/FieldEditor.tsx:1166
 #: packages/admin/src/components/FieldEditor.tsx:1169
 #: packages/admin/src/components/FieldEditor.tsx:1172
-#: packages/admin/src/components/FieldEditor.tsx:1658
-#: packages/admin/src/components/FieldEditor.tsx:1661
-#: packages/admin/src/components/FieldEditor.tsx:1664
+#: packages/admin/src/components/FieldEditor.tsx:1662
+#: packages/admin/src/components/FieldEditor.tsx:1665
+#: packages/admin/src/components/FieldEditor.tsx:1668
 #: packages/admin/src/components/RelationForm.tsx:435
 #: packages/admin/src/components/RelationForm.tsx:440
 #: packages/admin/src/components/RelationForm.tsx:444
@@ -14585,11 +14585,11 @@ msgstr "Kiểu"
 msgid "Style changed:"
 msgstr "Đã đổi kiểu:"
 
-#: packages/admin/src/components/FieldEditor.tsx:1656
+#: packages/admin/src/components/FieldEditor.tsx:1660
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr "Không thể đổi slug của trường con sau khi tạo."
 
-#: packages/admin/src/components/FieldEditor.tsx:1580
+#: packages/admin/src/components/FieldEditor.tsx:1584
 msgid "Sub-Fields"
 msgstr "Trường con"
 
@@ -14816,7 +14816,7 @@ msgstr "Đã gửi email thử tới {to}"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/BlocksField.tsx:2347
+#: packages/admin/src/components/BlocksField.tsx:2344
 #: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr "Văn bản"
@@ -15324,7 +15324,7 @@ msgstr ""
 msgid "This also removes:"
 msgstr "Thao tác này cũng xoá:"
 
-#: packages/admin/src/components/BlocksField.tsx:1787
+#: packages/admin/src/components/BlocksField.tsx:1784
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr "Không thể chỉnh sửa khối này vì cấu hình đã lưu không còn khả dụng."
 
@@ -15333,7 +15333,7 @@ msgstr "Không thể chỉnh sửa khối này vì cấu hình đã lưu không 
 msgid "This block embeds a page from {0}."
 msgstr "Khối này nhúng một trang từ {0}."
 
-#: packages/admin/src/components/BlocksField.tsx:2179
+#: packages/admin/src/components/BlocksField.tsx:2176
 msgid "This block has no fields."
 msgstr "Khối này không có trường nào."
 
@@ -15488,7 +15488,7 @@ msgstr "Trường này yêu cầu dữ liệu dạng danh sách. Giá trị đã
 msgid "This field is required"
 msgstr "Trường này là bắt buộc"
 
-#: packages/admin/src/components/FieldEditor.tsx:1851
+#: packages/admin/src/components/FieldEditor.tsx:1855
 msgid "This field lists entries that link to this one."
 msgstr "Trường này liệt kê các mục liên kết tới mục này."
 
@@ -15497,16 +15497,16 @@ msgstr "Trường này liệt kê các mục liên kết tới mục này."
 msgid "This field picks"
 msgstr "Trường này chọn"
 
-#: packages/admin/src/components/FieldEditor.tsx:1850
+#: packages/admin/src/components/FieldEditor.tsx:1854
 msgid "This field picks entries this one links to."
 msgstr "Trường này chọn các mục mà mục này liên kết tới."
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1862
+#: packages/admin/src/components/FieldEditor.tsx:1866
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "Trường này sẽ hiện <0>{0}</0> mà {linkingSide} này liên kết tới"
 
-#: packages/admin/src/components/FieldEditor.tsx:1867
+#: packages/admin/src/components/FieldEditor.tsx:1871
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "Trường này sẽ hiện <0>{linkingSide}</0> liên kết tới {linkedSide} này"
 
@@ -16113,7 +16113,7 @@ msgstr "Hai bản ghi bị trùng giá trị tại trường bắt buộc duy nh
 #: packages/admin/src/components/BylineFieldEditor.tsx:385
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
-#: packages/admin/src/components/FieldEditor.tsx:1688
+#: packages/admin/src/components/FieldEditor.tsx:1692
 #: packages/admin/src/components/MediaLibrary.tsx:1147
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
@@ -16280,7 +16280,7 @@ msgstr "Nội dung chưa lưu có thể rời khỏi trang web của bạn"
 msgid "Unscheduled"
 msgstr "Đã huỷ đặt lịch"
 
-#: packages/admin/src/components/BlocksField.tsx:1367
+#: packages/admin/src/components/BlocksField.tsx:1364
 #: packages/admin/src/components/ContentTypeEditor.tsx:983
 msgid "Unsupported"
 msgstr "Không được hỗ trợ"
@@ -16333,7 +16333,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr "Bản cập nhật"
 
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Update Field"
 msgstr "Cập nhật trường"
 
@@ -16536,7 +16536,7 @@ msgstr "Đang tải video lên…"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:57
 #: packages/admin/src/components/FieldEditor.tsx:741
-#: packages/admin/src/components/FieldEditor.tsx:1703
+#: packages/admin/src/components/FieldEditor.tsx:1707
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/MenuEditor.tsx:847
 #: packages/admin/src/components/PortableTextEditor.tsx:1415
@@ -16761,7 +16761,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Người dùng sở hữu địa chỉ email thuộc các tên miền này có thể tự đăng ký mà không cần thư mời. Hệ thống sẽ tự động gán vai trò đã được chỉ định cho họ."
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/FieldEditor.tsx:1535
+#: packages/admin/src/components/FieldEditor.tsx:1539
 msgid "v{0}"
 msgstr "v{0}"
 
@@ -16819,7 +16819,7 @@ msgstr "Phiên bản"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:1768
+#: packages/admin/src/components/BlocksField.tsx:1765
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -17045,7 +17045,7 @@ msgstr "Khoá truy cập là gì?"
 msgid "What it leaves out"
 msgstr "Những gì bị loại ra"
 
-#: packages/admin/src/components/FieldEditor.tsx:1882
+#: packages/admin/src/components/FieldEditor.tsx:1886
 msgid "What the direction changes"
 msgstr "Ý nghĩa của việc đổi chiều quan hệ"
 

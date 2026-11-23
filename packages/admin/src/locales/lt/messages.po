@@ -743,7 +743,7 @@ msgstr "{label}: vertimo nėra"
 msgid "{label} — view translation"
 msgstr "{label}: peržiūrėti vertimą"
 
-#: packages/admin/src/components/BlocksField.tsx:1758
+#: packages/admin/src/components/BlocksField.tsx:1755
 msgid "{label} · version {versionNumber}"
 msgstr "{label} · versija {versionNumber}"
 
@@ -753,7 +753,7 @@ msgid "{label} {position}"
 msgstr "{label} {position}"
 
 #: packages/admin/src/components/BlockListField.tsx:1037
-#: packages/admin/src/components/BlocksField.tsx:1709
+#: packages/admin/src/components/BlocksField.tsx:1706
 msgid "{label} actions"
 msgstr "„{label}“ veiksmai"
 
@@ -789,7 +789,7 @@ msgstr "„{label}“ parinktys"
 msgid "{label}, {restored}"
 msgstr "{label}, {restored}"
 
-#: packages/admin/src/components/BlocksField.tsx:2393
+#: packages/admin/src/components/BlocksField.tsx:2390
 msgid "{label}: {value}"
 msgstr "{label}: {value}"
 
@@ -797,7 +797,7 @@ msgstr "{label}: {value}"
 msgid "{lateness} late"
 msgstr "Vėluojama {lateness}"
 
-#: packages/admin/src/components/BlocksField.tsx:1337
+#: packages/admin/src/components/BlocksField.tsx:1334
 msgid "{list} +{more}"
 msgstr "{list} +{more}"
 
@@ -1187,7 +1187,7 @@ msgstr "<0>{name}</0> redaguoja šį įrašą. Galite atverti jį tik skaityti a
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "Įrašą dabar redaguoja <0>{name}</0>, todėl pakeitimai nebesaugomi. Jei norite tęsti, perimkite redagavimą."
 
-#: packages/admin/src/components/BlocksField.tsx:1518
+#: packages/admin/src/components/BlocksField.tsx:1515
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
 msgid "<0>Alt-click</0> to add above"
 msgstr "<0>Alt + spustelėjimas</0> prideda viršuje"
@@ -1196,12 +1196,12 @@ msgstr "<0>Alt + spustelėjimas</0> prideda viršuje"
 msgid "<0>Click</0> to add below"
 msgstr "<0>Spustelėjimas</0> prideda apačioje"
 
-#: packages/admin/src/components/BlocksField.tsx:1564
+#: packages/admin/src/components/BlocksField.tsx:1561
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
 msgid "<0>Click</0> to open menu"
 msgstr "<0>Spustelėjimas</0> atveria meniu"
 
-#: packages/admin/src/components/BlocksField.tsx:1560
+#: packages/admin/src/components/BlocksField.tsx:1557
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
 msgid "<0>Drag</0> to move"
 msgstr "<0>Vilkimas</0> perkelia"
@@ -1394,7 +1394,7 @@ msgid "A slug cannot be generated from this label. Type one manually using lower
 msgstr "Iš šios etiketės nepavyko sugeneruoti nuorodos dalies. Įveskite ją ranka naudodami mažąsias raides, skaitmenis ir pabraukimo brūkšnius."
 
 #: packages/admin/src/components/FieldEditor.tsx:484
-#: packages/admin/src/components/FieldEditor.tsx:1681
+#: packages/admin/src/components/FieldEditor.tsx:1685
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr "Iš šios etiketės nepavyko sugeneruoti nuorodos dalies. Įveskite ją ranka."
 
@@ -1540,7 +1540,7 @@ msgstr "Aktyvus"
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
-#: packages/admin/src/components/FieldEditor.tsx:1534
+#: packages/admin/src/components/FieldEditor.tsx:1538
 msgid "Active v{0}"
 msgstr "Aktyvi versija v{0}"
 
@@ -1573,7 +1573,7 @@ msgstr "Pridėti „{singularLower}“ prie 1 įrašo"
 msgid "Add {singularLower} to posts"
 msgstr "Pridėti „{singularLower}“ prie įrašų"
 
-#: packages/admin/src/components/BlocksField.tsx:2332
+#: packages/admin/src/components/BlocksField.tsx:2329
 msgid "Add a caption"
 msgstr "Pridėti užrašą"
 
@@ -1598,7 +1598,7 @@ msgstr "Pridėkite žmogų ar komandą, kuriuos galėsite nurodyti kaip turinio 
 msgid "Add another byline"
 msgstr "Pridėti dar vieną autoriaus profilį"
 
-#: packages/admin/src/components/BlocksField.tsx:1166
+#: packages/admin/src/components/BlocksField.tsx:1163
 msgid "Add at least {minItems} blocks."
 msgstr "Pridėkite bent tiek blokų: {minItems}."
 
@@ -1608,7 +1608,7 @@ msgid "Add at least one option."
 msgstr "Pridėkite bent vieną parinktį."
 
 #: packages/admin/src/components/FieldEditor.tsx:475
-#: packages/admin/src/components/FieldEditor.tsx:1619
+#: packages/admin/src/components/FieldEditor.tsx:1623
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "Pridėkite bent vieną polaukį, kad apibrėžtumėte pasikartojančio lauko struktūrą."
 
@@ -1617,16 +1617,16 @@ msgstr "Pridėkite bent vieną polaukį, kad apibrėžtumėte pasikartojančio l
 msgid "Add block"
 msgstr "Pridėti bloką"
 
-#: packages/admin/src/components/BlocksField.tsx:1739
+#: packages/admin/src/components/BlocksField.tsx:1736
 msgid "Add block above"
 msgstr "Pridėti bloką viršuje"
 
-#: packages/admin/src/components/BlocksField.tsx:1516
-#: packages/admin/src/components/BlocksField.tsx:1740
+#: packages/admin/src/components/BlocksField.tsx:1513
+#: packages/admin/src/components/BlocksField.tsx:1737
 msgid "Add block below"
 msgstr "Pridėti bloką apačioje"
 
-#: packages/admin/src/components/BlocksField.tsx:1535
+#: packages/admin/src/components/BlocksField.tsx:1532
 msgid "Add block below {label}"
 msgstr "Pridėti bloką po „{label}“"
 
@@ -1671,7 +1671,7 @@ msgstr "Pridėti domeną"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:808
 #: packages/admin/src/components/FieldEditor.tsx:1010
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Add Field"
 msgstr "Pridėti lauką"
 
@@ -1791,7 +1791,7 @@ msgstr "Pridėti pasirinktus"
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "Pridėti SEO metaduomenų laukus (pavadinimą, aprašymą, paveikslėlį) ir įtraukti į svetainės žemėlapį"
 
-#: packages/admin/src/components/FieldEditor.tsx:1606
+#: packages/admin/src/components/FieldEditor.tsx:1610
 msgid "Add Sub-Field"
 msgstr "Pridėti polaukį"
 
@@ -1925,12 +1925,12 @@ msgstr "Administravimo meniu"
 msgid "Administrator"
 msgstr "Administratorius"
 
-#: packages/admin/src/components/BlocksField.tsx:2454
+#: packages/admin/src/components/BlocksField.tsx:2451
 #: packages/admin/src/components/PortableTextEditor.tsx:501
 msgid "Advanced"
 msgstr "Išplėstiniai"
 
-#: packages/admin/src/components/BlocksField.tsx:2437
+#: packages/admin/src/components/BlocksField.tsx:2434
 msgid "Advanced: {blockLabel}"
 msgstr "Išplėstinės parinktys: {blockLabel}"
 
@@ -2609,7 +2609,7 @@ msgstr "Atgal"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:501
-#: packages/admin/src/components/FieldEditor.tsx:1816
+#: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
 #: packages/admin/src/components/WordPressImport.tsx:1567
 #: packages/admin/src/components/WordPressImport.tsx:2609
@@ -2761,7 +2761,7 @@ msgstr "Pusjuodis"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:58
 #: packages/admin/src/components/FieldEditor.tsx:681
-#: packages/admin/src/components/FieldEditor.tsx:1700
+#: packages/admin/src/components/FieldEditor.tsx:1704
 msgid "Boolean"
 msgstr "Loginė reikšmė"
 
@@ -2947,7 +2947,7 @@ msgstr "Nepavyko prisijungti prie „EmDash“"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
-#: packages/admin/src/components/FieldEditor.tsx:1821
+#: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
@@ -4584,8 +4584,8 @@ msgstr "Pritaikyti šoninę juostą"
 msgid "Daily automatic backups"
 msgstr "Kasdienės automatinės atsarginės kopijos"
 
-#: packages/admin/src/components/FieldEditor.tsx:1794
-#: packages/admin/src/components/FieldEditor.tsx:1797
+#: packages/admin/src/components/FieldEditor.tsx:1798
+#: packages/admin/src/components/FieldEditor.tsx:1801
 #: packages/admin/src/components/ImageFieldRenderer.tsx:562
 msgid "Dark mode variant"
 msgstr "Tamsiosios veiksenos variantas"
@@ -4610,7 +4610,7 @@ msgid "Date"
 msgstr "Data"
 
 #: packages/admin/src/components/FieldEditor.tsx:687
-#: packages/admin/src/components/FieldEditor.tsx:1701
+#: packages/admin/src/components/FieldEditor.tsx:1705
 msgid "Date & Time"
 msgstr "Data ir laikas"
 
@@ -4689,7 +4689,7 @@ msgstr "Apibrėžkite turinio struktūrą"
 msgid "Defined in code"
 msgstr "Apibrėžta kode"
 
-#: packages/admin/src/components/BlocksField.tsx:1196
+#: packages/admin/src/components/BlocksField.tsx:1193
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4769,7 +4769,7 @@ msgstr "Ištrinti valdiklių sritį „{0}“"
 msgid "Delete {0}?"
 msgstr "Ištrinti „{0}“?"
 
-#: packages/admin/src/components/BlocksField.tsx:1194
+#: packages/admin/src/components/BlocksField.tsx:1191
 msgid "Delete {confirmName}?"
 msgstr "Ištrinti „{confirmName}“?"
 
@@ -4934,7 +4934,7 @@ msgstr "Ištrynus „{0}“, bus ištrinti visi šios taksonomijos terminai viso
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "Ištrynus „{0}“, iš visų autorių profilių taip pat bus pašalintos išsaugotos reikšmės ({1, plural, one {# reikšmė} few {# reikšmės} many {# reikšmės} other {# reikšmių}}). Šio veiksmo atšaukti negalima."
 
-#: packages/admin/src/components/BlocksField.tsx:1197
+#: packages/admin/src/components/BlocksField.tsx:1194
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1853
@@ -5768,7 +5768,7 @@ msgstr "Atkurta pradinė rengyklės šoninė juosta"
 msgid "Editor sidebar sections"
 msgstr "Rengyklės šoninės juostos skiltys"
 
-#: packages/admin/src/components/FieldEditor.tsx:1792
+#: packages/admin/src/components/FieldEditor.tsx:1796
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Redaktoriai gali pasirinkti antrą paveikslėlį, kurį svetainė rodys įjungus tamsiąją veikseną."
 
@@ -7518,7 +7518,7 @@ msgstr "Laukas sukurtas"
 msgid "Field deleted"
 msgstr "Laukas ištrintas"
 
-#: packages/admin/src/components/FieldEditor.tsx:1646
+#: packages/admin/src/components/FieldEditor.tsx:1650
 msgid "Field label"
 msgstr "Lauko etiketė"
 
@@ -7538,7 +7538,7 @@ msgstr "Sukūrus lauką jo tipo keisti negalima."
 msgid "Field updated"
 msgstr "Laukas atnaujintas"
 
-#: packages/admin/src/components/FieldEditor.tsx:1677
+#: packages/admin/src/components/FieldEditor.tsx:1681
 msgid "field_slug"
 msgstr "lauko_adreso_dalis"
 
@@ -8221,7 +8221,7 @@ msgstr "Paveikslėlis"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:711
-#: packages/admin/src/components/FieldEditor.tsx:1704
+#: packages/admin/src/components/FieldEditor.tsx:1708
 #: packages/admin/src/components/PortableTextEditor.tsx:2474
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
@@ -8460,7 +8460,7 @@ msgstr "Šiukšlinėje"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "„Windows“ nustatymuose atverkite „Paskyros“, tada „Prisijungimo parinktys“ ir nustatykite PIN kodą. Piršto atspaudo ar veido atpažinimo nustatyti nebūtina."
 
-#: packages/admin/src/components/BlocksField.tsx:1365
+#: packages/admin/src/components/BlocksField.tsx:1362
 msgid "Inactive version"
 msgstr "Neaktyvi versija"
 
@@ -8645,7 +8645,7 @@ msgid "Installing..."
 msgstr "Diegiama..."
 
 #: packages/admin/src/components/FieldEditor.tsx:675
-#: packages/admin/src/components/FieldEditor.tsx:1699
+#: packages/admin/src/components/FieldEditor.tsx:1703
 msgid "Integer"
 msgstr "Sveikasis skaičius"
 
@@ -8885,7 +8885,7 @@ msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:341
 #: packages/admin/src/components/FieldEditor.tsx:1153
-#: packages/admin/src/components/FieldEditor.tsx:1632
+#: packages/admin/src/components/FieldEditor.tsx:1636
 #: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/MenuEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:615
@@ -9021,7 +9021,7 @@ msgstr "Licencija"
 msgid "Limit"
 msgstr "Riba"
 
-#: packages/admin/src/components/BlocksField.tsx:2348
+#: packages/admin/src/components/BlocksField.tsx:2345
 #: packages/admin/src/components/PortableTextEditor.tsx:5387
 msgid "Link"
 msgstr "Nuoroda"
@@ -9410,7 +9410,7 @@ msgid "Long text"
 msgstr "Ilgas tekstas"
 
 #: packages/admin/src/components/FieldEditor.tsx:663
-#: packages/admin/src/components/FieldEditor.tsx:1697
+#: packages/admin/src/components/FieldEditor.tsx:1701
 msgid "Long Text"
 msgstr "Ilgas tekstas"
 
@@ -9537,7 +9537,7 @@ msgstr "Nepavyko atlikti paieškos prekyvietėje"
 msgid "Matched by email"
 msgstr "Susieta pagal el. pašto adresą"
 
-#: packages/admin/src/components/FieldEditor.tsx:1763
+#: packages/admin/src/components/FieldEditor.tsx:1767
 msgid "Max Items"
 msgstr "Didžiausias elementų skaičius"
 
@@ -9553,7 +9553,7 @@ msgstr "Didžiausia reikšmė"
 msgid "Maximum"
 msgstr "Didžiausia reikšmė"
 
-#: packages/admin/src/components/FieldEditor.tsx:1563
+#: packages/admin/src/components/FieldEditor.tsx:1567
 msgid "Maximum blocks"
 msgstr "Didžiausias blokų skaičius"
 
@@ -9775,7 +9775,7 @@ msgstr "Perkėlimo vadovas"
 msgid "Migration key"
 msgstr "Perkėlimo raktas"
 
-#: packages/admin/src/components/FieldEditor.tsx:1753
+#: packages/admin/src/components/FieldEditor.tsx:1757
 msgid "Min Items"
 msgstr "Mažiausias elementų skaičius"
 
@@ -9787,7 +9787,7 @@ msgstr "Mažiausias ilgis"
 msgid "Min Value"
 msgstr "Mažiausia reikšmė"
 
-#: packages/admin/src/components/FieldEditor.tsx:1552
+#: packages/admin/src/components/FieldEditor.tsx:1556
 msgid "Minimum blocks"
 msgstr "Mažiausias blokų skaičius"
 
@@ -9885,7 +9885,7 @@ msgstr "Perkelti „{title}“ į šiukšlinę? Vėliau šį įrašą galėsite 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4690
-#: packages/admin/src/components/FieldEditor.tsx:1523
+#: packages/admin/src/components/FieldEditor.tsx:1527
 msgid "Move {0} down"
 msgstr "Perkelti {0} žemyn"
 
@@ -9902,7 +9902,7 @@ msgstr "Perkelti {0} arčiau pabaigos"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4679
-#: packages/admin/src/components/FieldEditor.tsx:1506
+#: packages/admin/src/components/FieldEditor.tsx:1508
 msgid "Move {0} up"
 msgstr "Perkelti {0} aukštyn"
 
@@ -10254,7 +10254,7 @@ msgstr "Naujausi"
 msgid "News"
 msgstr "Naujienos"
 
-#: packages/admin/src/components/FieldEditor.tsx:1824
+#: packages/admin/src/components/FieldEditor.tsx:1828
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "Toliau"
@@ -10328,7 +10328,7 @@ msgstr "Patvirtintų komentarų dar nėra."
 msgid "No block types defined"
 msgstr "Neapibrėžtas nė vienas blokų tipas"
 
-#: packages/admin/src/components/BlocksField.tsx:1159
+#: packages/admin/src/components/BlocksField.tsx:1156
 msgid "No blocks yet"
 msgstr "Blokų dar nėra"
 
@@ -10503,7 +10503,7 @@ msgstr "Nepateiktas kvietimo raktas"
 msgid "No items yet"
 msgstr "Elementų dar nėra"
 
-#: packages/admin/src/components/FieldEditor.tsx:1768
+#: packages/admin/src/components/FieldEditor.tsx:1772
 msgid "No limit"
 msgstr "Neribojama"
 
@@ -10798,7 +10798,7 @@ msgid "Now · {time}"
 msgstr "Dabar · {time}"
 
 #: packages/admin/src/components/FieldEditor.tsx:669
-#: packages/admin/src/components/FieldEditor.tsx:1698
+#: packages/admin/src/components/FieldEditor.tsx:1702
 msgid "Number"
 msgstr "Skaičius"
 
@@ -10956,7 +10956,7 @@ msgid "Open WordPress Profile"
 msgstr "Atverti „WordPress“ profilį"
 
 #: packages/admin/src/components/FieldEditor.tsx:1295
-#: packages/admin/src/components/FieldEditor.tsx:1717
+#: packages/admin/src/components/FieldEditor.tsx:1721
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -10993,7 +10993,7 @@ msgstr "Neprivaloma užuomina užvedus žymeklį"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:432
 #: packages/admin/src/components/FieldEditor.tsx:1292
-#: packages/admin/src/components/FieldEditor.tsx:1710
+#: packages/admin/src/components/FieldEditor.tsx:1714
 msgid "Options (one per line)"
 msgstr "Parinktys (po vieną eilutėje)"
 
@@ -11357,7 +11357,7 @@ msgstr "Paimta „{label}“."
 msgid "Picked up {name}, position {position} of {total}"
 msgstr "Paimta „{name}“, pozicija {position} iš {total}"
 
-#: packages/admin/src/components/FieldEditor.tsx:1881
+#: packages/admin/src/components/FieldEditor.tsx:1885
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "Pasirinkus įrašus, į kuriuos nurodo šis įrašas, redaktoriai galės juos rikiuoti vilkdami. Pasirinkus priešingą kryptį, bus rodomi visi įrašai, nurodantys į šį įrašą. Jų eiliškumo pakeisti negalima."
 
@@ -12291,7 +12291,7 @@ msgstr "Pašalinti prieigos raktą?"
 msgid "Remove schedule"
 msgstr "Atšaukti suplanuotą skelbimą"
 
-#: packages/admin/src/components/FieldEditor.tsx:1743
+#: packages/admin/src/components/FieldEditor.tsx:1747
 msgid "Remove sub-field"
 msgstr "Pašalinti polaukį"
 
@@ -12421,7 +12421,7 @@ msgstr "Keisti eiliškumą"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:1577
+#: packages/admin/src/components/BlocksField.tsx:1574
 #: packages/admin/src/components/BylineCreditsEditor.tsx:693
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
@@ -12574,7 +12574,7 @@ msgstr "Reikalauti nuorodos dalies prieš skelbiant turinį"
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:984
 #: packages/admin/src/components/FieldEditor.tsx:1195
-#: packages/admin/src/components/FieldEditor.tsx:1725
+#: packages/admin/src/components/FieldEditor.tsx:1729
 #: packages/admin/src/routes/byline-schema.tsx:235
 msgid "Required"
 msgstr "Privaloma"
@@ -12718,8 +12718,8 @@ msgstr "Atkuriama…"
 msgid "Results"
 msgstr "Rezultatai"
 
-#: packages/admin/src/components/BlocksField.tsx:1366
-#: packages/admin/src/components/FieldEditor.tsx:1490
+#: packages/admin/src/components/BlocksField.tsx:1363
+#: packages/admin/src/components/FieldEditor.tsx:1491
 msgid "Retired"
 msgstr "Nebenaudojama"
 
@@ -13100,7 +13100,7 @@ msgstr "Išsaugojus sukuriamas juodraštis, kurio svetainės lankytojai nemato. 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:3268
 #: packages/admin/src/components/ContentEditor.tsx:3273
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
@@ -13558,7 +13558,7 @@ msgstr "Peržiūrėkite, kur naudojamas šis failas."
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:59
 #: packages/admin/src/components/FieldEditor.tsx:693
-#: packages/admin/src/components/FieldEditor.tsx:1702
+#: packages/admin/src/components/FieldEditor.tsx:1706
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:172
 msgid "Select"
@@ -13947,7 +13947,7 @@ msgid "Short text"
 msgstr "Trumpas tekstas"
 
 #: packages/admin/src/components/FieldEditor.tsx:657
-#: packages/admin/src/components/FieldEditor.tsx:1696
+#: packages/admin/src/components/FieldEditor.tsx:1700
 msgid "Short Text"
 msgstr "Trumpas tekstas"
 
@@ -14237,9 +14237,9 @@ msgstr "Praleista"
 #: packages/admin/src/components/FieldEditor.tsx:1166
 #: packages/admin/src/components/FieldEditor.tsx:1169
 #: packages/admin/src/components/FieldEditor.tsx:1172
-#: packages/admin/src/components/FieldEditor.tsx:1658
-#: packages/admin/src/components/FieldEditor.tsx:1661
-#: packages/admin/src/components/FieldEditor.tsx:1664
+#: packages/admin/src/components/FieldEditor.tsx:1662
+#: packages/admin/src/components/FieldEditor.tsx:1665
+#: packages/admin/src/components/FieldEditor.tsx:1668
 #: packages/admin/src/components/RelationForm.tsx:435
 #: packages/admin/src/components/RelationForm.tsx:440
 #: packages/admin/src/components/RelationForm.tsx:444
@@ -14585,11 +14585,11 @@ msgstr "Stilius"
 msgid "Style changed:"
 msgstr "Stilius pakeistas:"
 
-#: packages/admin/src/components/FieldEditor.tsx:1656
+#: packages/admin/src/components/FieldEditor.tsx:1660
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr "Sukūrus polaukį, jo nuorodos dalies keisti nebegalima."
 
-#: packages/admin/src/components/FieldEditor.tsx:1580
+#: packages/admin/src/components/FieldEditor.tsx:1584
 msgid "Sub-Fields"
 msgstr "Polaukiai"
 
@@ -14816,7 +14816,7 @@ msgstr "Bandomasis laiškas išsiųstas adresu {to}"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/BlocksField.tsx:2347
+#: packages/admin/src/components/BlocksField.tsx:2344
 #: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr "Tekstas"
@@ -15324,7 +15324,7 @@ msgstr "Buvo pakeista paskelbimo būsena ar laikas arba juodraštis pakeistas ki
 msgid "This also removes:"
 msgstr "Taip pat bus pašalinta:"
 
-#: packages/admin/src/components/BlocksField.tsx:1787
+#: packages/admin/src/components/BlocksField.tsx:1784
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr "Šio bloko redaguoti negalima, nes jo išsaugotas apibrėžimas nepasiekiamas."
 
@@ -15333,7 +15333,7 @@ msgstr "Šio bloko redaguoti negalima, nes jo išsaugotas apibrėžimas nepasiek
 msgid "This block embeds a page from {0}."
 msgstr "Šiame bloke įterptas puslapis iš {0}."
 
-#: packages/admin/src/components/BlocksField.tsx:2179
+#: packages/admin/src/components/BlocksField.tsx:2176
 msgid "This block has no fields."
 msgstr "Šiame bloke nėra laukų."
 
@@ -15488,7 +15488,7 @@ msgstr "Šiame lauke turi būti sąrašas. Išsaugota reikšmė išliks, kol nep
 msgid "This field is required"
 msgstr "Šis laukas privalomas"
 
-#: packages/admin/src/components/FieldEditor.tsx:1851
+#: packages/admin/src/components/FieldEditor.tsx:1855
 msgid "This field lists entries that link to this one."
 msgstr "Šiame lauke rodomi įrašai, nukreipiantys į šį įrašą."
 
@@ -15497,16 +15497,16 @@ msgstr "Šiame lauke rodomi įrašai, nukreipiantys į šį įrašą."
 msgid "This field picks"
 msgstr "Šiame lauke pasirenkama"
 
-#: packages/admin/src/components/FieldEditor.tsx:1850
+#: packages/admin/src/components/FieldEditor.tsx:1854
 msgid "This field picks entries this one links to."
 msgstr "Šiame lauke pasirenkami įrašai, į kuriuos nukreipia šis įrašas."
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1862
+#: packages/admin/src/components/FieldEditor.tsx:1866
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "Šiame lauke bus rodoma <0>{0}</0>, į ką nukreipia {linkingSide}"
 
-#: packages/admin/src/components/FieldEditor.tsx:1867
+#: packages/admin/src/components/FieldEditor.tsx:1871
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "Šiame lauke bus rodoma <0>{linkingSide}</0>, iš kur nukreipiama į {linkedSide}"
 
@@ -16113,7 +16113,7 @@ msgstr "Dviejuose įrašuose kartojasi reikšmė, kuri turi būti unikali"
 #: packages/admin/src/components/BylineFieldEditor.tsx:385
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
-#: packages/admin/src/components/FieldEditor.tsx:1688
+#: packages/admin/src/components/FieldEditor.tsx:1692
 #: packages/admin/src/components/MediaLibrary.tsx:1147
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
@@ -16280,7 +16280,7 @@ msgstr "Neišsaugotas turinys gali būti perduotas už svetainės ribų"
 msgid "Unscheduled"
 msgstr "Paskelbimo laikas atšauktas"
 
-#: packages/admin/src/components/BlocksField.tsx:1367
+#: packages/admin/src/components/BlocksField.tsx:1364
 #: packages/admin/src/components/ContentTypeEditor.tsx:983
 msgid "Unsupported"
 msgstr "Nepalaikoma"
@@ -16333,7 +16333,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr "Atnaujinti"
 
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Update Field"
 msgstr "Atnaujinti lauką"
 
@@ -16536,7 +16536,7 @@ msgstr "Įkeliamas vaizdo įrašas…"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:57
 #: packages/admin/src/components/FieldEditor.tsx:741
-#: packages/admin/src/components/FieldEditor.tsx:1703
+#: packages/admin/src/components/FieldEditor.tsx:1707
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/MenuEditor.tsx:847
 #: packages/admin/src/components/PortableTextEditor.tsx:1415
@@ -16761,7 +16761,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "Šių domenų el. pašto adresus turintys naudotojai gali registruotis be kvietimo. Nurodyta rolė jiems bus suteikta automatiškai."
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/FieldEditor.tsx:1535
+#: packages/admin/src/components/FieldEditor.tsx:1539
 msgid "v{0}"
 msgstr "v{0}"
 
@@ -16819,7 +16819,7 @@ msgstr "Versija"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:1768
+#: packages/admin/src/components/BlocksField.tsx:1765
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -17045,7 +17045,7 @@ msgstr "Kas yra prieigos raktas?"
 msgid "What it leaves out"
 msgstr "Kas neįtraukiama"
 
-#: packages/admin/src/components/FieldEditor.tsx:1882
+#: packages/admin/src/components/FieldEditor.tsx:1886
 msgid "What the direction changes"
 msgstr "Ką keičia kryptis"
 
