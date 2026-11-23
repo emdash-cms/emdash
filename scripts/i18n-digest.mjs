@@ -106,7 +106,7 @@ function resolveBase(since) {
 	}
 	if (since === "week") {
 		const cutoff = weekCutoff(Date.now()).toISOString();
-		const rev = git("rev-list", "-1", `--before=${cutoff}`, "HEAD");
+		const rev = git("rev-list", "-1", "--first-parent", `--before=${cutoff}`, "HEAD");
 		if (!rev)
 			throw new Error(`No commit before ${cutoff}. A shallow clone has no history to compare.`);
 		return { rev, since: cutoff.slice(0, 10) };
