@@ -117,6 +117,16 @@ When the dark image comes from somewhere else, such as a second image field, pas
 <Image image={post.data.hero} darkVariant={post.data.hero_dark} />
 ```
 
+### Plugin block images
+
+A `media_picker` in a plugin's Portable Text block can offer the same slot. Set `darkVariant: true` on the element and the editor stores the variant's URL under the element's `action_id` plus `_dark`. Pass both values to `Image`:
+
+```astro
+<Image image={node.logo} darkVariant={node.logo_dark} />
+```
+
+See [Block Kit](/plugins/creating-plugins/block-kit/) for the element option.
+
 ### Loading behaviour
 
 Both images are lazy by default. Browsers do not fetch a lazy image that is hidden with `display: none`, so a visitor downloads only the variant for their scheme, and the other one loads when the scheme changes.

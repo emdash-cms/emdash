@@ -41,7 +41,7 @@ import {
 	verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { Element } from "@emdash-cms/blocks";
+import { darkVariantActionId, type Element } from "@emdash-cms/blocks";
 import type { MessageDescriptor } from "@lingui/core";
 import { msg, plural } from "@lingui/core/macro";
 import { useLingui as useLinguiContext } from "@lingui/react";
@@ -1357,6 +1357,11 @@ function PluginBlockModal({
 		setFormValues((prev) => ({ ...prev, [actionId]: value }));
 	};
 
+	const handleFieldChangeMany = (patch: Record<string, unknown>) => {
+		setTouched(true);
+		setFormValues((prev) => ({ ...prev, ...patch }));
+	};
+
 	const isEditing = !!initialValues;
 	const hasFields = block?.fields && block.fields.length > 0;
 
@@ -1387,7 +1392,9 @@ function PluginBlockModal({
 												field={field}
 												pluginId={block.pluginId}
 												value={formValues[field.action_id]}
+												darkValue={formValues[darkVariantActionId(field.action_id)]}
 												onChange={handleFieldChange}
+												onChangeMany={handleFieldChangeMany}
 												errorId={errorId}
 											/>
 											{fieldError && (
@@ -1446,13 +1453,18 @@ function BlockKitField({
 	field,
 	pluginId,
 	value,
+	darkValue,
 	onChange,
+	onChangeMany,
 	errorId,
 }: {
 	field: Element;
 	pluginId?: string;
 	value: unknown;
+	/** Value stored under `${action_id}_dark` for a `media_picker` with `dark_variant`. */
+	darkValue?: unknown;
 	onChange: (actionId: string, value: unknown) => void;
+	onChangeMany?: (patch: Record<string, unknown>) => void;
 	/** The element describing this field's error, when it has one. */
 	errorId?: string;
 }) {
@@ -1552,6 +1564,9 @@ function BlockKitField({
 					labelSize="sm"
 					value={value}
 					onChange={onChange}
+					darkVariant={field.dark_variant}
+					darkValue={darkValue}
+					onChangeMany={onChangeMany}
 				/>
 			);
 		}
@@ -1679,6 +1694,10 @@ function BlockKitRepeater({
 		emit(items.map((it) => (it._key === key ? { ...it, [subActionId]: subValue } : it)));
 	};
 
+	const handleItemChangeMany = (key: string, patch: Record<string, unknown>) => {
+		emit(items.map((it) => (it._key === key ? { ...it, ...patch } : it)));
+	};
+
 	const handleDragEnd = (event: DragEndEvent) => {
 		const { active, over } = event;
 		if (!over || active.id === over.id) return;
@@ -1747,6 +1766,7 @@ function BlockKitRepeater({
 									onToggleCollapse={() => toggleExpanded(item._key)}
 									onRemove={canRemove ? () => handleRemove(item._key) : undefined}
 									onChange={(subActionId, v) => handleItemChange(item._key, subActionId, v)}
+									onChangeMany={(patch) => handleItemChangeMany(item._key, patch)}
 								/>
 							))}
 						</div>
@@ -1766,6 +1786,7 @@ function BlockKitRepeaterItem({
 	onToggleCollapse,
 	onRemove,
 	onChange,
+	onChangeMany,
 }: {
 	item: RepeaterItem;
 	index: number;
@@ -1775,6 +1796,7 @@ function BlockKitRepeaterItem({
 	onToggleCollapse: () => void;
 	onRemove?: () => void;
 	onChange: (subActionId: string, value: unknown) => void;
+	onChangeMany: (patch: Record<string, unknown>) => void;
 }) {
 	const { t } = useLingui();
 	const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
@@ -1846,7 +1868,9 @@ function BlockKitRepeaterItem({
 							field={sf}
 							pluginId={pluginId}
 							value={item[sf.action_id]}
+							darkValue={item[darkVariantActionId(sf.action_id)]}
 							onChange={(actionId, v) => onChange(actionId, v)}
+							onChangeMany={onChangeMany}
 						/>
 					))}
 				</div>

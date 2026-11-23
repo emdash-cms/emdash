@@ -381,6 +381,26 @@ const slides = elements.repeater("slides", "Slides", [
 ]);
 ```
 
+### Add a dark mode variant to an image
+
+Set `darkVariant: true` on a `media_picker` in a native plugin's Portable Text block to let editors pick a second image for dark color schemes. After they choose the primary image, an **Add dark mode variant** button appears below it. The option also works for a `media_picker` inside a `repeater`.
+
+```typescript title="src/index.ts"
+import { elements } from "@emdash-cms/blocks";
+
+const logo = elements.mediaPicker("logo", "Logo", { darkVariant: true });
+```
+
+The primary value stays the asset's URL string under `logo`. The variant's URL is stored beside it under `logo_dark`, the `action_id` plus `_dark`. Validation rejects a `media_picker` with `dark_variant` when another element in the same field list already uses that key. Removing the primary image clears the variant, and replacing it keeps the variant.
+
+Pass both values to `Image` when you render the block:
+
+```astro
+<Image image={node.logo} darkVariant={node.logo_dark} />
+```
+
+See [Dark mode](/guides/dark-mode/) for how `Image` renders the pair.
+
 ### Load select options from a plugin route
 
 A `select` in a Portable Text block's `fields` can set `optionsRoute` to fill its dropdown from one of the plugin's own routes. The same works for a `select` nested in a `repeater` in those fields.

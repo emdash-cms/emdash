@@ -5,6 +5,7 @@ export { cn, formatRelativeTime } from "./utils.js";
 
 // Builders and validation
 export { blocks, elements } from "./builders.js";
+export { darkVariantActionId } from "./dark-variant.js";
 export {
 	BLOCK_RESPONSE_LIMITS,
 	isEditorDraftPatchEffect,

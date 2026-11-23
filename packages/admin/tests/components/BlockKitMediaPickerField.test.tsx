@@ -241,3 +241,64 @@ describe("BlockKitMediaPickerField", () => {
 		});
 	});
 });
+
+describe("BlockKitMediaPickerField dark variant", () => {
+	const primary = "/_emdash/api/media/file/a.png";
+	const dark = "/_emdash/api/media/file/b.png";
+
+	it("offers no dark slot until a primary image is selected", async () => {
+		const { screen } = await renderField({ darkVariant: true });
+		await expect.element(screen.getByText("Add dark mode variant")).not.toBeInTheDocument();
+	});
+
+	it("stores the picked variant under the sibling key", async () => {
+		const onChange = vi.fn();
+		const { screen } = await renderField({ darkVariant: true, value: primary, onChange });
+		(screen.getByText("Add dark mode variant").element() as HTMLElement).click();
+		await expect.element(screen.getByTestId("media-picker-modal")).toBeInTheDocument();
+		(screen.getByText("pick-url").element() as HTMLElement).click();
+		expect(onChange).toHaveBeenCalledWith("hero_dark", "https://cdn.example/ext.jpg");
+	});
+
+	it("keeps the variant when the primary is replaced", async () => {
+		const onChange = vi.fn();
+		const { screen } = await renderField({
+			darkVariant: true,
+			value: primary,
+			darkValue: dark,
+			onChange,
+		});
+		(screen.getByLabelText("Replace Hero", { exact: true }).element() as HTMLElement).click();
+		await expect.element(screen.getByTestId("media-picker-modal")).toBeInTheDocument();
+		(screen.getByText("pick-url").element() as HTMLElement).click();
+		expect(onChange).toHaveBeenCalledTimes(1);
+		expect(onChange).toHaveBeenCalledWith("hero", "https://cdn.example/ext.jpg");
+	});
+
+	it("clears both values in one update when the primary is removed", async () => {
+		const onChange = vi.fn();
+		const onChangeMany = vi.fn();
+		const { screen } = await renderField({
+			darkVariant: true,
+			value: primary,
+			darkValue: dark,
+			onChange,
+			onChangeMany,
+		});
+		(screen.getByLabelText("Remove Hero", { exact: true }).element() as HTMLElement).click();
+		expect(onChangeMany).toHaveBeenCalledWith({ hero: "", hero_dark: "" });
+		expect(onChange).not.toHaveBeenCalled();
+	});
+
+	it("removes only the variant from its own card", async () => {
+		const onChange = vi.fn();
+		const { screen } = await renderField({
+			darkVariant: true,
+			value: primary,
+			darkValue: dark,
+			onChange,
+		});
+		(screen.getByLabelText("Remove Hero (dark mode)").element() as HTMLElement).click();
+		expect(onChange).toHaveBeenCalledWith("hero_dark", "");
+	});
+});

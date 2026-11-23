@@ -1,0 +1,19 @@
+---
+import { Image } from "emdash/ui";
+
+const { node } = Astro.props;
+const partners = Array.isArray(node.partners) ? node.partners : [];
+---
+
+<figure class="brand-logo">
+	<Image image={node.logo} darkVariant={node.logo_dark} alt={node.alt ?? ""} />
+	<ul>
+		{
+			partners.map((partner) => (
+				<li data-partner={partner.name}>
+					<Image image={partner.mark} darkVariant={partner.mark_dark} alt={partner.name ?? ""} />
+				</li>
+			))
+		}
+	</ul>
+</figure>

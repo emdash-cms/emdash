@@ -1,3 +1,4 @@
+import { darkVariantActionId } from "./dark-variant.js";
 import type { EditorDraftPatchEffect } from "./types.js";
 
 const BLOCK_TYPES = new Set([
@@ -912,6 +913,7 @@ function validateElement(
 					}
 					validateElement(sub, subPath, errors, policy);
 				}
+				validateDarkVariantKeys(value.fields, `${path}.fields`, errors);
 			}
 			if (value.item_label !== undefined && typeof value.item_label !== "string") {
 				errors.push({
@@ -1001,7 +1003,37 @@ function validateElement(
 					message: "Field 'placeholder' must be a string",
 				});
 			}
+			if (value.dark_variant !== undefined && typeof value.dark_variant !== "boolean") {
+				errors.push({
+					path: `${path}.dark_variant`,
+					message: "Field 'dark_variant' must be a boolean",
+				});
+			}
 			break;
+		}
+	}
+}
+
+/** Reject a dark-variant value key that another sibling element already uses. */
+function validateDarkVariantKeys(
+	elements: unknown[],
+	path: string,
+	errors: ValidationError[],
+): void {
+	const ids = new Set<string>();
+	for (const el of elements) {
+		if (isRecord(el) && typeof el.action_id === "string") ids.add(el.action_id);
+	}
+	for (let i = 0; i < elements.length; i++) {
+		const el = elements[i];
+		if (!isRecord(el) || el.type !== "media_picker" || el.dark_variant !== true) continue;
+		if (typeof el.action_id !== "string") continue;
+		const key = darkVariantActionId(el.action_id);
+		if (ids.has(key)) {
+			errors.push({
+				path: `${path}[${i}].dark_variant`,
+				message: `Field 'dark_variant' stores its value under '${key}', which another element already uses`,
+			});
 		}
 	}
 }
@@ -1382,6 +1414,7 @@ function validateBlock(
 				for (let i = 0; i < value.elements.length; i++) {
 					validateElement(value.elements[i], `${path}.elements[${i}]`, errors, policy);
 				}
+				validateDarkVariantKeys(value.elements, `${path}.elements`, errors);
 			}
 			break;
 		}

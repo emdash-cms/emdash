@@ -1,6 +1,7 @@
 import { Button, LayerCard, Text } from "@cloudflare/kumo";
+import { darkVariantActionId } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
-import { Image as ImageIcon, ImageBroken, ImageSquare, X } from "@phosphor-icons/react";
+import { Image as ImageIcon, ImageBroken, ImageSquare, Moon, X } from "@phosphor-icons/react";
 import * as React from "react";
 
 import type { MediaItem } from "../lib/api";
@@ -18,11 +19,18 @@ export interface BlockKitMediaPickerFieldProps {
 	labelSize?: "sm" | "base";
 	value: unknown;
 	onChange: (actionId: string, value: unknown) => void;
+	/** Offer a second slot, stored under `${actionId}_dark`, for a dark color scheme. */
+	darkVariant?: boolean;
+	darkValue?: unknown;
+	/** Apply several value changes at once; falls back to sequential `onChange` calls. */
+	onChangeMany?: (patch: Record<string, unknown>) => void;
 }
 
 interface SelectedMediaCardProps {
 	broken: boolean;
 	label: string;
+	/** Replaces the default "Selected image" title. */
+	heading?: string;
 	url: string;
 	onError: () => void;
 	onRemove: () => void;
@@ -52,13 +60,14 @@ function mediaFilename(url: string): string | undefined {
 function SelectedMediaCard({
 	broken,
 	label,
+	heading,
 	url,
 	onError,
 	onRemove,
 	onReplace,
 }: SelectedMediaCardProps) {
 	const { t } = useLingui();
-	const title = (!isLocalMediaFileUrl(url) && mediaFilename(url)) || t`Selected image`;
+	const title = heading || (!isLocalMediaFileUrl(url) && mediaFilename(url)) || t`Selected image`;
 
 	return (
 		<LayerCard className="grid w-full grid-cols-[5rem_minmax(0,1fr)] items-center rounded-xl p-0">
@@ -131,18 +140,50 @@ export function BlockKitMediaPickerField({
 	labelSize = "base",
 	value,
 	onChange,
+	darkVariant = false,
+	darkValue,
+	onChangeMany,
 }: BlockKitMediaPickerFieldProps) {
 	const { t } = useLingui();
 	const labelId = React.useId();
 	const [pickerOpen, setPickerOpen] = React.useState(false);
+	const [pickerTarget, setPickerTarget] = React.useState<"image" | "darkVariant">("image");
 	const [imageBroken, setImageBroken] = React.useState(false);
+	const [darkImageBroken, setDarkImageBroken] = React.useState(false);
 	const url = typeof value === "string" && value.length > 0 ? value : "";
+	const darkUrl = typeof darkValue === "string" && darkValue.length > 0 ? darkValue : "";
+	const darkKey = darkVariantActionId(actionId);
+	const darkLabel = t`${label} (dark mode)`;
 
 	React.useEffect(() => {
 		setImageBroken(false);
 	}, [url]);
+	React.useEffect(() => {
+		setDarkImageBroken(false);
+	}, [darkUrl]);
 	const filter = mimeTypeFilter ?? "image/";
 	const canPreview = isSafePreviewUrl(url);
+	const canPreviewDark = isSafePreviewUrl(darkUrl);
+	const darkTarget = pickerTarget === "darkVariant";
+	const showDarkSlot = darkVariant && canPreview;
+
+	const openPicker = (target: "image" | "darkVariant") => {
+		setPickerTarget(target);
+		setPickerOpen(true);
+	};
+
+	const removePrimary = () => {
+		if (darkVariant && darkUrl) {
+			const patch = { [actionId]: "", [darkKey]: "" };
+			if (onChangeMany) onChangeMany(patch);
+			else {
+				onChange(actionId, "");
+				onChange(darkKey, "");
+			}
+			return;
+		}
+		onChange(actionId, "");
+	};
 
 	const handleSelect = (item: MediaItem) => {
 		// `MediaPickerModal` returns URL-inserted items with `id: ""` and no
@@ -153,7 +194,7 @@ export function BlockKitMediaPickerField({
 		const localKey = item.storageKey || item.id;
 		const nextUrl = isLocalMedia && localKey ? localMediaFileUrl(localKey) : item.url;
 		if (!nextUrl) return;
-		onChange(actionId, nextUrl);
+		onChange(darkTarget ? darkKey : actionId, nextUrl);
 	};
 
 	return (
@@ -173,15 +214,15 @@ export function BlockKitMediaPickerField({
 					label={label}
 					url={url}
 					onError={() => setImageBroken(true)}
-					onReplace={() => setPickerOpen(true)}
-					onRemove={() => onChange(actionId, "")}
+					onReplace={() => openPicker("image")}
+					onRemove={removePrimary}
 				/>
 			) : (
 				<Button
 					type="button"
 					variant="outline"
 					className="h-24 w-full justify-center rounded-xl border-dashed bg-kumo-control"
-					onClick={() => setPickerOpen(true)}
+					onClick={() => openPicker("image")}
 				>
 					<div className="flex flex-col items-center gap-1.5 text-kumo-subtle">
 						<ImageIcon className="size-6" aria-hidden="true" />
@@ -189,13 +230,46 @@ export function BlockKitMediaPickerField({
 					</div>
 				</Button>
 			)}
+			{showDarkSlot &&
+				(canPreviewDark ? (
+					<div className="mt-2">
+						<SelectedMediaCard
+							broken={darkImageBroken}
+							label={darkLabel}
+							heading={t`Dark mode variant`}
+							url={darkUrl}
+							onError={() => setDarkImageBroken(true)}
+							onReplace={() => openPicker("darkVariant")}
+							onRemove={() => onChange(darkKey, "")}
+						/>
+					</div>
+				) : (
+					<Button
+						type="button"
+						variant="secondary"
+						size="sm"
+						className="mt-2"
+						icon={<Moon aria-hidden="true" />}
+						onClick={() => openPicker("darkVariant")}
+					>
+						{t`Add dark mode variant`}
+					</Button>
+				))}
 			<MediaPickerModal
 				open={pickerOpen}
 				onOpenChange={setPickerOpen}
 				onSelect={handleSelect}
 				mimeTypeFilter={filter}
-				title={canPreview ? t`Replace ${label}` : t`Select ${label}`}
-				confirmLabel={canPreview ? t`Replace` : undefined}
+				title={
+					darkTarget
+						? canPreviewDark
+							? t`Replace ${darkLabel}`
+							: t`Select ${darkLabel}`
+						: canPreview
+							? t`Replace ${label}`
+							: t`Select ${label}`
+				}
+				confirmLabel={(darkTarget ? canPreviewDark : canPreview) ? t`Replace` : undefined}
 			/>
 		</div>
 	);

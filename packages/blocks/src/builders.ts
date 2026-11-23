@@ -396,6 +396,7 @@ function mediaPicker(
 		mimeTypeFilter?: string;
 		initialValue?: string;
 		placeholder?: string;
+		darkVariant?: boolean;
 	},
 ): MediaPickerElement {
 	return {
@@ -405,6 +406,7 @@ function mediaPicker(
 		...(opts?.mimeTypeFilter !== undefined && { mime_type_filter: opts.mimeTypeFilter }),
 		...(opts?.initialValue !== undefined && { initial_value: opts.initialValue }),
 		...(opts?.placeholder !== undefined && { placeholder: opts.placeholder }),
+		...(opts?.darkVariant !== undefined && { dark_variant: opts.darkVariant }),
 	};
 }
 

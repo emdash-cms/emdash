@@ -170,6 +170,11 @@ export interface MediaPickerElement {
 	mime_type_filter?: string;
 	initial_value?: string;
 	placeholder?: string;
+	/**
+	 * Offer a second slot for the image shown in a dark color scheme. The URL is
+	 * stored beside the primary value under `${action_id}_dark`.
+	 */
+	dark_variant?: boolean;
 }
 
 export type Element =

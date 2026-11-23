@@ -1,5 +1,5 @@
 import { Input, Select, Switch } from "@cloudflare/kumo";
-import type { Element } from "@emdash-cms/blocks";
+import { darkVariantActionId, type Element } from "@emdash-cms/blocks";
 import { useLingui } from "@lingui/react/macro";
 import * as React from "react";
 
@@ -32,7 +32,16 @@ export function BlockKitFieldWidget({
 
 	const handleElementChange = React.useCallback(
 		(actionId: string, elementValue: unknown) => {
-			onChange({ ...objRef.current, [actionId]: elementValue });
+			objRef.current = { ...objRef.current, [actionId]: elementValue };
+			onChange(objRef.current);
+		},
+		[onChange],
+	);
+
+	const handleElementChangeMany = React.useCallback(
+		(patch: Record<string, unknown>) => {
+			objRef.current = { ...objRef.current, ...patch };
+			onChange(objRef.current);
 		},
 		[onChange],
 	);
@@ -49,7 +58,9 @@ export function BlockKitFieldWidget({
 						key={el.action_id}
 						element={el}
 						value={obj[el.action_id]}
+						darkValue={obj[darkVariantActionId(el.action_id)]}
 						onChange={handleElementChange}
+						onChangeMany={handleElementChangeMany}
 					/>
 				))}
 			</div>
@@ -60,11 +71,15 @@ export function BlockKitFieldWidget({
 function BlockKitFieldElement({
 	element,
 	value,
+	darkValue,
 	onChange,
+	onChangeMany,
 }: {
 	element: Element;
 	value: unknown;
+	darkValue?: unknown;
 	onChange: (actionId: string, value: unknown) => void;
+	onChangeMany?: (patch: Record<string, unknown>) => void;
 }) {
 	const { t } = useLingui();
 	switch (element.type) {
@@ -120,6 +135,9 @@ function BlockKitFieldElement({
 					mimeTypeFilter={element.mime_type_filter}
 					value={value}
 					onChange={onChange}
+					darkVariant={element.dark_variant}
+					darkValue={darkValue}
+					onChangeMany={onChangeMany}
 				/>
 			);
 		default:

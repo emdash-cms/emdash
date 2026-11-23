@@ -16,6 +16,8 @@ import emdash from "emdash/astro";
 import { sqlite } from "emdash/db";
 import { installRegistryAuthoritativeFixture } from "emdash/internal/testing/registry";
 
+import { darkLogoPlugin } from "./src/dark-logo-plugin/index.mjs";
+
 const dbUrl = process.env.EMDASH_TEST_DB || "file:./test.db";
 const marketplaceUrl = process.env.EMDASH_MARKETPLACE_URL || undefined;
 const registryUrl = process.env.EMDASH_REGISTRY_URL || undefined;
@@ -110,7 +112,7 @@ export default defineConfig({
 		emdash({
 			database: sqlite({ url: dbUrl }),
 			middleware: { outer: "./src/outer-middleware.ts" },
-			plugins: [colorPlugin()],
+			plugins: [colorPlugin(), darkLogoPlugin()],
 			sandboxed: [editorExtensionsPlugin, { ...registryTestPlugin, hooks: e2eHooks }, deniedPlugin],
 			marketplace: marketplaceUrl,
 			registry: registryUrl,

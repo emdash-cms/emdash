@@ -436,6 +436,8 @@ The following repeater captures images and captions. Each `image` value is the s
 }
 ```
 
+Set `dark_variant: true` (builder: `mediaPicker("hero", "Hero", { darkVariant: true })`) to let editors add a second image for dark color schemes once a primary is chosen. The URL is stored under `${action_id}_dark` (`hero_dark`). Removing the primary clears it. No other element in the same field list may use that key. Render with `<Image image={node.hero} darkVariant={node.hero_dark} />`.
+
 ## Dynamic select options (`optionsRoute`)
 
 A `select` in a Portable Text block's `fields` can set `optionsRoute` to fill its dropdown from one of the plugin's own routes. It also works for a `select` nested in a `repeater` in those fields.
