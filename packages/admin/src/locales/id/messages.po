@@ -11522,7 +11522,7 @@ msgstr "Registri Pengaya"
 msgid "Plugin registry configuration error"
 msgstr "Galat konfigurasi registri pengaya"
 
-#: packages/admin/src/router.tsx:3424:
+#: packages/admin/src/router.tsx:3424
 #: packages/admin/src/router.tsx:3461
 msgid "Plugin registry is not configured."
 msgstr "Registri pengaya tidak dikonfigurasikan."
