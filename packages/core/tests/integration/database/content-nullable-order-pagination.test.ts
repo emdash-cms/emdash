@@ -19,12 +19,16 @@ describeEachDialect("content list cursor pages over nullable sort columns", (dia
 	let ctx: DialectTestContext;
 	let repo: ContentRepository;
 
-	/**
-	 * The list keeps each database's own NULL position: SQLite sorts NULL
-	 * lowest, Postgres highest.
-	 */
-	function expectedOrder(direction: Direction, nulls: string[], values: string[]): string[] {
-		const ascending = dialect === "sqlite" ? [...nulls, ...values] : [...values, ...nulls];
+	function expectedOrder(
+		direction: Direction,
+		nulls: string[],
+		values: string[],
+		field?: string,
+	): string[] {
+		const ascending =
+			field !== "publishedAt" && dialect === "sqlite"
+				? [...nulls, ...values]
+				: [...values, ...nulls];
 		return direction === "asc" ? ascending : ascending.toReversed();
 	}
 
@@ -99,7 +103,9 @@ describeEachDialect("content list cursor pages over nullable sort columns", (dia
 	] as const)("returns every entry once when paging by %s %s", async (field, direction) => {
 		await seedDates();
 
-		expect(await listIds(field, direction)).toEqual(expectedOrder(direction, UNDATED, DATED));
+		expect(await listIds(field, direction)).toEqual(
+			expectedOrder(direction, UNDATED, DATED, field),
+		);
 	});
 
 	it.each(["asc", "desc"] as const)(
@@ -135,11 +141,11 @@ describeEachDialect("content list cursor pages over nullable sort columns", (dia
 		const afterUndated = encodeCursor("", "undated-b");
 		const afterDated = encodeCursor(dated!.publishedAt!, "dated-2024");
 
-		const ascending = expectedOrder("asc", UNDATED, DATED);
+		const ascending = expectedOrder("asc", UNDATED, DATED, "publishedAt");
 		expect(await listIds("publishedAt", "asc", { cursor: afterUndated })).toEqual(
 			ascending.slice(ascending.indexOf("undated-b") + 1),
 		);
-		const descending = expectedOrder("desc", UNDATED, DATED);
+		const descending = expectedOrder("desc", UNDATED, DATED, "publishedAt");
 		expect(await listIds("publishedAt", "desc", { cursor: afterDated })).toEqual(
 			descending.slice(descending.indexOf("dated-2024") + 1),
 		);
@@ -150,6 +156,8 @@ describeEachDialect("content list cursor pages over nullable sort columns", (dia
 		["scheduledAt", "desc"],
 		["priority", "asc"],
 		["priority", "desc"],
+		["publishedAt", "asc"],
+		["publishedAt", "desc"],
 	] as const)("keeps every filter on every page when paging by %s %s", async (field, direction) => {
 		const matching: Array<[string, string | null, number | null]> = [
 			["undated-1", null, null],
@@ -159,8 +167,15 @@ describeEachDialect("content list cursor pages over nullable sort columns", (dia
 			["dated-2", "2026-02-01T00:00:00.000Z", 2],
 		];
 		for (const [id, scheduledAt, priority] of matching) {
-			await repo.create({ id, type: "post", status: "published", data: { priority } });
+			await repo.create({
+				id,
+				type: "post",
+				status: "published",
+				data: { priority },
+				publishedAt: scheduledAt,
+			});
 			if (scheduledAt) await repo.update("post", id, { scheduledAt });
+			else await repo.update("post", id, { publishedAt: null });
 		}
 		await repo.create({ id: "undated-draft", type: "post", data: { priority: null } });
 		await repo.create({
@@ -174,4 +189,64 @@ describeEachDialect("content list cursor pages over nullable sort columns", (dia
 		const ids = await listIds(field, direction, { where: { status: "published" } });
 		expect(ids.toSorted()).toEqual(matching.map(([id]) => id).toSorted());
 	});
+
+	it.each(["asc", "desc"] as const)(
+		"keeps author and locale filters while paging through publishedAt nulls %s",
+		async (direction) => {
+			await repo.create({
+				id: "filtered-null-a",
+				type: "post",
+				status: "published",
+				authorId: "author-a",
+				locale: "en",
+				data: {},
+				publishedAt: null,
+			});
+			await repo.create({
+				id: "filtered-null-b",
+				type: "post",
+				status: "published",
+				authorId: "author-a",
+				locale: "en",
+				data: {},
+				publishedAt: null,
+			});
+			await repo.create({
+				id: "filtered-dated",
+				type: "post",
+				status: "published",
+				authorId: "author-a",
+				locale: "en",
+				data: {},
+				publishedAt: "2026-01-01T00:00:00.000Z",
+			});
+			await repo.create({
+				id: "other-author",
+				type: "post",
+				status: "published",
+				authorId: "author-b",
+				locale: "en",
+				data: {},
+				publishedAt: null,
+			});
+			await repo.create({
+				id: "other-locale",
+				type: "post",
+				status: "published",
+				authorId: "author-a",
+				locale: "fr",
+				data: {},
+				publishedAt: null,
+			});
+
+			const ids = await listIds("publishedAt", direction, {
+				where: { status: "published", authorId: "author-a", locale: "en" },
+			});
+			expect(ids).toEqual(
+				direction === "asc"
+					? ["filtered-dated", "filtered-null-a", "filtered-null-b"]
+					: ["filtered-null-b", "filtered-null-a", "filtered-dated"],
+			);
+		},
+	);
 });
