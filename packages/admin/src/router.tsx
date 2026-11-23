@@ -1479,9 +1479,11 @@ function ContentEditPage() {
 	React.useLayoutEffect(() => {
 		editorShownRef.current = showsEditor;
 	});
-	// Until co-editing settles, the fields can still remount into a room, losing the focus and
-	// open blocks a field link gave them.
-	const fieldLinkReady = showsEditor && coEditing.mode !== "pending" && !leavingRoom;
+	// While the first join is in flight, the fields can still remount into a room, losing the focus
+	// and open blocks a field link gave them. A room that is full or busy can take any number of
+	// retries, so the link doesn't wait for those.
+	const fieldLinkReady =
+		showsEditor && (coEditing.mode !== "pending" || coEditing.waiting) && !leavingRoom;
 	const entryLock = useEntryLock({
 		collection,
 		entryId: id,

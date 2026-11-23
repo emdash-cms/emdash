@@ -209,8 +209,11 @@ async function sample<T>(
 		};
 		requestAnimationFrame(tick);
 	});
-	await trigger();
-	end = performance.now() + ms;
+	try {
+		await trigger();
+	} finally {
+		end = performance.now() + ms;
+	}
 	await sampled;
 	return frames;
 }
