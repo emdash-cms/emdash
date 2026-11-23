@@ -58,11 +58,15 @@ test.describe("Sandboxed plugin production boundaries", () => {
 		await expect(invoke("schema-exercise")).resolves.toMatchObject({
 			posts: { slug: "posts" },
 		});
-		await expect(invoke("users-exercise")).resolves.toMatchObject({
-			page: {
-				items: expect.arrayContaining([expect.objectContaining({ email: "dev@emdash.local" })]),
-			},
+		const users = await invoke<{ byEmail: unknown; page: { items: unknown[] } }>("users-exercise", {
+			email: "dev@emdash.local",
 		});
+		expect(users.byEmail).toMatchObject({ email: "dev@emdash.local" });
+		expect(users.page.items.length).toBeGreaterThan(0);
+		expect(users.page.items.length).toBeLessThanOrEqual(2);
+		for (const item of users.page.items) {
+			expect(item).toMatchObject({ id: expect.any(String), email: expect.any(String) });
+		}
 		await expect(invoke("cron-exercise")).resolves.toMatchObject({
 			scheduled: [expect.objectContaining({ name: "diagnostic" })],
 			remaining: [],
