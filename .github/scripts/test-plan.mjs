@@ -61,6 +61,7 @@ const UNIT_PACKAGE_BY_PATH = new Map([
 	["packages/x402/", "@emdash-cms/x402"],
 	["apps/aggregator/", "@emdash-cms/aggregator"],
 	["apps/labeler/", "@emdash-cms/labeler"],
+	["apps/plugin-review/", "@emdash-cms/plugin-review"],
 	["apps/release-action/", "@emdash-cms/release-action"],
 	["apps/release-service/", "@emdash-cms/release-service"],
 	["apps/release-verifier/", "@emdash-cms/release-verifier"],
