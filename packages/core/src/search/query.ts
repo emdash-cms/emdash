@@ -87,6 +87,16 @@ function isFts5SyntaxError(error: unknown): boolean {
 	return message.includes("fts5: syntax error") || message.includes("unknown special query");
 }
 
+// All queries must start before awaiting, but collection order determines tie
+// ordering and which error is surfaced when several collections fail.
+async function inCollectionOrder<T>(pending: Promise<T>[]): Promise<T[]> {
+	const settled = await Promise.allSettled(pending);
+	return settled.map((outcome) => {
+		if (outcome.status === "rejected") throw outcome.reason;
+		return outcome.value;
+	});
+}
+
 /**
  * Search across multiple collections
  *
@@ -143,30 +153,26 @@ export async function searchWithDb(
 	// row detects whether a further page exists.
 	const perCollectionLimit = offset + limit + 1;
 
-	// Search each collection and merge results
-	const allResults: RankedSearchResult[] = [];
-	for (const collection of collections) {
-		const collectionMetadata = metadata.get(collection);
-		if (!collectionMetadata) {
-			continue;
-		}
-
-		const collectionResults = await searchSingleCollection(
-			db,
-			collection,
-			query,
-			{
-				status,
-				locale: options.locale,
-				limit: perCollectionLimit,
-				scope: options.scope,
-			},
-			collectionMetadata,
-			true,
-		);
-
-		allResults.push(...collectionResults);
-	}
+	const collectionResults = await inCollectionOrder(
+		collections.map(async (collection) => {
+			const collectionMetadata = metadata.get(collection);
+			if (!collectionMetadata) return [];
+			return searchSingleCollection(
+				db,
+				collection,
+				query,
+				{
+					status,
+					locale: options.locale,
+					limit: perCollectionLimit,
+					scope: options.scope,
+				},
+				collectionMetadata,
+				true,
+			);
+		}),
+	);
+	const allResults = collectionResults.flat();
 
 	allResults.sort(
 		(a, b) =>
@@ -372,8 +378,10 @@ async function searchSingleCollection(
 		snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) AS snippet`;
 	let results;
 	try {
+		// D1 coalesces only statements beginning with SELECT; keep the CTEs
+		// inside a read-only outer SELECT so collection queries can batch.
 		const rankedQuery = rankAcrossCollections
-			? sql<SearchRow>`WITH matches AS MATERIALIZED (
+			? sql<SearchRow>`SELECT * FROM (WITH matches AS MATERIALIZED (
 				SELECT c.id, ${sql.raw(bm25Expr)} AS score, ${titleMatchTier} AS title_match_tier, ${titleLengthExpr} AS title_length
 				${fromMatches}
 			), best AS MATERIALIZED (
@@ -392,10 +400,10 @@ async function searchSingleCollection(
 			FROM ranked r
 			JOIN "${sql.raw(contentTable)}" c ON c.id = r.id
 			JOIN "${sql.raw(ftsTable)}" f ON f.id = c.id
-			WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery}
-			ORDER BY r.title_match_tier DESC,
-				CASE WHEN r.title_match_tier = 1 THEN r.title_length ELSE 0 END ASC,
-				r.score DESC, r.raw_score DESC, r.title_length ASC, r.id COLLATE BINARY`
+			WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery})
+			ORDER BY title_match_tier DESC,
+				CASE WHEN title_match_tier = 1 THEN title_length ELSE 0 END ASC,
+				score DESC, raw_score DESC, title_length ASC, id COLLATE BINARY`
 			: sql<SearchRow>`SELECT ${displayFields}, ${sql.raw(bm25Expr)} AS score, 0 AS title_match_tier, abs(${sql.raw(bm25Expr)}) AS raw_score, 0 AS title_length
 				${fromMatches} ORDER BY score, c.id COLLATE BINARY LIMIT ${limit}`;
 		results = await rankedQuery.execute(db);
@@ -531,42 +539,41 @@ export async function getSuggestions(
 	const ftsManager = new FTSManager(db);
 	const metadata = await ftsManager.getSearchMetadata(options.collections);
 	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
-	const suggestions: Suggestion[] = [];
+	const collectionSuggestions = await inCollectionOrder(
+		collections.map(async (collection): Promise<Suggestion[]> => {
+			const collectionMetadata = metadata.get(collection);
+			if (!collectionMetadata) return [];
+			const { config, hasTitle } = collectionMetadata;
 
-	for (const collection of collections) {
-		const collectionMetadata = metadata.get(collection);
-		if (!collectionMetadata) continue;
-		const { config, hasTitle } = collectionMetadata;
+			// Suggestions are title-based (Suggestion.title is required). A configured
+			// titleField supplies it -- a validated existing column -- so it
+			// takes precedence and keeps autocomplete consistent with search results.
+			// Otherwise fall back to the optional `title` field; collections with
+			// neither can't produce a suggestion and are skipped (selecting a missing
+			// column would error).
+			let titleExpr;
+			if (config.titleField) {
+				validateIdentifier(config.titleField, "title field");
+				titleExpr = sql`c.${sql.ref(config.titleField)}`;
+			} else if (hasTitle) {
+				titleExpr = sql`c.title`;
+			} else {
+				return [];
+			}
 
-		// Suggestions are title-based (Suggestion.title is required). A configured
-		// titleField supplies it -- a validated existing column -- so it
-		// takes precedence and keeps autocomplete consistent with search results.
-		// Otherwise fall back to the optional `title` field; collections with
-		// neither can't produce a suggestion and are skipped (selecting a missing
-		// column would error).
-		let titleExpr;
-		if (config.titleField) {
-			validateIdentifier(config.titleField, "title field");
-			titleExpr = sql`c.${sql.ref(config.titleField)}`;
-		} else if (hasTitle) {
-			titleExpr = sql`c.title`;
-		} else {
-			continue;
-		}
+			// Validate before raw SQL interpolation
+			validateIdentifier(collection, "collection slug");
 
-		// Validate before raw SQL interpolation
-		validateIdentifier(collection, "collection slug");
+			const ftsTable = ftsManager.getFtsTableName(collection);
+			const contentTable = ftsManager.getContentTableName(collection);
 
-		const ftsTable = ftsManager.getFtsTableName(collection);
-		const contentTable = ftsManager.getContentTableName(collection);
-
-		let results;
-		try {
-			results = await sql<{
-				id: string;
-				slug: string | null;
-				title: string;
-			}>`
+			let results;
+			try {
+				results = await sql<{
+					id: string;
+					slug: string | null;
+					title: string;
+				}>`
 				SELECT
 					c.id,
 					c.slug,
@@ -581,26 +588,26 @@ export async function getSuggestions(
 				ORDER BY bm25("${sql.raw(ftsTable)}")
 				LIMIT ${limit}
 			`.execute(db);
-		} catch (error) {
-			// Same swallow as searchSingleCollection: malformed prefix
-			// queries should yield no suggestions, not surface DB errors.
-			// Intentionally not logged (anonymous-triggerable, echoes
-			// user input -- see searchSingleCollection for rationale).
-			if (isFts5SyntaxError(error)) {
-				continue;
+			} catch (error) {
+				// Same swallow as searchSingleCollection: malformed prefix
+				// queries should yield no suggestions, not surface DB errors.
+				// Intentionally not logged (anonymous-triggerable, echoes
+				// user input -- see searchSingleCollection for rationale).
+				if (isFts5SyntaxError(error)) {
+					return [];
+				}
+				throw error;
 			}
-			throw error;
-		}
 
-		for (const row of results.rows) {
-			suggestions.push({
+			return results.rows.map((row) => ({
 				collection,
 				id: row.id,
 				slug: row.slug,
 				title: row.title,
-			});
-		}
-	}
+			}));
+		}),
+	);
+	const suggestions = collectionSuggestions.flat();
 
 	return suggestions.slice(0, limit);
 }

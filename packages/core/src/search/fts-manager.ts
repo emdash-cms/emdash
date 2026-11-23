@@ -11,6 +11,7 @@ import { isSqlite, tableExists as dialectTableExists } from "../database/dialect
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { isStoragelessFieldRow } from "../schema/types.js";
+import { chunks } from "../utils/chunks.js";
 import { normalizeSearchError } from "./errors.js";
 import { SEARCH_TOKENIZERS } from "./types.js";
 import type { SearchConfig, SearchTokenizer } from "./types.js";
@@ -757,16 +758,59 @@ export class FTSManager {
 		if (!isSqlite(this.db)) return 0;
 
 		const collections = await this.db
-			.selectFrom("_emdash_collections")
-			.select("slug")
-			.where("search_config", "is not", null)
+			.selectFrom("_emdash_collections as c")
+			.select([
+				"c.slug",
+				"c.search_config",
+				"c.title_field",
+				sql<number>`EXISTS (
+					SELECT 1 FROM sqlite_master
+					WHERE type = 'table' AND name = ${"_emdash_fts_"} || c.slug
+				)`.as("has_index"),
+			])
+			.where("c.search_config", "is not", null)
 			.execute();
+		const enabled = collections.filter(
+			(row) => row.search_config && parseSearchConfig(row.search_config, row.title_field)?.enabled,
+		);
+		const healthy = new Set<string>();
+
+		// One result column per collection; stay well under D1's 100-column limit.
+		for (const batch of chunks(
+			enabled.filter((row) => row.has_index),
+			40,
+		)) {
+			try {
+				const probes = batch.map(({ slug }, index) => {
+					const content = sql.ref(this.getContentTableName(slug));
+					const docsize = sql.ref(`${this.getFtsTableName(slug)}_docsize`);
+					const needsRepair =
+						options.checkRowCounts === false
+							? sql`NOT EXISTS (SELECT 1 FROM ${docsize}) AND EXISTS (
+							SELECT 1 FROM ${content} WHERE deleted_at IS NULL
+						)`
+							: sql`(SELECT COUNT(*) FROM ${content} WHERE deleted_at IS NULL)
+							!= (SELECT COUNT(*) FROM ${docsize})`;
+					return needsRepair.as(`probe_${index}`);
+				});
+				const result = await sql<Record<string, number>>`SELECT ${sql.join(probes)}`.execute(
+					this.db,
+				);
+				const row = result.rows[0];
+				if (row) {
+					for (const [index, collection] of batch.entries()) {
+						if (row[`probe_${index}`] === 0) healthy.add(collection.slug);
+					}
+				}
+			} catch {
+				// A missing shadow/content table or concurrent schema change must
+				// not prevent other collections from being verified and repaired.
+			}
+		}
 
 		let repaired = 0;
-		for (const { slug } of collections) {
-			const config = await this.getSearchConfig(slug);
-			if (!config?.enabled) continue;
-
+		for (const { slug } of enabled) {
+			if (healthy.has(slug)) continue;
 			try {
 				const wasRepaired = await this.verifyAndRepairIndex(slug, options);
 				if (wasRepaired) repaired++;

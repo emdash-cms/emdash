@@ -411,7 +411,8 @@ function normalizeMediaUsageReferenceType(
 		referenceType === "image_field" ||
 		referenceType === "file_field" ||
 		referenceType === "portable_text_image" ||
-		referenceType === "portable_text_video"
+		referenceType === "portable_text_video" ||
+		referenceType === "link"
 	) {
 		return referenceType;
 	}

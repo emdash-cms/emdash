@@ -14,7 +14,50 @@ function field(
 	return { slug, type, validation };
 }
 
+function linkOccurrence(
+	fieldSlug: string,
+	fieldPath: string,
+	storageKey: string,
+	occurrenceIndex = 0,
+) {
+	return {
+		fieldSlug,
+		fieldPath,
+		occurrenceIndex,
+		referenceType: "link" as const,
+		mediaId: null,
+		provider: "local",
+		providerAssetId: storageKey,
+		mediaKind: null,
+		mimeType: null,
+		storageKey,
+	};
+}
+
 describe("extractMediaUsageOccurrences", () => {
+	it("counts same-origin absolute links across fields, marks, and HTML without merging distinct uses", () => {
+		const url = "https://site.example/_emdash/api/media/file/guide.pdf?download=1#page=2";
+		const occurrences = extractMediaUsageOccurrences({
+			siteOrigin: "https://site.example",
+			fields: [field("download", "url"), field("body", "portableText")],
+			data: {
+				download: url,
+				body: [
+					{ _type: "block", markDefs: [{ _type: "link", href: url }] },
+					{
+						_type: "htmlBlock",
+						html: `<a href="${url}">PDF</a><img src="/_emdash/api/media/file/guide.pdf"><img src="https://other.example/_emdash/api/media/file/other.png">`,
+					},
+				],
+			},
+		});
+		expect(occurrences).toEqual([
+			linkOccurrence("download", "download", "guide.pdf"),
+			linkOccurrence("body", "body[0].markDefs[0].href", "guide.pdf"),
+			linkOccurrence("body", "body[1].html", "guide.pdf"),
+		]);
+	});
+
 	it("uses block keys and retained version definitions for nested media", () => {
 		const now = new Date().toISOString();
 		const layout: MediaUsageExtractionField = {
@@ -612,6 +655,163 @@ describe("extractMediaUsageOccurrences", () => {
 				mediaKind: "image",
 				mimeType: null,
 			},
+		]);
+	});
+
+	it("extracts media-file links from whole string and URL fields and Portable Text marks", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("cta", "string"), field("download", "url"), field("body", "portableText")],
+			data: {
+				cta: "/_emdash/api/media/file/cta.pdf?download=1#top",
+				download: "/_emdash/api/media/file/download.zip",
+				body: [
+					{
+						_type: "block",
+						_key: "p1",
+						children: [{ _type: "span", text: "PDF" }],
+						markDefs: [
+							{ _key: "link1", _type: "link", href: "/_emdash/api/media/file/marked.pdf" },
+						],
+					},
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([
+			linkOccurrence("cta", "cta", "cta.pdf"),
+			linkOccurrence("download", "download", "download.zip"),
+			linkOccurrence("body", "body[0].markDefs[0].href", "marked.pdf"),
+		]);
+	});
+
+	it("extracts href and src media links from HTML blocks", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("body", "portableText")],
+			data: {
+				body: [
+					{
+						_type: "htmlBlock",
+						_key: "html1",
+						html: `<A HREF="/_emdash/api/media/file/first%20file.pdf?x=1&amp;y=2">first</A>
+							<img SRC=/_emdash/api/media/file/second.png>
+							<a href='/_emdash/api/media/file/first%20file.pdf'>duplicate</a>
+							<a href="/_emdash/api/media/file/second.png">duplicate</a>`,
+					},
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([
+			linkOccurrence("body", "body[0].html", "first file.pdf", 0),
+			linkOccurrence("body", "body[0].html", "second.png", 1),
+		]);
+	});
+
+	it("ignores non-media URLs, embedded prose, and malformed media URLs", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [field("string", "string"), field("url", "url"), field("body", "portableText")],
+			data: {
+				string: "See /_emdash/api/media/file/embedded.pdf in this sentence",
+				url: "https://example.com/_emdash/api/media/file/external.pdf",
+				body: [
+					{
+						_type: "htmlBlock",
+						_key: "html1",
+						html: `<a href="/_emdash/api/media/file/%ZZ.pdf"></a>
+							<a href="some/_emdash/api/media/file/relative.pdf"></a>
+							<a href="//cdn.example.com/file.pdf"></a>`,
+					},
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([]);
+	});
+
+	it("extracts links from repeater string and URL subfields", () => {
+		const occurrences = extractMediaUsageOccurrences({
+			fields: [
+				field("downloads", "repeater", {
+					subFields: [
+						{ slug: "label", type: "string" },
+						{ slug: "href", type: "url" },
+					],
+				}),
+			],
+			data: {
+				downloads: [
+					{ label: "/_emdash/api/media/file/one.pdf", href: "/_emdash/api/media/file/two.pdf" },
+					{ label: "not a URL", href: "/_emdash/api/media/file/three.pdf" },
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([
+			linkOccurrence("downloads", "downloads[0].label", "one.pdf"),
+			linkOccurrence("downloads", "downloads[0].href", "two.pdf"),
+			linkOccurrence("downloads", "downloads[1].href", "three.pdf"),
+		]);
+	});
+
+	it("extracts links from block fields and nested repeater subfields", () => {
+		const now = new Date().toISOString();
+		const fields = [
+			{
+				slug: "content",
+				type: "blocks" as const,
+				blockTypes: [
+					{
+						id: "download-block",
+						slug: "download-block",
+						label: "Download block",
+						currentVersion: 1,
+						source: "user" as const,
+						createdAt: now,
+						updatedAt: now,
+						versions: [
+							{
+								id: "download-block-v1",
+								blockTypeId: "download-block",
+								version: 1,
+								fingerprint: "v1",
+								active: true,
+								createdAt: now,
+								updatedAt: now,
+								fields: [
+									{ slug: "href", label: "Href", type: "url" as const },
+									{
+										slug: "items",
+										label: "Items",
+										type: "repeater" as const,
+										validation: {
+											subFields: [{ slug: "file", label: "File", type: "string" as const }],
+										},
+									},
+								],
+							},
+						],
+					},
+				],
+			},
+		];
+		const occurrences = extractMediaUsageOccurrences({
+			fields,
+			data: {
+				content: [
+					{
+						_type: "download-block",
+						_version: 1,
+						_key: "download",
+						href: "/_emdash/api/media/file/block.pdf",
+						items: [{ file: "/_emdash/api/media/file/nested.pdf" }],
+					},
+				],
+			},
+		});
+
+		expect(occurrences).toEqual([
+			linkOccurrence("content", "content.download.href", "block.pdf"),
+			linkOccurrence("content", "content.download.items[0].file", "nested.pdf"),
 		]);
 	});
 });

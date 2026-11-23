@@ -1266,6 +1266,10 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/auth/signup/register-options",
+		entrypoint: resolveRoute("api/auth/signup/register-options.ts"),
+	});
+	injectRoute({
 		pattern: "/_emdash/api/auth/signup/complete",
 		entrypoint: resolveRoute("api/auth/signup/complete.ts"),
 	});

@@ -97,6 +97,7 @@ import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
 import { safeJsonSchemaToZod } from "./mcp/json-schema.js";
 import { pluginToolName } from "./mcp/plugin-tool-name.js";
+import { mediaCacheTag } from "./media/image-endpoint.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import { linkPortableTextFileUrls } from "./media/portable-text-file-refs.js";
 import type { MediaProvider, MediaProviderCapabilities } from "./media/types.js";
@@ -1281,7 +1282,11 @@ export class EmDashRuntime {
 		if (!this.shouldRunSystemCleanup(currentTime)) return;
 		this.lastSystemCleanupAt = currentTime;
 		try {
-			await runSystemCleanup(this.db, this.storage ?? undefined);
+			await runSystemCleanup(
+				this.db,
+				this.storage ?? undefined,
+				this.pluginContentCacheInvalidator,
+			);
 		} catch (error) {
 			console.error("[cleanup] System cleanup failed:", error);
 		}
@@ -2957,6 +2962,13 @@ export class EmDashRuntime {
 				requireRuntime().beginPluginInvocation(pluginId, invocationId, invalidateContentCache),
 			flush: (pluginId, invocationId, final) =>
 				requireRuntime().flushPluginAfterHooks(pluginId, invocationId, final),
+			invalidateMedia: async (pluginId, storageKey, invocationId, invalidateContentCache) =>
+				runtimeRef.current?.invalidatePluginMedia(
+					pluginId,
+					storageKey,
+					invocationId,
+					invalidateContentCache,
+				),
 			getVersioned: (pluginId, collection, id) =>
 				requireRuntime().pluginGetVersioned(pluginId, collection, id),
 			publish: (pluginId, collection, id, options, invocationId, invalidateContentCache) =>
@@ -3085,7 +3097,7 @@ export class EmDashRuntime {
 		// so the timer scheduler's cleanup can route scheduled publishing through
 		// the runtime wrapper (firing content:afterPublish hooks). The first tick
 		// is ≥1s out, well after the synchronous assignment below.
-		await phase("rt.cron", "Cron init (recovery deferred post-response)", async () => {
+		await phase("rt.cron", "Cron init", async () => {
 			try {
 				cronExecutor = new CronExecutor(resolveDb, invokeCronHook, deps.now);
 				// Plugin schedules are always database-backed. On long-lived runtimes this
@@ -3093,26 +3105,6 @@ export class EmDashRuntime {
 				// drives execution, so rescheduling is intentionally a no-op.
 				pipeline.setContextFactory({
 					cronReschedule: () => cronScheduler?.reschedule(),
-				});
-
-				// Recover stale locks from previous crashes. Pure bookkeeping
-				// against the _emdash_cron_tasks table — no request needs the
-				// result — so we defer it past the response via after(). On
-				// Cloudflare this goes into waitUntil (extending the worker
-				// lifetime); on Node it's fire-and-forget (the process stays
-				// up anyway). Saves one cold-start write per D1 isolate.
-				const executorForRecovery = cronExecutor;
-				after(async () => {
-					try {
-						const recovered = await executorForRecovery.recoverStaleLocks();
-						if (recovered > 0) {
-							console.log(`[cron] Recovered ${recovered} stale task lock(s)`);
-						}
-					} catch (error) {
-						// Keep the `[cron]` prefix so a failure is easy to trace back
-						// rather than surfacing as a generic deferred-task error.
-						console.error("[cron] Failed to recover stale task locks:", error);
-					}
 				});
 
 				// The platform decides whether a long-lived timer heartbeat exists.
@@ -5095,7 +5087,7 @@ export class EmDashRuntime {
 			const { allowed } = await this.hooks.runContentBeforeDelete(id, collection);
 			if (!allowed) {
 				return {
-					success: false,
+					success: false as const,
 					error: {
 						code: "DELETE_BLOCKED",
 						message: "Delete blocked by plugin hook",
@@ -6951,6 +6943,9 @@ export class EmDashRuntime {
 			...actions,
 			begin: (pluginId, invocationId, invocationInvalidator) =>
 				actions.begin?.(pluginId, invocationId, invocationInvalidator ?? invalidateContentCache),
+			invalidateMedia: (pluginId, storageKey, invocationId) =>
+				actions.invalidateMedia?.(pluginId, storageKey, invocationId, invalidateContentCache) ??
+				Promise.resolve(),
 			publish: (pluginId, collection, id, options, invocationId) =>
 				actions.publish(pluginId, collection, id, options, invocationId, invalidateContentCache),
 			unpublish: (pluginId, collection, id, options, invocationId) =>
@@ -7508,6 +7503,36 @@ export class EmDashRuntime {
 		return JSON.stringify([pluginId, invocationId]);
 	}
 
+	private async invalidatePluginMedia(
+		pluginId: string,
+		storageKey: string,
+		invocationId?: string,
+		invalidateContentCache?: PluginContentCacheInvalidator,
+	): Promise<void> {
+		const key = invocationId ? this.pluginInvocationKey(pluginId, invocationId) : undefined;
+		const invalidator =
+			invalidateContentCache ??
+			(key ? this.pluginInvocationCacheInvalidators.get(key) : undefined) ??
+			this.pluginContentCacheInvalidator;
+		if (!invalidator) return;
+		const purge = async () => {
+			try {
+				await invalidator([mediaCacheTag(storageKey)]);
+			} catch (error) {
+				console.error(`[plugin-media] Cache invalidation failed for ${storageKey}:`, error);
+			}
+		};
+		// Workers Cache purges only the calling entrypoint's entries, and a sandbox
+		// bridge call runs in its own entrypoint, so purge when the host flushes the invocation.
+		if (key && this.activePluginInvocations.has(key)) {
+			const pending = this.pendingPluginAfterHooks.get(key) ?? [];
+			pending.push(purge);
+			this.pendingPluginAfterHooks.set(key, pending);
+			return;
+		}
+		await purge();
+	}
+
 	private beginPluginInvocation(
 		pluginId: string,
 		invocationId: string,
@@ -7539,6 +7564,9 @@ export class EmDashRuntime {
 			this.pluginInvocationCacheInvalidators.delete(key);
 		} else {
 			const timer = setTimeout(() => {
+				const late = this.pendingPluginAfterHooks.get(key) ?? [];
+				this.pendingPluginAfterHooks.delete(key);
+				for (const invoke of late) after(invoke);
 				this.releasedPluginInvocations.delete(key);
 				this.activePluginInvocations.delete(key);
 				this.pluginInvocationCacheInvalidators.delete(key);

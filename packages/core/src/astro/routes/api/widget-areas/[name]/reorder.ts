@@ -18,6 +18,9 @@ export const prerender = false;
 
 export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const db = emdash.db;
 	const { name } = params;
 

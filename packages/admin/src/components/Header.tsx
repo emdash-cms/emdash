@@ -1,11 +1,12 @@
 import { Badge, Button, LinkButton, Popover } from "@cloudflare/kumo";
 import { useLingui } from "@lingui/react/macro";
-import { SignOut, Shield, Gear, ArrowSquareOut } from "@phosphor-icons/react";
+import { SignOut, Shield, Gear, ArrowSquareOut, EyeSlash } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import { apiFetch } from "../lib/api/client";
 import { useCurrentUser } from "../lib/api/current-user";
+import { AdminBreadcrumbs } from "./AdminBreadcrumbs.js";
 import { Sidebar } from "./Sidebar";
 import { ThemeToggle } from "./ThemeToggle";
 import { UserAvatar } from "./UserAvatar.js";
@@ -45,30 +46,38 @@ export function Header({ staging = false }: { staging?: boolean }) {
 
 	const displayName = user?.name || user?.email || t`User`;
 
+	const stagingBadge = (
+		<Badge variant="warning">
+			<EyeSlash aria-hidden="true" className="size-3.5 sm:hidden" />
+			<span className="sr-only sm:not-sr-only">{t`Staging`}</span>
+		</Badge>
+	);
+
 	return (
 		// h-[58px] is mirrored by ADMIN_HEADER_HEIGHT_PX in ContentEditor.tsx
 		// (the settings sheet offsets its body by it) — change both together.
-		<header className="sticky top-0 z-10 flex h-[58px] items-center justify-end border-b bg-kumo-elevated px-4">
+		<header className="sticky top-0 z-10 flex h-[58px] items-center gap-3 border-b bg-kumo-elevated px-4 md:ps-6">
 			{/* The desktop trigger lives in the sidebar footer; mobile keeps it here so the closed sheet can reopen. */}
-			<Sidebar.Trigger className="me-auto cursor-pointer md:hidden rtl:rotate-180" />
+			<Sidebar.Trigger className="shrink-0 cursor-pointer md:hidden rtl:rotate-180" />
 
-			{/* Right side actions */}
-			<div className="flex items-center gap-2">
+			<div className="flex min-w-0 flex-1 items-center">
+				<AdminBreadcrumbs />
+			</div>
+
+			<div className="flex shrink-0 items-center gap-2">
 				{staging &&
 					((user?.role ?? 0) >= ROLE_ADMIN ? (
 						<Link to="/settings/general" title={t`Hidden from search engines until you go live`}>
-							<Badge variant="warning">{t`Staging`}</Badge>
+							{stagingBadge}
 						</Link>
 					) : (
-						<span title={t`Hidden from search engines until you go live`}>
-							<Badge variant="warning">{t`Staging`}</Badge>
-						</span>
+						<span title={t`Hidden from search engines until you go live`}>{stagingBadge}</span>
 					))}
 
 				{/* View site link */}
-				<LinkButton variant="ghost" size="sm" href="/" external>
-					<ArrowSquareOut className="h-4 w-4 me-1" />
-					{t`View Site`}
+				<LinkButton variant="ghost" size="sm" href="/" external aria-label={t`View Site`}>
+					<ArrowSquareOut className="h-4 w-4 sm:me-1" aria-hidden="true" />
+					<span className="hidden sm:inline">{t`View Site`}</span>
 				</LinkButton>
 
 				{/* Theme toggle */}
