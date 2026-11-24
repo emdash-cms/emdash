@@ -91,15 +91,9 @@ describe("search snippet sanitization", () => {
 		expect(snippet).toContain("&lt;");
 	});
 
-	it("does not crash when the snippet column is NULL", async () => {
-		// FTS triggers insert raw column values with no COALESCE, so a
-		// snippet column that is NULL for a given row produces a NULL
-		// snippet from SQLite. With automatic column selection (-1) this
-		// is rare in practice — SQLite only picks a column that has a
-		// match, and a matched row always has a match in *some* column —
-		// but the guard stays cheap insurance. A regression that drops it
-		// throws "Cannot read properties of null (reading 'replace')"
-		// before these assertions can run.
+	it("matches via body when the title is NULL", async () => {
+		// FTS triggers insert raw column values with no COALESCE, so the
+		// title column is NULL for this row and only the body can match.
 		const registry = new SchemaRegistry(db);
 		await registry.updateField("post", "content", { searchable: true });
 		const ftsManager = new FTSManager(db);
@@ -129,16 +123,12 @@ describe("search snippet sanitization", () => {
 		});
 
 		expect(items).toHaveLength(1);
-		// Whether the snippet ends up as a string or undefined doesn't
-		// matter — the contract is "the search call must not throw".
-		expect(typeof items[0]!.snippet === "string" || items[0]!.snippet === undefined).toBe(true);
+		expect(items[0]!.snippet).toContain("<mark>Quokka</mark>");
 	});
 
 	it("snippet reflects the field that actually matched, not always the title", async () => {
-		// Title never mentions the query term; only the body does. With the
-		// hardcoded column-2 (title) snippet, this row's snippet would be
-		// the title text and would NOT contain the matched word. With
-		// automatic column selection it must.
+		// Title never mentions the query term; only the body does, so the
+		// snippet must come from the body.
 		const registry = new SchemaRegistry(db);
 		await registry.updateField("post", "content", { searchable: true });
 		const ftsManager = new FTSManager(db);
