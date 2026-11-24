@@ -3,17 +3,16 @@ title: Organizations and multiple sites per deployment
 type: rfc
 status: proposed
 authors:
-  - Name (@github-handle)
-champion: Name (@github-handle)
-sponsor: Name (@github-handle)
-discussions:
-  - https://github.com/emdash-cms/emdash/discussions/XXX
+  - Srikanth K (@oh-tarnished)
+champion: Srikanth K (@oh-tarnished)
+sponsor: TBD
+discussions: []
 created: 2026-11-24
 ---
 
 # Organizations and multiple sites per deployment
 
-> **Draft.** The [open questions](#open-questions) need answers before acceptance.
+> **Draft.** This RFC needs a Maintainer sponsor and an Ideas Discussion, and the [open questions](#open-questions) need answers before acceptance.
 
 ## Summary
 
