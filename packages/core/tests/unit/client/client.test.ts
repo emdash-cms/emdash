@@ -104,6 +104,88 @@ function mediaUsageRepairResponse(
 // ---------------------------------------------------------------------------
 
 describe("EmDashClient", () => {
+	it("surfaces setup-required dev bypass errors without calling the API", async () => {
+		const originalFetch = globalThis.fetch;
+		let apiRequestCalled = false;
+		globalThis.fetch = async (input) => {
+			const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+			if (url.endsWith("/_emdash/api/auth/dev-bypass")) {
+				return new Response(
+					JSON.stringify({
+						error: {
+							code: "SETUP_REQUIRED",
+							message: "Complete setup before using the dev bypass",
+						},
+					}),
+					{ status: 409, headers: { "Content-Type": "application/json" } },
+				);
+			}
+			apiRequestCalled = true;
+			return new Response("unexpected API request", { status: 500 });
+		};
+
+		try {
+			const client = new EmDashClient({ baseUrl: "http://localhost:4321", devBypass: true });
+			await expect(client.collections()).rejects.toMatchObject({
+				status: 409,
+				code: "SETUP_REQUIRED",
+				message: "Complete setup before using the dev bypass",
+			});
+			expect(apiRequestCalled).toBe(false);
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
+	it("retries dev authentication after setup on the same client and shares concurrent attempts", async () => {
+		const originalFetch = globalThis.fetch;
+		let setupComplete = false;
+		let bypassRequests = 0;
+		const apiCookies: (string | null)[] = [];
+		globalThis.fetch = async (input) => {
+			const request = new Request(input);
+			if (request.url.endsWith("/_emdash/api/auth/dev-bypass")) {
+				bypassRequests++;
+				if (!setupComplete) {
+					return jsonResponse(
+						{ error: { code: "SETUP_REQUIRED", message: "Complete setup first" } },
+						409,
+					);
+				}
+				return new Response("{}", {
+					headers: { "Set-Cookie": "session=dev-session; Path=/; HttpOnly" },
+				});
+			}
+			apiCookies.push(request.headers.get("cookie"));
+			return jsonResponse({ items: [{ slug: "posts", label: "Posts", supports: [] }] });
+		};
+
+		try {
+			const client = new EmDashClient({ baseUrl: "http://localhost:4321", devBypass: true });
+			const failures = await Promise.allSettled([client.collections(), client.collections()]);
+			for (const result of failures) {
+				expect(result.status).toBe("rejected");
+				if (result.status === "rejected") {
+					expect(result.reason).toBeInstanceOf(EmDashApiError);
+					expect(result.reason).toMatchObject({ status: 409, code: "SETUP_REQUIRED" });
+				}
+			}
+			expect(bypassRequests).toBe(1);
+			expect(apiCookies).toEqual([]);
+
+			setupComplete = true;
+			const recovered = await Promise.all([client.collections(), client.collections()]);
+			for (const collections of recovered) {
+				expect(collections).toMatchObject([{ slug: "posts" }]);
+			}
+			await client.collections();
+			expect(bypassRequests).toBe(2);
+			expect(apiCookies).toEqual(Array(3).fill("session=dev-session"));
+		} finally {
+			globalThis.fetch = originalFetch;
+		}
+	});
+
 	describe("_rev token flow", () => {
 		it("blind update (no _rev) succeeds", async () => {
 			const backend = createMockBackend([
@@ -386,6 +468,53 @@ describe("EmDashClient", () => {
 	});
 
 	describe("API error handling", () => {
+		it.each([
+			["upstream timed out", "Internal Server Error", "upstream timed out"],
+			[" \n upstream timed out \n ", "Internal Server Error", "upstream timed out"],
+			["{invalid json", "Internal Server Error", "{invalid json"],
+			["x".repeat(600), "Internal Server Error", "x".repeat(500)],
+			["", "Internal Server Error", "Internal Server Error"],
+			[" \n\t ", "Internal Server Error", "Internal Server Error"],
+			["", "", "HTTP 500"],
+		])("preserves a useful message for non-JSON body %j", async (body, statusText, message) => {
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [async () => new Response(body, { status: 500, statusText })],
+			});
+
+			await expect(client.list("posts")).rejects.toMatchObject({
+				name: "EmDashApiError",
+				status: 500,
+				code: "UNKNOWN_ERROR",
+				message,
+			});
+		});
+
+		it("falls back to status text when the error body cannot be read", async () => {
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				interceptors: [
+					async () =>
+						new Response(
+							new ReadableStream({
+								start(controller) {
+									controller.error(new Error("Connection closed"));
+								},
+							}),
+							{ status: 502, statusText: "Bad Gateway" },
+						),
+				],
+			});
+
+			await expect(client.list("posts")).rejects.toMatchObject({
+				name: "EmDashApiError",
+				status: 502,
+				code: "UNKNOWN_ERROR",
+				message: "Bad Gateway",
+			});
+		});
+
 		it("throws EmDashApiError on 4xx responses", async () => {
 			const backend = createMockBackend([
 				{

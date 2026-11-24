@@ -295,6 +295,40 @@ describe("generateManifest()", () => {
 		});
 	});
 
+	it("omits the schema type for unsupported database fields and Zod-derived fields", async () => {
+		const registry = new SchemaRegistry(db);
+		const collection = await registry.createCollection({
+			slug: "imports",
+			label: "Imports",
+			labelSingular: "Import",
+			source: "manual",
+		});
+		await db
+			.insertInto("_emdash_fields")
+			.values({
+				id: "field_unknown_type",
+				collection_id: collection.id,
+				slug: "payload",
+				label: "Payload",
+				type: "unknown_plugin_type",
+				column_type: "TEXT",
+				required: 0,
+				unique: 0,
+				default_value: null,
+				validation: null,
+				widget: null,
+				options: null,
+				sort_order: 0,
+			})
+			.execute();
+
+		const manifest = await generateManifest(configCollections, {}, { db });
+
+		expect(manifest.collections.imports?.fields.payload).not.toHaveProperty("type");
+		expect(manifest.collections.posts?.fields.title).toMatchObject({ kind: "string" });
+		expect(manifest.collections.posts?.fields.title).not.toHaveProperty("type");
+	});
+
 	it("includes retained block definitions and changes hash when their contract changes", async () => {
 		const blocks = new BlockTypeRegistry(db);
 		const registry = new SchemaRegistry(db);
@@ -403,6 +437,27 @@ describe("EmDashRuntime.getManifest()", () => {
 		expect(posts).toBeDefined();
 		expect(posts?.fields.title?.kind).toBe("string");
 		expect(posts?.fields.body?.kind).toBe("json");
+	});
+
+	it("reports each field's schema type, telling slug from string", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({
+			slug: "posts",
+			label: "Posts",
+			labelSingular: "Post",
+			source: "test",
+		});
+		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
+		await registry.createField("posts", { slug: "handle", label: "Handle", type: "slug" });
+		await registry.createField("posts", { slug: "excerpt", label: "Excerpt", type: "text" });
+		await registry.createField("posts", { slug: "rank", label: "Rank", type: "integer" });
+
+		const fields = (await buildRuntime(db).getManifest()).collections.posts?.fields;
+
+		expect(fields?.title).toMatchObject({ kind: "string", type: "string" });
+		expect(fields?.handle).toMatchObject({ kind: "string", type: "slug" });
+		expect(fields?.excerpt).toMatchObject({ kind: "richText", type: "text" });
+		expect(fields?.rank).toMatchObject({ kind: "number", type: "integer" });
 	});
 
 	it("forwards declared validation on every field type", async () => {

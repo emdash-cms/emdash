@@ -75,6 +75,8 @@ export interface SchemaCollection {
 	urlPattern?: string;
 	/** Published entries require a slug unless this is false. */
 	routable?: boolean;
+	/** Source for the content list's Date column. */
+	dateField?: string | null;
 	hasSeo: boolean;
 	/** Sidebar entry, dashboard quick action, and dashboard Content card row omitted in the admin; the collection stays reachable by URL */
 	hidden: boolean;
@@ -166,6 +168,8 @@ export interface UpdateCollectionInput {
 	supports?: string[];
 	urlPattern?: string;
 	routable?: boolean;
+	/** Source for the content list's Date column. */
+	dateField?: string | null;
 	hasSeo?: boolean;
 	hidden?: boolean;
 	sortOrder?: number | null;

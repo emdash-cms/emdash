@@ -3,6 +3,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { handleMediaUsageSummaries } from "../../../src/api/handlers/media-usage.js";
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
+import { MediaRepository } from "../../../src/database/repositories/media.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
 import type { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
@@ -88,6 +90,66 @@ describeEachDialect("runtime content media usage refresh", (dialect) => {
 	afterEach(async () => {
 		setI18nConfig(null);
 		await teardownForDialect(ctx);
+	});
+
+	it("resolves a Portable Text media link after runtime content create and save", async () => {
+		await new OptionsRepository(ctx.db).set("emdash:site_url", "https://site.example");
+		await new SchemaRegistry(ctx.db).createField("posts", {
+			slug: "body",
+			label: "Body",
+			type: "portableText",
+		});
+		const pdf = await new MediaRepository(ctx.db).create({
+			filename: "runtime-linked.pdf",
+			mimeType: "application/pdf",
+			storageKey: "01KRUNTIMEPDF.pdf",
+		});
+		const mediaUrl = "https://site.example/_emdash/api/media/file/01KRUNTIMEPDF.pdf";
+		const created = await runtime.handleContentCreate("posts", {
+			slug: "runtime-linked-file",
+			data: {
+				title: "Runtime linked file",
+				body: [
+					{
+						_type: "block",
+						_key: "linked",
+						children: [{ _type: "span", _key: "text", text: "Download" }],
+						markDefs: [{ _type: "link", _key: "pdf", href: mediaUrl }],
+					},
+				],
+			},
+		});
+
+		expect(created.success).toBe(true);
+		if (!created.success) throw new Error(created.error.message);
+		const contentId = created.data.item.id;
+		expect(await usageRepo.findCurrentUsageByMediaId(pdf.id)).toEqual([
+			expect.objectContaining({
+				source: expect.objectContaining({ contentId, sourceVariant: "columns" }),
+				occurrence: expect.objectContaining({
+					fieldPath: "body[0].markDefs[0].href",
+					referenceType: "link",
+					mediaId: pdf.id,
+				}),
+			}),
+		]);
+
+		const saved = await runtime.handleContentUpdate("posts", contentId, {
+			data: { body: created.data.item.data.body },
+		});
+		expect(saved.success).toBe(true);
+		expect(await usageRepo.findCurrentUsageByMediaId(pdf.id)).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					source: expect.objectContaining({ contentId, sourceVariant: "draft_overlay" }),
+					occurrence: expect.objectContaining({
+						fieldPath: "body[0].markDefs[0].href",
+						referenceType: "link",
+						mediaId: pdf.id,
+					}),
+				}),
+			]),
+		);
 	});
 
 	it("refreshes columns usage after runtime content create", async () => {

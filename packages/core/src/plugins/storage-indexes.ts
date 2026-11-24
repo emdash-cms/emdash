@@ -10,6 +10,7 @@ import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
 import { jsonExtractExpr, isPostgres } from "../database/dialect-helpers.js";
+import { generateIndexName } from "../database/plugin-storage-index-name.js";
 import type { Database } from "../database/types.js";
 import {
 	validateJsonFieldName,
@@ -17,29 +18,14 @@ import {
 	validateStorageCollectionName,
 } from "../database/validate.js";
 
-/**
- * Generate a deterministic index name.
- * Unique indexes use a `uidx_` prefix to avoid collisions with regular indexes on the same fields.
- */
-export function generateIndexName(
-	pluginId: string,
-	collection: string,
-	fields: string[],
-	options?: { unique?: boolean },
-): string {
-	const prefix = options?.unique ? "uidx" : "idx";
-	const fieldPart = fields.join("_");
-	// SQLite index names have no length limit, but keep it reasonable
-	return `${prefix}_plugin_${pluginId}_${collection}_${fieldPart}`.substring(0, 128);
-}
+export { generateIndexName };
 
 /**
  * Generate a Kysely sql expression for creating an expression index.
  *
  * Validates all inputs before interpolation. The collection uses the
  * permissive manifest-key rules rather than SQL-identifier rules — it is
- * stored as opaque text and only reaches SQL inside the generated index
- * name — so kebab-case collections index like any other.
+ * stored as opaque text in index names and partial-index predicates.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function generateCreateIndexSql(
@@ -69,15 +55,15 @@ export function generateCreateIndexSql(
 		})
 		.join(", ");
 
-	// Composite non-partial index: the leading (plugin_id, collection) columns
-	// scope it per plugin/collection — including unique-index semantics — and
-	// let it serve the repository's bound-parameter WHERE plus the JSON
-	// expression ORDER BY. A partial index (WHERE plugin_id = 'x' AND
-	// collection = 'y') is never chosen by SQLite under bound parameters
-	// unless ANALYZE has run, and D1 never runs ANALYZE.
+	// Partial unique indexes enforce only the declaring scope. Keep regular
+	// indexes non-partial so bound-parameter lookups work without ANALYZE on D1.
 	const createKeyword = options?.unique ? "CREATE UNIQUE INDEX" : "CREATE INDEX";
+	const predicate = options?.unique
+		? sql`WHERE plugin_id = ${sql.lit(pluginId)} AND collection = ${sql.lit(collection)}`
+		: sql``;
 	return sql`${sql.raw(createKeyword)} IF NOT EXISTS ${sql.ref(indexName)}
 		ON _plugin_storage(plugin_id, collection, ${sql.raw(expressions)})
+		${predicate}
 	`;
 }
 
@@ -97,6 +83,24 @@ export function normalizeIndexes(indexes: Array<string | string[]>): string[][] 
 	return indexes.map((index) => (Array.isArray(index) ? index : [index]));
 }
 
+export function getStorageIndexDefinitions(
+	indexes: Array<string | string[]>,
+	options?: { uniqueIndexes?: Array<string | string[]> },
+): Array<{ fields: string[]; unique: boolean }> {
+	const normalized = normalizeIndexes(indexes);
+	const uniqueNormalized = normalizeIndexes(options?.uniqueIndexes ?? []);
+	const lookupFields = [
+		...new Map(
+			[...normalized, ...uniqueNormalized].map((fields) => [fields.join(","), fields]),
+		).values(),
+	];
+
+	return [
+		...lookupFields.map((fields) => ({ fields, unique: false })),
+		...uniqueNormalized.map((fields) => ({ fields, unique: true })),
+	];
+}
+
 /**
  * Create all declared indexes for a plugin collection
  */
@@ -110,16 +114,7 @@ export async function createStorageIndexes(
 	created: string[];
 	errors: Array<{ index: string; error: string }>;
 }> {
-	const normalized = normalizeIndexes(indexes);
-	const uniqueNormalized = options?.uniqueIndexes ? normalizeIndexes(options.uniqueIndexes) : [];
-	const uniqueSet = new Set(uniqueNormalized.map((f) => f.join(",")));
-
-	// Deduplicate: if fields appear in both indexes and uniqueIndexes, only create the unique version
-	const deduped = normalized.filter((f) => !uniqueSet.has(f.join(",")));
-	const allEntries: Array<{ fields: string[]; unique: boolean }> = [
-		...deduped.map((fields) => ({ fields, unique: false })),
-		...uniqueNormalized.map((fields) => ({ fields, unique: true })),
-	];
+	const allEntries = getStorageIndexDefinitions(indexes, options);
 
 	const created: string[] = [];
 	const errors: Array<{ index: string; error: string }> = [];
@@ -180,21 +175,12 @@ export async function removeOrphanedIndexes(
 	removed: string[];
 	errors: Array<{ index: string; error: string }>;
 }> {
-	const normalized = normalizeIndexes(currentIndexes);
-	const uniqueNormalized = options?.uniqueIndexes ? normalizeIndexes(options.uniqueIndexes) : [];
-	const uniqueSet = new Set(uniqueNormalized.map((f) => f.join(",")));
-
 	// Build the set of expected index names (regular + unique with correct prefix)
-	const currentIndexNames = new Set<string>();
-	for (const fields of normalized) {
-		// If this field set is in both, only the unique version exists (deduplication in create)
-		if (!uniqueSet.has(fields.join(","))) {
-			currentIndexNames.add(generateIndexName(pluginId, collection, fields));
-		}
-	}
-	for (const fields of uniqueNormalized) {
-		currentIndexNames.add(generateIndexName(pluginId, collection, fields, { unique: true }));
-	}
+	const currentIndexNames = new Set(
+		getStorageIndexDefinitions(currentIndexes, options).map((entry) =>
+			generateIndexName(pluginId, collection, entry.fields, { unique: entry.unique }),
+		),
+	);
 
 	// Get existing indexes from tracking table
 	const existingIndexes = await db
@@ -248,10 +234,10 @@ export async function syncStorageIndexes(
 	removed: string[];
 	errors: Array<{ index: string; error: string }>;
 }> {
-	const [createResult, removeResult] = await Promise.all([
-		createStorageIndexes(db, pluginId, collection, indexes, options),
-		removeOrphanedIndexes(db, pluginId, collection, indexes, options),
-	]);
+	// A truncated legacy name can equal a new short name on PostgreSQL.
+	// Drop stale indexes first so IF NOT EXISTS cannot reuse the wrong index.
+	const removeResult = await removeOrphanedIndexes(db, pluginId, collection, indexes, options);
+	const createResult = await createStorageIndexes(db, pluginId, collection, indexes, options);
 
 	return {
 		created: createResult.created,

@@ -515,13 +515,11 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		await vi.waitFor(
 			async () => {
 				const entered = await db
-					.selectFrom("_plugin_storage")
-					.select("data")
-					.where("plugin_id", "=", pluginId)
-					.where("collection", "=", "__kv")
-					.where("id", "=", "entered")
+					.selectFrom("options")
+					.select("value")
+					.where("name", "=", `plugin:${pluginId}:entered`)
 					.executeTakeFirst();
-				expect(entered?.data).toBe("true");
+				expect(entered?.value).toBe("true");
 			},
 			{ timeout: 5000, interval: 10 },
 		);
@@ -544,13 +542,11 @@ describe.skipIf(!workerdAvailable)("WorkerdSandboxRunner integration", () => {
 		expect(runner.currentEpoch).toBe(epoch + 1);
 		await plugin.invokeHook("plugin:activate", {});
 		const recovered = await db
-			.selectFrom("_plugin_storage")
-			.select("data")
-			.where("plugin_id", "=", pluginId)
-			.where("collection", "=", "__kv")
-			.where("id", "=", "recovered")
+			.selectFrom("options")
+			.select("value")
+			.where("name", "=", `plugin:${pluginId}:recovered`)
 			.executeTakeFirst();
-		expect(recovered?.data).toBe("true");
+		expect(recovered?.value).toBe("true");
 	}, 30_000);
 
 	it("loads a plugin and invokes a route", async () => {

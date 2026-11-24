@@ -13,11 +13,11 @@ A normal pull request can merge when:
 
 These requirements apply to the Project Lead, Cloudflare employees, external Maintainers, and other contributors. Routine self-merge is not permitted.
 
-The author is the pull request's main author. A Maintainer who has made substantial changes to someone else's pull request, including an autofix bot pull request, also counts as an author and cannot provide its approval. Automation only excludes the account that opened the pull request, so Maintainers apply this rule themselves.
+The author is the pull request's main author. A Maintainer who has made substantial changes to someone else's pull request, including an autofix bot pull request, also counts as an author and cannot provide its approval. Automation excludes the account that opened the pull request and, on design pull requests, the authors listed in the proposal front matter, so Maintainers apply this rule themselves for other contributors.
 
 An approval applies to the reviewed revision. A later substantive commit requires another approval. A merge commit that only updates the branch from `main` does not invalidate an approval.
 
-The `review/*` labels and the informational `Human Maintainer approval` check report whether the approval requirement is met. The check finishes with a neutral result when review is outstanding and success when enough Maintainers have approved. Do not make it a required status check. The Maintainer merging the pull request is responsible for applying the merge requirements above.
+The `review/*` labels and the informational `Human Maintainer approval` check report whether the approval requirement is met. The check finishes with a neutral result when review is outstanding and success when enough Maintainers have approved. On design pull requests and changes that need two approvals, the same automation keeps an approval status comment that lists each requirement. The Maintainer merging the pull request is responsible for applying the merge requirements above.
 
 Project Team reviews, automated reviews, test results, and static analysis help the human reviewer. They do not replace Maintainer approval. A bot with repository permissions is still a bot, not a Maintainer.
 
@@ -34,6 +34,8 @@ The following changes require approval from two human Maintainers other than the
 - another privileged supply-chain path where a compromise could approve, alter, or publish a release.
 
 The approval workflow (`.github/workflows/approval.yml`) lists the repository paths that need two approvals in its review status calculation. When a change affects the same privileged boundary through a new path, apply the two-approval rule even before the path list is updated.
+
+A design pull request that only adds or updates rows in the proposal index in `proposals/README.md` does not need two approvals for that file. Design pull requests follow the approval rules in [proposals/README.md](proposals/README.md).
 
 ## Review responsibilities
 

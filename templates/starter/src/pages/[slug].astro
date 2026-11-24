@@ -12,11 +12,11 @@ if (!slug) {
 
 const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
 
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
 if (!page) {
 	return Astro.rewrite("/404");
 }
-
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 const { siteTitle } = resolveStarterSiteIdentity(await getSiteSettings());
 
 const seo = getSeoMeta(page, {

@@ -9,6 +9,7 @@ export {
 	API_BASE,
 	ApiResponseError,
 	apiFetch,
+	isListConflict,
 	isTerminalRequestError,
 	parseApiResponse,
 	throwResponseError,
@@ -55,6 +56,7 @@ export {
 	discardDraft,
 	compareRevisions,
 	fetchRevisions,
+	fetchRevisionEditors,
 	fetchRevision,
 	restoreRevision,
 } from "./content.js";

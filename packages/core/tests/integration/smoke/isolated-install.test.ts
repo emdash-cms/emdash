@@ -20,6 +20,8 @@ import { promisify, stripVTControlCharacters } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
+import { CLOSE_CODES } from "../../../src/rooms/types.js";
+import { openSocket, roomPath } from "../../hosts/helpers.js";
 import { consumerEnvironment } from "../../utils/consumer-environment.js";
 import { ensureBuilt } from "../server.js";
 
@@ -29,6 +31,7 @@ interface PackageManifest {
 	devDependencies?: Record<string, string>;
 	optionalDependencies?: Record<string, string>;
 	packageManager?: string;
+	overrides?: Record<string, string>;
 }
 
 interface WorkspacePackage {
@@ -36,12 +39,17 @@ interface WorkspacePackage {
 	manifest: PackageManifest;
 }
 
+type PackageManager = "pnpm" | "npm";
+
 interface PlatformCase {
-	id: "node" | "cloudflare";
+	id: "node" | "node-npm" | "cloudflare";
 	name: string;
 	templateDir: string;
 	port: number;
 	localPackageRoots: string[];
+	packageManager: PackageManager;
+	/** Builds the site with co-editing on and opens a room socket on the built server. */
+	roomUpgrades: boolean;
 }
 
 const execAsync = promisify(execFile);
@@ -51,6 +59,9 @@ const INSTALL_TIMEOUT_MS = 600_000;
 const INJECTED_ROUTE_TIMEOUT_MS = 30_000;
 const INJECTED_ROUTE_REQUEST_TIMEOUT_MS = 5_000;
 const PAGE_REQUEST_TIMEOUT_MS = 30_000;
+const BUILD_TIMEOUT_MS = 300_000;
+/** The install scripts npm runs, after installing without any: the Node case's `allowBuilds`. */
+const NPM_BUILDS = ["esbuild", "sharp"];
 const PLATFORM_CASES: PlatformCase[] = [
 	{
 		id: "node",
@@ -58,6 +69,17 @@ const PLATFORM_CASES: PlatformCase[] = [
 		templateDir: join(WORKSPACE_ROOT, "templates/starter"),
 		port: 4623,
 		localPackageRoots: ["emdash"],
+		packageManager: "pnpm",
+		roomUpgrades: true,
+	},
+	{
+		id: "node-npm",
+		name: "Node with npm",
+		templateDir: join(WORKSPACE_ROOT, "templates/starter"),
+		port: 4624,
+		localPackageRoots: ["emdash"],
+		packageManager: "npm",
+		roomUpgrades: true,
 	},
 	{
 		id: "cloudflare",
@@ -65,6 +87,8 @@ const PLATFORM_CASES: PlatformCase[] = [
 		templateDir: join(WORKSPACE_ROOT, "templates/starter-cloudflare"),
 		port: 4622,
 		localPackageRoots: ["emdash", "@emdash-cms/cloudflare"],
+		packageManager: "pnpm",
+		roomUpgrades: false,
 	},
 ];
 const LOCAL_PACKAGE_ROOTS = [
@@ -75,6 +99,9 @@ const LATE_MANIFEST_OPTIMIZATION =
 const MISSING_SSR_DEPENDENCY = /file does not exist at .*node_modules[/\\]\.vite[/\\]deps_ssr/i;
 const SMOKE_FONT_PROVIDER_PATH = resolve(import.meta.dirname, "smoke-font-provider.mjs");
 const SMOKE_FONT_PATH = resolve(import.meta.dirname, "fixtures/codicon.ttf");
+const SMOKE_ENCRYPTION_KEY = "emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
+/** Yjs warns with this when a process loads a second copy of it. */
+const SECOND_YJS = "already imported";
 const COPY_EXCLUDES = new Set([
 	".astro",
 	".wrangler",
@@ -183,9 +210,19 @@ function parseWorkspaceNumber(key: string): number {
 	return value;
 }
 
-async function runPnpm(args: string[], cwd: string, timeout: number): Promise<string> {
+/** npm's `--before` for the workspace's `minimumReleaseAge`, which is in minutes. */
+function npmReleaseCutoff(): string {
+	return new Date(Date.now() - parseWorkspaceNumber("minimumReleaseAge") * 60_000).toISOString();
+}
+
+async function runPackageManager(
+	packageManager: PackageManager,
+	args: string[],
+	cwd: string,
+	timeout: number,
+): Promise<string> {
 	try {
-		const { stdout } = await execAsync("pnpm", args, {
+		const { stdout } = await execAsync(packageManager, args, {
 			cwd,
 			timeout,
 			maxBuffer: 10 * 1024 * 1024,
@@ -195,7 +232,9 @@ async function runPnpm(args: string[], cwd: string, timeout: number): Promise<st
 	} catch (error) {
 		const stdout = error instanceof Error && "stdout" in error ? String(error.stdout) : "";
 		const stderr = error instanceof Error && "stderr" in error ? String(error.stderr) : "";
-		throw new Error(`pnpm ${args.join(" ")} failed:\n${stderr || stdout}`, { cause: error });
+		throw new Error(`${packageManager} ${args.join(" ")} failed:\n${stderr || stdout}`, {
+			cause: error,
+		});
 	}
 }
 
@@ -205,7 +244,8 @@ async function packLocalPackages(
 ): Promise<Map<string, string>> {
 	const packed = await Promise.all(
 		packages.map(async ({ dir, manifest }) => {
-			const output = await runPnpm(
+			const output = await runPackageManager(
+				"pnpm",
 				["pack", "--pack-destination", tarballDir, "--json"],
 				dir,
 				120_000,
@@ -264,6 +304,22 @@ function prepareStandaloneTemplate(
 		catalog,
 		tarballs,
 	);
+	if (platform.roomUpgrades) enableCoEditing(projectDir);
+
+	if (platform.packageManager === "npm") {
+		delete manifest.packageManager;
+		const directDependencies = new Set(Object.keys(manifest.dependencies ?? {}));
+		manifest.overrides = Object.fromEntries(
+			Array.from(tarballs.entries(), ([name, tarball]) => [
+				name,
+				directDependencies.has(name) ? `$${name}` : pathToFileURL(tarball).href,
+			]),
+		);
+		writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
+		copySmokeSupport(projectDir);
+		return;
+	}
+
 	manifest.packageManager = readManifest(join(WORKSPACE_ROOT, "package.json")).packageManager;
 	writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 
@@ -294,11 +350,31 @@ allowBuilds:
 ${allowBuilds}
 `,
 	);
+	copySmokeSupport(projectDir);
+}
 
+/** Turns co-editing on explicitly, so the smoke doesn't depend on the option's default. */
+function enableCoEditing(projectDir: string): void {
+	const configPath = join(projectDir, "astro.config.mjs");
+	const config = readFileSync(configPath, "utf8");
+	const withCoEditing = config.replace("emdash({", "emdash({\n\t\t\tcoEditing: true,");
+	if (withCoEditing === config) throw new Error(`No emdash() call in ${configPath}`);
+	writeFileSync(configPath, withCoEditing);
+}
+
+function copySmokeSupport(projectDir: string): void {
 	const smokeSupportDir = join(projectDir, ".emdash-smoke");
 	mkdirSync(join(smokeSupportDir, "fixtures"), { recursive: true });
 	cpSync(SMOKE_FONT_PROVIDER_PATH, join(smokeSupportDir, "smoke-font-provider.mjs"));
 	cpSync(SMOKE_FONT_PATH, join(smokeSupportDir, "fixtures/codicon.ttf"));
+}
+
+function astroBinary(projectDir: string): string {
+	return join(
+		projectDir,
+		"node_modules/.bin",
+		process.platform === "win32" ? "astro.cmd" : "astro",
+	);
 }
 
 function nodeOptionsWithSmokeFontProvider(projectDir: string): string {
@@ -487,6 +563,7 @@ describe.sequential("Isolated template installs", () => {
 		temporaryDirectory = mkdtempSync(join(tmpdir(), "emdash-isolated-install-"));
 		const tarballDir = join(temporaryDirectory, "tarballs");
 		const storeDir = join(temporaryDirectory, "pnpm-store");
+		const npmCacheDir = join(temporaryDirectory, "npm-cache");
 		mkdirSync(tarballDir);
 		const tarballs = await packLocalPackages(
 			localPackageClosure(discoverWorkspacePackages()),
@@ -497,7 +574,26 @@ describe.sequential("Isolated template installs", () => {
 				const projectDir = join(temporaryDirectory, platform.id);
 				projectDirs.set(platform.id, projectDir);
 				prepareStandaloneTemplate(platform, projectDir, tarballs);
-				await runPnpm(
+				if (platform.packageManager === "npm") {
+					await runPackageManager(
+						"npm",
+						[
+							"install",
+							"--no-audit",
+							"--no-fund",
+							"--ignore-scripts",
+							`--before=${npmReleaseCutoff()}`,
+							"--cache",
+							npmCacheDir,
+						],
+						projectDir,
+						INSTALL_TIMEOUT_MS,
+					);
+					await runPackageManager("npm", ["rebuild", ...NPM_BUILDS], projectDir, 120_000);
+					return;
+				}
+				await runPackageManager(
+					"pnpm",
 					["install", "--no-frozen-lockfile", "--reporter=append-only", "--store-dir", storeDir],
 					projectDir,
 					INSTALL_TIMEOUT_MS,
@@ -513,7 +609,10 @@ describe.sequential("Isolated template installs", () => {
 	it("inherits workspace release-age exclusions", () => {
 		const expected = parseWorkspaceStringList("minimumReleaseAgeExclude");
 		const expectedAge = parseWorkspaceNumber("minimumReleaseAge");
-		for (const projectDir of projectDirs.values()) {
+		for (const platform of PLATFORM_CASES) {
+			if (platform.packageManager !== "pnpm") continue;
+			const projectDir = projectDirs.get(platform.id);
+			if (!projectDir) throw new Error(`Missing isolated ${platform.name} project`);
 			const workspaceConfig = readFileSync(join(projectDir, "pnpm-workspace.yaml"), "utf8");
 			expect(workspaceConfig).toContain(`minimumReleaseAge: ${expectedAge}`);
 			for (const value of expected) {
@@ -549,21 +648,20 @@ describe.sequential("Isolated template installs", () => {
 					const serverEnv = consumerEnvironment({
 						CI: "true",
 						ASTRO_TELEMETRY_DISABLED: "1",
-						EMDASH_ENCRYPTION_KEY: "emdash_enc_v1_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+						EMDASH_ENCRYPTION_KEY: SMOKE_ENCRYPTION_KEY,
 						NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(projectDir),
 						WRANGLER_LOG_PATH: join(temporaryDirectory, "wrangler.log"),
 					});
 					delete serverEnv.CODEX_THREAD_ID;
-					const astroBinary = join(
-						projectDir,
-						"node_modules/.bin",
-						process.platform === "win32" ? "astro.cmd" : "astro",
+					const serverProcess = spawn(
+						astroBinary(projectDir),
+						["dev", "--port", String(platform.port)],
+						{
+							cwd: projectDir,
+							env: serverEnv,
+							stdio: "pipe",
+						},
 					);
-					const serverProcess = spawn(astroBinary, ["dev", "--port", String(platform.port)], {
-						cwd: projectDir,
-						env: serverEnv,
-						stdio: "pipe",
-					});
 					let output = "";
 					serverProcess.stdout?.on("data", (data: Buffer) => {
 						output += data.toString();
@@ -619,6 +717,71 @@ describe.sequential("Isolated template installs", () => {
 					}
 				},
 			);
+
+			if (platform.roomUpgrades) {
+				it(
+					"takes room upgrades on the built server",
+					{ timeout: BUILD_TIMEOUT_MS + STARTUP_TIMEOUT_MS },
+					async () => {
+						const projectDir = projectDirs.get(platform.id);
+						if (!projectDir) throw new Error(`Missing isolated ${platform.name} project`);
+						const env = consumerEnvironment({
+							CI: "true",
+							ASTRO_TELEMETRY_DISABLED: "1",
+							EMDASH_ENCRYPTION_KEY: SMOKE_ENCRYPTION_KEY,
+							NODE_OPTIONS: nodeOptionsWithSmokeFontProvider(projectDir),
+						});
+						try {
+							await execAsync(astroBinary(projectDir), ["build"], {
+								cwd: projectDir,
+								env,
+								timeout: BUILD_TIMEOUT_MS,
+								maxBuffer: 10 * 1024 * 1024,
+							});
+						} catch (error) {
+							const stdout =
+								error instanceof Error && "stdout" in error ? String(error.stdout) : "";
+							const stderr =
+								error instanceof Error && "stderr" in error ? String(error.stderr) : "";
+							throw new Error(`astro build failed:\n${stderr}\n${stdout}`, { cause: error });
+						}
+
+						const serverProcess = spawn(
+							process.execPath,
+							[join(projectDir, "dist/server/entry.mjs")],
+							{
+								cwd: projectDir,
+								env: { ...env, HOST: "127.0.0.1", PORT: String(platform.port) },
+								stdio: "pipe",
+							},
+						);
+						let output = "";
+						serverProcess.stdout?.on("data", (data: Buffer) => {
+							output += data.toString();
+						});
+						serverProcess.stderr?.on("data", (data: Buffer) => {
+							output += data.toString();
+						});
+						const readOutput = () => stripVTControlCharacters(output);
+						const origin = `127.0.0.1:${platform.port}`;
+
+						try {
+							// The upgrade listener attaches on the first EmDash request.
+							await waitForInjectedRoute(`http://${origin}/_emdash/api/manifest`, readOutput, {
+								timeoutMs: STARTUP_TIMEOUT_MS,
+							});
+							const socket = await openSocket(
+								`ws://${origin}${roomPath("", "posts", "x", "forged")}`,
+							);
+							expect(socket.status, readOutput()).toBe(101);
+							expect((await socket.closed).code, readOutput()).toBe(CLOSE_CODES.busy);
+						} finally {
+							await stopServer(serverProcess);
+						}
+						expect(readOutput()).not.toContain(SECOND_YJS);
+					},
+				);
+			}
 		});
 	}
 });

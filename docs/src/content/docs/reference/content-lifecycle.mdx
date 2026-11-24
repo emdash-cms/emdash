@@ -70,7 +70,10 @@ the corresponding before-hook.
 
 When scheduled publication reaches its due time, it uses the publish hooks. If a
 `content:beforePublish` hook rejects that scheduled attempt, EmDash clears the schedule and runs
-`content:afterUnschedule`.
+`content:afterUnschedule`. It does the same when the publish itself refuses the entry with
+`VALIDATION_ERROR` or `SLUG_CONFLICT`, since the next scheduler pass would refuse it again. In both
+cases the dashboard lists the entry with the reason until it is scheduled or published again, or
+the notice is dismissed. Other failures leave the schedule in place for the next pass.
 
 ## Conflicts and retries
 

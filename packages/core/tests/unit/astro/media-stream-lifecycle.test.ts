@@ -7,7 +7,7 @@ vi.mock("astro:assets", () => ({
 	imageConfig: {},
 	getConfiguredImageService: async () => ({
 		parseURL: (url: URL) => {
-			if (url.searchParams.has("fail")) throw new Error("Invalid transform");
+			if (url.searchParams.get("q") === "fail") throw new Error("Invalid transform");
 			return url.searchParams.has("w") ? { width: 400 } : null;
 		},
 		transform: async (data: Uint8Array) => ({ data, format: "png" }),
@@ -100,32 +100,32 @@ describe("media routes with a bounded storage connection pool", () => {
 		[
 			"thumbnail conditional GET",
 			imageGET,
-			"http://localhost/_image?href=/_emdash/api/media/file/image.png&w=400",
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fimage.png&w=400",
 			"GET",
 		],
 		[
 			"image fallback conditional GET",
 			imageGET,
-			"http://localhost/_image?href=/_emdash/api/media/file/image.png",
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fimage.png",
 			"GET",
 		],
 		[
 			"non-image conditional GET",
 			imageGET,
-			"http://localhost/_image?href=/_emdash/api/media/file/document.pdf",
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fdocument.pdf",
 			"GET",
 		],
 		["original HEAD", mediaGET, "http://localhost/_emdash/api/media/file/image.png", "HEAD"],
 		[
 			"image fallback HEAD",
 			imageGET,
-			"http://localhost/_image?href=/_emdash/api/media/file/image.png",
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fimage.png",
 			"HEAD",
 		],
 		[
 			"non-image HEAD",
 			imageGET,
-			"http://localhost/_image?href=/_emdash/api/media/file/document.pdf",
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fdocument.pdf",
 			"HEAD",
 		],
 	] as const)(
@@ -164,7 +164,7 @@ describe("media routes with a bounded storage connection pool", () => {
 					const response = await imageGET(
 						context(
 							storage,
-							"http://localhost/_image?href=/_emdash/api/media/file/image.png&fail=1",
+							"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fimage.png&q=fail",
 						),
 					);
 					expect(response.status).toBe(500);

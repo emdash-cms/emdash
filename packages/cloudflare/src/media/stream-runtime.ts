@@ -27,6 +27,22 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return value != null && typeof value === "object" && !Array.isArray(value);
 }
 
+const WATCH_PATH = /\/watch\/?$/;
+
+function toPlayerUrl(preview: string | undefined): string | undefined {
+	if (!preview) return undefined;
+	try {
+		const url = new URL(preview);
+		if (url.protocol !== "https:") return undefined;
+		// Stream's preview page is not embeddable; its player uses /iframe.
+		url.pathname = url.pathname.replace(WATCH_PATH, "/iframe");
+		if (!url.pathname.endsWith("/iframe")) return undefined;
+		return url.href;
+	} catch {
+		return undefined;
+	}
+}
+
 /**
  * Resolve a config value. Falls back to process.env because EmDash also runs
  * on the Node adapter, where there is no Workers binding to read.
@@ -121,6 +137,7 @@ export const createMediaProvider: CreateMediaProviderFn<CloudflareStreamConfig> 
 					width: video.input?.width,
 					height: video.input?.height,
 					previewUrl: video.thumbnail,
+					playerUrl: toPlayerUrl(video.preview),
 					meta: {
 						duration: video.duration,
 						playback: video.playback,
@@ -157,6 +174,7 @@ export const createMediaProvider: CreateMediaProviderFn<CloudflareStreamConfig> 
 				width: video.input?.width,
 				height: video.input?.height,
 				previewUrl: video.thumbnail,
+				playerUrl: toPlayerUrl(video.preview),
 				meta: {
 					duration: video.duration,
 					playback: video.playback,
@@ -255,6 +273,7 @@ export const createMediaProvider: CreateMediaProviderFn<CloudflareStreamConfig> 
 				width: video.input?.width,
 				height: video.input?.height,
 				previewUrl: video.thumbnail,
+				playerUrl: toPlayerUrl(video.preview),
 				meta: {
 					duration: video.duration,
 					playback: video.playback,

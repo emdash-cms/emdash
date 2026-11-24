@@ -26,6 +26,7 @@ vi.mock("astro:middleware", () => ({
 
 const {
 	MOCK_RUNTIME,
+	mockCreateRoomHost,
 	mockCreateRuntime,
 	mockGetLastContentWriteAt,
 	mockPluginProvider,
@@ -40,6 +41,7 @@ const {
 	};
 	return {
 		MOCK_RUNTIME: runtime,
+		mockCreateRoomHost: vi.fn(() => null),
 		mockCreateRuntime: vi.fn(async (_deps: RuntimeDependencies) => runtime),
 		mockGetLastContentWriteAt: vi.fn(async () => 123_456),
 		mockPluginProvider: provider,
@@ -89,6 +91,9 @@ vi.mock("virtual:emdash/sandboxed-plugins", () => ({ sandboxedPlugins: [] }), { 
 vi.mock("virtual:emdash/storage", () => ({ createStorage: null }), { virtual: true });
 vi.mock("virtual:emdash/wait-until", () => ({ waitUntil: undefined }), { virtual: true });
 vi.mock("virtual:emdash/scheduler", () => ({ createScheduler: null }), { virtual: true });
+vi.mock("virtual:emdash/rooms", () => ({ createRoomHost: mockCreateRoomHost }), {
+	virtual: true,
+});
 
 vi.mock("../../../src/emdash-runtime.js", () => ({
 	DB_INIT_DEADLINE_MS: 30_000,
@@ -197,6 +202,43 @@ describe("withEmDashRuntime (#1887)", () => {
 		expect(await withEmDashRuntime((runtime) => runtime)).toBe(nextRuntime);
 		expect(EmDashRuntime.create).toHaveBeenCalledTimes(2);
 		await shutdownRuntime();
+	});
+
+	it("activates the room host of the runtime it publishes, and shuts a superseded one's down", async () => {
+		const withRooms = () => ({
+			...MOCK_RUNTIME,
+			stopCron: vi.fn(async () => {}),
+			rooms: { activate: vi.fn(), shutdown: vi.fn(async () => {}) },
+		});
+		const superseded = withRooms();
+		const current = withRooms();
+		let finishInit!: (runtime: typeof superseded) => void;
+		vi.mocked(EmDashRuntime.create)
+			.mockReturnValueOnce(
+				new Promise<typeof superseded>((resolve) => {
+					finishInit = resolve;
+				}) as never,
+			)
+			.mockResolvedValueOnce(current as never);
+
+		const slow = withEmDashRuntime((runtime) => runtime);
+		await vi.waitFor(() => expect(EmDashRuntime.create).toHaveBeenCalledOnce());
+		const clock = vi.spyOn(Date, "now").mockReturnValue(Date.now() + 10 * 60_000);
+		try {
+			expect(await withEmDashRuntime((runtime) => runtime)).toBe(current);
+			expect(current.rooms.activate).toHaveBeenCalledOnce();
+		} finally {
+			clock.mockRestore();
+			finishInit(superseded);
+			await slow;
+			await shutdownRuntime();
+		}
+
+		expect(superseded.rooms.activate).not.toHaveBeenCalled();
+		expect(superseded.rooms.shutdown).toHaveBeenCalledOnce();
+		expect(vi.mocked(EmDashRuntime.create).mock.calls[0]![0].createRoomHost).toBe(
+			mockCreateRoomHost,
+		);
 	});
 
 	it("resolves a lazy plugin provider before creating the runtime", async () => {

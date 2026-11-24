@@ -238,6 +238,10 @@ export const loginCommand = defineCommand({
 						});
 						if (bypassRes.status === 302 || bypassRes.ok) {
 							consola.success("Dev bypass available. Client will authenticate automatically.");
+						} else if (bypassRes.status === 409) {
+							consola.error(
+								"Setup is required. Finish setup at /_emdash/admin/setup, or explicitly skip it at /_emdash/api/setup/dev-bypass?content=0.",
+							);
 						} else {
 							consola.error("Could not authenticate. Is the dev server running?");
 						}
@@ -515,6 +519,12 @@ export const whoamiCommand = defineCommand({
 				}
 				if (!token && meRes.status === 404) {
 					consola.error("The dev bypass is not available on this site. Run: emdash login");
+					process.exit(1);
+				}
+				if (!token && meRes.status === 409) {
+					consola.error(
+						"Setup is required. Finish setup at /_emdash/admin/setup, or explicitly skip it at /_emdash/api/setup/dev-bypass?content=0.",
+					);
 					process.exit(1);
 				}
 				consola.error(`Failed to fetch user info: ${meRes.status}`);

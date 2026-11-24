@@ -16,6 +16,7 @@
 			"slug": "marketing_hero",
 			"label": "Hero",
 			"description": "A prominent page introduction with optional calls to action and media",
+			"icon": "sparkle",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -75,6 +76,7 @@
 			"slug": "marketing_features",
 			"label": "Features",
 			"description": "A grid of product or service features",
+			"icon": "squares-four",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -150,6 +152,7 @@
 			"slug": "marketing_testimonials",
 			"label": "Testimonials",
 			"description": "Customer quotes and attribution. The first quote is shown large",
+			"icon": "quotes",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -201,6 +204,7 @@
 			"slug": "marketing_pricing",
 			"label": "Pricing",
 			"description": "A comparison of up to three pricing plans",
+			"icon": "tag",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -261,6 +265,7 @@
 			"slug": "marketing_faq",
 			"label": "FAQ",
 			"description": "A list of frequently asked questions",
+			"icon": "question",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -302,6 +307,7 @@
 			"slug": "marketing_logos",
 			"label": "Logo wall",
 			"description": "A scrolling row of customer or partner logos. Names without a logo show as text",
+			"icon": "buildings",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -341,6 +347,7 @@
 			"slug": "marketing_split",
 			"label": "Text and image",
 			"description": "A headline, copy and checklist beside a photo",
+			"icon": "square-half",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -388,6 +395,7 @@
 			"slug": "marketing_stats",
 			"label": "Stats",
 			"description": "Headline numbers on a dark panel",
+			"icon": "chart-bar",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -428,6 +436,7 @@
 			"slug": "marketing_cta",
 			"label": "Call to action",
 			"description": "A closing call to action over a photo or dark panel",
+			"icon": "cursor-click",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -469,6 +478,7 @@
 			"slug": "marketing_contact",
 			"label": "Contact options",
 			"description": "Cards that point readers to the right email address, phone number or page",
+			"icon": "address-book",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [
@@ -529,6 +539,7 @@
 			"slug": "marketing_text",
 			"label": "Text",
 			"description": "Long-form text with headings, lists and links, for pages like About or Privacy",
+			"icon": "article",
 			"category": "Marketing",
 			"currentVersion": 1,
 			"versions": [

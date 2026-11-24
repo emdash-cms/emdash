@@ -13,6 +13,15 @@ import {
 import { verificationError } from "./errors.js";
 import type { VerificationResult } from "./errors.js";
 
+export {
+	MAX_BUNDLE_COMPRESSED_BYTES,
+	MAX_BUNDLE_DECOMPRESSED_BYTES,
+	MAX_BUNDLE_FILE_BYTES,
+	MAX_BUNDLE_FILE_COUNT,
+	MAX_BUNDLE_SIZE,
+	MAX_BUNDLE_TAR_ENTRY_COUNT,
+} from "./bundle-limits.js";
+
 const TAR_BLOCK_BYTES = 512;
 const TAR_END_BYTES = TAR_BLOCK_BYTES * 2;
 const OCTAL_PATTERN = /^[0-7]+$/;

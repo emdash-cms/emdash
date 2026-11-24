@@ -1150,6 +1150,134 @@ describe("ContentList", () => {
 				.not.toBeInTheDocument();
 			await expect.element(screen.getByText("1 selected")).toBeInTheDocument();
 		});
+
+		it("moves the selected entries to trash with Enter", async () => {
+			const onBulkDelete = vi.fn((ids: string[]) => Promise.resolve(ids));
+			const items = [
+				makeItem({ id: "a", data: { title: "Alpha" } }),
+				makeItem({ id: "b", data: { title: "Bravo" } }),
+			];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onBulkDelete={onBulkDelete} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			await screen.getByRole("checkbox", { name: "Select Bravo" }).click();
+			screen.getByRole("button", { name: "Move to trash", exact: true }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+			await expect
+				.element(
+					screen
+						.getByRole("dialog", { name: "Move to Trash?" })
+						.getByRole("button", { name: "Move to Trash", exact: true }),
+				)
+				.toHaveFocus();
+			await userEvent.keyboard("{Enter}");
+
+			expect(onBulkDelete).toHaveBeenCalledWith(["a", "b"]);
+		});
+	});
+
+	describe("bulk publish and set to draft", () => {
+		const items = [
+			makeItem({ id: "a", data: { title: "Alpha" } }),
+			makeItem({ id: "b", data: { title: "Bravo" } }),
+		];
+
+		it("publishes the selected entries with Enter", async () => {
+			const onBulkPublish = vi.fn((_ids: string[]) => Promise.resolve([]));
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onBulkPublish={onBulkPublish} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			await screen.getByRole("checkbox", { name: "Select Bravo" }).click();
+			screen.getByRole("button", { name: "Publish", exact: true }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+			const dialog = screen.getByRole("dialog", { name: "Publish 2 items?" });
+			await expect
+				.element(dialog.getByRole("button", { name: "Publish", exact: true }))
+				.toHaveFocus();
+			expect(onBulkPublish).not.toHaveBeenCalled();
+			await userEvent.keyboard("{Enter}");
+
+			expect(onBulkPublish).toHaveBeenCalledWith(["a", "b"]);
+			await expect.element(dialog).not.toBeInTheDocument();
+		});
+
+		it("opens bulk Publish on Cancel when a selected entry is scheduled", async () => {
+			const onBulkPublish = vi.fn((_ids: string[]) => Promise.resolve([]));
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[
+						items[0]!,
+						{ ...items[1]!, status: "scheduled", scheduledAt: "2099-01-01T00:00:00Z" },
+					]}
+					onBulkPublish={onBulkPublish}
+				/>,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			await screen.getByRole("checkbox", { name: "Select Bravo" }).click();
+			screen.getByRole("button", { name: "Publish", exact: true }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+			const dialog = screen.getByRole("dialog", { name: "Publish 2 items?" });
+			await expect.element(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+			await expect
+				.element(dialog)
+				.toHaveTextContent("This removes their schedules and publishes them immediately.");
+			await userEvent.keyboard("{Enter}");
+
+			await expect.element(dialog).not.toBeInTheDocument();
+			expect(onBulkPublish).not.toHaveBeenCalled();
+		});
+
+		it("opens bulk Set to draft on Cancel when a selected entry is scheduled", async () => {
+			const onBulkUnpublish = vi.fn((_ids: string[]) => Promise.resolve([]));
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					items={[
+						items[0]!,
+						{ ...items[1]!, status: "scheduled", scheduledAt: "2099-01-01T00:00:00Z" },
+					]}
+					onBulkUnpublish={onBulkUnpublish}
+				/>,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			await screen.getByRole("checkbox", { name: "Select Bravo" }).click();
+			screen.getByRole("button", { name: "Set to draft", exact: true }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+			const dialog = screen.getByRole("dialog", { name: "Set 2 items to draft?" });
+			await expect.element(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+			await expect.element(dialog).toHaveTextContent("This removes their schedules.");
+			await userEvent.keyboard("{Enter}");
+
+			await expect.element(dialog).not.toBeInTheDocument();
+			expect(onBulkUnpublish).not.toHaveBeenCalled();
+		});
+
+		it("sets the selected entries to draft with Enter", async () => {
+			const onBulkUnpublish = vi.fn((_ids: string[]) => Promise.resolve([]));
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} onBulkUnpublish={onBulkUnpublish} />,
+			);
+			await screen.getByRole("checkbox", { name: "Select Alpha" }).click();
+			screen.getByRole("button", { name: "Set to draft", exact: true }).element().focus();
+
+			await userEvent.keyboard("{Enter}");
+			const dialog = screen.getByRole("dialog", { name: "Set 1 item to draft?" });
+			await expect
+				.element(dialog.getByRole("button", { name: "Set to draft", exact: true }))
+				.toHaveFocus();
+			expect(onBulkUnpublish).not.toHaveBeenCalled();
+			await userEvent.keyboard("{Enter}");
+
+			expect(onBulkUnpublish).toHaveBeenCalledWith(["a"]);
+			await expect.element(dialog).not.toBeInTheDocument();
+		});
 	});
 
 	describe("numbered pages", () => {
@@ -1247,6 +1375,11 @@ describe("ContentList", () => {
 			);
 			await screen.getByRole("checkbox", { name: "Select Post 22" }).click();
 			await screen.getByRole("button", { name: "Publish", exact: true }).click();
+			const confirm = screen
+				.getByRole("dialog", { name: "Publish 2 items?" })
+				.getByRole("button", { name: "Publish", exact: true });
+			await expect.element(confirm).toBeVisible();
+			confirm.element().click();
 
 			expect(onBulkPublish).toHaveBeenCalledWith(["post_3", "post_22"]);
 		});
@@ -1318,6 +1451,74 @@ describe("ContentList", () => {
 				.toBeInTheDocument();
 			expect(screen.getByRole("button", { name: "Load More" }).query()).toBeNull();
 		});
+	});
+
+	describe("date column sources", () => {
+		it.each([
+			["publishedAt", "3/14/2015"],
+			["createdAt", "1/1/2020"],
+			["updatedAt", "9/1/2026"],
+			["event_date", "7/4/2018"],
+		])("displays and sorts by %s", async (dateField, expectedDate) => {
+			const onSortChange = vi.fn();
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					dateField={dateField}
+					items={[
+						makeItem({
+							data: {
+								title: "Archive article",
+								event_date: "2018-07-04",
+								publishedAt: "1999-01-01",
+							},
+							publishedAt: "2015-03-15 02:00:00",
+							createdAt: "2020-01-01 12:00:00",
+							updatedAt: "2026-09-01 12:00:00",
+						}),
+					]}
+					sort={{ field: dateField, direction: "desc" }}
+					onSortChange={onSortChange}
+				/>,
+			);
+			await expect.element(firstRowCell("Date")).toHaveTextContent(expectedDate);
+			await expect
+				.element(screen.getByRole("columnheader", { name: "Date", exact: true }))
+				.toHaveAttribute("aria-sort", "descending");
+			await screen.getByRole("button", { name: "Date", exact: true }).click();
+			expect(onSortChange).toHaveBeenCalledWith({ field: dateField, direction: "asc" });
+		});
+
+		it.each([undefined, "publishedAt", "event_date"])(
+			"falls back to last updated for a missing %s date",
+			async (dateField) => {
+				await render(
+					<ContentList
+						{...defaultProps}
+						dateField={dateField}
+						items={[makeItem({ updatedAt: "2026-09-01 12:00:00" })]}
+					/>,
+				);
+				await expect.element(firstRowCell("Date")).toHaveTextContent("9/1/2026");
+			},
+		);
+	});
+
+	it.each(["publishedAt", "event_date"])("falls back for an invalid %s date", async (dateField) => {
+		await render(
+			<ContentList
+				{...defaultProps}
+				dateField={dateField}
+				items={[
+					makeItem({
+						publishedAt: "not-a-date",
+						data: { title: "Post", event_date: "not-a-date" },
+						updatedAt: "2026-09-01 12:00:00",
+					}),
+				]}
+			/>,
+		);
+		await expect.element(firstRowCell("Date")).toHaveTextContent("9/1/2026");
 	});
 
 	describe("sortable headers", () => {
