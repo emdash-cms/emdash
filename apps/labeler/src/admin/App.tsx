@@ -13,7 +13,7 @@ import {
 	useKumoToastManager,
 } from "@cloudflare/kumo";
 import type { MessageDescriptor } from "@lingui/core";
-import { msg } from "@lingui/core/macro";
+import { msg, plural } from "@lingui/core/macro";
 import { Trans, useLingui } from "@lingui/react/macro";
 import { ClipboardText, Pulse, WarningCircle } from "@phosphor-icons/react";
 import React from "react";
@@ -27,10 +27,12 @@ import {
 	getHealth,
 	getIssuance,
 	getSession,
+	notifyPublisher,
 	setIssuance,
 	setTakedown,
 	type ActivityItem,
 	type AssessmentDetail,
+	type AssessmentFilter,
 	type AssessmentListItem,
 	type AssessmentState,
 	type HealthStatus,
@@ -41,6 +43,33 @@ import {
 type View = "overview" | "assessments" | "takedowns" | "issuance" | "activity";
 const ADMIN_VIEWS = new Set<View>(["takedowns", "issuance", "activity"]);
 const SLUG_SEPARATOR_RE = /[-_]/;
+const PACKAGE_EVIDENCE_PREFIX = "release.package:";
+const PACKAGE_LINE_RE = /^(.*)#L(\d+)$/;
+const MEDIA_REF_RE = /^release\.media\.([a-z]+):(\d+)$/;
+
+const SEVERITY_LABELS: Record<string, MessageDescriptor> = {
+	critical: msg`Critical`,
+	high: msg`High`,
+	medium: msg`Medium`,
+	low: msg`Low`,
+};
+
+const FINDING_CATEGORY_LABELS: Record<string, MessageDescriptor> = {
+	"explicit-sexual-content": msg`Explicit sexual content`,
+	"hateful-or-dehumanizing-content": msg`Hateful or dehumanizing content`,
+	"graphic-violence": msg`Graphic violence`,
+	"phishing-or-credential-solicitation": msg`Phishing or credential solicitation`,
+	"material-impersonation": msg`Material impersonation`,
+	"scam-or-spam": msg`Scam or spam`,
+	"malicious-or-deceptive-link": msg`Malicious or deceptive link`,
+	"misleading-media-or-claims": msg`Misleading media or claims`,
+	"moderation-manipulation": msg`Moderation manipulation`,
+	"malicious-code": msg`Malicious code`,
+	vulnerability: msg`Vulnerability`,
+	"reviewer-manipulation": msg`Reviewer manipulation`,
+	"package-integrity": msg`Package integrity`,
+	"review-declined": msg`Review declined`,
+};
 
 export function App() {
 	const { t } = useLingui();
@@ -135,9 +164,12 @@ function renderView(
 		return (
 			<ReviewWorkspace
 				initialRunKey={
-					path.startsWith(prefix) ? decodeURIComponent(path.slice(prefix.length)) : undefined
+					path.startsWith(prefix)
+						? decodeURIComponent(path.slice(prefix.length).split("?")[0]!)
+						: undefined
 				}
 				navigate={navigate}
+				isAdmin={session.identity.roles.includes("admin")}
 			/>
 		);
 	}
@@ -167,6 +199,7 @@ function Overview({
 	const { t } = useLingui();
 	const reviews = useResource(() => getAssessments("review"), []);
 	const errors = useResource(() => getAssessments("error"), []);
+	const recent = useResource(() => getAssessments("all"), []);
 	const issuance = useResource(getIssuance, []);
 	return (
 		<Page
@@ -213,7 +246,94 @@ function Overview({
 					/>
 				</LayerCard>
 			</div>
+			<RecentAssessments recent={recent} navigate={navigate} />
 		</Page>
+	);
+}
+
+const RECENT_ASSESSMENT_COUNT = 10;
+
+function RecentAssessments({
+	recent,
+	navigate,
+}: {
+	recent: Resource<ApiPage<AssessmentListItem>>;
+	navigate: (path: string) => void;
+}) {
+	const { t } = useLingui();
+	const items = recent.data?.items.slice(0, RECENT_ASSESSMENT_COUNT) ?? [];
+	return (
+		<LayerCard className="mt-4 p-0">
+			<div className="flex items-center justify-between gap-4 border-b px-4 py-2">
+				<p className="text-xs font-medium text-kumo-subtle">
+					<Trans>Recent assessments</Trans>
+				</p>
+				<Button variant="ghost" size="sm" onClick={() => navigate("/_admin/assessments?state=all")}>
+					<Trans>View all</Trans>
+				</Button>
+			</div>
+			{recent.error ? (
+				<p className="px-4 py-3 text-sm text-kumo-danger">{recent.error.message}</p>
+			) : recent.loading ? (
+				<CenteredLoader label={t`Loading assessments`} />
+			) : items.length === 0 ? (
+				<p className="px-4 py-3 text-sm text-kumo-subtle">
+					<Trans>No assessments yet.</Trans>
+				</p>
+			) : (
+				<ul>
+					{items.map((item) => {
+						const identity = assessmentListIdentity(item);
+						return (
+							<li key={item.run_key} className="border-b last:border-b-0">
+								<button
+									type="button"
+									className="grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 gap-y-1 px-4 py-3 text-start hover:bg-kumo-tint sm:grid-cols-[minmax(0,1fr)_auto_auto_auto]"
+									onClick={() => navigate(assessmentPath(item.run_key, item.state))}
+								>
+									<span className="min-w-0 truncate text-sm font-medium">
+										{identity.name}
+										<span className="ms-2 text-xs font-normal text-kumo-subtle">
+											{item.subject_kind === "release"
+												? t`Release ${identity.version ?? ""}`
+												: t`Profile`}
+										</span>
+									</span>
+									<StateBadge state={item.state} />
+									<CodeReviewBadge item={item} />
+									<span className="text-xs text-kumo-subtle">{formatDate(item.updated_at)}</span>
+								</button>
+							</li>
+						);
+					})}
+				</ul>
+			)}
+		</LayerCard>
+	);
+}
+
+function CodeReviewBadge({ item }: { item: AssessmentListItem }) {
+	const { t } = useLingui();
+	if (item.subject_kind !== "release") return <span />;
+	if (item.code_coverage === "complete") {
+		const count = item.code_review_count ?? 0;
+		return (
+			<Badge variant="success" appearance="dot">
+				{plural(count, { one: "Code reviewed by # model", other: "Code reviewed by # models" })}
+			</Badge>
+		);
+	}
+	if (item.code_coverage === "unavailable") {
+		return (
+			<Badge variant="warning" appearance="dot">
+				{t`Code review unavailable`}
+			</Badge>
+		);
+	}
+	return (
+		<Badge variant="neutral" appearance="dot">
+			{t`No code review`}
+		</Badge>
 	);
 }
 
@@ -252,13 +372,15 @@ function ServiceRow({ label, ready, value }: { label: string; ready: boolean; va
 function ReviewWorkspace({
 	initialRunKey,
 	navigate,
+	isAdmin,
 }: {
 	initialRunKey?: string;
 	navigate: (path: string) => void;
+	isAdmin: boolean;
 }) {
 	const { t } = useLingui();
 	const initialState = stateFromLocation();
-	const [state, setState] = React.useState<AssessmentState>(initialState);
+	const [state, setState] = React.useState<AssessmentFilter>(initialState);
 	const stateRef = React.useRef(state);
 	const list = useResource(() => getAssessments(state), [state]);
 	const [items, setItems] = React.useState<AssessmentListItem[]>([]);
@@ -282,20 +404,25 @@ function ReviewWorkspace({
 	const selectedItem =
 		items.find((item) => item.run_key === selectedRunKey) ??
 		(detail.data ? detailToListItem(detail.data) : undefined);
-	const stateItems = Object.fromEntries(
-		assessmentStates.map((value) => [value, stateLabel(t, value)]),
-	);
+	const stateItems = {
+		...Object.fromEntries(assessmentStates.map((value) => [value, stateLabel(t, value)])),
+		all: t`All`,
+	};
 
 	return (
 		<Page
 			title={t`Review queue`}
-			description={t`${items.length}${nextCursor ? "+" : ""} in ${stateLabel(t, state).toLowerCase()} · oldest first`}
+			description={
+				state === "all"
+					? t`${items.length}${nextCursor ? "+" : ""} in all states · newest first`
+					: t`${items.length}${nextCursor ? "+" : ""} in ${stateLabel(t, state).toLowerCase()} · oldest first`
+			}
 			actions={
 				<Select
 					aria-label={t`Assessment state`}
 					value={state}
 					onValueChange={(value) => {
-						if (!value || !isAssessmentState(value)) return;
+						if (!value || !isAssessmentFilter(value)) return;
 						stateRef.current = value;
 						setState(value);
 						setSelectedRunKey("");
@@ -316,7 +443,7 @@ function ReviewWorkspace({
 			)}
 			{list.loading ? (
 				<CenteredLoader label={t`Loading assessments`} />
-			) : items.length === 0 ? (
+			) : items.length === 0 && !selectedRunKey ? (
 				<Empty
 					title={t`No assessments`}
 					description={t`There are no assessments in this state.`}
@@ -342,7 +469,7 @@ function ReviewWorkspace({
 											className="min-w-56 border-e px-4 py-3 text-start hover:bg-kumo-tint aria-current:bg-kumo-info-tint lg:block lg:min-w-0 lg:w-full lg:border-e-0 lg:border-b"
 											onClick={() => {
 												setSelectedRunKey(item.run_key);
-												navigate(`/_admin/assessments/${encodeURIComponent(item.run_key)}`);
+												navigate(assessmentPath(item.run_key, state));
 											}}
 										>
 											<span className="block truncate text-sm font-medium">{identity.name}</span>
@@ -354,6 +481,11 @@ function ReviewWorkspace({
 											<span className="mt-1 block truncate text-xs text-kumo-subtle">
 												{itemStatus} · {formatDate(item.updated_at)}
 											</span>
+											{item.subject_kind === "release" && (
+												<span className="mt-1 block">
+													<CodeReviewBadge item={item} />
+												</span>
+											)}
 										</button>
 									);
 								})}
@@ -388,6 +520,7 @@ function ReviewWorkspace({
 									navigate={navigate}
 									refreshList={list.refresh}
 									refreshDetail={detail.refresh}
+									isAdmin={isAdmin}
 								/>
 							) : null}
 						</section>
@@ -405,6 +538,7 @@ function AssessmentReview({
 	navigate,
 	refreshList,
 	refreshDetail,
+	isAdmin,
 }: {
 	detail: AssessmentDetail;
 	item: AssessmentListItem;
@@ -412,14 +546,19 @@ function AssessmentReview({
 	navigate: (path: string) => void;
 	refreshList: () => void;
 	refreshDetail: () => void;
+	isAdmin: boolean;
 }) {
 	const { t } = useLingui();
 	const toast = useKumoToastManager();
-	const [evidenceOpen, setEvidenceOpen] = React.useState(false);
 	const [technicalOpen, setTechnicalOpen] = React.useState(false);
-	const [pendingAction, setPendingAction] = React.useState<"approve" | "block" | "rerun" | null>(
-		null,
-	);
+	const [pendingAction, setPendingAction] = React.useState<
+		"approve" | "block" | "rerun" | "notify" | null
+	>(null);
+	const notification = detail.publisherNotification;
+	const notificationDraft = notification?.draft;
+	const notified = notification?.record?.status === "sent" ? notification.record : null;
+	const notifiedAt = notified?.sentAt ? formatDate(notified.sentAt) : null;
+	const recipients = notificationDraft?.recipients.join(", ") ?? "";
 	const preview = listingPreview(detail);
 	const previewType =
 		preview.kind === "release" ? t`Release ${preview.version ?? ""}` : t`Publisher profile`;
@@ -432,7 +571,7 @@ function AssessmentReview({
 		refreshDetail();
 		const index = items.findIndex((candidate) => candidate.run_key === item.run_key);
 		const next = items[index + 1] ?? items[index - 1];
-		if (next) navigate(`/_admin/assessments/${encodeURIComponent(next.run_key)}`);
+		if (next) navigate(assessmentPath(next.run_key, stateFromLocation()));
 	};
 	return (
 		<>
@@ -447,30 +586,33 @@ function AssessmentReview({
 				<p className="mb-2 text-xs font-medium text-kumo-subtle">
 					<Trans>Marketplace preview</Trans>
 				</p>
-				<ListingPreviewCard preview={preview} runKey={item.run_key} />
+				<ListingPreviewCard
+					preview={preview}
+					runKey={item.run_key}
+					flaggedMedia={new Set(findings.flatMap((finding) => stringArray(finding.evidenceRefs)))}
+				/>
 				<div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-y py-3 text-sm">
 					<div>
 						<strong>
-							{findings.length === 0 ? t`No model findings` : t`${findings.length} model findings`}
+							{findings.length === 0
+								? t`No findings`
+								: plural(findings.length, { one: "# finding", other: "# findings" })}
 						</strong>
-						<span className="ms-2 text-kumo-subtle">
-							{reasonCodes.includes("manual-positive-required")
-								? t`Manual approval required`
-								: t`Operator decision required`}
-						</span>
+						{(item.state === "review" || item.state === "error") && (
+							<span className="ms-2 text-kumo-subtle">
+								{reasonCodes.includes("manual-positive-required")
+									? t`Manual approval required`
+									: t`Operator decision required`}
+							</span>
+						)}
 					</div>
 					<div className="flex gap-1">
-						<Button size="sm" variant="ghost" onClick={() => setEvidenceOpen((open) => !open)}>
-							{evidenceOpen ? t`Hide assessment` : t`Show assessment`}
-						</Button>
 						<Button size="sm" variant="ghost" onClick={() => setTechnicalOpen((open) => !open)}>
 							{technicalOpen ? t`Hide technical details` : t`Technical details`}
 						</Button>
 					</div>
 				</div>
-				{evidenceOpen && (
-					<AssessmentEvidence detail={detail} findings={findings} reasonCodes={reasonCodes} />
-				)}
+				<AssessmentEvidence detail={detail} findings={findings} reasonCodes={reasonCodes} />
 				{technicalOpen && (
 					<pre className="mt-3 max-h-80 overflow-auto rounded-lg bg-kumo-recessed p-4 text-xs">
 						{JSON.stringify(
@@ -481,7 +623,32 @@ function AssessmentReview({
 					</pre>
 				)}
 			</div>
-			<footer className="flex flex-wrap justify-end gap-2 border-t bg-kumo-recessed px-5 py-3">
+			<footer className="flex flex-wrap items-center justify-end gap-2 border-t bg-kumo-recessed px-5 py-3">
+				{notifiedAt && (
+					<span className="me-auto text-sm text-kumo-subtle">
+						{t`Publisher emailed ${notifiedAt}`}
+					</span>
+				)}
+				{isAdmin && notificationDraft && !notified && (
+					<ActionDialog
+						label={t`Email publisher`}
+						title={t`Email the publisher's security contact`}
+						description={t`Send the code findings below to ${recipients}. Your reason is recorded but not sent.`}
+						variant="secondary"
+						open={pendingAction === "notify"}
+						onOpenChange={(open) => setPendingAction(open ? "notify" : null)}
+						onConfirm={(reason) => notifyPublisher(item, reason)}
+						onSuccess={() => {
+							refreshDetail();
+							toast.add({ title: t`Publisher emailed`, variant: "success" });
+						}}
+					>
+						<p className="mt-4 text-sm font-medium">{notificationDraft.subject}</p>
+						<pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap rounded-lg bg-kumo-recessed p-3 text-xs">
+							{notificationDraft.text}
+						</pre>
+					</ActionDialog>
+				)}
 				{canBlock(item.state) && (
 					<ActionDialog
 						label={t`Block`}
@@ -532,7 +699,15 @@ function AssessmentReview({
 	);
 }
 
-function ListingPreviewCard({ preview, runKey }: { preview: ListingPreview; runKey: string }) {
+function ListingPreviewCard({
+	preview,
+	runKey,
+	flaggedMedia,
+}: {
+	preview: ListingPreview;
+	runKey: string;
+	flaggedMedia: ReadonlySet<string>;
+}) {
 	const { t } = useLingui();
 	const previewType =
 		preview.kind === "release" ? t`Release ${preview.version ?? ""}` : t`Publisher profile`;
@@ -566,11 +741,19 @@ function ListingPreviewCard({ preview, runKey }: { preview: ListingPreview; runK
 							key={`${media.kind}-${media.index}`}
 							className="overflow-hidden rounded-lg bg-kumo-recessed"
 						>
-							<img
-								className="aspect-video w-full object-contain"
-								src={assessmentMediaUrl(runKey, media.kind, media.index)}
-								alt={t`Submitted ${media.kind}`}
-							/>
+							{flaggedMedia.has(`release.media.${media.kind}:${media.index}`) ? (
+								<FlaggedImage
+									className="aspect-video w-full object-contain"
+									src={assessmentMediaUrl(runKey, media.kind, media.index)}
+									alt={t`Submitted ${media.kind}`}
+								/>
+							) : (
+								<img
+									className="aspect-video w-full object-contain"
+									src={assessmentMediaUrl(runKey, media.kind, media.index)}
+									alt={t`Submitted ${media.kind}`}
+								/>
+							)}
 							<figcaption className="px-3 py-2 text-xs text-kumo-subtle">{media.kind}</figcaption>
 						</figure>
 					))}
@@ -599,30 +782,19 @@ function AssessmentEvidence({
 }) {
 	const { t } = useLingui();
 	const coverage = detail.assessment.coverage;
+	const evidence = listingEvidence(detail.assessment.canonicalInput);
+	const reviews = codeReviews(detail.assessment.summary);
 	return (
-		<div className="mt-3 grid gap-2">
+		<div className="mt-3 grid gap-3">
+			{reviews.length > 0 && <CodeReviews reviews={reviews} />}
 			{findings.map((finding) => (
-				<div
-					key={`${finding.finding_index}-${finding.reason_code}`}
-					className="border-s-2 border-kumo-warning py-2 ps-3"
-				>
-					<p className="text-sm font-medium">{finding.public_summary}</p>
-					<p className="mt-1 text-xs text-kumo-subtle">
-						{finding.category} · {finding.reason_code}
-						{finding.confidence === null ? "" : ` · ${Math.round(finding.confidence * 100)}%`}
-					</p>
-				</div>
+				<FindingCard
+					key={`${finding.finding_index}-${finding.category}`}
+					finding={finding}
+					evidence={evidence}
+					runKey={detail.assessment.run_key}
+				/>
 			))}
-			{findings.length === 0 && (
-				<div className="border-s-2 border-kumo-success py-2 ps-3">
-					<p className="text-sm font-medium">
-						<Trans>No model findings</Trans>
-					</p>
-					<p className="mt-1 text-xs text-kumo-subtle">
-						<Trans>The model completed without flagging the submitted listing.</Trans>
-					</p>
-				</div>
-			)}
 			<div className="border-s-2 border-kumo-line py-2 ps-3">
 				<p className="text-sm font-medium">
 					<Trans>Policy</Trans>
@@ -640,6 +812,179 @@ function AssessmentEvidence({
 				</div>
 			)}
 		</div>
+	);
+}
+
+type Finding = NonNullable<AssessmentDetail["findings"]>[number];
+
+interface CodeReview {
+	model: string;
+	summary: string;
+	findingCount: number;
+	declined: boolean;
+}
+
+interface Excerpt {
+	ref: string;
+	startLine: number;
+	lines: string[];
+}
+
+function CodeReviews({ reviews }: { reviews: CodeReview[] }) {
+	const { t } = useLingui();
+	return (
+		<LayerCard className="p-0">
+			<p className="border-b px-4 py-2 text-xs font-medium text-kumo-subtle">
+				<Trans>Code reviewers</Trans>
+			</p>
+			<ul className="divide-y">
+				{reviews.map((review) => (
+					<li key={review.model} className="px-4 py-3">
+						<div className="flex flex-wrap items-center gap-2">
+							<span className="font-mono text-xs">{review.model}</span>
+							<Badge
+								variant={
+									review.declined ? "warning" : review.findingCount > 0 ? "error" : "success"
+								}
+							>
+								{review.declined
+									? t`Declined to review`
+									: review.findingCount === 0
+										? t`No findings`
+										: plural(review.findingCount, { one: "# finding", other: "# findings" })}
+							</Badge>
+						</div>
+						{review.summary && <p className="mt-1 text-sm leading-6">{review.summary}</p>}
+					</li>
+				))}
+			</ul>
+		</LayerCard>
+	);
+}
+
+function FindingCard({
+	finding,
+	evidence,
+	runKey,
+}: {
+	finding: Finding;
+	evidence: ReadonlyMap<string, ListingEvidence>;
+	runKey: string;
+}) {
+	const { t } = useLingui();
+	const refs = stringArray(finding.evidenceRefs);
+	const excerpts = excerptArray(finding.excerpts);
+	const excerptRefs = new Set(excerpts.map(({ ref }) => ref));
+	const otherRefs = refs.filter((ref) => !excerptRefs.has(ref));
+	const category = FINDING_CATEGORY_LABELS[finding.category];
+	return (
+		<LayerCard className="border-s-2 border-kumo-warning p-0">
+			<div className="flex flex-wrap items-center gap-2 px-4 pt-3">
+				{finding.severity && (
+					<Badge variant={severityVariant(finding.severity)}>
+						{SEVERITY_LABELS[finding.severity]
+							? t(SEVERITY_LABELS[finding.severity]!)
+							: finding.severity}
+					</Badge>
+				)}
+				<span className="text-sm font-semibold">{category ? t(category) : finding.category}</span>
+				<span className="ms-auto text-xs text-kumo-subtle">
+					{[
+						finding.source,
+						finding.confidence === null
+							? null
+							: t`${Math.round(finding.confidence * 100)}% confidence`,
+					]
+						.filter(Boolean)
+						.join(" · ")}
+				</span>
+			</div>
+			<p className="px-4 pt-2 pb-3 text-sm leading-6">{finding.public_summary}</p>
+			{excerpts.map((excerpt) => (
+				<CodeExcerpt key={excerpt.ref} excerpt={excerpt} />
+			))}
+			{otherRefs.length > 0 && (
+				<ul className="grid gap-2 border-t px-4 py-3">
+					{otherRefs.map((ref) => (
+						<EvidenceItem key={ref} evidenceRef={ref} value={evidence.get(ref)} runKey={runKey} />
+					))}
+				</ul>
+			)}
+		</LayerCard>
+	);
+}
+
+function CodeExcerpt({ excerpt }: { excerpt: Excerpt }) {
+	const { file, line } = packageLocation(excerpt.ref);
+	return (
+		<figure className="border-t">
+			<figcaption className="px-4 py-2 font-mono text-xs text-kumo-subtle">
+				{line === null ? file : `${file}:${line}`}
+			</figcaption>
+			<pre className="overflow-x-auto bg-kumo-recessed py-2 text-xs leading-5" dir="ltr">
+				{excerpt.lines.map((text, index) => {
+					const number = excerpt.startLine + index;
+					return (
+						<div key={number} className={number === line ? "bg-kumo-warning-tint px-4" : "px-4"}>
+							<span className="inline-block w-10 select-none pe-3 text-end text-kumo-subtle">
+								{number}
+							</span>
+							{text}
+						</div>
+					);
+				})}
+			</pre>
+		</figure>
+	);
+}
+
+function FlaggedImage({ className, src, alt }: { className: string; src: string; alt: string }) {
+	const [shown, setShown] = React.useState(false);
+	if (shown) return <img className={className} src={src} alt={alt} />;
+	return (
+		<div className="mt-2 grid aspect-video place-items-center rounded-lg bg-kumo-recessed">
+			<Button size="sm" variant="secondary" onClick={() => setShown(true)}>
+				<Trans>Show flagged image</Trans>
+			</Button>
+		</div>
+	);
+}
+
+function EvidenceItem({
+	evidenceRef,
+	value,
+	runKey,
+}: {
+	evidenceRef: string;
+	value?: ListingEvidence;
+	runKey: string;
+}) {
+	const { t } = useLingui();
+	const media = MEDIA_REF_RE.exec(evidenceRef);
+	return (
+		<li className="text-xs">
+			<p className="font-mono text-kumo-subtle">{evidenceRef}</p>
+			{media && (
+				<FlaggedImage
+					className="mt-2 max-h-80 rounded-lg bg-kumo-recessed object-contain"
+					src={assessmentMediaUrl(runKey, media[1]!, Number(media[2]))}
+					alt={t`Flagged ${media[1]!}`}
+				/>
+			)}
+			{value?.kind === "link" && (
+				<>
+					<p className="mt-1 break-all font-mono text-sm" dir="ltr">
+						{value.url}
+					</p>
+					{value.issues.length > 0 && (
+						<p className="mt-1 text-kumo-subtle">{t`Link check: ${value.issues.join(", ")}`}</p>
+					)}
+				</>
+			)}
+			{value?.kind === "text" && (
+				<p className="mt-1 line-clamp-6 whitespace-pre-wrap text-sm leading-6">{value.value}</p>
+			)}
+		</li>
 	);
 }
 
@@ -983,6 +1328,7 @@ function ActionDialog(props: {
 	onOpenChange: (open: boolean) => void;
 	onConfirm: (reason: string) => Promise<unknown>;
 	onSuccess: () => void;
+	children?: React.ReactNode;
 }) {
 	const { t } = useLingui();
 	const [reason, setReason] = React.useState("");
@@ -1024,6 +1370,7 @@ function ActionDialog(props: {
 					<Dialog.Description className="mt-2 text-kumo-subtle">
 						{props.description}
 					</Dialog.Description>
+					{props.children}
 					<div className="mt-5">
 						<Field label={reasonLabel}>
 							<InputArea
@@ -1399,9 +1746,15 @@ function canBlock(state: AssessmentState) {
 function canRerun(state: AssessmentState) {
 	return state !== "cancelled" && state !== "superseded";
 }
-function stateFromLocation(): AssessmentState {
+function isAssessmentFilter(value: string): value is AssessmentFilter {
+	return value === "all" || isAssessmentState(value);
+}
+function stateFromLocation(): AssessmentFilter {
 	const value = new URLSearchParams(window.location.search).get("state");
-	return value && isAssessmentState(value) ? value : "review";
+	return value && isAssessmentFilter(value) ? value : "review";
+}
+function assessmentPath(runKey: string, filter: AssessmentFilter): string {
+	return `/_admin/assessments/${encodeURIComponent(runKey)}?state=${filter}`;
 }
 function viewFromPath(path: string): View {
 	if (path.startsWith("/_admin/assessments")) return "assessments";
@@ -1453,4 +1806,64 @@ function stringArray(value: unknown): string[] {
 }
 function toError(value: unknown, fallback: string) {
 	return value instanceof Error ? value : new Error(fallback);
+}
+
+type ListingEvidence =
+	| { kind: "text"; value: string }
+	| { kind: "link"; url: string; issues: string[] };
+
+function listingEvidence(canonicalInput: unknown): Map<string, ListingEvidence> {
+	const evidence = new Map<string, ListingEvidence>();
+	for (const item of arrayValue(recordValue(canonicalInput, "text"))) {
+		const ref = stringValue(recordValue(item, "ref"));
+		const value = stringValue(recordValue(item, "value"));
+		if (ref && value) evidence.set(ref, { kind: "text", value });
+	}
+	for (const item of arrayValue(recordValue(canonicalInput, "links"))) {
+		const ref = stringValue(recordValue(item, "ref"));
+		const url = stringValue(recordValue(item, "url"));
+		if (ref && url) {
+			evidence.set(ref, { kind: "link", url, issues: stringArray(recordValue(item, "issues")) });
+		}
+	}
+	return evidence;
+}
+
+function codeReviews(summary: unknown): CodeReview[] {
+	return arrayValue(recordValue(summary, "codeReviews")).flatMap((item) => {
+		const model = stringValue(recordValue(item, "model"));
+		if (!model) return [];
+		return [
+			{
+				model,
+				summary: stringValue(recordValue(item, "summary")) ?? "",
+				findingCount: numberValue(asRecord(item), "findingCount") ?? 0,
+				declined: recordValue(item, "declined") === true,
+			},
+		];
+	});
+}
+
+function excerptArray(value: unknown): Excerpt[] {
+	return arrayValue(value).flatMap((item) => {
+		const ref = stringValue(recordValue(item, "ref"));
+		const startLine = numberValue(asRecord(item), "startLine");
+		const lines = stringArray(recordValue(item, "lines"));
+		return ref && startLine !== undefined ? [{ ref, startLine, lines }] : [];
+	});
+}
+
+function packageLocation(ref: string): { file: string; line: number | null } {
+	const path = ref.startsWith(PACKAGE_EVIDENCE_PREFIX)
+		? ref.slice(PACKAGE_EVIDENCE_PREFIX.length)
+		: ref;
+	const match = PACKAGE_LINE_RE.exec(path);
+	return match ? { file: match[1]!, line: Number(match[2]) } : { file: path, line: null };
+}
+
+function severityVariant(severity: string): "error" | "warning" | "info" | "neutral" {
+	if (severity === "critical" || severity === "high") return "error";
+	if (severity === "medium") return "warning";
+	if (severity === "low") return "info";
+	return "neutral";
 }

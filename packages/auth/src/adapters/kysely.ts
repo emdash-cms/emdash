@@ -37,6 +37,22 @@ export interface AuthTables {
 	allowed_domains: AllowedDomainTable;
 }
 
+type Defaulted<Table, Column extends keyof Table> = Omit<Table, Column> & {
+	[K in Column]: Generated<Table[K]>;
+};
+
+/**
+ * `AuthTables` with the columns that have database defaults typed as
+ * `Generated`, as EmDash's own `Database` types them.
+ */
+export interface GeneratedAuthTables {
+	users: Defaulted<UserTable, "disabled" | "created_at" | "updated_at">;
+	credentials: Defaulted<CredentialTable, "created_at" | "last_used_at">;
+	auth_tokens: Defaulted<AuthTokenTable, "created_at">;
+	oauth_accounts: Defaulted<OAuthAccountTable, "created_at">;
+	allowed_domains: Defaulted<AllowedDomainTable, "created_at">;
+}
+
 interface UserTable {
 	last_login_at?: Generated<string | null>;
 	id: string;
@@ -94,9 +110,11 @@ interface AllowedDomainTable {
 // Adapter implementation
 // ============================================================================
 
-export function createKyselyAdapter<T extends AuthTables>(db: Kysely<T>): AuthAdapter {
+export function createKyselyAdapter<T extends AuthTables | GeneratedAuthTables>(
+	db: Kysely<T>,
+): AuthAdapter {
 	// Type cast to work with generic Kysely instance
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- generic Kysely<T extends AuthTables> narrowed to concrete AuthTables for internal queries
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- generic Kysely<T extends AuthTables | GeneratedAuthTables> narrowed to concrete AuthTables for internal queries
 	const kdb = db as unknown as Kysely<AuthTables>;
 
 	return {

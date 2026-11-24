@@ -531,7 +531,7 @@ The allowed sub-field types are `string`, `text`, `url`, `number`, `integer`, `b
 
 Repeater validation accepts these properties:
 
-- `subFields` — One or more sub-field definitions. Each definition requires `slug`, `label`, and `type`; it can also set `required`. A `select` sub-field supplies its choices through `options`.
+- `subFields` — One or more sub-field definitions. Each definition requires `slug`, `label`, and `type`; it can also set `required`. A `select` sub-field supplies its choices through `options`. When defining the schema through a seed, the schema API, or code, an `image` sub-field can set `validation.allowedMimeTypes` to control accepted media and uploads, including inside a block type. For example, `validation: { allowedMimeTypes: ["image/svg+xml"] }` opts that image sub-field into SVG uploads; the global upload defaults remain unchanged.
 - `minItems` — Minimum number of rows. Must be zero or greater.
 - `maxItems` — Maximum number of rows. Must be one or greater and cannot be less than `minItems`.
 

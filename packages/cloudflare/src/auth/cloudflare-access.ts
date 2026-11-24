@@ -46,7 +46,7 @@ export interface AccessConfig {
 	defaultRole?: number;
 
 	/**
-	 * Map IdP group names to EmDash role levels
+	 * Map IdP group names or GitHub org/team names to EmDash role levels
 	 */
 	roleMapping?: Record<string, number>;
 }
@@ -80,6 +80,10 @@ export interface AccessIdentity {
 	email: string;
 	/** Groups from IdP (omitted by providers without group support) */
 	groups?: AccessGroup[];
+	/** GitHub organizations from IdP (omitted by other providers) */
+	orgs?: { id: number; name: string }[];
+	/** GitHub teams from IdP (omitted by other providers) */
+	teams?: { name: string; org_id: number }[];
 	/** Identity provider info */
 	idp: {
 		id: string;
@@ -218,8 +222,8 @@ export async function getAccessIdentity(jwt: string, teamDomain: string): Promis
  * @param config Access configuration
  * @returns Role level (e.g., 50 for Admin, 40 for Editor, 30 for Author)
  */
-export function resolveRoleFromGroups(
-	groups: AccessGroup[] | undefined,
+export function resolveRoleFromGroups<T extends Pick<AccessGroup, "name">>(
+	groups: T[] | undefined,
 	config: AccessConfig,
 ): number {
 	const defaultRole = config.defaultRole ?? 30; // Author
@@ -279,8 +283,12 @@ export async function authenticate(request: Request, config: unknown): Promise<A
 	// Fetch full identity (includes groups)
 	const identity = await getAccessIdentity(jwt, accessConfig.teamDomain);
 
-	// Resolve role from groups
-	const role = resolveRoleFromGroups(identity.groups, accessConfig);
+	const orgNames = new Map(identity.orgs?.map((org) => [org.id, org.name]));
+	const teams = (identity.teams ?? []).flatMap((team) => {
+		const orgName = orgNames.get(team.org_id);
+		return orgName ? [{ name: `${orgName}/${team.name}` }] : [];
+	});
+	const role = resolveRoleFromGroups([...(identity.groups ?? []), ...teams], accessConfig);
 
 	// Log identity for debugging
 	console.log(

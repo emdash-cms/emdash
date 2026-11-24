@@ -6,6 +6,8 @@ import { handleMediaDelete, handleMediaGet } from "../../../src/api/handlers/med
 import { DELETE as deleteMedia } from "../../../src/astro/routes/api/media/[id].js";
 import { POST as postConfirm } from "../../../src/astro/routes/api/media/[id]/confirm.js";
 import { PUT as putUpload } from "../../../src/astro/routes/api/media/[id]/upload.js";
+import { GET as getMediaFile } from "../../../src/astro/routes/api/media/file/[...key].js";
+import { DELETE as deleteProviderItem } from "../../../src/astro/routes/api/media/providers/[providerId]/[itemId].js";
 import { POST as postUploadUrl } from "../../../src/astro/routes/api/media/upload-url.js";
 import { runSystemCleanup } from "../../../src/cleanup.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
@@ -1181,6 +1183,249 @@ describe("streamed media upload fallback", () => {
 		expect(storage.objects.size).toBe(0);
 	});
 
+	it.each([1011, 1012, 1013])(
+		"serves original bytes for a %i-character key and caches only purgeable tags",
+		async (length) => {
+			const key = `${"a".repeat(length - 4)}.png`;
+			const storage = streamingStorage();
+			storage.objects.set(key, new Uint8Array([1, 2, 3]));
+			const cache = { enabled: true, set: vi.fn() };
+			const context = buildContext({
+				db,
+				storage,
+				request: new Request(`http://localhost/_emdash/api/media/file/${key}`),
+			});
+			context.params = { key };
+			context.cache = { ...context.cache, ...cache };
+
+			const response = await getMediaFile(context);
+
+			expect(response.status).toBe(200);
+			expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+			if (length === 1011) {
+				expect(cache.set).toHaveBeenCalledWith({
+					maxAge: 31_536_000,
+					tags: [`emdash:media:${key}`],
+				});
+			} else {
+				expect(cache.set).not.toHaveBeenCalled();
+			}
+		},
+	);
+
+	it("purges the cached file and variants after deleting the stored file", async () => {
+		const media = await new MediaRepository(db).create({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
+		const invalidate = vi.fn(async () => {});
+
+		const response = await deleteMedia({
+			params: { id: media.id },
+			cache: { enabled: true, invalidate },
+			locals: {
+				emdash: {
+					db,
+					storage,
+					handleMediaGet: (id: string) => handleMediaGet(db, id),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 30 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(200);
+		expect(storage.objects.size).toBe(0);
+		expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:media:photo.png"] });
+	});
+
+	it.each([
+		[1011, "image/png"],
+		[1012, "image/png"],
+		[1013, "image/png"],
+		[1011, "application/octet-stream"],
+		[1012, "application/octet-stream"],
+		[1013, "application/octet-stream"],
+	])(
+		"deletes a %i-character image key stored as %s and purges only eligible tags",
+		async (length, mimeType) => {
+			const key = `${"a".repeat(length - 4)}.png`;
+			const repo = new MediaRepository(db);
+			const media = await repo.create({
+				filename: "photo.png",
+				mimeType,
+				storageKey: key,
+				authorId: "user-1",
+			});
+			const storage = streamingStorage();
+			storage.objects.set(key, new Uint8Array([1, 2, 3]));
+			const invalidate = vi.fn(async () => {});
+
+			const response = await deleteMedia({
+				params: { id: media.id },
+				cache: { enabled: true, invalidate },
+				locals: {
+					emdash: {
+						db,
+						storage,
+						handleMediaGet: (id: string) => handleMediaGet(db, id),
+						handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+					},
+					user: { id: "user-1", email: "test@example.com", name: "Test User", role: 30 },
+				},
+			} as unknown as APIContext);
+
+			expect(response.status).toBe(200);
+			expect(await repo.findById(media.id)).toBeNull();
+			expect(storage.objects.size).toBe(0);
+			if (length === 1011) {
+				expect(invalidate).toHaveBeenCalledWith({ tags: [`emdash:media:${key}`] });
+			} else {
+				expect(invalidate).not.toHaveBeenCalled();
+			}
+		},
+	);
+
+	it("deletes the stored file without purging media that is never route-cached", async () => {
+		for (const item of [
+			{ filename: "report.pdf", mimeType: "application/pdf", storageKey: "report.pdf" },
+			{ filename: "photo.png", mimeType: "image/png", storageKey: "photo,1.png" },
+		]) {
+			const media = await new MediaRepository(db).create({
+				...item,
+				size: 3,
+				authorId: "user-1",
+			});
+			const storage = streamingStorage();
+			storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
+			const invalidate = vi.fn(async () => {});
+
+			const response = await deleteMedia({
+				params: { id: media.id },
+				cache: { enabled: true, invalidate },
+				locals: {
+					emdash: {
+						db,
+						storage,
+						handleMediaGet: (id: string) => handleMediaGet(db, id),
+						handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+					},
+					user: { id: "user-1", email: "test@example.com", name: "Test User", role: 30 },
+				},
+			} as unknown as APIContext);
+
+			expect(response.status).toBe(200);
+			expect(storage.objects.size).toBe(0);
+			expect(invalidate).not.toHaveBeenCalled();
+		}
+	});
+
+	it("purges an image key stored with a non-image MIME type", async () => {
+		const media = await new MediaRepository(db).create({
+			filename: "photo.jpg",
+			mimeType: "application/octet-stream",
+			size: 3,
+			storageKey: "photo.jpg",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
+		const invalidate = vi.fn(async () => {});
+
+		const response = await deleteMedia({
+			params: { id: media.id },
+			cache: { enabled: true, invalidate },
+			locals: {
+				emdash: {
+					db,
+					storage,
+					handleMediaGet: (id: string) => handleMediaGet(db, id),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 30 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(200);
+		expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:media:photo.jpg"] });
+	});
+
+	it("returns 404 without purging when deleting a missing item", async () => {
+		const invalidate = vi.fn(async () => {});
+		const storage = streamingStorage();
+
+		const response = await deleteMedia({
+			params: { id: "missing" },
+			cache: { enabled: true, invalidate },
+			locals: {
+				emdash: {
+					db,
+					storage,
+					handleMediaGet: (id: string) => handleMediaGet(db, id),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 30 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(404);
+		expect(invalidate).not.toHaveBeenCalled();
+	});
+
+	it("purges the cached file after a delete from the media picker", async () => {
+		const media = await new MediaRepository(db).create({
+			filename: "photo.png",
+			mimeType: "image/png",
+			size: 3,
+			storageKey: "photo.png",
+			authorId: "user-1",
+		});
+		const storage = streamingStorage();
+		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
+		const invalidate = vi.fn(async () => {});
+		const providerDelete = vi.fn(async () => {});
+
+		const response = await deleteProviderItem({
+			params: { providerId: "local", itemId: media.id },
+			cache: { enabled: true, invalidate },
+			locals: {
+				emdash: {
+					getMediaProvider: () => ({ delete: providerDelete }),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, storage),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 40 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(200);
+		expect(storage.objects.size).toBe(0);
+		expect(invalidate).toHaveBeenCalledWith({ tags: ["emdash:media:photo.png"] });
+	});
+
+	it("treats a media picker delete of a missing item as done without purging", async () => {
+		const invalidate = vi.fn(async () => {});
+
+		const response = await deleteProviderItem({
+			params: { providerId: "local", itemId: "missing" },
+			cache: { enabled: true, invalidate },
+			locals: {
+				emdash: {
+					getMediaProvider: () => ({ delete: vi.fn() }),
+					handleMediaDelete: (id: string) => handleMediaDelete(db, id, streamingStorage()),
+				},
+				user: { id: "user-1", email: "test@example.com", name: "Test User", role: 40 },
+			},
+		} as unknown as APIContext);
+
+		expect(response.status).toBe(200);
+		expect(invalidate).not.toHaveBeenCalled();
+	});
+
 	it("reports a failed storage delete and leaves the object reachable for cleanup", async () => {
 		const repo = new MediaRepository(db);
 		const media = await repo.create({
@@ -1193,9 +1438,11 @@ describe("streamed media upload fallback", () => {
 		const storage = streamingStorage();
 		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
 		storage.delete.mockRejectedValueOnce(new Error("bucket unavailable"));
+		const invalidate = vi.fn(async () => {});
 
 		const response = await deleteMedia({
 			params: { id: media.id },
+			cache: { enabled: true, invalidate },
 			locals: {
 				emdash: {
 					db,
@@ -1210,13 +1457,63 @@ describe("streamed media upload fallback", () => {
 		expect(response.status).toBe(200);
 		const body = (await response.json()) as { data: unknown };
 		expect(body.data).toEqual({ deleted: true, storageDeleted: false });
+		expect(invalidate).not.toHaveBeenCalled();
 		expect(await repo.findById(media.id)).toBeNull();
 		expect(storage.objects.has(media.storageKey)).toBe(true);
 
-		await runSystemCleanup(db, storage);
+		const purge = vi.fn(async () => {});
+		await runSystemCleanup(db, storage, purge);
 
 		expect(storage.objects.size).toBe(0);
 		expect(await repo.hasUploadAttempt(media.storageKey)).toBe(false);
+		expect(purge).toHaveBeenCalledWith(["emdash:media:photo.png"]);
+	});
+
+	it("cleans long-key uploads without poisoning purge batches for cacheable files", async () => {
+		vi.useFakeTimers();
+		const repo = new MediaRepository(db);
+		const storage = streamingStorage();
+		const pendingKeys = [
+			...Array.from({ length: 100 }, (_, index) => `pending-${index}.png`),
+			`${"a".repeat(1007)}.png`,
+			`${"a".repeat(1009)}.png`,
+		];
+		const attemptKeys = [`${"b".repeat(1007)}.png`, `${"b".repeat(1009)}.png`, "photo,1.png"];
+		for (const key of pendingKeys) {
+			await repo.createPending({ filename: "photo.png", mimeType: "image/png", storageKey: key });
+			storage.objects.set(key, new Uint8Array([1, 2, 3]));
+		}
+		for (const key of attemptKeys) {
+			await repo.trackStorageKeyForCleanup("removed-media", key);
+			storage.objects.set(key, new Uint8Array([1, 2, 3]));
+		}
+		vi.advanceTimersByTime(61 * 60 * 1000);
+		const purged = new Set<string>();
+		const purge = vi.fn(async (tags: string[]) => {
+			if (tags.length > 100 || tags.some((tag) => tag.length > 1024 || tag.includes(","))) {
+				throw new Error("Invalid purge batch");
+			}
+			for (const tag of tags) purged.add(tag);
+		});
+
+		const result = await runSystemCleanup(db, storage, purge);
+
+		expect(result.pendingUploads).toBe(102);
+		expect(result.pendingUploadFiles).toBe(102);
+		expect(result.uploadAttempts).toBe(3);
+		expect(storage.objects.size).toBe(0);
+		expect(await db.selectFrom("media").select("id").execute()).toEqual([]);
+		expect(
+			await db.selectFrom("_emdash_media_upload_attempts").select("storage_key").execute(),
+		).toEqual([]);
+		expect(purged).toEqual(
+			new Set([
+				...Array.from({ length: 100 }, (_, index) => `emdash:media:pending-${index}.png`),
+				`emdash:media:${"a".repeat(1007)}.png`,
+				`emdash:media:${"b".repeat(1007)}.png`,
+			]),
+		);
+		expect(purge.mock.calls.map(([tags]) => tags.length)).toEqual([100, 2]);
 	});
 
 	it("keeps an object marked for cleanup tracked while its media row still exists", async () => {
@@ -1231,11 +1528,13 @@ describe("streamed media upload fallback", () => {
 		const storage = streamingStorage();
 		storage.objects.set(media.storageKey, new Uint8Array([1, 2, 3]));
 		await repo.trackStorageKeyForCleanup(media.id, media.storageKey);
+		const purge = vi.fn(async () => {});
 
-		await runSystemCleanup(db, storage);
+		await runSystemCleanup(db, storage, purge);
 
 		expect(await repo.hasUploadAttempt(media.storageKey)).toBe(true);
 		expect(storage.objects.size).toBe(1);
+		expect(purge).not.toHaveBeenCalled();
 	});
 
 	it("rejects a non-owner without media:edit_any", async () => {

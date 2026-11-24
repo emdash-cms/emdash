@@ -26,6 +26,9 @@ export type ListPresentation = "lines" | "table" | "items";
 
 export interface ListSubField extends PlanField {
 	options?: string[];
+	validation?: {
+		allowedMimeTypes?: string[];
+	};
 }
 
 /** A block field, or a list's sub-field, as an open block lays it out. */
@@ -236,8 +239,14 @@ export function repeaterSubFields(field: Pick<BlockFieldDefinition, "validation"
 	if (!Array.isArray(subFields)) return [];
 	return subFields.flatMap((subField): ListSubField[] => {
 		if (!isRecord(subField)) return [];
-		const { slug, type, label, required, options } = subField;
+		const { slug, type, label, required, options, validation } = subField;
 		if (typeof slug !== "string" || typeof type !== "string") return [];
+		const allowedMimeTypes =
+			isRecord(validation) && Array.isArray(validation.allowedMimeTypes)
+				? validation.allowedMimeTypes.filter(
+						(mimeType): mimeType is string => typeof mimeType === "string",
+					)
+				: undefined;
 		return [
 			{
 				slug,
@@ -247,6 +256,7 @@ export function repeaterSubFields(field: Pick<BlockFieldDefinition, "validation"
 				...(Array.isArray(options)
 					? { options: options.filter((option): option is string => typeof option === "string") }
 					: {}),
+				...(allowedMimeTypes ? { validation: { allowedMimeTypes } } : {}),
 			},
 		];
 	});

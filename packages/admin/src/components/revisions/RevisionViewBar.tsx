@@ -5,14 +5,10 @@ import * as React from "react";
 
 import type { ContentItem, RevisionListItem } from "../../lib/api";
 import { useRoomOperations } from "../../lib/co-editing/operations.js";
+import { userColorProps, type UserColor } from "../../lib/user-color.js";
 import { cn } from "../../lib/utils.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
-import {
-	revisionDate,
-	revisionNamed,
-	useRevisionFormat,
-	type AuthorColor,
-} from "./revision-format.js";
+import { revisionDate, revisionNamed, useRevisionFormat } from "./revision-format.js";
 import { RevisionRestoreDialog } from "./RevisionRestoreDialog.js";
 import type { RevisionStepDirection } from "./useRevisionView.js";
 
@@ -20,7 +16,7 @@ export interface RevisionViewBarProps {
 	collection: string;
 	entryId: string;
 	revision: RevisionListItem;
-	authorColor: AuthorColor;
+	authorColor: UserColor | null;
 	isCurrent: boolean;
 	isPublished: boolean;
 	/** The version holds the same content as the current one, so there is nothing to restore. */
@@ -123,7 +119,7 @@ export function RevisionViewBar({
 		>
 			<section
 				aria-labelledby={titleId}
-				data-author-color={authorColor}
+				{...userColorProps(authorColor)}
 				className="emdash-revision-bar @container pointer-events-auto w-full max-w-[30rem] rounded-[0.875rem] bg-kumo-base ring ring-kumo-line"
 			>
 				{/* One line when the bar is wide enough for the version and its buttons, otherwise two

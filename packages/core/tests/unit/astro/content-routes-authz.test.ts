@@ -60,6 +60,7 @@ interface StubItem {
 	version: number;
 	locale: string | null;
 	translationGroup: string | null;
+	liveData?: Record<string, unknown>;
 }
 
 function makeItem(partial: Partial<StubItem> & { id: string; status: string }): StubItem {
@@ -288,6 +289,46 @@ describe("GET /content/:collection/:id — subscriber drafts leak", () => {
 		);
 		expect(res.status).toBe(200);
 	});
+
+	it("serves SUBSCRIBER the published values of an item with a pending draft", async () => {
+		const emdash = buildEmdash({
+			getItem: makeItem({
+				id: "p1",
+				status: "published",
+				data: { title: "Unpublished edit" },
+				liveData: { title: "Published title" },
+				draftRevisionId: "rev-draft",
+			}),
+		});
+		const res = await getItem(
+			ctx({ user: subscriber, emdash, params: { collection: "post", id: "p1" } }),
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: { item: Record<string, unknown>; _rev: string } };
+		expect(body.data.item.data).toEqual({ title: "Published title" });
+		expect(body.data.item).not.toHaveProperty("liveData");
+		expect(body.data.item).not.toHaveProperty("draftRevisionId");
+		expect(body.data._rev).toBe("rev1");
+	});
+
+	it("serves CONTRIBUTOR the pending draft of a published item", async () => {
+		const emdash = buildEmdash({
+			getItem: makeItem({
+				id: "p1",
+				status: "published",
+				data: { title: "Unpublished edit" },
+				liveData: { title: "Published title" },
+				draftRevisionId: "rev-draft",
+			}),
+		});
+		const res = await getItem(
+			ctx({ user: contributor, emdash, params: { collection: "post", id: "p1" } }),
+		);
+		const body = (await res.json()) as { data: { item: Record<string, unknown> } };
+		expect(body.data.item.data).toEqual({ title: "Unpublished edit" });
+		expect(body.data.item.liveData).toEqual({ title: "Published title" });
+		expect(body.data.item.draftRevisionId).toBe("rev-draft");
+	});
 });
 
 // ---------------------------------------------------------------------------
@@ -509,7 +550,7 @@ describe("uninitialized runtime returns NOT_CONFIGURED, not UNAUTHORIZED", () =>
 		expect(res.status).toBe(500);
 	});
 
-	// A requireDb-gated route (references) — the guard style differs from the
+	// A db-gated route (references) — the guard style differs from the
 	// handler-presence checks above, so pin it separately.
 	it("GET …/references/:relation/parents → 500 NOT_CONFIGURED", async () => {
 		const url = "http://localhost/";

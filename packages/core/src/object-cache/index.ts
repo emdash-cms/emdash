@@ -152,7 +152,9 @@ const EPOCH_READ_GRACE_MS = 1_000;
  * only exist because its owning request was cancelled mid-await — on workerd
  * a cancelled request's continuations never run, *including the timeout's own
  * `setTimeout` callback*, so the shared promise never settles and is never
- * replaced. With the timeout disabled (`timeout: 0`) the default is used as
+ * replaced. A cross-request promise may also reject immediately when the
+ * runtime detects that its owner has ended; callers treat that the same as a
+ * timeout. With the timeout disabled (`timeout: 0`) the default is used as
  * the deadline; the worst case of guessing too short is one duplicate
  * backend read.
  */
@@ -164,11 +166,11 @@ function epochReadDeadline(): number {
 /**
  * Await another request's in-flight epoch read, bounded by the waiter's own
  * timer. The bare promise must never be awaited across requests: if the
- * owning request is cancelled, the promise never settles (see
- * {@link epochReadDeadline}) and an unguarded waiter hangs until the isolate
- * is evicted. The race timer below belongs to the *waiter's* request context
- * and therefore always fires; on timeout the waiter degrades to `fallback`
- * (the last known epoch), the same contract as a failed backend read.
+ * owning request is cancelled, the promise may never settle or may reject
+ * immediately (see {@link epochReadDeadline}) and an unguarded waiter hangs or
+ * throws. The race timer below belongs to the *waiter's* request context and
+ * therefore always fires; on timeout or rejection the waiter degrades to
+ * `fallback` (the last known epoch), the same contract as a failed backend read.
  */
 function raceInFlightEpochRead(
 	promise: Promise<number>,
@@ -179,7 +181,7 @@ function raceInFlightEpochRead(
 	const timeout = new Promise<number>((resolve) => {
 		timer = setTimeout(resolve, Math.max(ms, 1), fallback);
 	});
-	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+	return Promise.race([promise.catch(() => fallback), timeout]).finally(() => clearTimeout(timer));
 }
 
 /** Bound a waiter on another request's backend initialization. */
@@ -191,7 +193,7 @@ function raceInFlightBackendInit(
 	const timeout = new Promise<ObjectCacheBackend | null>((resolve) => {
 		timer = setTimeout(resolve, Math.max(ms, 1), null);
 	});
-	return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+	return Promise.race([promise.catch(() => null), timeout]).finally(() => clearTimeout(timer));
 }
 
 const BACKEND_KEY = Symbol.for("emdash:object-cache:backend");
@@ -563,7 +565,7 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 	}
 	if (cached?.promise) {
 		// Share the in-flight read only while its owner can still be alive,
-		// and never await it bare (a cancelled owner's promise never settles;
+		// and never await it bare (a cancelled owner's promise may hang or reject;
 		// see epochReadDeadline). Past the deadline, fall through and reclaim
 		// with a fresh read — the dead entry is overwritten below.
 		const age = now - (cached.promiseAt ?? 0);
@@ -595,8 +597,8 @@ async function getEpoch(namespace: string, backend: ObjectCacheBackend): Promise
 		isCoveredByMarker(namespace) &&
 		(changeMarker.at === 0 ||
 			(changeMarker.marker === null && now - changeMarker.at >= markerRecheckMs));
-	// A read past its deadline may never settle (see epochReadDeadline), so it
-	// no longer blocks a new one; getChangeMarker replaces it.
+	// A read past its deadline may belong to a cancelled request, so it no
+	// longer blocks a new one; getChangeMarker replaces it.
 	const markerReadPending =
 		changeMarker.promise !== undefined && now - (changeMarker.promiseAt ?? 0) < epochReadDeadline();
 	if (markerUnknown && !markerReadPending) {
@@ -703,7 +705,9 @@ async function getChangeMarker(backend: ObjectCacheBackend): Promise<ChangeMarke
 			const timeout = new Promise<null>((resolve) => {
 				timer = setTimeout(resolve, Math.max(deadline - age, 1), null);
 			});
-			return Promise.race([changeMarker.promise, timeout]).finally(() => clearTimeout(timer));
+			return Promise.race([changeMarker.promise.catch(() => null), timeout]).finally(() =>
+				clearTimeout(timer),
+			);
 		}
 	}
 

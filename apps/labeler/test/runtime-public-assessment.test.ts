@@ -169,7 +169,7 @@ describe("public assessment XRPC", () => {
 				{
 					category: "phishing",
 					reasonCode: "policy-finding",
-					summary: "The assessment identified potential phishing in listing metadata.",
+					summary: "The assessment identified potential phishing.",
 				},
 				{
 					category: "moderation-manipulation",
@@ -416,7 +416,7 @@ describe("public assessment XRPC", () => {
 			state: "error",
 			coverage: { text: "unavailable", links: "unavailable", media: "not-present" },
 			reasonCodes: ["record-verification-failed"],
-			summary: "The listing metadata could not be assessed.",
+			summary: "This revision could not be assessed.",
 		});
 		const serialized = JSON.stringify(body);
 		expect(serialized).not.toContain("RECORD_VERIFICATION_OR_CANONICALIZATION_FAILED");
