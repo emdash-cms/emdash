@@ -403,8 +403,8 @@ Options for `access()`:
 | `audience`       | `string`  | —                      | Application Audience (AUD) tag. On Workers, prefer `audienceEnvVar`.                          |
 | `audienceEnvVar` | `string`  | `"CF_ACCESS_AUDIENCE"` | Environment variable to read the audience tag from at runtime                                |
 | `autoProvision`  | `boolean` | `true`                 | Create an EmDash user on first login                                                         |
-| `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)). When the site has no existing users, the first provisioned user is assigned Admin (`50`) regardless of `defaultRole` or `roleMapping` (`syncRoles: true` still re-applies `roleMapping` on later logins). |
-| `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
+| `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)). When the site has no existing users, the first provisioned user is assigned Admin (`50`) regardless of `defaultRole` or `roleMapping`. With `syncRoles: true`, that user's role is re-resolved on subsequent authenticated requests and falls back to `defaultRole` unless an IdP group maps to `50`. |
+| `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` (and `defaultRole` fallback) on every authenticated request instead of only at provisioning |
 | `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to make names editable in the admin |
 | `roleMapping`    | `object`  | —                      | Map IdP group names or GitHub `org/team` names to EmDash role levels; [first match wins](/guides/authentication/#role-mapping)                                  |
 
