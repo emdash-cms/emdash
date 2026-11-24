@@ -67,6 +67,8 @@ const OPERATOR_ASSESSMENT_STATES = new Set([
 	"superseded",
 	"cancelled",
 ]);
+/** Lists assessments in every state, most recently updated first. */
+const ALL_ASSESSMENTS = "all";
 const EFFECTIVE_OPERATOR_STATE_SQL = `CASE
 	WHEN assessment.state IN ('superseded', 'cancelled') THEN assessment.state
 	WHEN current_subject.uri IS NOT NULL AND current_subject.deleted_at IS NOT NULL THEN 'cancelled'
@@ -570,7 +572,7 @@ async function handleOperatorRead(
 		return apiError("NOT_FOUND", "Operator resource was not found", 404);
 	}
 	const state = url.searchParams.get("state") ?? "review";
-	if (!OPERATOR_ASSESSMENT_STATES.has(state)) {
+	if (state !== ALL_ASSESSMENTS && !OPERATOR_ASSESSMENT_STATES.has(state)) {
 		return apiError("INVALID_REQUEST", "Assessment state filter is invalid", 400);
 	}
 	const limit = readPageLimit(url);
@@ -968,18 +970,26 @@ export async function readOperatorAssessmentPage(
 	reader: OperatorAssessmentReader,
 	options: { state: string; limit: number; cursor?: string },
 ): Promise<OperatorAssessmentPage> {
-	if (!OPERATOR_ASSESSMENT_STATES.has(options.state)) {
+	const all = options.state === ALL_ASSESSMENTS;
+	if (!all && !OPERATOR_ASSESSMENT_STATES.has(options.state)) {
 		throw new TypeError("operator assessment state is invalid");
 	}
 	if (!Number.isSafeInteger(options.limit) || options.limit < 1 || options.limit > 100) {
 		throw new RangeError("operator assessment page limit is invalid");
 	}
 	const cursor = options.cursor ? decodeAssessmentCursor(options.cursor) : null;
-	const bindings: Array<string | number> = [options.state];
-	const after = cursor
-		? `AND (assessment.updated_at > ?
-		        OR (assessment.updated_at = ? AND assessment.run_key > ?))`
-		: "";
+	const bindings: Array<string | number> = all ? [] : [options.state];
+	const beyond = all ? "<" : ">";
+	const conditions = [
+		...(all ? [] : [`${EFFECTIVE_OPERATOR_STATE_SQL} = ?`]),
+		...(cursor
+			? [
+					`(assessment.updated_at ${beyond} ?
+					  OR (assessment.updated_at = ? AND assessment.run_key ${beyond} ?))`,
+				]
+			: []),
+	];
+	const direction = all ? "DESC" : "ASC";
 	if (cursor) bindings.push(cursor.updatedAt, cursor.updatedAt, cursor.runKey);
 	bindings.push(options.limit + 1);
 	const rows = await reader.all(
@@ -987,7 +997,12 @@ export async function readOperatorAssessmentPage(
 		        assessment.subject_kind, ${EFFECTIVE_OPERATOR_STATE_SQL} AS state,
 		        assessment.state AS assessment_state, assessment.state_version,
 		        assessment.policy_version, assessment.created_at, assessment.updated_at,
-		        assessment.completed_at
+		        assessment.completed_at,
+		        CASE WHEN json_valid(assessment.coverage_json)
+		             THEN json_extract(assessment.coverage_json, '$.code') END AS code_coverage,
+		        CASE WHEN json_valid(assessment.summary_json)
+		             THEN json_array_length(assessment.summary_json, '$.codeReviews') END
+		          AS code_review_count
 		 FROM assessments assessment
 		 LEFT JOIN operator_actions decision ON decision.id = (
 		   SELECT candidate.id
@@ -1003,9 +1018,8 @@ export async function readOperatorAssessmentPage(
 		  AND current_assessment.subject_cid = assessment.subject_cid
 		 LEFT JOIN current_subjects current_subject
 		   ON current_subject.uri = assessment.subject_uri
-		 WHERE ${EFFECTIVE_OPERATOR_STATE_SQL} = ?
-		   ${after}
-		 ORDER BY assessment.updated_at ASC, assessment.run_key ASC
+		 ${conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""}
+		 ORDER BY assessment.updated_at ${direction}, assessment.run_key ${direction}
 		 LIMIT ?`,
 		bindings,
 	);
