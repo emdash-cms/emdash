@@ -32,6 +32,7 @@ import {
 	type I18nConfig,
 } from "emdash";
 
+import { deleteMedia } from "./bridge-media.js";
 import {
 	setCommentModerateCallback,
 	setContentCreateCallback,
@@ -44,6 +45,7 @@ import {
 	setMediaStorageCallback,
 	setTaxonomyWriteCallback,
 	setHttpFetchCallback,
+	type PluginBridgeEnv,
 } from "./bridge.js";
 import { PluginRuntimeBridge } from "./runtime-bridge.js";
 import type { WorkerLoader, WorkerStub, PluginBridgeBinding, WorkerLoaderLimits } from "./types.js";
@@ -281,6 +283,8 @@ export class CloudflareSandboxRunner implements SandboxRunner {
 						contentCreate: this.contentCreate,
 						beforeContentWrite: this.options.beforeContentWrite,
 						contentActions: this.contentActions,
+						// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- host bindings are accessed from the untyped cloudflare:workers env
+						mediaDelete: (id) => deleteMedia(env as PluginBridgeEnv, id),
 						taxonomyWrite: this.options.taxonomyWrite,
 						commentModerate: this.commentModerate,
 						i18nConfig: getI18nConfig(),

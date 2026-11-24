@@ -14,6 +14,7 @@
 
 import type { ChildProcess } from "node:child_process";
 import { EventEmitter } from "node:events";
+import * as net from "node:net";
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
@@ -23,6 +24,7 @@ import {
 	waitForProcessExit,
 } from "../src/sandbox/runner.js";
 import type { ExitHandlerHost } from "../src/sandbox/runner.js";
+import { spawnWorkerd } from "../src/sandbox/workerd-process.js";
 
 interface FakeProc extends EventEmitter {
 	exitCode: number | null;
@@ -160,3 +162,91 @@ describe("stopWorkerd timer cleanup", () => {
 		expect(scheduleRestart).toHaveBeenCalledOnce();
 	});
 });
+
+describe.skipIf(process.platform === "win32")(
+	"waitForProcessExit process-group termination",
+	() => {
+		it("terminates a listener descendant when force stopping its launcher", async () => {
+			const descendantScript = `
+const http = require("node:http");
+process.on("SIGTERM", () => {});
+const server = http.createServer((_request, response) => response.end("ok"));
+server.listen(0, "127.0.0.1", () => {
+	const address = server.address();
+	if (address && typeof address !== "string") {
+		process.stdout.write(JSON.stringify({ pid: process.pid, port: address.port }) + "\\n");
+	}
+});
+`;
+			const launcherScript = `
+const { spawn } = require("node:child_process");
+const child = spawn(process.execPath, ["-e", ${JSON.stringify(descendantScript)}], {
+	stdio: ["ignore", "pipe", "inherit"],
+});
+child.stdout.on("data", (chunk) => process.stdout.write(chunk));
+`;
+			const launcher = spawnWorkerd(process.execPath, ["-e", launcherScript], {});
+			let output = "";
+			let stderr = "";
+			let descendantStopped = false;
+			let descendantPid: number | undefined;
+			let port: number | undefined;
+
+			launcher.stdout?.on("data", (chunk: Buffer) => {
+				output += chunk.toString();
+				const match = output.match(/\{"pid":(\d+),"port":(\d+)\}/);
+				if (match) {
+					descendantPid = Number(match[1]);
+					port = Number(match[2]);
+				}
+			});
+			launcher.stderr?.on("data", (chunk: Buffer) => {
+				stderr += chunk.toString();
+			});
+
+			const canConnect = (targetPort: number) =>
+				new Promise<boolean>((resolve) => {
+					const socket = net.createConnection({ host: "127.0.0.1", port: targetPort });
+					const finish = (connected: boolean) => {
+						socket.destroy();
+						resolve(connected);
+					};
+					socket.once("connect", () => finish(true));
+					socket.once("error", () => finish(false));
+					socket.setTimeout(250, () => finish(false));
+				});
+
+			const waitForConnection = async (expected: boolean, timeoutMs: number) => {
+				const deadline = Date.now() + timeoutMs;
+				while (Date.now() < deadline) {
+					if (port !== undefined && (await canConnect(port)) === expected) return;
+					await new Promise((resolve) => setTimeout(resolve, 50));
+				}
+				throw new Error(`listener did not become ${expected ? "ready" : "closed"}: ${stderr}`);
+			};
+
+			try {
+				await waitForConnection(true, 3_000);
+				expect(descendantPid).toBeDefined();
+				await waitForProcessExit(launcher, 5_000, { force: true });
+				await waitForConnection(false, 2_000);
+				descendantStopped = true;
+			} finally {
+				if (
+					launcher.pid !== undefined &&
+					launcher.exitCode === null &&
+					launcher.signalCode === null
+				) {
+					try {
+						process.kill(-launcher.pid, "SIGKILL");
+					} catch {}
+				}
+				if (descendantPid !== undefined && !descendantStopped) {
+					try {
+						process.kill(descendantPid, "SIGKILL");
+					} catch {}
+				}
+			}
+		}, 10_000);
+	},
+);

@@ -1,5 +1,5 @@
 import type { Editor } from "@tiptap/core";
-import { yCursorPluginKey, yUndoPluginKey, ySyncPluginKey } from "@tiptap/y-tiptap";
+import { yUndoPluginKey, ySyncPluginKey } from "@tiptap/y-tiptap";
 import { Awareness } from "y-protocols/awareness";
 import * as Y from "yjs";
 
@@ -88,10 +88,8 @@ export class Replica implements ReplicaHandle {
 		this.#options = options;
 		this.#richText = new Set(options.richTextFields);
 		this.awareness.setLocalState({ field: null });
-		this.cursors = new RemoteCursors(this.awareness, options.clock, (userId) =>
-			this.presence.colorOf(userId),
-		);
-		this.#stopPresence = this.#followPresence();
+		this.cursors = new RemoteCursors(this.awareness, options.clock);
+		this.#stopPresence = trackFocusedField(this.awareness, this.doc.guid);
 		this.doc.on("afterTransaction", (transaction: Y.Transaction) =>
 			this.#afterTransaction(transaction),
 		);
@@ -306,27 +304,6 @@ export class Replica implements ReplicaHandle {
 		}
 		this.#saveState = { covered, saving, rev: this.#rev };
 		for (const listener of this.#saveListeners) listener();
-	}
-
-	/**
-	 * Sends the focused field, and gives the carets and selections new colors when someone's
-	 * changes, as when this tab learns its own user after the editors drew them.
-	 */
-	#followPresence(): () => void {
-		const stopFocus = trackFocusedField(this.awareness, this.doc.guid);
-		let colors = this.presence.colors;
-		const unsubscribe = this.presence.subscribe(() => {
-			if (colors === this.presence.colors) return;
-			colors = this.presence.colors;
-			this.cursors.recolor();
-			for (const editor of this.#editors.values()) {
-				editor.view.dispatch(editor.state.tr.setMeta(yCursorPluginKey, { awarenessUpdated: true }));
-			}
-		});
-		return () => {
-			stopFocus();
-			unsubscribe();
-		};
 	}
 
 	#richTextBinding(field: string): RichTextBinding {

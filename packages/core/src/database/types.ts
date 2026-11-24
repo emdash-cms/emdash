@@ -289,6 +289,7 @@ export interface MediaUsageReconciliationTable {
 }
 
 export interface UserTable {
+	last_login_at: Generated<string | null>;
 	id: string;
 	email: string;
 	name: string | null;

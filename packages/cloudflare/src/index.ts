@@ -254,7 +254,7 @@ export interface AccessConfig {
 	defaultRole?: number;
 
 	/**
-	 * Update user's role on each login based on current IdP groups
+	 * Update user's role on each login based on current IdP groups or GitHub teams
 	 * When false, role is only set on first provisioning
 	 * @default false
 	 */
@@ -268,8 +268,8 @@ export interface AccessConfig {
 	syncName?: boolean;
 
 	/**
-	 * Map IdP group names to EmDash role levels
-	 * First match wins if user is in multiple groups
+	 * Map IdP group names or GitHub org/team names to EmDash role levels
+	 * First match wins, checking groups before teams in identity response order
 	 *
 	 * @example
 	 * ```ts

@@ -1209,6 +1209,38 @@ describe("projection policy", () => {
 		});
 	});
 
+	it.each(["listing-pending", "listing-review", "listing-error"])(
+		"keeps the last passed release listed while a newer release is %s",
+		async (value) => {
+			await seedProfile({ cid: PROFILE_CID_1, name: "demo", at: NOW });
+			await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
+			await putLabel(packageProfileUri(DID_A, "demo"), PROFILE_CID_1, "listing-passed");
+			await putLabel(releaseUri(DID_A, "demo", "1.0.0"), RELEASE_CID_1, "listing-passed");
+			await rebuild("projection");
+
+			await seedRelease({
+				cid: RELEASE_CID_2,
+				version: "2.0.0",
+				at: new Date("2026-08-24T10:02:00.000Z"),
+			});
+			await putLabel(releaseUri(DID_A, "demo", "2.0.0"), RELEASE_CID_2, value);
+			await rebuild("projection");
+
+			const packageResponse = await xrpc(
+				"projection",
+				`${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+			);
+			expect(packageResponse.status).toBe(200);
+			expect(await packageResponse.json()).toMatchObject({ latestVersion: "1.0.0" });
+			const releaseResponse = await xrpc(
+				"projection",
+				`${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+			);
+			expect(releaseResponse.status).toBe(200);
+			expect(await releaseResponse.json()).toMatchObject({ cid: RELEASE_CID_1, version: "1.0.0" });
+		},
+	);
+
 	it("never returns staged publisher content in public reads or direct errors", async () => {
 		const hostile = "UNSAFE-PUBLISHER-TEXT https://credential-steal.example";
 		await seedProfile({ cid: PROFILE_CID_1, name: hostile, at: NOW });

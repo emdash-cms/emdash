@@ -111,7 +111,11 @@ describe("inline Portable Text editor saves", () => {
 	});
 
 	type TestEditor = {
-		commands: { insertContentAt: (pos: number, text: string) => boolean; undo: () => boolean };
+		commands: {
+			insertContentAt: (pos: number, text: string) => boolean;
+			setTextSelection: (pos: number) => boolean;
+			undo: () => boolean;
+		};
 	};
 	// The component does not expose its editor, and @tiptap/react has no
 	// public way to reach it from the DOM, so this uses the instance Tiptap's
@@ -123,6 +127,63 @@ describe("inline Portable Text editor saves", () => {
 		expect(editor).toBeDefined();
 		return editor!;
 	}
+
+	const nonParagraphEndings: Array<[string, PortableTextValue[number]]> = [
+		["bullet list", { ...storedBody[0]!, listItem: "bullet", level: 1 }],
+		["numbered list", { ...storedBody[0]!, listItem: "number", level: 1 }],
+		["heading", { ...storedBody[0]!, style: "h2" }],
+		["blockquote", { ...storedBody[0]!, style: "blockquote" }],
+		["image", { _type: "image", _key: "image", asset: { _ref: "01IMAGE", url: "/image.jpg" } }],
+		["HTML block", { _type: "htmlBlock", _key: "html", html: "<p>Embedded HTML</p>" }],
+		["plugin block", { _type: "marketing.hero", _key: "hero", headline: "Hello" }],
+	];
+
+	it.each(
+		nonParagraphEndings.flatMap(([name, ending]) =>
+			(["blur", "pagehide"] as const).map((flush) => ({ name, ending, flush })),
+		),
+	)(
+		"does not mark a $name ending dirty or save it on $flush after selection-only transactions",
+		async ({ ending, flush }) => {
+			const onSave = vi.fn();
+			document.addEventListener("emdash:save", onSave);
+			try {
+				const editable = await mount([storedBody[1]!, ending]);
+				await act(async () => {
+					// A click moves the selection without editing the document.
+					editorOf(editable).commands.setTextSelection(2);
+					editorOf(editable).commands.setTextSelection(3);
+				});
+				if (flush === "blur") await blur(editable);
+				else await act(async () => window.dispatchEvent(new Event("pagehide")));
+				expect(puts).toHaveLength(0);
+				expect(onSave).not.toHaveBeenCalled();
+			} finally {
+				document.removeEventListener("emdash:save", onSave);
+			}
+		},
+	);
+
+	it("does not save an empty body after a selection-only transaction", async () => {
+		const editable = await mount([]);
+		await act(async () => {
+			editorOf(editable).commands.setTextSelection(1);
+		});
+		await blur(editable);
+		await act(async () => window.dispatchEvent(new Event("pagehide")));
+		expect(puts).toHaveLength(0);
+	});
+
+	it("does not save after undoing a real edit in a body ending in a list", async () => {
+		const editable = await mount([storedBody[1]!, nonParagraphEndings[0]![1]]);
+		await act(async () => {
+			editorOf(editable).commands.insertContentAt(1, "Edited. ");
+			editorOf(editable).commands.undo();
+		});
+		await blur(editable);
+		await act(async () => window.dispatchEvent(new Event("pagehide")));
+		expect(puts).toHaveLength(0);
+	});
 
 	it("saves a real edit once, and not again on the next blur", async () => {
 		const editable = await mount();
