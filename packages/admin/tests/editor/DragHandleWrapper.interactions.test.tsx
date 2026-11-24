@@ -104,6 +104,7 @@ describe("DragHandleWrapper interactions", () => {
 	it("uses Kumo buttons for both drag-handle controls", async () => {
 		const editor = {
 			view: { dom: document.createElement("div"), nodeDOM: () => null },
+			commands: { setMeta: () => true },
 		} as unknown as Editor;
 		const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
 
@@ -175,6 +176,7 @@ describe("DragHandleWrapper interactions", () => {
 		editorElement.dir = "ltr";
 		const editor = {
 			view: { dom: editorElement, nodeDOM: () => null },
+			commands: { setMeta: () => true },
 		} as unknown as Editor;
 
 		try {
@@ -215,6 +217,7 @@ describe("DragHandleWrapper interactions", () => {
 		document.body.append(block);
 		const editor = {
 			view: { dom: document.createElement("div"), nodeDOM: () => block },
+			commands: { setMeta: () => true },
 		} as unknown as Editor;
 
 		try {
