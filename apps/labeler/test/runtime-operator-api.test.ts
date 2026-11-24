@@ -253,7 +253,9 @@ describe("operator review reads", () => {
 				policy_version TEXT NOT NULL,
 				created_at TEXT NOT NULL,
 				updated_at TEXT NOT NULL,
-				completed_at TEXT
+				completed_at TEXT,
+				coverage_json TEXT,
+				summary_json TEXT
 			);
 			CREATE TABLE current_assessments (
 				subject_uri TEXT NOT NULL,
@@ -278,7 +280,7 @@ describe("operator review reads", () => {
 		const uri = "at://did:plc:fixture/profile/repeated";
 		const cid = "cid-repeated";
 		const insertAssessment = db.prepare(
-			`INSERT INTO assessments VALUES (?, ?, ?, 'profile', 'review', 1, 'policy-v1', ?, ?, NULL)`,
+			`INSERT INTO assessments VALUES (?, ?, ?, 'profile', 'review', 1, 'policy-v1', ?, ?, NULL, NULL, NULL)`,
 		);
 		insertAssessment.run(
 			"assessment-stale-revision",
@@ -428,7 +430,9 @@ describe("operator review reads", () => {
 				policy_version TEXT NOT NULL,
 				created_at TEXT NOT NULL,
 				updated_at TEXT NOT NULL,
-				completed_at TEXT
+				completed_at TEXT,
+				coverage_json TEXT,
+				summary_json TEXT
 			);
 			CREATE TABLE operator_actions (
 				id INTEGER PRIMARY KEY,
@@ -451,7 +455,7 @@ describe("operator review reads", () => {
 			);
 		`);
 		const insertAssessment = db.prepare(
-			`INSERT INTO assessments VALUES (?, ?, ?, 'profile', 'review', 1, 'policy-v1', ?, ?, NULL)`,
+			`INSERT INTO assessments VALUES (?, ?, ?, 'profile', 'review', 1, 'policy-v1', ?, ?, NULL, NULL, NULL)`,
 		);
 		const insertDecision = db.prepare(
 			`INSERT INTO operator_actions (action, subject_uri, subject_cid) VALUES ('approve', ?, ?)`,
@@ -496,6 +500,90 @@ describe("operator review reads", () => {
 		db.close();
 	});
 
+	it("lists assessments in every state, newest first, with their code review", async () => {
+		const db = new DatabaseSync(":memory:");
+		db.exec(`
+			CREATE TABLE assessments (
+				run_key TEXT PRIMARY KEY,
+				subject_uri TEXT NOT NULL,
+				subject_cid TEXT NOT NULL,
+				subject_kind TEXT NOT NULL,
+				state TEXT NOT NULL,
+				state_version INTEGER NOT NULL,
+				policy_version TEXT NOT NULL,
+				created_at TEXT NOT NULL,
+				updated_at TEXT NOT NULL,
+				completed_at TEXT,
+				coverage_json TEXT,
+				summary_json TEXT
+			);
+			CREATE TABLE operator_actions (
+				id INTEGER PRIMARY KEY,
+				action TEXT NOT NULL,
+				subject_uri TEXT,
+				subject_cid TEXT,
+				created_at TEXT
+			);
+			CREATE TABLE current_assessments (
+				subject_uri TEXT NOT NULL,
+				subject_cid TEXT NOT NULL,
+				assessment_id TEXT NOT NULL,
+				updated_at TEXT NOT NULL,
+				PRIMARY KEY (subject_uri, subject_cid)
+			);
+			CREATE TABLE current_subjects (
+				uri TEXT PRIMARY KEY,
+				cid TEXT NOT NULL,
+				deleted_at TEXT
+			);
+		`);
+		const insert = db.prepare(
+			`INSERT INTO assessments VALUES (?, ?, ?, 'release', ?, 1, 'policy-v1', ?, ?, ?, ?, ?)`,
+		);
+		const codeReviewed = [
+			JSON.stringify({ text: "complete", code: "complete" }),
+			JSON.stringify({ codeReviews: [{ model: "a" }, { model: "b" }] }),
+		] as const;
+		for (const [key, state, timestamp, coverage, summary] of [
+			["passed-old", "passed", "2026-11-20T10:00:00.000Z", null, null],
+			["review-mid", "review", "2026-11-20T11:00:00.000Z", ...codeReviewed],
+			["passed-new", "passed", "2026-11-20T12:00:00.000Z", ...codeReviewed],
+		] as const) {
+			insert.run(
+				key,
+				`at://did:plc:fixture/release/${key}`,
+				`cid-${key}`,
+				state,
+				timestamp,
+				timestamp,
+				timestamp,
+				coverage,
+				summary,
+			);
+		}
+		const reader = {
+			async all(sql: string, bindings: readonly (string | number)[]) {
+				return db.prepare(sql).all(...bindings);
+			},
+		};
+
+		const first = await readOperatorAssessmentPage(reader, { state: "all", limit: 2 });
+		expect(first.items).toMatchObject([
+			{ run_key: "passed-new", state: "passed", code_coverage: "complete", code_review_count: 2 },
+			{ run_key: "review-mid", state: "review", code_coverage: "complete", code_review_count: 2 },
+		]);
+		const second = await readOperatorAssessmentPage(reader, {
+			state: "all",
+			limit: 2,
+			cursor: first.nextCursor,
+		});
+		expect(second.items).toMatchObject([
+			{ run_key: "passed-old", code_coverage: null, code_review_count: null },
+		]);
+		expect(second.nextCursor).toBeUndefined();
+		db.close();
+	});
+
 	it("returns the committed manual decision summary on detail", async () => {
 		const response = await handleOperatorApi(
 			new Request(`https://labels.example/_admin/api/assessments/${RUN.runKey}`),
@@ -534,7 +622,9 @@ describe("operator review reads", () => {
 				policy_version TEXT NOT NULL,
 				created_at TEXT NOT NULL,
 				updated_at TEXT NOT NULL,
-				completed_at TEXT
+				completed_at TEXT,
+				coverage_json TEXT,
+				summary_json TEXT
 			);
 			CREATE TABLE operator_actions (
 				id INTEGER PRIMARY KEY,
@@ -557,7 +647,7 @@ describe("operator review reads", () => {
 			);
 		`);
 		const insertAssessment = db.prepare(
-			`INSERT INTO assessments VALUES (?, ?, ?, 'profile', ?, 1, 'policy-v1', ?, ?, NULL)`,
+			`INSERT INTO assessments VALUES (?, ?, ?, 'profile', ?, 1, 'policy-v1', ?, ?, NULL, NULL, NULL)`,
 		);
 		const insertDecision = db.prepare(
 			`INSERT INTO operator_actions
