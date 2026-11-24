@@ -648,7 +648,7 @@ Disabling search preserves the stored tokenizer for the next enable operation. T
 
 ## Comments and redirects
 
-The active `comment:moderate` hook approves a public comment submission, holds it as pending, or marks it as spam. By default, the built-in moderator applies the collection's moderation setting (`all`, `first_time` by default, or `none`) and can auto-approve signed-in CMS users. Admin comment operations list all statuses, return counts, update one status, perform bulk moderation, and permanently delete a comment. A `429` response means the submission rate limit was reached.
+The active `comment:moderate` hook approves a public comment submission, holds it as pending, or marks it as spam. By default, the built-in moderator applies the collection's moderation setting (`all`, `first_time` by default, or `none`) and approves comments from signed-in CMS users unless the collection turns that off. Admin comment operations list all statuses, return counts, update one status, perform bulk moderation, and permanently delete a comment. A `429` response means the submission rate limit was reached.
 
 Redirect operations manage redirect rules and the recorded 404 log separately. Pruning removes entries selected by the request body, while `DELETE /redirects/404s` clears the entire log. Neither operation deletes redirect rules.
 
