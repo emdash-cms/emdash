@@ -36,6 +36,7 @@ import {
 	toPhosphorIconName,
 } from "./admin-navigation-icons.js";
 import { BrandIcon } from "./Logo.js";
+import { PolemosWritingMenu } from "./polemos/WritingMenu.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
 // Re-export for Shell.tsx and Header.tsx
@@ -761,6 +762,7 @@ export function SidebarNav({ manifest }: SidebarNavProps) {
 			</KumoSidebar.Header>
 
 			<KumoSidebar.Content>
+				<PolemosWritingMenu />
 				{groups.map((group) => (
 					<KumoSidebar.Group
 						key={group.key}

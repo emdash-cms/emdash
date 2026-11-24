@@ -144,6 +144,13 @@ import type {
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
 import { UnsavedChangesGuard } from "./UnsavedChangesGuard.js";
+import {
+	PolemosIssueNewsletter,
+	PolemosLangSwitch,
+	PolemosSaveStatus,
+	usePolemosPublish,
+} from "./polemos/EditorChrome.js";
+import { polemosBodyPlaceholder, polemosFieldLang } from "../lib/polemos-content-lang.js";
 
 /** Autosave debounce delay in milliseconds */
 const AUTOSAVE_DELAY = 2000;
@@ -2183,6 +2190,7 @@ export function ContentEditor({
 		room,
 		urlFields,
 	]);
+	const publishGate = usePolemosPublish(collection, isNew ? undefined : item?.id, handlePublish);
 	const runScheduleChange = React.useCallback(
 		(
 			action: (payload?: {
@@ -2580,7 +2588,15 @@ export function ContentEditor({
 					{room && (
 						<PresenceAvatars room={room} fieldLabel={presenceFieldLabel} photos={presencePhotos} />
 					)}
+					<PolemosSaveStatus
+						isNew={Boolean(isNew)}
+						dirty={Boolean(isDirty)}
+						saving={Boolean(
+							(roomSaveState ? roomSaveState.saving : saveFeedbackActive) || autosaveFeedbackActive,
+						)}
+					/>
 				</div>
+				<PolemosLangSwitch />
 				{/* The distraction-free toggle stays enabled for a reader: it changes
 				    the view, not the entry, and a reader must be able to leave the
 				    overlay. So does the save button, which explains a co-editing
@@ -2589,6 +2605,7 @@ export function ContentEditor({
 					data-emdash-editor-actions=""
 					className="grid w-full grid-cols-4 items-center gap-1.5 sm:ms-1.5 sm:flex sm:w-auto sm:flex-wrap sm:justify-end"
 				>
+					{!isNew && item && collection === "issues" ? <PolemosIssueNewsletter id={item.id} /> : null}
 					{!isDistractionFree && item && sandboxedEditorActions.length > 0 ? (
 						<fieldset disabled={readOnly} className="contents">
 							<SandboxedContentEditorActions
@@ -2629,13 +2646,13 @@ export function ContentEditor({
 						isLive={isLive}
 						hasPendingChanges={hasPendingChanges}
 						publishingState={publishingState}
-						publishingPending={publishingPending}
+						publishingPending={publishingPending || publishGate.checking}
 						publishDisabled={hasSaveConflict || isViewing}
 						liveViewUrl={liveViewUrl}
 						supportsPreview={supportsPreview}
 						isLoadingPreview={isLoadingPreview}
 						onPreview={handlePreview}
-						onPublish={onPublish ? handlePublish : undefined}
+						onPublish={onPublish ? () => void publishGate.request() : undefined}
 						onUnpublish={onUnpublish ? handleUnpublish : undefined}
 						onMenuOpenChange={setPublishingMenuOpen}
 						revisions={
@@ -2724,6 +2741,7 @@ export function ContentEditor({
 				isDistractionFree && "fixed inset-0 z-50",
 			)}
 		>
+			{publishGate.dialog}
 			{hasBlocksField && (
 				<AutosavePausedNotice
 					heldBy={readOnly || isViewing ? null : autosaveHeldBy}
@@ -2887,7 +2905,17 @@ export function ContentEditor({
 												) : (
 													<FieldRenderer key={fieldKey} value={formData[name]} {...fieldProps} />
 												);
-												return fieldEl;
+												const lang = polemosFieldLang(name);
+												return (
+													<div
+														key={fieldKey}
+														data-polemos-lang={lang ?? undefined}
+														lang={lang === "ar" ? "ar" : lang === "he" ? "he" : undefined}
+														dir={lang ? "rtl" : undefined}
+													>
+														{fieldEl}
+													</div>
+												);
 											})}
 										</div>
 									</fieldset>
@@ -3829,7 +3857,10 @@ function FieldRenderer({
 						<PortableTextEditor
 							value={Array.isArray(value) ? value : []}
 							onChange={handleChange}
-							placeholder={t`Start writing, or type '/' for commands`}
+							placeholder={
+								polemosBodyPlaceholder(name, isDocumentBody) ??
+								t`Start writing, or type '/' for commands`
+							}
 							aria-labelledby={chrome.labelledBy}
 							className="bg-kumo-control [--emdash-editor-surface:var(--color-kumo-control)] focus-within:border-kumo-focus/50"
 							pluginBlocks={pluginBlocks}
@@ -3852,7 +3883,10 @@ function FieldRenderer({
 					<PortableTextEditor
 						value={Array.isArray(value) ? value : []}
 						onChange={handleChange}
-						placeholder={t`Start writing, or type '/' for commands`}
+						placeholder={
+							polemosBodyPlaceholder(name, isDocumentBody) ??
+							t`Start writing, or type '/' for commands`
+						}
 						aria-labelledby={labelId}
 						variant={isDocumentBody && !minimal ? "document" : "boxed"}
 						onArrowUpAtStart={onArrowUpAtStart}

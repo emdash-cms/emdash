@@ -14,6 +14,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { apiFetch, API_BASE } from "../lib/api/client.js";
 import { resolvePluginLinkTarget } from "../lib/plugin-links.js";
+import { PolemosMediaPickHost } from "./polemos/MediaPickHost.js";
 
 interface SandboxedPluginPageProps {
 	pluginId: string;
@@ -128,6 +129,7 @@ export function SandboxedPluginPage({ pluginId, page }: SandboxedPluginPageProps
 
 	return (
 		<div className="relative">
+			<PolemosMediaPickHost />
 			{/* Toast notification */}
 			{toast && (
 				<div

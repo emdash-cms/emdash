@@ -30,6 +30,7 @@ import {
 	Upload,
 	X,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
@@ -40,7 +41,7 @@ import type {
 	ContentItem,
 	TrashedContentItem,
 } from "../lib/api.js";
-import { getDraftStatus } from "../lib/api.js";
+import { fetchReferenceParents, getDraftStatus } from "../lib/api.js";
 import {
 	ContentListColumnBoundary,
 	resolveContentListColumns,
@@ -378,6 +379,15 @@ export function ContentList({
 	const paginatedItems = paged
 		? filteredItems
 		: filteredItems.slice(clampedPage * PAGE_SIZE, (clampedPage + 1) * PAGE_SIZE);
+	const issueLabels = useArticleIssueLabels(collection, paginatedItems);
+	const displayItems = React.useMemo(() => {
+		if (collection !== "articles" || !issueLabels) return paginatedItems;
+		return [...paginatedItems].sort((a, b) => {
+			const left = issueLabels[a.id] || "בלי גיליון";
+			const right = issueLabels[b.id] || "בלי גיליון";
+			return left.localeCompare(right, "he");
+		});
+	}, [collection, issueLabels, paginatedItems]);
 
 	// Auto-fetch the next API page when the user is on a client page whose
 	// items haven't been loaded yet. Skip during client-side search because
@@ -825,26 +835,46 @@ export function ContentList({
 									{t`No results for "${activeSearch}"`}
 								</DataTableMessage>
 							) : (
-								paginatedItems.map((item) => (
-									<ContentListItem
-										key={item.id}
-										item={item}
-										visibleItems={paginatedItems}
-										collection={collection}
-										onDelete={deleteRow}
-										onDuplicate={!canDuplicate || canDuplicate(item) ? onDuplicate : undefined}
-										showLocale={!!i18n}
-										i18n={i18n}
-										urlPattern={urlPattern}
-										titleField={titleField}
-										dateField={dateField}
-										listColumns={listColumns}
-										selectable={bulkEnabled}
-										selected={selectedIds.has(item.id)}
-										onToggleSelect={toggleOne}
-										extensionColumns={extensionColumns}
-									/>
-								))
+								displayItems.map((item, index) => {
+									const issue = issueLabels?.[item.id] || (collection === "articles" && issueLabels ? "בלי גיליון" : "");
+									const previous = index > 0 ? displayItems[index - 1] : undefined;
+									const previousIssue = previous
+										? issueLabels?.[previous.id] || "בלי גיליון"
+										: "";
+									const showGroup = Boolean(issue) && issue !== previousIssue;
+									return (
+										<React.Fragment key={item.id}>
+											{showGroup ? (
+												<tr data-polemos-group-row="">
+													<th
+														scope="colgroup"
+														colSpan={colSpan}
+														className="bg-kumo-tint px-3 py-2 text-start text-sm font-medium"
+													>
+														{issue}
+													</th>
+												</tr>
+											) : null}
+											<ContentListItem
+												item={item}
+												visibleItems={displayItems}
+												collection={collection}
+												onDelete={deleteRow}
+												onDuplicate={!canDuplicate || canDuplicate(item) ? onDuplicate : undefined}
+												showLocale={!!i18n}
+												i18n={i18n}
+												urlPattern={urlPattern}
+												titleField={titleField}
+												dateField={dateField}
+												listColumns={listColumns}
+												selectable={bulkEnabled}
+												selected={selectedIds.has(item.id)}
+												onToggleSelect={toggleOne}
+												extensionColumns={extensionColumns}
+											/>
+										</React.Fragment>
+									);
+								})
 							)}
 						</tbody>
 					</DataTable>
@@ -1493,6 +1523,7 @@ function ContentListItem({
 }: ContentListItemProps) {
 	const { t, i18n: lingui } = useLingui();
 	const title = getEntryTitle(item, titleField);
+	const translationGap = translationGapLabel(collection, item.data);
 	// A configured dateField drives the Date column; fall back to the
 	// last-updated / created date when it's unset, empty, or unparseable.
 	let configuredDate: Date | null = null;
@@ -1536,6 +1567,14 @@ function ContentListItem({
 				>
 					{title}
 				</Link>
+				{translationGap ? (
+					<span
+						data-polemos-translation=""
+						title={translationGap}
+						aria-label={translationGap}
+						className="ms-1.5 inline-block size-2 shrink-0 rounded-full bg-current align-middle text-kumo-warning"
+					/>
+				) : null}
 				<RowMeta priority="tertiary">
 					{statusBadge}
 					{localeChip}
@@ -1593,6 +1632,14 @@ function ContentListItem({
 					>
 						{t`Edit`}
 					</DropdownMenu.LinkItem>
+					{(collection === "articles" || collection === "mabatim") && (
+						<DropdownMenu.LinkItem
+							closeOnClick
+							href={`/_emdash/admin/plugins/polemos-desk/side-by-side?collection=${encodeURIComponent(collection)}&id=${encodeURIComponent(item.id)}`}
+						>
+							זה לצד זה
+						</DropdownMenu.LinkItem>
+					)}
 					{item.status === "published" && item.slug && (
 						<DropdownMenu.LinkItem
 							closeOnClick
@@ -1823,4 +1870,84 @@ function StatusBadge({
 			{hasPendingChanges && <ContentStatusBadge state="pendingChanges" />}
 		</span>
 	);
+}
+
+const WRITING_COLLECTIONS = new Set(["articles", "mabatim", "issues", "people", "pages"]);
+
+function filledValue(value: unknown): boolean {
+	if (typeof value === "string") return value.trim().length > 0;
+	if (Array.isArray(value)) return value.length > 0;
+	if (value && typeof value === "object") return Object.keys(value).length > 0;
+	return value != null && value !== false;
+}
+
+/** A missing Hebrew or Arabic field. Null when the row has no bilingual fields, or both are present. */
+function translationGapLabel(collection: string, data: Record<string, unknown>): string | null {
+	if (!WRITING_COLLECTIONS.has(collection)) return null;
+	const keys = Object.keys(data);
+	if (!keys.some((key) => key.endsWith("_he") || key.endsWith("_ar"))) return null;
+	const he = keys.some((key) => key.endsWith("_he") && filledValue(data[key]));
+	const ar = keys.some((key) => key.endsWith("_ar") && filledValue(data[key]));
+	if (!he && !ar) return "חסר תרגום";
+	if (!ar) return "חסרה ערבית";
+	if (!he) return "חסרה עברית";
+	if (collection === "articles" && (!filledValue(data.excerpt_he) || !filledValue(data.excerpt_ar))) {
+		return "חסרה פתיחה";
+	}
+	if (collection === "mabatim" && (!filledValue(data.teaser_he) || !filledValue(data.teaser_ar))) {
+		return "חסר תקציר";
+	}
+	return null;
+}
+
+function localIssueLabel(item: ContentItem): string | null {
+	const titled = item.references?.issue?.children.find((entry) => entry.title)?.title;
+	if (titled) return titled;
+	const raw = item.data.issue;
+	if (typeof raw === "string" && raw.trim()) return raw.trim();
+	if (raw && typeof raw === "object" && !Array.isArray(raw)) {
+		const row = raw as Record<string, unknown>;
+		const title = row.title_he ?? row.title ?? row.name_he;
+		if (typeof title === "string" && title.trim()) return title.trim();
+	}
+	return null;
+}
+
+/** Issue title for each article on the page. Null until the relation lookup finishes. */
+function useArticleIssueLabels(
+	collection: string,
+	items: readonly ContentItem[],
+): Record<string, string> | null {
+	const missing = collection === "articles" ? items.filter((item) => !localIssueLabel(item)) : [];
+	const ids = missing.map((item) => item.id).join(",");
+	const query = useQuery({
+		queryKey: ["polemos-article-issues", ids],
+		enabled: missing.length > 0,
+		staleTime: 60_000,
+		retry: false,
+		queryFn: async () => {
+			const pairs = await Promise.all(
+				missing.map(async (item) => {
+					try {
+						const page = await fetchReferenceParents("articles", item.id, "article_issue");
+						const parent = page.parents[0];
+						return [item.id, parent?.title || parent?.slug || ""] as const;
+					} catch {
+						return [item.id, ""] as const;
+					}
+				}),
+			);
+			return Object.fromEntries(pairs);
+		},
+	});
+
+	return React.useMemo(() => {
+		if (collection !== "articles" || items.length === 0) return null;
+		if (missing.length > 0 && !query.data) return null;
+		const labels: Record<string, string> = {};
+		for (const item of items) {
+			labels[item.id] = localIssueLabel(item) || query.data?.[item.id] || "בלי גיליון";
+		}
+		return labels;
+	}, [collection, items, missing.length, query.data]);
 }

@@ -1052,7 +1052,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		// The Kumo Sidebar wrapper sets `whitespace-nowrap` for its collapse
 		// animation, which would stop long field descriptions from wrapping.
 		<div className="flex flex-col whitespace-normal [&_input]:text-base [&_input]:font-normal [&_textarea]:text-base [&_textarea]:font-normal [&_[role=combobox]]:text-base">
-			<ContentSettingsSections layout={adminLayout}>
+			<ContentSettingsSections layout={adminLayout} grouped>
 				{!(isNew && !supportsDrafts) && (
 					<ContentSettingsSection id="publish">
 						<div className="p-4">

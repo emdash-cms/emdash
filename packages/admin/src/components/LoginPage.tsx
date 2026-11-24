@@ -43,11 +43,7 @@ type LoginMethod = "passkey" | "magic-link";
 // Components
 // ============================================================================
 
-interface MagicLinkFormProps {
-	onBack: () => void;
-}
-
-function MagicLinkForm({ onBack }: MagicLinkFormProps) {
+function MagicLinkForm() {
 	const { t } = useLingui();
 	const [email, setEmail] = React.useState("");
 	const [isLoading, setIsLoading] = React.useState(false);
@@ -116,7 +112,7 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 					<p className="mt-2">{t`The link will expire in 15 minutes.`}</p>
 				</div>
 
-				<Button variant="outline" onClick={onBack} className="mt-4 w-full justify-center">
+				<Button variant="outline" onClick={() => setSent(false)} className="mt-4 w-full justify-center">
 					{t`Back to login`}
 				</Button>
 			</div>
@@ -152,10 +148,6 @@ function MagicLinkForm({ onBack }: MagicLinkFormProps) {
 			>
 				{isLoading ? t`Sending...` : t`Send magic link`}
 			</Button>
-
-			<Button type="button" variant="ghost" className="w-full justify-center" onClick={onBack}>
-				{t`Back to login`}
-			</Button>
 		</form>
 	);
 }
@@ -170,7 +162,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 	const { t } = useLingui();
 	const { locale, setLocale } = useLocale();
 	const { logo: brandLogo, siteName: brandSiteName } = useAdminBranding();
-	const [method, setMethod] = React.useState<LoginMethod>("passkey");
+	const [method, setMethod] = React.useState<LoginMethod>("magic-link");
 	const [urlError, setUrlError] = React.useState<string | null>(null);
 	const [activeProvider, setActiveProvider] = React.useState<string | null>(null);
 
@@ -335,7 +327,7 @@ export function LoginPage({ redirectUrl = "/_emdash/admin" }: LoginPageProps) {
 							);
 						})()}
 
-					{method === "magic-link" && <MagicLinkForm onBack={() => setMethod("passkey")} />}
+					{method === "magic-link" && <MagicLinkForm />}
 				</div>
 
 				{/* Help text */}

@@ -15,6 +15,7 @@ import { usePluginWidget } from "../lib/plugin-context";
 import { cn, formatRelativeTime } from "../lib/utils.js";
 import { ArrowNext } from "./ArrowIcons";
 import {
+	ContentStatusBadge,
 	ContentStatusIcon,
 	CONTENT_STATUS_ICONS,
 	type ContentStatusState,
@@ -593,7 +594,11 @@ function RecentActivity({ items, loading }: { items: RecentItem[]; loading: bool
 								className="group flex items-center justify-between gap-2 rounded-md px-3 py-2 hover:bg-kumo-tint"
 							>
 								<div className="flex min-w-0 items-center gap-2">
-									<StatusDot status={item.status} />
+									{Object.hasOwn(DASHBOARD_STATUS_STATES, item.status) ? (
+										<ContentStatusBadge state={DASHBOARD_STATUS_STATES[item.status]!} />
+									) : (
+										<StatusDot status={item.status} />
+									)}
 									<span className="truncate text-base font-medium leading-5">
 										{item.title || item.slug || t`Untitled`}
 									</span>
