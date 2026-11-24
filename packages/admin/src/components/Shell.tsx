@@ -19,7 +19,9 @@ import {
 	resolvePluginPageLabel,
 	declaredLabelTranslator,
 } from "./Sidebar";
+import { PolemosPreviewHost } from "./polemos/PreviewHost.js";
 import { WelcomeModal } from "./WelcomeModal";
+import { applyPolemosContentLang, readPolemosContentLang } from "../lib/polemos-content-lang.js";
 
 declare module "@tanstack/react-router" {
 	interface StaticDataRouteOption {
@@ -102,6 +104,10 @@ export function Shell({ children, manifest }: ShellProps) {
 			);
 		}
 	}
+
+	React.useLayoutEffect(() => {
+		applyPolemosContentLang(readPolemosContentLang());
+	}, []);
 
 	// Show welcome modal on first login
 	React.useEffect(() => {
@@ -190,6 +196,7 @@ export function Shell({ children, manifest }: ShellProps) {
 
 				{/* Command palette for quick navigation */}
 				<AdminCommandPalette manifest={manifest} />
+				<PolemosPreviewHost />
 			</Sidebar.Provider>
 		</AdminDocumentTitle>
 	);

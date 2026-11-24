@@ -3,16 +3,15 @@
  * Validates an invite token, then registers a passkey to complete signup.
  */
 
-import { Input, Loader } from "@cloudflare/kumo";
+import { Button, Input, Loader } from "@cloudflare/kumo";
 import { Trans } from "@lingui/react/macro";
 import { useLingui } from "@lingui/react/macro";
 import { useSearch } from "@tanstack/react-router";
 import * as React from "react";
 
 import { useAdminBranding } from "../lib/admin-branding-context";
-import { validateInviteToken, type InviteVerifyResult } from "../lib/api";
+import { apiFetch, validateInviteToken, type InviteVerifyResult } from "../lib/api";
 import { useAuthProviderList } from "../lib/auth-provider-context";
-import { PasskeyRegistration } from "./auth/PasskeyRegistration";
 import { BrandLogo } from "./Logo.js";
 import { RouterLinkButton } from "./RouterLinkButton.js";
 
@@ -27,10 +26,50 @@ function handleInviteSuccess() {
 	window.location.href = "/_emdash/admin";
 }
 
+function EmailInviteComplete({ token, name }: { token: string; name: string }) {
+	const { t } = useLingui();
+	const [isLoading, setIsLoading] = React.useState(false);
+	const [error, setError] = React.useState<string | null>(null);
+	const handleClick = async () => {
+		setError(null);
+		setIsLoading(true);
+		try {
+			const response = await apiFetch("/_emdash/api/auth/email-invite/complete", {
+				method: "POST",
+				headers: { "Content-Type": "application/json" },
+				body: JSON.stringify({ token, name: name.trim() || undefined }),
+			});
+			if (!response.ok) {
+				const body: { error?: { message?: string } } = await response.json().catch(() => ({}));
+				throw new Error(body?.error?.message || `HTTP ${response.status}`);
+			}
+			handleInviteSuccess();
+		} catch (err) {
+			setError(err instanceof Error ? err.message : String(err));
+			setIsLoading(false);
+		}
+	};
+	return (
+		<div className="space-y-4">
+			{error ? (
+				<div className="rounded-lg bg-kumo-danger/10 p-3 text-sm text-kumo-danger">{error}</div>
+			) : null}
+			<Button
+				type="button"
+				variant="primary"
+				className="w-full justify-center"
+				loading={isLoading}
+				onClick={() => void handleClick()}
+			>
+				{t`Accept Invite`}
+			</Button>
+		</div>
+	);
+}
+
 function RegisterStep({ inviteData, token }: RegisterStepProps) {
 	const { t } = useLingui();
 	const [name, setName] = React.useState("");
-	const [passkeyComplete, setPasskeyComplete] = React.useState(false);
 	const buttonProviders = useAuthProviderList().filter((p) => p.LoginButton);
 
 	return (
@@ -79,19 +118,10 @@ function RegisterStep({ inviteData, token }: RegisterStepProps) {
 			/>
 
 			<div className="pt-4 border-t">
-				<PasskeyRegistration
-					optionsEndpoint="/_emdash/api/auth/invite/register-options"
-					verifyEndpoint="/_emdash/api/auth/invite/complete"
-					onSuccess={handleInviteSuccess}
-					additionalData={{ token, name: name || undefined }}
-					showEducation
-					showSuccessStep
-					successButtonText={t`Open the dashboard`}
-					onSuccessReady={() => setPasskeyComplete(true)}
-				/>
+				<EmailInviteComplete token={token} name={name} />
 			</div>
 
-			{!passkeyComplete && buttonProviders.length > 0 && (
+			{buttonProviders.length > 0 && (
 				<>
 					{/* Divider */}
 					<div className="relative">
