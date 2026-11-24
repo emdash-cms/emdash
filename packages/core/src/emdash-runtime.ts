@@ -974,7 +974,12 @@ export class EmDashRuntime {
 	>();
 	private readonly storageIndexSyncStates = new Map<
 		string,
-		{ lock: InitLock; needsReconciliation: boolean; lastFailure?: { declaration: object } }
+		{
+			lock: InitLock;
+			needsReconciliation: boolean;
+			pendingDrops: number;
+			lastFailure?: { declaration: object };
+		}
 	>();
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
@@ -1339,7 +1344,7 @@ export class EmDashRuntime {
 	private async runStorageIndexSync(
 		pluginId: string,
 		isCurrentClaim: () => boolean,
-		syncState: { needsReconciliation: boolean },
+		syncState: { needsReconciliation: boolean; pendingDrops: number },
 	): Promise<StorageIndexSyncResult> {
 		const candidates = [...this.getStorageIndexPlugins().values()].filter(
 			(plugin) => !this.storageIndexesReady.has(plugin.id) && plugin.id === pluginId,
@@ -1394,14 +1399,27 @@ export class EmDashRuntime {
 					// A cancelled DROP can leave its registry row behind. Until a full
 					// pass finishes, registry names alone cannot establish readiness.
 					syncState.needsReconciliation = true;
-					const result = await syncDeclaredStorageIndexes(db, [{ id: plugin.id, storage }]);
+					const result = await syncDeclaredStorageIndexes(db, [{ id: plugin.id, storage }], {
+						trackDrop: async (drop) => {
+							syncState.pendingDrops++;
+							try {
+								return await drop();
+							} finally {
+								syncState.pendingDrops--;
+							}
+						},
+					});
 					errors.push(...result.errors);
 					if (!result.ok) continue;
 					if (isCurrentClaim()) syncState.needsReconciliation = false;
 				}
 
 				// A version change can invalidate a pass while its database work is in flight.
-				if (isCurrentClaim() && this.getStorageIndexPlugins().get(plugin.id) === plugin) {
+				if (
+					isCurrentClaim() &&
+					syncState.pendingDrops === 0 &&
+					this.getStorageIndexPlugins().get(plugin.id) === plugin
+				) {
 					this.storageIndexesReady.add(plugin.id);
 				}
 			} catch (error) {
@@ -1445,7 +1463,7 @@ export class EmDashRuntime {
 		if (!declaration) return false;
 		let state = this.storageIndexSyncStates.get(pluginId);
 		if (!state) {
-			state = { lock: createInitLock(), needsReconciliation: false };
+			state = { lock: createInitLock(), needsReconciliation: false, pendingDrops: 0 };
 			this.storageIndexSyncStates.set(pluginId, state);
 		}
 		const syncState = state;
@@ -1469,6 +1487,9 @@ export class EmDashRuntime {
 					return null;
 				},
 				async (isCurrentClaim) => {
+					// An issued DROP can still execute even if its request never resumes.
+					// Reclaiming the JS lock cannot fence that database-side operation.
+					if (syncState.pendingDrops > 0) return false;
 					await this.runStorageIndexSync(pluginId, isCurrentClaim, syncState);
 					const ready = isReady();
 					if (isCurrentClaim() && !ready) syncState.lastFailure = { declaration };

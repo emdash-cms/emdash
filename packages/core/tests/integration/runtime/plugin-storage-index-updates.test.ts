@@ -1181,7 +1181,7 @@ describe.each(["registry", "marketplace"] as const)(
 			},
 		);
 
-		it.each(["after drop", "before drop"] as const)(
+		it.each(["after drop", "before drop", "pending response"] as const)(
 			"reclaims an interrupted index drop before restoring a previous declaration (%s)",
 			async (pausePoint) => {
 				const storage = new MemoryStorage();
@@ -1193,8 +1193,17 @@ describe.each(["registry", "marketplace"] as const)(
 				let releaseOldSync!: () => void;
 				const oldSyncReleased = new Promise<void>((resolve) => (releaseOldSync = resolve));
 				let dropPaused = false;
+				let physicalDropApplied = false;
+				let signalPhysicalDropApplied!: () => void;
+				const physicalDropAppliedPromise = new Promise<void>((resolve) => {
+					signalPhysicalDropApplied = resolve;
+				});
+				let releaseDropResponse!: () => void;
+				const dropResponseReleased = new Promise<void>((resolve) => {
+					releaseDropResponse = resolve;
+				});
 				let interceptDrops = false;
-				if (pausePoint === "before drop") {
+				if (pausePoint === "before drop" || pausePoint === "pending response") {
 					const createDialect = deps.createDialect;
 					deps.createDialect = (config) => {
 						const dialect = createDialect(config);
@@ -1221,6 +1230,13 @@ describe.each(["registry", "marketplace"] as const)(
 										) {
 											dropPaused = true;
 											await oldSyncReleased;
+											const result = await connection.executeQuery(query);
+											if (pausePoint === "pending response") {
+												physicalDropApplied = true;
+												signalPhysicalDropApplied();
+												await dropResponseReleased;
+											}
+											return result;
 										}
 										return connection.executeQuery(query);
 									},
@@ -1236,8 +1252,10 @@ describe.each(["registry", "marketplace"] as const)(
 				const states = new PluginStateRepository(runtime.db);
 				await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
 				await syncPlugins(runtime, source);
-				invokeRoute = async () => ({ ok: true });
+				const routeHandler = vi.fn(async () => ({ ok: true }));
+				invokeRoute = routeHandler;
 				expect(await post(runtime)).toMatchObject({ success: true });
+				routeHandler.mockClear();
 
 				const repository = new PluginStorageRepository<{ externalId: string }>(
 					runtime.db,
@@ -1257,7 +1275,7 @@ describe.each(["registry", "marketplace"] as const)(
 
 				const pausedQueryIds = new Set<unknown>();
 				const oldSyncDb =
-					pausePoint === "before drop"
+					pausePoint === "before drop" || pausePoint === "pending response"
 						? runtime.db
 						: runtime.db.withPlugin({
 								transformQuery: ({ node, queryId }) => {
@@ -1293,17 +1311,29 @@ describe.each(["registry", "marketplace"] as const)(
 					await syncPlugins(runtime, source);
 					now.mockReturnValue(3_020_001);
 
-					await expect(post(runtime)).resolves.toMatchObject({ success: true });
-					await repository.put("replacement-one", { externalId: "replacement" });
-					await expect(
-						repository.put("replacement-two", { externalId: "replacement" }),
-					).rejects.toThrow();
+					await expect(post(runtime)).resolves.toMatchObject({
+						success: false,
+						error: { code: "STORAGE_INDEXES_NOT_READY" },
+					});
+					expect(routeHandler).not.toHaveBeenCalled();
+
+					if (pausePoint === "pending response") {
+						releaseOldSync();
+						await physicalDropAppliedPromise;
+						expect(physicalDropApplied).toBe(true);
+						await expect(post(runtime)).resolves.toMatchObject({
+							success: false,
+							error: { code: "STORAGE_INDEXES_NOT_READY" },
+						});
+						expect(routeHandler).not.toHaveBeenCalled();
+					}
 
 					releaseOldSync();
+					releaseDropResponse();
 					await oldSync;
 					await expect(post(runtime)).resolves.toMatchObject({ success: true });
 					await expect(
-						repository.put("after-recovery", { externalId: "replacement" }),
+						repository.put("after-recovery", { externalId: "duplicate" }),
 					).rejects.toThrow();
 
 					const physicalIndex = await sql<{ name: string }>`
@@ -1312,6 +1342,7 @@ describe.each(["registry", "marketplace"] as const)(
 				`.execute(runtime.db);
 					expect(physicalIndex.rows).toHaveLength(1);
 				} finally {
+					releaseDropResponse();
 					releaseOldSync();
 					await oldSync?.catch(() => undefined);
 					now.mockRestore();
