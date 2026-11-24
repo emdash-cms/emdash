@@ -1344,7 +1344,7 @@ msgstr "Δεν είναι δυνατή η δημιουργία ονόματος 
 
 #: packages/admin/src/components/settings/transfer/labels.ts:144
 msgid "A number is too large for this site’s database"
-msgstr "Ένας αριθμός είναι πολύ μεγάλος για τη βάση δεδομένων αυτού του ιστότοπου."
+msgstr "Ένας αριθμός είναι πολύ μεγάλος για τη βάση δεδομένων αυτού του ιστοτόπου."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:130
 msgid "A package file does not match the manifest"
@@ -1378,7 +1378,7 @@ msgstr "Η σχέση καθορίζει πώς συνδέονται δύο τύ
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:367
 msgid "A short description of your site"
-msgstr "Μια σύντομη περιγραφή του ιστότοπού σας"
+msgstr "Μια σύντομη περιγραφή του ιστοτόπου σας"
 
 #: packages/admin/src/components/RelationForm.tsx:81
 msgid "A slug cannot be generated from these role names. Type one manually using lowercase letters, numbers, and underscores."
@@ -1408,7 +1408,7 @@ msgstr "Ένα βήμα απέτυχε και θα επαναληφθεί ({0}).
 
 #: packages/admin/src/components/settings/transfer/labels.ts:145
 msgid "A value does not fit this site’s database"
-msgstr "Μια τιμή δεν ταιριάζει με τη βάση δεδομένων αυτού του ιστότοπου."
+msgstr "Μια τιμή δεν ταιριάζει με τη βάση δεδομένων αυτού του ιστοτόπου."
 
 #: packages/admin/src/components/Widgets.tsx:479
 msgid "A widget area is a place in your theme, such as a sidebar, that holds widgets."
@@ -1780,7 +1780,7 @@ msgstr "Προσθήκη γραμμής από κάτω"
 #: packages/admin/src/lib/api/marketplace.ts:447
 #: packages/admin/src/lib/api/marketplace.ts:458
 msgid "Add scripts and styles to your site's pages"
-msgstr "Προσθήκη scripts και στυλ στις σελίδες του ιστότοπού σας"
+msgstr "Προσθήκη scripts και στυλ στις σελίδες του ιστοτόπου σας"
 
 #: packages/admin/src/components/ContentPickerModal.tsx:390
 msgid "Add selected"
@@ -2210,7 +2210,7 @@ msgstr "Παρουσιάστηκε σφάλμα"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:389
 msgid "An import replaces a new site’s starter content, so it only runs on a site with no content of its own. To move content here, set up a new EmDash site and import into that. These are what this site already has:"
-msgstr "Μια εισαγωγή αντικαθιστά το αρχικό περιεχόμενο ενός νέου ιστότοπου, επομένως λειτουργεί μόνο σε έναν ιστότοπο χωρίς δικό του περιεχόμενο. Για να μεταφέρετε περιεχόμενο εδώ, δημιουργήστε έναν νέο ιστότοπο EmDash και πραγματοποιήστε την εισαγωγή εκεί. Αυτά είναι τα περιεχόμενα που ήδη διαθέτει αυτός ο ιστότοπος:"
+msgstr "Μια εισαγωγή αντικαθιστά το αρχικό περιεχόμενο ενός νέου ιστοτόπου, επομένως λειτουργεί μόνο σε έναν ιστότοπο χωρίς δικό του περιεχόμενο. Για να μεταφέρετε περιεχόμενο εδώ, δημιουργήστε έναν νέο ιστότοπο EmDash και πραγματοποιήστε την εισαγωγή εκεί. Αυτά είναι τα περιεχόμενα που ήδη διαθέτει αυτός ο ιστότοπος:"
 
 #: packages/admin/src/routes/byline-schema.tsx:256
 msgid "An unexpected error occurred."
@@ -3224,7 +3224,7 @@ msgstr "Οι αλλαγές αποθηκεύτηκαν, αλλά οι προσω
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:177
 msgid "Character between page title and site name (e.g., \"My Post | My Site\")"
-msgstr "Χαρακτήρας μεταξύ του τίτλου της σελίδας και του ονόματος του ιστότοπου (π.χ. \"Η δημοσίευσή μου | Ο ιστότοπός μου\")"
+msgstr "Χαρακτήρας μεταξύ του τίτλου της σελίδας και του ονόματος του ιστοτόπου (π.χ. \"Η δημοσίευσή μου | Ο ιστότοπός μου\")"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Check and switch"
@@ -3315,7 +3315,7 @@ msgstr "Έλεγχος αν η συσκευή υποστηρίζει κλειδ�
 
 #: packages/admin/src/components/settings/transfer/labels.ts:55
 msgid "Checking this site"
-msgstr "Έλεγχος αυτού του ιστότοπου"
+msgstr "Έλεγχος αυτού του ιστοτόπου"
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:218
 msgid "Checking…"
@@ -5174,7 +5174,7 @@ msgstr "Κλείσιμο"
 #. placeholder {0}: row.file.name
 #: packages/admin/src/components/MediaUploadDialog.tsx:146
 msgid "Dismiss completed {0}"
-msgstr "Απορρίψτε τις {0} ολοκληρωμένες καταχωρήσεις"
+msgstr "Κλείσιμο ολοκληρωμένης μεταφόρτωσης για το αρχείο «{0}»"
 
 #: packages/admin/src/components/Dashboard.tsx:298
 msgid "Dismiss import suggestion"
@@ -6192,7 +6192,7 @@ msgstr "Εισαγάγετε τα διαπιστευτήριά σας στο Wor
 #: packages/admin/src/components/WordPressImport.tsx:1132
 #: packages/admin/src/components/WordPressImport.tsx:1144
 msgid "Enter your WordPress site URL"
-msgstr "Εισαγάγετε τη διεύθυνση URL του ιστότοπού σας WordPress."
+msgstr "Εισαγάγετε τη διεύθυνση URL του ιστοτόπου σας WordPress."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:23
 msgid "Entries"
@@ -8858,7 +8858,7 @@ msgstr "Διατήρηση της τιμής του ιστοτόπου (κενή
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:631
 msgid "Keep this site’s: “{targetValue}”"
-msgstr "Διατηρήστε τις ακόλουθες ρυθμίσεις του ιστότοπου: \"{targetValue}\""
+msgstr "Διατηρήστε τις ακόλουθες ρυθμίσεις του ιστοτόπου: \"{targetValue}\""
 
 #: packages/admin/src/components/WordPressImport.tsx:965
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
@@ -9923,11 +9923,11 @@ msgstr "Μετακινήστε το σημείο εστίασης για να ε
 
 #: packages/admin/src/components/Settings.tsx:133
 msgid "Move this site to another EmDash installation, or import a site package"
-msgstr "Μετακινήστε αυτόν τον ιστότοπο σε μια άλλη εγκατάσταση EmDash, ή εισαγάγετε ένα πακέτο ιστότοπου."
+msgstr "Μετακινήστε αυτόν τον ιστότοπο σε μια άλλη εγκατάσταση EmDash, ή εισαγάγετε ένα πακέτο ιστοτόπου."
 
 #: packages/admin/src/components/settings/TransferSettings.tsx:47
 msgid "Move this site to another EmDash installation, or import a site package into this one."
-msgstr "Μετακινήστε αυτόν τον ιστότοπο σε μια άλλη εγκατάσταση EmDash, ή εισαγάγετε ένα πακέτο ιστότοπου σε αυτήν."
+msgstr "Μετακινήστε αυτόν τον ιστότοπο σε μια άλλη εγκατάσταση EmDash, ή εισαγάγετε ένα πακέτο ιστοτόπου σε αυτήν."
 
 #: packages/admin/src/components/RowMenuItems.tsx:97
 msgid "Move to bottom"
@@ -10475,7 +10475,7 @@ msgstr "Δεν υπάρχουν επικεφαλίδες στο έγγραφο."
 
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:46
 msgid "No iframe found in this code. For an embed that runs a script, use an HTML block."
-msgstr "Δεν βρέθηκε iframe σε αυτόν τον κώδικα. Για να χρησιμοποιήσετε ένα iframe που εκτελεί ένα script, χρησιμοποιήστε ένα μπλοκ HTML."
+msgstr "Δεν βρέθηκε iframe σε αυτόν τον κώδικα. Για ενσωματωμένο περιεχόμενο που εκτελεί script, χρησιμοποιήστε μπλοκ HTML."
 
 #. js-lingui-explicit-id
 #: packages/admin/src/locales/server.ts:64
@@ -10876,7 +10876,7 @@ msgstr "Μόνο οι σύνδεσμοι που χρησιμοποιούν το 
 
 #: packages/admin/src/components/MediaUsedIn.tsx:216
 msgid "Only image and file fields, images in rich text, and site settings are tracked. Custom rich text blocks and template code aren’t checked."
-msgstr "Παρακολουθούνται μόνο τα πεδία εικόνας και αρχείου, οι εικόνες στο πλούσιο κείμενο και οι ρυθμίσεις του ιστότοπου. Δεν ελέγχονται τα προσαρμοσμένα μπλοκ πλούσιου κειμένου και ο κώδικας των προτύπων."
+msgstr "Παρακολουθούνται μόνο τα πεδία εικόνας και αρχείου, οι εικόνες στο πλούσιο κείμενο και οι ρυθμίσεις του ιστοτόπου. Δεν ελέγχονται τα προσαρμοσμένα μπλοκ πλούσιου κειμένου και ο κώδικας των προτύπων."
 
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:246
 #: packages/admin/src/components/media/ImageDropTarget.tsx:60
@@ -11625,7 +11625,7 @@ msgstr "Προετοιμασία εγγραφής..."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:56
 msgid "Preparing this site"
-msgstr "Προετοιμασία αυτού του ιστότοπου"
+msgstr "Προετοιμασία αυτού του ιστοτόπου"
 
 #: packages/admin/src/components/WordPressImport.tsx:2229
 msgid "Preparing to download files from WordPress..."
@@ -11944,7 +11944,7 @@ msgstr "Διαβάστε το επιλεγμένο περιεχόμενο του
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:88
 msgid "Read site settings"
-msgstr "Δείτε τις ρυθμίσεις του ιστότοπου"
+msgstr "Δείτε τις ρυθμίσεις του ιστοτόπου"
 
 #: packages/admin/src/lib/api/marketplace.ts:441
 #: packages/admin/src/lib/api/marketplace.ts:453
@@ -12514,7 +12514,7 @@ msgstr "Αντικατάσταση αναφοράς"
 
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:211
 msgid "Replace this site’s content with a package exported from another EmDash site."
-msgstr "Αντικαταστήστε το περιεχόμενο αυτού του ιστότοπου με ένα πακέτο που έχει εξαχθεί από έναν άλλο ιστότοπο EmDash."
+msgstr "Αντικαταστήστε το περιεχόμενο αυτού του ιστοτόπου με ένα πακέτο που έχει εξαχθεί από έναν άλλο ιστότοπο EmDash."
 
 #: packages/admin/src/components/editor/VideoNode.tsx:307
 #: packages/admin/src/components/editor/VideoNode.tsx:308
@@ -12700,15 +12700,15 @@ msgstr "Επιθυμείτε να επαναφέρετε αυτήν την έκ�
 
 #: packages/admin/src/components/revisions/change-labels.ts:158
 msgid "Restored an earlier version"
-msgstr "Επαναφέρετε μια προηγούμενη έκδοση"
+msgstr "Επαναφέρθηκε προηγούμενη έκδοση"
 
 #: packages/admin/src/components/revisions/RevisionList.tsx:241
 msgid "Restored from {restoredDate}"
-msgstr "Επαναφέρθηκε στις {restoredDate}"
+msgstr "Έκδοση προέλευσης: {restoredDate}"
 
 #: packages/admin/src/components/revisions/change-labels.ts:160
 msgid "Restored the version from {date}"
-msgstr "Έγινε επαναφορά της έκδοσης της {date}"
+msgstr "Επαναφέρθηκε προηγούμενη έκδοση ({date})"
 
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:142
 msgid "Restoring…"
@@ -13758,7 +13758,7 @@ msgstr "Στείλτε ένα email πρόσκλησης σε ένα νέο μέ
 
 #: packages/admin/src/lib/api/marketplace.ts:444
 msgid "Send email through your site"
-msgstr "Αποστείλετε email μέσω του ιστότοπού σας"
+msgstr "Αποστείλετε email μέσω του ιστοτόπου σας"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:661
 msgid "Send emails"
@@ -14863,7 +14863,7 @@ msgstr "το παράθυρο του Android για το κλειδί πρόσβ
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:159
 msgid "The assistant can start one export of this site, within 15 minutes. The package includes all content and authors’ names and email addresses."
-msgstr "Ο βοηθός μπορεί να ξεκινήσει μία εξαγωγή του ιστότοπου μέσα σε 15 λεπτά. Το πακέτο περιλαμβάνει όλο το περιεχόμενο και τα ονόματα και τις διευθύνσεις email των συγγραφέων."
+msgstr "Ο βοηθός μπορεί να ξεκινήσει μία εξαγωγή του ιστοτόπου μέσα σε 15 λεπτά. Το πακέτο περιλαμβάνει όλο το περιεχόμενο και τα ονόματα και τις διευθύνσεις email των συγγραφέων."
 
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:158
 msgid "The assistant can start this exact import once, within 15 minutes. It replaces this site’s starter content with the package it analyzed."
@@ -15058,7 +15058,7 @@ msgstr "Το πακέτο περιέχει ένα αρχείο μεγαλύτε�
 
 #: packages/admin/src/components/settings/transfer/labels.ts:217
 msgid "The package contains a file that is not part of the site package format."
-msgstr "Το πακέτο περιέχει ένα αρχείο που δεν αποτελεί μέρος του φορμάτ πακέτου του ιστότοπου."
+msgstr "Το πακέτο περιέχει ένα αρχείο που δεν αποτελεί μέρος του φορμάτ πακέτου του ιστοτόπου."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:216
 msgid "The package contains an entry that is not a regular file."
@@ -15217,7 +15217,7 @@ msgstr "Ο ιστότοπος συνέχιζε να αλλάζει κατά τη
 
 #: packages/admin/src/components/settings/transfer/labels.ts:202
 msgid "The site’s storage could not be read or written."
-msgstr "Δεν ήταν δυνατή η ανάγνωση ή η εγγραφή στα αποθηκευμένα δεδομένα του ιστότοπου."
+msgstr "Δεν ήταν δυνατή η ανάγνωση ή η εγγραφή στα αποθηκευμένα δεδομένα του ιστοτόπου."
 
 #: packages/admin/src/components/settings/EmailSettings.tsx:314
 msgid "The SMTP password is encrypted before it is stored in the database."
@@ -15516,7 +15516,7 @@ msgstr "Αυτό το πεδίο θα εμφανίζει όσα στοιχεία
 
 #: packages/admin/src/components/settings/transfer/labels.ts:213
 msgid "This file is not a readable EmDash site package."
-msgstr "Το EmDash δεν μπορεί να διαβάσει αυτό το αρχείο ως πακέτο ιστότοπου."
+msgstr "Το EmDash δεν μπορεί να διαβάσει αυτό το αρχείο ως πακέτο ιστοτόπου."
 
 #: packages/admin/src/components/settings/transfer/labels.ts:214
 msgid "This file is not an EmDash site package: it must start with manifest.json."
@@ -15610,7 +15610,7 @@ msgstr "Αυτό διαγράφει μόνιμα το {0} από την αποθ
 
 #: packages/admin/src/lib/api/registry.ts:748
 msgid "This plugin cannot be installed because its publisher profile is missing valid verification metadata. Ask the publisher to republish it with the latest EmDash plugin CLI."
-msgstr "Αυτό το πρόσθετο δεν μπορεί να εγκατασταθεί επειδή το προφίλ του εκδότη δεν περιέχει έγκυρα μεταδεδομένα επαλήθευσης. Ζητήστε από τον εκδότη να το επανακαταστήσει χρησιμοποιώντας την τελευταία έκδοση της γραμμής εντολών (CLI) του EmDash."
+msgstr "Το πρόσθετο δεν μπορεί να εγκατασταθεί επειδή το προφίλ του εκδότη δεν περιέχει έγκυρα μεταδεδομένα επαλήθευσης. Ζητήστε από τον εκδότη να δημοσιεύσει ξανά το πρόσθετο με την τελευταία έκδοση του EmDash plugin CLI."
 
 #: packages/admin/src/lib/api/registry.ts:756
 msgid "This plugin cannot be installed because its release provenance could not be verified. Ask the publisher to publish a new verified release."
@@ -15864,11 +15864,11 @@ msgstr "Εναλλαγή"
 
 #: packages/admin/src/components/editor/TableControls.tsx:27
 msgid "Toggle header column"
-msgstr "Εμφάνιση/Απόκρυψη στήλης κεφαλίδας"
+msgstr "Χρήση της στήλης ως κεφαλίδας"
 
 #: packages/admin/src/components/editor/TableControls.tsx:27
 msgid "Toggle header row"
-msgstr "Εμφάνιση/Απόκρυψη γραμμής κεφαλίδας"
+msgstr "Χρήση της γραμμής ως κεφαλίδας"
 
 #. placeholder {0}: approval.requestedByTokenId.slice(0, 8)
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:90
@@ -16352,7 +16352,7 @@ msgstr "Ενημερώστε τις ρυθμίσεις για το {0}"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:93
 msgid "Update site settings"
-msgstr "Ενημερώστε τις ρυθμίσεις του ιστότοπου"
+msgstr "Ενημερώστε τις ρυθμίσεις του ιστοτόπου"
 
 #. placeholder {0}: inlineLabel(taxonomyDef.labelSingular || t`Term`, lingui.locale)
 #: packages/admin/src/components/TaxonomyManager.tsx:720
@@ -17349,7 +17349,7 @@ msgstr "Για να διαχειριστείτε την παρακολούθησ
 
 #: packages/admin/src/components/settings/TransferSettings.tsx:70
 msgid "You need Admin permissions to transfer this site."
-msgstr "Απαιτούνται δικαιώματα διαχειριστή για τη μεταφορά αυτού του ιστότοπου."
+msgstr "Απαιτούνται δικαιώματα διαχειριστή για τη μεταφορά αυτού του ιστοτόπου."
 
 #: packages/admin/src/components/RequireAdmin.tsx:26
 msgid "You need admin permissions to view this page."
@@ -17357,7 +17357,7 @@ msgstr "Απαιτούνται δικαιώματα διαχειριστή γι�
 
 #: packages/admin/src/router.tsx:3164
 msgid "You need Editor permissions to moderate comments."
-msgstr "Απαιτούνται δικαιώματα διαχειριστή για την διαχείριση σχολίων."
+msgstr "Για την εποπτεία σχολίων απαιτούνται δικαιώματα αρχισυντάκτη."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:165
 msgid "You no longer have edit access to this entry. Your edits are still on this page."

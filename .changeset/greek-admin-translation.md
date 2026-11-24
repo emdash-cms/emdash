@@ -2,4 +2,4 @@
 "@emdash-cms/admin": patch
 ---
 
-Adds a Greek (`el`) translation of the EmDash admin and Greek calendar localization.
+Adds the Greek (`el`) admin translation catalog and calendar localization. Greek will appear in the language picker once a maintainer enables it after review.
