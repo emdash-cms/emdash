@@ -6,7 +6,7 @@ import { Readable } from "node:stream";
 
 import { describe, it, expect } from "vitest";
 
-import { parseWxr } from "../../../src/cli/wxr/parser.js";
+import { parseWxr, parseWxrString } from "../../../src/cli/wxr/parser.js";
 
 function createStream(content: string): Readable {
 	return Readable.from([content]);
@@ -745,5 +745,43 @@ describe("parseWxr", () => {
 			expect(post?.taxonomyLabels?.get("tag\u0000featured")).toBe("Featured");
 			expect(post?.taxonomyLabels?.get("genre\u0000sci-fi")).toBe("Science Fiction");
 		});
+	});
+});
+
+describe("WordPress titles are HTML (wptexturize entities)", () => {
+	const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <title>Arts &amp;#038; Ecology</title>
+    <link>https://example.com</link>
+    <item>
+      <title>Staff &amp;#038; Board</title>
+      <wp:post_id>448</wp:post_id>
+      <wp:post_type><![CDATA[nav_menu_item]]></wp:post_type>
+      <wp:status><![CDATA[publish]]></wp:status>
+    </item>
+    <item>
+      <title><![CDATA[Fields, Location, Directions, &#038; Parking &#8211; &amp; more &bogus; &#xD800;]]></title>
+      <wp:post_id>9</wp:post_id>
+      <wp:post_type><![CDATA[page]]></wp:post_type>
+      <wp:status><![CDATA[publish]]></wp:status>
+    </item>
+  </channel>
+</rss>`;
+
+	const check = (data: Awaited<ReturnType<typeof parseWxrString>>) => {
+		expect(data.site.title).toBe("Arts & Ecology");
+		const titles = data.posts.map((p) => p.title);
+		expect(titles).toContain("Staff & Board");
+		expect(titles).toContain("Fields, Location, Directions, & Parking – & more &bogus; &#xD800;");
+		expect(titles.join(" ")).not.toContain("&#038;");
+	};
+
+	it("decodes entities in titles (string parser)", async () => {
+		check(await parseWxrString(wxr));
+	});
+
+	it("decodes entities in titles (stream parser)", async () => {
+		check(await parseWxr(createStream(wxr)));
 	});
 });
