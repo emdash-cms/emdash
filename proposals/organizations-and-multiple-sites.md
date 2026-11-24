@@ -22,7 +22,7 @@ This RFC lets one EmDash deployment serve many sites that belong to organization
 - **Each site keeps its own database and media storage.** Collections, `ec_*` tables, menus, taxonomies, settings, and media stay exactly as they are today. Content queries gain no `site_id` filter.
 - **Middleware resolves the site from the request hostname** and runs the request on that site's database and storage through the existing per-request database override.
 - **Roles come from organization membership.** A member's organization role applies to every site in the organization, and an optional per-site role overrides it. The `Permissions` map in `packages/auth/src/rbac.ts` does not change.
-- **Off by default.** A deployment without a `sites` configuration runs as a single site, exactly as it does today.
+- **Off by default.** A deployment without the `multiSite` option runs as a single site, exactly as it does today.
 
 ## Problem and user case
 
@@ -62,25 +62,24 @@ An agency runs the organization `acme` with two sites, `brand-a.com` and `brand-
 
 ### Configuration
 
-`emdash()` gains an optional `sites` option. When it is absent, nothing in this RFC runs.
+`emdash()` gains an optional `multiSite` option. When it is absent, nothing in this RFC runs.
 
 ```ts title="astro.config.mjs"
 emdash({
 	database: d1({ binding: "DB" }),
 	storage: r2({ binding: "MEDIA" }),
-	sites: multiSite({
-		controlPlane: d1({ binding: "CONTROL_DB" }),
-		adminHost: "admin.example.com",
-		resolveDatabase: (site) => d1({ binding: site.databaseRef }),
-		resolveStorage: (site) => r2({ binding: site.storageRef }),
-	}),
+	multiSite: {
+		controlPlane: { binding: "CONTROL_DB" },
+		databases: { "brand-a": { binding: "DB_BRAND_A" } },
+		storages: { "brand-a": { binding: "MEDIA_BRAND_A" } },
+	},
 });
 ```
 
-- `controlPlane` is a `DatabaseDescriptor`, so every supported database works.
-- `adminHost` is the canonical origin for sign-in and the admin. See [Identity and passkeys](#identity-and-passkeys).
-- `resolveDatabase` and `resolveStorage` turn a site's stored references into descriptors. On Workers a reference names a binding; on Node.js it names a file path, connection string, or bucket. Secrets stay in environment variables; the control plane stores only names.
-- The top-level `database` and `storage` are the default site, which keeps existing content reachable when multi-site is turned on.
+- `controlPlane` holds adapter options merged over `database`'s options, so the control plane uses the same adapter as the sites.
+- `databases` and `storages` name the site databases and storage locations, as options merged over `database` and `storage`. A site row stores one of these names. The name `default` means the top-level options unchanged, which keeps existing content reachable when a deployment turns multi-site on.
+- The options are plain data because `emdash()` serializes its config into the build. Keeping the list in the config also means an organization Admin can only attach a database or storage location that the operator configured, never an arbitrary path or binding.
+- `hostRefreshMs` (default 30 seconds) sets how long a worker serves its cached hostname table before refreshing it in the background.
 
 ### Control-plane data model
 
@@ -102,11 +101,11 @@ A new middleware step runs after runtime init and before setup and auth:
 
 1. Normalize the request hostname to lower case without a port.
 2. Look up `_emdash_site_hosts` through a deployment-wide cache stored on `globalThis` under a `Symbol.for` key, refreshed on a version stamp the same way site settings are.
-3. On a hit, create the site's request-scoped database and storage, and run the rest of the request with `db`, `dbIsIsolated: true`, and the site's storage in the request context.
+3. On a hit, get or start that site's runtime, which owns the site's database, storage, plugins, hooks, and cron, and run the rest of the request with the site's ID and database in the request context.
 4. On `adminHost`, use the site the user selected (a `site` cookie, checked against membership on every request).
 5. On a miss, return 404 without touching any site database.
 
-`dbIsIsolated` already makes schema-derived caches (manifest, taxonomy definitions, collection slugs, byline field definitions) skip cross-request reuse. Multi-site changes those caches to key on the site ID instead, so each site keeps its cache.
+Each site has its own runtime. Caches that live outside the runtime (site settings, redirects, URL patterns, taxonomy definitions, collection slugs, byline fields, schemas, secrets, and the setup flag) keep one slot per site ID, and the default site keeps the slot a single-site deployment uses. Sites other than the default skip the object cache until its keys and epochs carry the site ID.
 
 ### Identity and passkeys
 
@@ -139,7 +138,7 @@ API tokens gain an optional `site_id` and `org_id`. A token without them is vali
 
 ### Background work
 
-Cron tasks, scheduled publishing, cleanup, and media usage indexing are per-site work. The scheduled handler iterates active sites and runs maintenance for each under that site's request context, in bounded batches. Site database migrations run per site on first access, using the existing migration lock in that site's database.
+Cron tasks, scheduled publishing, cleanup, and media usage indexing are per-site work. On Cloudflare, `runScheduledTasks()` runs each active site in turn under that site's request context. On Node, each site runtime's timer runs its ticks in a fresh request context bound to that site. Site database migrations run per site on first access, using the existing migration lock in that site's database.
 
 ### Admin UI
 
@@ -155,7 +154,7 @@ New routes under `/_emdash/api/orgs/` follow the existing conventions: thin rout
 
 ## Compatibility and migration
 
-Multi-site is additive and opt-in. Without `sites`, no new table, middleware step, or query exists.
+Multi-site is additive and opt-in. Without `multiSite`, no new table, middleware step, or query exists.
 
 Turning it on for an existing deployment:
 
@@ -163,7 +162,7 @@ Turning it on for an existing deployment:
 2. A one-time import copies `users`, `credentials`, and API tokens from the default site database into the control plane, creates one organization and one site for the default database, and creates a membership for each user with the user's current role. The import is idempotent and resumable.
 3. Site databases keep their `users` table. Content keeps `author_id` values, which still match because the import preserves user IDs.
 
-Rollback: removing `sites` returns the deployment to single-site mode on the default database. Users created after the switch exist only in the control plane and do not appear on the default site after rollback.
+Rollback: removing `multiSite` returns the deployment to single-site mode on the default database. Users created after the switch exist only in the control plane and do not appear on the default site after rollback.
 
 ## Security and privacy
 
@@ -172,13 +171,14 @@ Rollback: removing `sites` returns the deployment to single-site mode on the def
 - **Site switching** is validated server-side; the `site` cookie is a preference, never proof of access.
 - **Handoff tokens** are single use, expire within a minute, are bound to the target hostname, and are delivered with a POST to avoid leaking through referrers.
 - **Host header:** unknown hostnames return 404, so a forged `Host` header cannot select a site that the hostname table doesn't list.
-- **Database references** come only from organization Admins and resolve through operator-written `resolveDatabase` code.
+- **Database references:** organization Admins choose a site's database and storage only by name from `multiSite.databases` and `multiSite.storages`. A name the config doesn't list is refused, so a site row can't point a request at an arbitrary file path, binding, or bucket.
 
 ## Performance
 
 - Logged-out requests on a site hostname use the cached hostname map; the steady state adds no query. Filling the cache after a cold start costs one control-plane query per isolate, which this RFC proposes as the only accepted addition.
 - Signed-in admin requests add a control-plane read for the session user's effective role, combined into the existing user lookup.
-- Per-site caches multiply memory by the number of active sites in an isolate. The design caps per-site caches with LRU eviction.
+- Per-site caches and runtimes multiply memory by the number of sites a worker serves. Evicting idle sites' runtimes and cache slots is open work.
+- Non-default sites skip the object cache, so their logged-out reads go to the database until the object cache is partitioned by site.
 - `pnpm query-counts` gains a multi-site fixture.
 
 ## Failure handling
