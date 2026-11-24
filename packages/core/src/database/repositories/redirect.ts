@@ -1,7 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
-import { interpolateUrlPattern } from "../../i18n/resolve.js";
+import { interpolateUrlPattern, siteBasePath } from "../../i18n/resolve.js";
 import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import {
 	compilePattern,
@@ -580,8 +580,7 @@ export class RedirectRepository {
 		oldPublishedAt?: string | null,
 		newPublishedAt?: string | null,
 	): Promise<Redirect | null> {
-		const baseUrl = import.meta.env?.BASE_URL ?? "/";
-		const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+		const base = siteBasePath();
 		const withPatternSlash = (path: string) =>
 			urlPattern?.endsWith("/") && !path.endsWith("/") ? `${path}/` : path;
 		return this.withWriteLock(async (fence, repository) => {
