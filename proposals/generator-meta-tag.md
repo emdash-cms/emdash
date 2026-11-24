@@ -52,7 +52,7 @@ emdash({
 
 ## Non-goals
 
-- HTTP response headers such as `X-Generator` or `X-Powered-By`.
+- HTTP response headers such as `X-Generator` or `X-Powered-By`. EmDash's middleware could add one to every server-rendered response, but prerendered pages are served as static files without it, and a saved copy of a page never carries headers. A site whose layout skips `EmDashHead` can write the tag in its own `<head>`.
 - Showing the full version in pages, or an option to show it.
 - Changing what `/_emdash/api/health` returns.
 - Agent discovery documents such as `llms.txt`, Markdown versions of pages, and `Link` headers. They describe what a site offers and need their own proposal.
@@ -84,4 +84,4 @@ emdash({
 
 ## Follow-up
 
-Once a release ships the tag, EmDash gets added to the technology detectors that read it: [HTTP Archive's fork of Wappalyzer](https://github.com/HTTPArchive/wappalyzer), which the Web Almanac uses ([methodology](https://almanac.httparchive.org/en/2025/methodology)), and [enthec/webappanalyzer](https://github.com/enthec/webappanalyzer). Their fingerprints also match `/_emdash/api/media/file/` URLs, which finds sites with custom layouts that serve media through EmDash's media route.
+Once a release ships the tag, EmDash gets added to the technology detectors that read it: Wappalyzer, [HTTP Archive's fork of Wappalyzer](https://github.com/HTTPArchive/wappalyzer), which the Web Almanac uses ([methodology](https://almanac.httparchive.org/en/2025/methodology)), and [enthec/webappanalyzer](https://github.com/enthec/webappanalyzer). Their fingerprints also match EmDash media URLs, which finds sites with custom layouts that serve media through EmDash's media route. Optimized images reach the HTML through Astro's image endpoint, so the fingerprints match the encoded form, `/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2F…`, as well as the plain `/_emdash/api/media/file/` path.
