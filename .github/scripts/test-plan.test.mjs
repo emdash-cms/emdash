@@ -43,6 +43,7 @@ describe("test plan", () => {
 		assert.equal(plan.visual, true);
 		assert.equal(plan.e2e_cloudflare, false);
 		assert.equal(plan.d1, false);
+		assert.equal(plan.hosts, false);
 	});
 
 	it("runs no browser coverage for translation catalog changes", () => {
@@ -81,6 +82,7 @@ describe("test plan", () => {
 			"smoke",
 			"integration",
 			"d1",
+			"hosts",
 			"e2e_node",
 			"e2e_cloudflare",
 			"query_counts",
@@ -168,6 +170,14 @@ describe("test plan", () => {
 		assert.ok(plan.unit_packages.includes("@emdash-cms/registry-verification"));
 		assert.ok(plan.unit_packages.includes("@emdash-cms/plugin-forms"));
 		assert.ok(plan.unit_packages.includes("@emdash-cms/release-service"));
+		assert.ok(plan.unit_packages.includes("@emdash-cms/sandbox-workerd"));
+	});
+
+	it("runs the workerd sandbox package tests when the sandbox changes", () => {
+		const plan = createTestPlan(["packages/workerd/src/sandbox/runner.ts"]);
+
+		assert.equal(plan.unit, true);
+		assert.ok(plan.unit_packages.includes("@emdash-cms/sandbox-workerd"));
 	});
 
 	it("marks a union that selects every lane as full", () => {

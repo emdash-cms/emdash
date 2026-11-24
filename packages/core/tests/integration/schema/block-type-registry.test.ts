@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, expect, it } from "vitest";
 
+import { updateBlockTypeBody } from "../../../src/api/schemas/index.js";
 import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import type { BlockFieldDefinition } from "../../../src/schema/block-types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
@@ -190,6 +191,135 @@ describeEachDialect("BlockTypeRegistry", (dialect) => {
 		const rejected = results.find((result) => result.status === "rejected");
 		expect(rejected).toMatchObject({ status: "rejected", reason: { code: "CONFLICT" } });
 	});
+
+	it("reads legacy repeater sub-field validation without rejecting unrelated settings", async () => {
+		const created = await registry.createBlockType({
+			slug: "hero",
+			label: "Hero",
+			fields: heroFields,
+		});
+		const fields = [
+			{
+				slug: "partners",
+				label: "Partners",
+				type: "repeater",
+				validation: {
+					subFields: [
+						{ slug: "name", label: "Name", type: "string", validation: { maxLength: 80 } },
+						{ slug: "photo", label: "Photo", type: "image", validation: null },
+						{
+							slug: "logo",
+							label: "Logo",
+							type: "image",
+							validation: { legacyOption: true, allowedMimeTypes: ["image/svg+xml"] },
+						},
+					],
+				},
+			},
+		];
+		await ctx.db
+			.updateTable("_emdash_block_type_versions")
+			.set({ fields: JSON.stringify(fields) })
+			.where("id", "=", created.versions[0]!.id)
+			.execute();
+		const reread = await registry.getBlockType("hero");
+		expect(reread?.versions[0]?.fields).toEqual(fields);
+		expect(reread?.versions[0]?.unsupportedTypes).toBeUndefined();
+
+		const body = updateBlockTypeBody.parse({
+			expectedFingerprint: reread!.versions[0]!.fingerprint,
+			label: "Updated hero",
+			fields: reread!.versions[0]!.fields,
+		});
+		expect(body.fields?.[0]?.validation?.subFields?.[1]?.validation).toBeUndefined();
+		const updated = await registry.updateBlockType("hero", body);
+		expect(updated.label).toBe("Updated hero");
+		expect(
+			updated.versions[0]?.fields[0]?.validation?.subFields?.[2]?.validation?.allowedMimeTypes,
+		).toEqual(["image/svg+xml"]);
+	});
+
+	it.for([[], [".svg"], ["image/svg+xml", 1], "image/svg+xml", {}])(
+		"reads legacy nested MIME validation %j without weakening write validation",
+		async (allowedMimeTypes) => {
+			const fields = [
+				{
+					slug: "items",
+					label: "Items",
+					type: "repeater",
+					validation: {
+						subFields: [
+							{ slug: "logo", label: "Logo", type: "image", validation: { allowedMimeTypes } },
+						],
+					},
+				},
+			] as unknown as BlockFieldDefinition[];
+			const created = await registry.createBlockType({
+				slug: "legacy_mime",
+				label: "Legacy MIME",
+				fields: heroFields,
+			});
+			await ctx.db
+				.updateTable("_emdash_block_type_versions")
+				.set({ fields: JSON.stringify(fields) })
+				.where("id", "=", created.versions[0]!.id)
+				.execute();
+
+			const reread = await registry.getBlockType("legacy_mime");
+			expect(reread?.versions[0]?.fields).toEqual(fields);
+			const updated = await registry.updateBlockType("legacy_mime", {
+				expectedFingerprint: reread!.versions[0]!.fingerprint,
+				fields: [
+					{
+						slug: "items",
+						label: "Items",
+						type: "repeater",
+						validation: {
+							subFields: [
+								{
+									slug: "logo",
+									label: "Logo",
+									type: "image",
+									validation: { allowedMimeTypes: ["image/svg+xml"] },
+								},
+							],
+						},
+					},
+				],
+				breaking: true,
+			});
+			expect(
+				updated.versions.at(-1)?.fields[0]?.validation?.subFields?.[0]?.validation
+					?.allowedMimeTypes,
+			).toEqual(["image/svg+xml"]);
+		},
+	);
+
+	it.for([[], [".svg"], ["image/svg+xml", 1], "image/svg+xml", {}])(
+		"rejects invalid nested MIME validation on writes: %j",
+		async (allowedMimeTypes) => {
+			const fields = [
+				{
+					slug: "items",
+					label: "Items",
+					type: "repeater" as const,
+					validation: {
+						subFields: [
+							{
+								slug: "logo",
+								label: "Logo",
+								type: "image" as const,
+								validation: { allowedMimeTypes },
+							},
+						],
+					},
+				},
+			] as unknown as BlockFieldDefinition[];
+			await expect(
+				registry.createBlockType({ slug: "invalid_mime", label: "Invalid MIME", fields }),
+			).rejects.toMatchObject({ code: "VALIDATION_ERROR" });
+		},
+	);
 
 	it("preserves unknown stored field types as fail-closed metadata", async () => {
 		const created = await registry.createBlockType({

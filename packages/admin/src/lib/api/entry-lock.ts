@@ -20,6 +20,8 @@ export interface EntryLockStatus {
 	enabled: boolean;
 	holder: EntryLockHolder | null;
 	heldByCaller: boolean;
+	/** The entry's co-editing room is open, so the room is reported as the holder. */
+	room: boolean;
 }
 
 function lockUrl(

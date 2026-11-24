@@ -101,20 +101,3 @@ describe("Editor Focus Mode", () => {
 		expect(wrapper.classList.contains("spotlight-mode")).toBe(false);
 	});
 });
-
-describe("Distraction-free mode state", () => {
-	it("can toggle between focus modes", () => {
-		// Simple state test - verifies the type and state pattern works
-		type FocusMode = "normal" | "spotlight";
-
-		let focusMode: FocusMode = "normal";
-
-		// Toggle to spotlight
-		focusMode = "spotlight";
-		expect(focusMode).toBe("spotlight");
-
-		// Toggle back to normal
-		focusMode = "normal";
-		expect(focusMode).toBe("normal");
-	});
-});

@@ -207,14 +207,7 @@ export function PublishingDateTimeFields({
 				locale={dateLocale}
 				dir={getLocaleDir(i18n.locale)}
 				aria-label={dateAriaLabel}
-				className="w-full"
-				classNames={{
-					caption_label: "rdp-caption_label text-base !font-medium",
-					day_button: "rdp-day_button !mx-auto",
-					month: "rdp-month !w-full",
-					month_grid: "rdp-month_grid !w-full table-fixed",
-					months: "rdp-months !w-full !max-w-none",
-				}}
+				className="w-full [--cell-width:calc(100%/7)] [&_.rdp-month]:w-full [&_table]:w-full"
 			/>
 			<fieldset>
 				<Text as="legend" bold DANGEROUS_className="mb-2">

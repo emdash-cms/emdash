@@ -40,8 +40,13 @@ import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
 import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
-import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import {
+	type ContentItem,
+	decodeCursor,
+	InvalidCursorError,
+} from "../database/repositories/types.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
+import { isRouteCachedMedia, mediaCacheTag } from "../media/image-endpoint.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -180,11 +185,17 @@ const settingsSeoSchema = z.object({
 		.string()
 		.max(5000)
 		.optional()
-		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+		.describe(
+			"Custom robots.txt body. Leave unset for the EmDash default. Changes are rejected " +
+				"when the site serves its own src/pages/robots.txt.",
+		),
 	disallowAiTraining: z
 		.boolean()
 		.optional()
-		.describe("Add robots.txt rules asking AI crawlers not to use the site for training"),
+		.describe(
+			"Add robots.txt rules asking AI crawlers not to use the site for training. " +
+				"Changes are rejected when the site serves its own src/pages/robots.txt.",
+		),
 	googleVerification: z
 		.string()
 		.max(100)
@@ -636,7 +647,7 @@ async function convertWriteData(
 async function applyReadMarkdown(
 	ec: EmDashHandlers,
 	collection: string,
-	items: Array<Record<string, unknown>>,
+	items: Array<{ data?: unknown }>,
 ): Promise<void> {
 	const fields = await getCollectionFields(ec, collection);
 	if (!fields) return;
@@ -857,6 +868,28 @@ function extractContentRev(data: unknown): string | undefined {
 	if (!data || typeof data !== "object") return undefined;
 	const rev = (data as Record<string, unknown>)._rev;
 	return typeof rev === "string" ? rev : undefined;
+}
+
+/**
+ * The publish or unpublish `content_update` chains after saving fields. When it conflicts, the
+ * fields stay saved, so the error says so and names the `_rev` they saved.
+ */
+function afterSavedFields(
+	result: HandlerResult,
+	savedRev: string | undefined,
+	step: "publish" | "unpublish",
+): HandlerResult {
+	const error = result.error as { code?: unknown; message?: unknown } | undefined;
+	if (result.success || savedRev === undefined || error?.code !== "CONFLICT") return result;
+	const reason = typeof error.message === "string" ? `: ${error.message}` : "";
+	return {
+		success: false,
+		error: {
+			code: "CONFLICT",
+			message: `The fields were saved, but the ${step} conflicted${reason}`,
+			details: { _rev: savedRev },
+		},
+	};
 }
 
 // ---------------------------------------------------------------------------
@@ -1127,21 +1160,13 @@ export function createMcpServer(
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			const result = await ec.handleContentGet(args.collection, args.id, args.locale);
+			if (!result.success) return unwrap(result);
+			let item: Omit<ContentItem, "liveData" | "draftRevisionId"> = result.data.item;
 			// Hide non-published items from users without draft access. Return a
 			// not-found error so subscribers can't enumerate draft IDs by status.
-			if (result.success && !canReadDrafts(extra)) {
-				const data =
-					result.data && typeof result.data === "object"
-						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check
-							(result.data as Record<string, unknown>)
-						: undefined;
-				const item =
-					data?.item && typeof data.item === "object"
-						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check
-							(data.item as Record<string, unknown>)
-						: undefined;
-				const status = typeof item?.status === "string" ? item.status : null;
-				if (status !== "published") {
+			if (!canReadDrafts(extra)) {
+				const { liveData, draftRevisionId: _draftRevisionId, ...published } = result.data.item;
+				if (published.status !== "published") {
 					return unwrap({
 						success: false,
 						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
@@ -1149,18 +1174,12 @@ export function createMcpServer(
 				}
 				// handleContentGet overlays the draft revision onto item.data and
 				// moves the published values to item.liveData.
-				if (item) {
-					if (item.liveData && typeof item.liveData === "object") {
-						item.data = item.liveData;
-					}
-					delete item.liveData;
-					delete item.draftRevisionId;
-				}
+				item = { ...published, data: liveData ?? published.data };
 			}
-			if (result.success && args.markdown && result.data?.item) {
-				await applyReadMarkdown(ec, args.collection, [result.data.item]);
+			if (args.markdown) {
+				await applyReadMarkdown(ec, args.collection, [item]);
 			}
-			return unwrap(result);
+			return unwrap({ success: true, data: { ...result.data, item } });
 		},
 	);
 
@@ -1455,6 +1474,7 @@ export function createMcpServer(
 			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
 				let rev: string | undefined = args._rev;
+				let savedRev: string | undefined;
 				let liveChanged = false;
 				if (
 					args.data ||
@@ -1479,15 +1499,20 @@ export function createMcpServer(
 					});
 					if (!updateResult.success) return unwrap(updateResult);
 					liveChanged = updateResult.liveContentChanged !== false;
-					rev = extractContentRev(updateResult.data);
+					savedRev = extractContentRev(updateResult.data);
+					rev = savedRev;
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentPublish(args.collection, resolvedId, {
-						_rev: rev,
-						actor: { ...actor, source: "mcp" },
-						origin: { source: "mcp" },
-					}),
+					afterSavedFields(
+						await emdash.handleContentPublish(args.collection, resolvedId, {
+							_rev: rev,
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
+						savedRev,
+						"publish",
+					),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1495,6 +1520,7 @@ export function createMcpServer(
 
 			if (args.status === "draft") {
 				let rev: string | undefined = args._rev;
+				let savedRev: string | undefined;
 				let liveChanged = false;
 				if (
 					args.data ||
@@ -1519,15 +1545,20 @@ export function createMcpServer(
 					});
 					if (!updateResult.success) return unwrap(updateResult);
 					liveChanged = updateResult.liveContentChanged !== false;
-					rev = extractContentRev(updateResult.data);
+					savedRev = extractContentRev(updateResult.data);
+					rev = savedRev;
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentUnpublish(args.collection, resolvedId, {
-						_rev: rev,
-						actor: { ...actor, source: "mcp" },
-						origin: { source: "mcp" },
-					}),
+					afterSavedFields(
+						await emdash.handleContentUnpublish(args.collection, resolvedId, {
+							_rev: rev,
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
+						savedRev,
+						"unpublish",
+					),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1569,7 +1600,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1586,10 +1617,13 @@ export function createMcpServer(
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
 			if (locked) return locked;
-			return unwrapAndInvalidate(extra, await ec.handleContentDelete(args.collection, resolvedId), [
-				args.collection,
-				resolvedId,
-			]);
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentDelete(args.collection, resolvedId, {
+					actor: { id: userId, role: userRole, source: "mcp" },
+				}),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1835,7 +1869,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			const existing = await ec.handleContentGet(args.collection, args.id);
 			if (!existing.success) {
@@ -1853,7 +1887,9 @@ export function createMcpServer(
 			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentUnschedule(args.collection, resolvedId),
+				await ec.handleContentUnschedule(args.collection, resolvedId, {
+					actor: { id: userId, role: userRole, source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},
@@ -1899,7 +1935,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
 			const existing = await ec.handleContentGet(args.collection, args.id);
@@ -1918,7 +1954,10 @@ export function createMcpServer(
 			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
+				await ec.handleContentDiscardDraft(args.collection, resolvedId, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},
@@ -2827,10 +2866,7 @@ export function createMcpServer(
 			if (!existing.success) {
 				return unwrap(existing);
 			}
-			const media = (existing.data as Record<string, unknown> | undefined)?.item as
-				| Record<string, unknown>
-				| undefined;
-			const authorId = typeof media?.authorId === "string" ? media.authorId : "";
+			const authorId = existing.data.item.authorId ?? "";
 			requireOwnership(extra, authorId, "media:edit_own", "media:edit_any");
 
 			return unwrap(
@@ -2867,13 +2903,18 @@ export function createMcpServer(
 			if (!existing.success) {
 				return unwrap(existing);
 			}
-			const media = (existing.data as Record<string, unknown> | undefined)?.item as
-				| Record<string, unknown>
-				| undefined;
-			const authorId = typeof media?.authorId === "string" ? media.authorId : "";
+			const authorId = existing.data.item.authorId ?? "";
 			requireOwnership(extra, authorId, "media:delete_own", "media:delete_any");
 
-			return unwrap(await ec.handleMediaDelete(args.id));
+			const result = await ec.handleMediaDelete(args.id);
+			if (
+				result.success &&
+				result.data?.storageDeleted &&
+				isRouteCachedMedia(result.data.storageKey, result.data.mimeType)
+			) {
+				await invalidateRouteCache(getExtra(extra).cache, [mediaCacheTag(result.data.storageKey)]);
+			}
+			return unwrap(result);
 		},
 	);
 
@@ -3709,7 +3750,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const { emdash, userId } = getExtra(extra);
+			const { emdash, userId, userRole } = getExtra(extra);
 
 			// Fetch the revision to discover the parent content entry
 			const revision = await emdash.handleRevisionGet(args.revisionId);
@@ -3744,7 +3785,7 @@ export function createMcpServer(
 			);
 			if (locked) return locked;
 
-			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId));
+			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId, userRole));
 		},
 	);
 
@@ -3832,6 +3873,25 @@ export function createMcpServer(
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
 			try {
+				const seo = args.seo;
+				if (
+					ec.config.robotsTxtOverridden &&
+					seo &&
+					(Boolean(seo.robotsTxt) || seo.disallowAiTraining === true)
+				) {
+					const { getSiteSettingWithDb } = await import("../settings/index.js");
+					const stored = await getSiteSettingWithDb("seo", ec.db);
+					const changesRobotsTxt = Boolean(seo.robotsTxt) && seo.robotsTxt !== stored?.robotsTxt;
+					const enablesAiRule =
+						seo.disallowAiTraining === true && stored?.disallowAiTraining !== true;
+					if (changesRobotsTxt || enablesAiRule) {
+						return respondError(
+							"ROBOTS_TXT_OVERRIDDEN",
+							"This site serves its own src/pages/robots.txt, so seo.robotsTxt and " +
+								"seo.disallowAiTraining would have no effect. Edit that file instead.",
+						);
+					}
+				}
 				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
 				return unwrapAndInvalidate(extra, await handleSettingsUpdate(ec.db, ec.storage, args), [
 					siteSettingsTag(),

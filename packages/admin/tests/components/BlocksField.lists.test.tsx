@@ -74,7 +74,44 @@ const POINTS = blockType("points", "Points", [
 	},
 ]);
 
-const TYPES = [SHORT, STATS, METRICS, POINTS];
+const MEDIA = blockType("media", "Media", [
+	{
+		slug: "logos",
+		label: "Logos",
+		type: "repeater",
+		validation: {
+			subFields: [
+				{ slug: "name", label: "Name", type: "string" },
+				{
+					slug: "logo",
+					label: "Logo",
+					type: "image",
+					validation: { allowedMimeTypes: ["image/svg+xml"] },
+				},
+			],
+		},
+	},
+	{
+		slug: "cards",
+		label: "Cards",
+		type: "repeater",
+		validation: {
+			subFields: [
+				{ slug: "title", label: "Title", type: "string" },
+				{
+					slug: "logo",
+					label: "Logo",
+					type: "image",
+					validation: { allowedMimeTypes: ["image/svg+xml"] },
+				},
+				{ slug: "caption", label: "Caption", type: "text" },
+				{ slug: "link", label: "Link", type: "url" },
+			],
+		},
+	},
+]);
+
+const TYPES = [SHORT, STATS, METRICS, POINTS, MEDIA];
 
 const short = (key: string): StoredBlockValue => ({
 	_type: "short",
@@ -106,6 +143,13 @@ const points = (): StoredBlockValue => ({
 	_key: "points",
 	points: [{ text: "Fast" }, { text: "Cheap" }],
 });
+const media = (cards: Record<string, unknown>[]): StoredBlockValue => ({
+	_type: "media",
+	_version: 1,
+	_key: "media",
+	logos: [{ name: "Partner", logo: "logo-id" }],
+	cards,
+});
 
 /** Every value the field saved, latest last. */
 const saved: StoredBlockValue[][] = [];
@@ -127,6 +171,8 @@ function Harness({ initial }: { initial: StoredBlockValue[] }) {
 		renderField: ({ name, field, value: fieldValue, onChange, chrome }) => (
 			<input
 				id={`field-${name}`}
+				data-descriptor-id={field.id}
+				data-allowed-mime-types={field.validation?.allowedMimeTypes?.join(",")}
 				type={field.kind === "number" ? "number" : "text"}
 				aria-labelledby={chrome.labelledBy}
 				className="h-8 w-full"
@@ -225,6 +271,26 @@ const itemOf = (control: Element) => control.closest<HTMLElement>("[data-list-it
 afterEach(async () => {
 	saved.length = 0;
 	await cdp().send("Emulation.setEmulatedMedia", { features: [] });
+});
+
+describe("block repeater descriptors", () => {
+	it("carry MIME validation and schema IDs in table and expanded layouts", async () => {
+		await renderField([
+			media([{ title: "Card 1", logo: "logo-id", caption: "Caption", link: "/card" }]),
+		]);
+		await page.getByRole("button", { name: "Media", exact: true }).click();
+
+		const tableLogo = document.querySelector<HTMLInputElement>(
+			'[data-descriptor-id="field-layout:media:logos.logo"]',
+		);
+		expect(tableLogo?.dataset.allowedMimeTypes).toBe("image/svg+xml");
+
+		await page.getByRole("button", { name: "Card 1", exact: true }).click();
+		const itemLogo = document.querySelector<HTMLInputElement>(
+			'[data-descriptor-id="field-layout:media:cards.logo"]',
+		);
+		expect(itemLogo?.dataset.allowedMimeTypes).toBe("image/svg+xml");
+	});
 });
 
 describe("A table's blank row", () => {

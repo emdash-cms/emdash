@@ -143,7 +143,7 @@ In the admin sidebar, select **Import** to open the **Import from WordPress** pa
 
 Entering a WordPress URL without the exporter can detect the site and count public posts, pages, and media. That REST probe does not import content.
 
-The importer maps WordPress `publish` to EmDash `published`. Draft, pending, private, future, trash, and unknown statuses become drafts. Review imported permissions and publication state before changing DNS or retiring WordPress.
+The importer maps WordPress `publish` to EmDash `published`. Draft, pending, private, future, trash, and unknown statuses become drafts. A WXR import brings in a password-protected post as a draft whatever its WordPress status. Review imported permissions and publication state before changing DNS or retiring WordPress.
 
 <Aside type="caution">
   Keep the WordPress site and its media available until content, authors, taxonomies, menus, links, and downloaded media have been verified in EmDash.

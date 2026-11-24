@@ -24,13 +24,16 @@
  */
 
 import { setupI18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import {
 	Plug,
 	Gear,
 	Trophy,
 	ClockCounterClockwise,
+	Folders,
 	IdentificationCard,
 	SquaresFour,
+	Tag,
 } from "@phosphor-icons/react";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
@@ -54,6 +57,7 @@ import {
 	type NavBuildInput,
 	type NavGroup,
 } from "../../src/components/Sidebar";
+import { getRoleConfig } from "../../src/components/users/roleDefinitions";
 import { render } from "../utils/render.tsx";
 
 // Mirror @emdash-cms/auth Role levels. Kept inline (matching Sidebar.tsx)
@@ -398,6 +402,21 @@ describe("buildNavGroups", () => {
 
 	const posts = { posts: { label: "Posts" } };
 
+	it("translates the Admin heading separately from the Admin role", () => {
+		const catalan = setupI18n({
+			locale: "ca",
+			messages: {
+				ca: {
+					[msg`Admin`.id]: "Administrador",
+					[msg({ message: "Admin", context: "navigation group" }).id]: "Administració",
+				},
+			},
+		});
+		const groups = build({ i18n: catalan, translate: catalan._.bind(catalan) });
+		expect(group(groups, "admin")?.label).toBe("Administració");
+		expect(catalan._(getRoleConfig(ROLE_ADMIN).label)).toBe("Administrador");
+	});
+
 	it("gives a taxonomy link that carries the route locale an ID without it", () => {
 		const groups = build({
 			manifest: { collections: posts, taxonomies: [{ name: "genre", label: "Genres" }] },
@@ -410,6 +429,27 @@ describe("buildNavGroups", () => {
 			"/taxonomies/genre?locale=de",
 		);
 		expect(genre?.kind === "item" && genre.item.id).toBe("/taxonomies/genre");
+	});
+
+	it("picks each taxonomy's icon from whether it is hierarchical, not from its name", () => {
+		const groups = build({
+			manifest: {
+				collections: posts,
+				taxonomies: [
+					{ name: "topics", label: "Topics", hierarchical: false },
+					{ name: "regions", label: "Regions", hierarchical: true },
+					{ name: "tag", label: "Tags", hierarchical: true },
+				],
+			},
+		});
+		const icons = new Map(
+			group(groups, "manage")?.entries.flatMap((entry) =>
+				entry.kind === "item" ? [[entry.item.label, entry.item.icon] as const] : [],
+			),
+		);
+		expect(icons.get("Topics")).toBe(Tag);
+		expect(icons.get("Regions")).toBe(Folders);
+		expect(icons.get("Tags")).toBe(Folders);
 	});
 
 	it("gives a root plugin page an ID without the trailing slash", () => {

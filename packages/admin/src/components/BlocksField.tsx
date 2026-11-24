@@ -171,6 +171,10 @@ export interface BlocksFieldProps {
 	 * the control with id `focusId`, and focuses it.
 	 */
 	reveal?: BlockReveal;
+	/** A full field path (`<fieldPath>.<blockKey>.<slug>[...]`) to open and focus once it resolves. */
+	focusField?: string;
+	/** Called once after the resolved `focusField` control takes focus. */
+	onFieldFocused?: () => void;
 }
 
 export interface BlockReveal {
@@ -243,13 +247,16 @@ type FocusRequest =
 			target: "field";
 			elementId: string;
 			field: string;
+			item?: number;
 			/** Focuses that control, rather than the block's first problem on screen. */
 			exact?: true;
+			onFocused?: () => void;
 	  }
 	| { key: string; target: "item"; field: string; index: number; scroll?: false | "nearest" }
 	| { target: "add" };
 
 const NO_ISSUES: readonly BlockValueIssue[] = [];
+const LIST_ITEM_INDEX = /^(0|[1-9][0-9]*)$/;
 
 /** The key of the block `element` is in, in any blocks field. */
 export function blockKeyOf(element: Element | null): string | undefined {
@@ -410,8 +417,20 @@ function nestedDescriptor(
 	};
 }
 
-function listFieldDefinition({ options, ...subField }: ListSubField): LayoutFieldDefinition {
-	return options ? { ...subField, validation: { options } } : subField;
+function listFieldDefinition({
+	options,
+	validation,
+	...subField
+}: ListSubField): LayoutFieldDefinition {
+	return options || validation
+		? {
+				...subField,
+				validation: {
+					...validation,
+					...(options ? { options } : {}),
+				},
+			}
+		: subField;
 }
 
 function listLimit(field: LayoutFieldDefinition, key: "minItems" | "maxItems") {
@@ -434,6 +453,8 @@ export function BlocksField({
 	readOnly = false,
 	renderField,
 	reveal,
+	focusField,
+	onFieldFocused,
 }: BlocksFieldProps) {
 	const { t } = useLingui();
 	const undo = useUndoToast();
@@ -441,6 +462,7 @@ export function BlocksField({
 	const rootRef = React.useRef<HTMLDivElement>(null);
 	const addButtonRef = React.useRef<HTMLButtonElement>(null);
 	const focusRequestRef = React.useRef<FocusRequest | null>(null);
+	const linkedFieldRef = React.useRef<string | null>(null);
 	const maxHintId = React.useId();
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	/** The open set Expand all or Collapse all made, which opens and closes without motion. */
@@ -586,6 +608,63 @@ export function BlocksField({
 		revealIssues(revealFocusId, revealCount);
 	}, [revealToken, revealFocusId, revealCount, revealIssues]);
 
+	const focusLinkedField = useStableCallback(() => {
+		if (!focusField) {
+			linkedFieldRef.current = null;
+			return;
+		}
+		if (linkedFieldRef.current === focusField) return;
+		const block = blocks.find((candidate) =>
+			focusField.startsWith(`${fieldPath}.${candidate._key}.`),
+		);
+		if (!block) return;
+		const [field, index, subfield, ...rest] = focusField
+			.slice(`${fieldPath}.${block._key}.`.length)
+			.split(".");
+		const version = typeBySlug
+			.get(block._type)
+			?.versions.find((candidate) => candidate.version === block._version);
+		const definition = version?.fields.find((candidate) => candidate.slug === field);
+		if (!field || !definition || !version) return;
+		let item: number | undefined;
+		if (definition.type === "repeater" && index !== undefined) {
+			const items = block[field];
+			const position = Number(index);
+			if (
+				!LIST_ITEM_INDEX.test(index) ||
+				!Number.isSafeInteger(position) ||
+				!Array.isArray(items) ||
+				position >= items.length ||
+				rest.length > 0 ||
+				(subfield !== undefined &&
+					!repeaterSubFields(definition).some((candidate) => candidate.slug === subfield))
+			)
+				return;
+			item = position;
+		}
+		linkedFieldRef.current = focusField;
+		if (
+			planBlockFields(version.fields, "block").advanced.some(
+				(candidate) => candidate.slug === field,
+			)
+		) {
+			setAdvancedKeys((current) => withKey(current, block._key));
+		}
+		setOpenKeys((current) => withKey(current, block._key));
+		setRevealFocus({
+			key: block._key,
+			target: "field",
+			elementId: `field-${focusField}`,
+			field,
+			item,
+			exact: true,
+			onFocused: () => onFieldFocused?.(),
+		});
+	});
+	React.useEffect(() => {
+		focusLinkedField();
+	}, [focusField, value, blockTypes, focusLinkedField]);
+
 	/** Opens the block, Advanced row and list item that hold `issue`, and focuses its control. */
 	const showIssue = (issue: BlockValueIssue) => {
 		const block = blocks.find((candidate) => candidate._key === issue.blockKey);
@@ -689,15 +768,26 @@ export function BlocksField({
 				);
 			const target = () =>
 				(exact ? null : firstShown()) ?? focusableIn(document.getElementById(elementId));
-			const focusField = () => {
+			const focusControl = () => {
 				const field = [...row.querySelectorAll<HTMLElement>("[data-block-body] [data-field]")].find(
 					(element) => element.dataset.field === request.field,
 				);
-				(target() ?? focusableIn(field) ?? firstShown() ?? toggle)?.focus();
+				const fallback =
+					request.item === undefined
+						? field
+						: field?.querySelectorAll<HTMLElement>("[data-list-item]")[request.item];
+				const control = target() ?? focusableIn(fallback) ?? firstShown() ?? toggle;
+				if (request.onFocused && control) {
+					control.scrollIntoView({ behavior: "smooth", block: "center" });
+					control.focus({ preventScroll: true });
+					request.onFocused();
+				} else control?.focus();
 			};
-			// A labelled Kumo input inside a list takes the id it was given only after its first render.
-			if (target()) focusField();
-			else requestAnimationFrame(focusField);
+			const wholeField = elementId === `field-${fieldPath}.${request.key}.${request.field}`;
+			// Whole-field links can use the fallback while hidden tabs pause animation frames.
+			// Exact list controls may receive their Kumo input ids only after the first render.
+			if ((request.onFocused && wholeField) || target()) focusControl();
+			else requestAnimationFrame(focusControl);
 			return;
 		}
 		const control =
@@ -893,7 +983,7 @@ export function BlocksField({
 				ROW_BUTTON,
 				"h-10 w-full justify-start gap-2 rounded-none px-2 font-normal text-kumo-subtle shadow-none hover:text-kumo-default aria-disabled:cursor-not-allowed aria-disabled:opacity-50",
 				SHEET_INNER_BOTTOM,
-				blocks.length > 0 && "border-t border-kumo-hairline",
+				"border-t border-kumo-hairline",
 			)}
 			onClick={(event) => {
 				if (!canAdd) return;
@@ -1007,6 +1097,13 @@ export function BlocksField({
 											advancedOpen={readOnly || advancedKeys.has(block._key)}
 											issues={shownIssues.get(block._key) ?? NO_ISSUES}
 											revealToken={itemReveals.get(block._key) ?? 0}
+											revealItem={
+												revealFocus?.target === "field" &&
+												revealFocus.key === block._key &&
+												revealFocus.item !== undefined
+													? { field: revealFocus.field, index: revealFocus.item }
+													: undefined
+											}
 											readOnly={readOnly}
 											canAdd={canAdd}
 											atMax={atMax}
@@ -1053,12 +1150,9 @@ export function BlocksField({
 							</SortableContext>
 						</DndContext>
 					) : (
-						<p
-							className={cn(
-								"px-4 pt-6 text-center text-base text-kumo-subtle",
-								readOnly ? "pb-6" : "pb-2",
-							)}
-						>
+						// As tall as a block's header and starting at the Add block label, so the first block
+						// takes its place.
+						<p className="flex min-h-11 items-center py-2.5 ps-8 pe-4 text-base text-kumo-subtle">
 							{t`No blocks yet`}
 						</p>
 					)}
@@ -1126,6 +1220,7 @@ interface BlockRowProps {
 	issues: readonly BlockValueIssue[];
 	/** A new token opens the list items that hold a problem to show. */
 	revealToken: number;
+	revealItem?: { field: string; index: number };
 	readOnly: boolean;
 	canAdd: boolean;
 	atMax: boolean;
@@ -1177,6 +1272,7 @@ function BlockRow({
 	advancedOpen,
 	issues,
 	revealToken,
+	revealItem,
 	readOnly,
 	canAdd,
 	atMax,
@@ -1334,6 +1430,7 @@ function BlockRow({
 				error={listIssue && issueMessage(listIssue)}
 				invalidItems={invalidItems}
 				revealToken={revealToken}
+				revealItem={revealItem?.field === field.slug ? revealItem.index : undefined}
 				onItemDeleted={(deleted) => onItemDeleted(field.slug, deleted)}
 				onItemDeleteStart={undo?.hold}
 				onItemsShift={(moves) => onItemsShift(field.slug, moves)}
@@ -1344,7 +1441,11 @@ function BlockRow({
 						<FieldControl
 							field={definition}
 							name={`${blockPath}.${path}`}
-							descriptor={nestedDescriptor(definition, block)}
+							descriptor={nestedDescriptor(
+								definition,
+								block,
+								`${outerId}:${block._key}:${field.slug}.${subField.slug}`,
+							)}
 							issue={issueAt(path)}
 							{...control}
 							onChange={onControlChange}
@@ -1360,7 +1461,13 @@ function BlockRow({
 						fields={subFields.map(listFieldDefinition)}
 						values={item}
 						namePrefix={`${blockPath}.${field.slug}.${at}`}
-						describe={(definition) => nestedDescriptor(definition, block)}
+						describe={(definition) =>
+							nestedDescriptor(
+								definition,
+								block,
+								`${outerId}:${block._key}:${field.slug}.${definition.slug}`,
+							)
+						}
 						issueAt={(slug) => issueAt(`${field.slug}.${at}.${slug}`)}
 						onTouch={(slug) => onTouch(`${field.slug}.${at}.${slug}`)}
 						onEdit={(slug) => onEdit(`${field.slug}.${at}.${slug}`)}

@@ -24,6 +24,9 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 
 	const denied = requirePerm(user, "menus:manage");
 	if (denied) return denied;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	if (!itemId) {
 		return apiError("VALIDATION_ERROR", "id is required", 400);
@@ -54,6 +57,9 @@ export const DELETE: APIRoute = async ({ params, request, locals, cache }) => {
 
 	const denied = requirePerm(user, "menus:manage");
 	if (denied) return denied;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	if (!itemId) {
 		return apiError("VALIDATION_ERROR", "id is required", 400);

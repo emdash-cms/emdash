@@ -83,7 +83,12 @@ export interface SearchResult {
 	 * (the only HTML the snippet is allowed to contain).
 	 */
 	snippet?: string;
-	/** Relevance score (higher = more relevant) */
+	/**
+	 * Relevance tie-breaker (higher = more relevant).
+	 * `search()` normalizes to 0–1 per collection; title tiers and shorter
+	 * title-term matches take precedence.
+	 * `searchCollection()` returns the raw BM25 magnitude.
+	 */
 	score: number;
 }
 

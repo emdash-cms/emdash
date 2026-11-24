@@ -20,7 +20,6 @@ import type {
 	UpdateRelationInput,
 } from "../lib/api/relations.js";
 import { cn } from "../lib/utils.js";
-import { ArrowPrev } from "./ArrowIcons.js";
 import {
 	DataTable,
 	DataTableMessage,
@@ -33,7 +32,6 @@ import {
 } from "./DataTable.js";
 import { RelationDeleteDialog } from "./RelationDeleteDialog.js";
 import { RelationDialog } from "./RelationDialog.js";
-import { RouterLinkButton } from "./RouterLinkButton.js";
 
 export interface RelationListProps {
 	relations: RelationWithUsage[];
@@ -67,20 +65,11 @@ export function RelationList({
 	return (
 		<div className="space-y-4">
 			<div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-3">
-				<div className="flex items-center gap-4 min-w-0">
-					<RouterLinkButton
-						to="/content-types"
-						aria-label={t`Back to Content Types`}
-						variant="ghost"
-						shape="square"
-						icon={<ArrowPrev />}
-					/>
-					<div className="min-w-0">
-						<h1 className="text-2xl font-semibold leading-tight">{t`Relations`}</h1>
-						<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
-							{t`Define how content types link to each other`}
-						</p>
-					</div>
+				<div className="min-w-0">
+					<h1 className="text-2xl font-semibold leading-tight">{t`Relations`}</h1>
+					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
+						{t`Define how content types link to each other`}
+					</p>
 				</div>
 				<Button icon={<Plus />} onClick={() => setCreateOpen(true)}>
 					{t`New Relation`}

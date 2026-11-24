@@ -40,6 +40,7 @@ Fetch a single entry by slug. Returns `{ entry, error, isPreview, cacheHint }`.
 import { getEmDashEntry } from "emdash";
 
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 if (!post) {
 	return Astro.rewrite("/404");
@@ -118,6 +119,8 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ```
 
 When Astro's route cache is enabled, call `Astro.cache.set(cacheHint)` so publishing invalidates cached output.
+
+On a detail page, set the `getEmDashEntry` hint before handling a miss: a miss carries the collection tag, so a cached 404 is purged when the entry is published.
 
 ## Rendering Portable Text
 
@@ -265,9 +268,8 @@ const { slug } = Astro.params;
 if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
-if (!post) return Astro.rewrite("/404");
-
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+if (!post) return Astro.rewrite("/404");
 
 const seo = getSeoMeta(post, {
 	siteTitle: "My Blog",

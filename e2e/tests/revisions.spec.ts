@@ -261,7 +261,7 @@ test.describe("Revisions", () => {
 		await openEditor(admin);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await page.getByRole("button", { name: "Settings", exact: true }).click();
+		await page.getByRole("button", { name: "Show settings", exact: true }).click();
 		const sheet = page.getByRole("navigation", { name: "Settings" });
 		await expect(sheet).toBeVisible();
 		const rows = await expandRevisions(sheet);

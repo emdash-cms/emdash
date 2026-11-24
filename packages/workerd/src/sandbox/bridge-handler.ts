@@ -61,7 +61,8 @@ import type {
 	SiteInfo,
 	TaxonomyAccessWithWrite,
 } from "emdash";
-import { createKVAccess } from "emdash/internal/plugins/host";
+import { createKVAccess, withTransaction } from "emdash/internal/plugins/host";
+import { isRouteCachedMedia } from "emdash/media/image-endpoint";
 import type { Kysely } from "kysely";
 
 const CONTENT_CREATE_ERROR_CODES = new Set([
@@ -818,7 +819,9 @@ async function dispatch(
 			);
 		case "media/delete":
 			requireCapability(opts, "media:write");
-			return mediaDelete(db, requireString(body, "id"), opts.storage);
+			return mediaDelete(db, requireString(body, "id"), opts.storage, (storageKey) =>
+				invalidateMediaCache(opts, pluginId, storageKey, optionalString(body, "invocationId")),
+			);
 
 		// ── HTTP ────────────────────────────────────────────────────────
 		case "http/fetch":
@@ -1320,6 +1323,15 @@ async function guardedContentWrite<T>(
 	return result;
 }
 
+async function invalidateMediaCache(
+	opts: BridgeHandlerOptions,
+	pluginId: string,
+	storageKey: string,
+	invocationId: string | undefined,
+): Promise<void> {
+	await opts.contentActions?.()?.invalidateMedia?.(pluginId, storageKey, invocationId);
+}
+
 function requireContentActions(opts: BridgeHandlerOptions): ContentActionCallbacks {
 	const actions = opts.contentActions?.();
 	if (!actions) throw new Error("Content actions are not configured");
@@ -1788,18 +1800,7 @@ async function contentDelete(
 	id: string,
 ): Promise<boolean> {
 	validateCollectionName(collection);
-	const table = `ec_${collection}`;
-
-	// Soft-delete: set deleted_at timestamp (matching Cloudflare bridge)
-	const now = new Date().toISOString();
-	const result = await asContentDb(db)
-		.updateTable(table)
-		.set({ deleted_at: now, updated_at: now })
-		.where("id", "=", id)
-		.where("deleted_at", "is", null)
-		.executeTakeFirst();
-
-	return BigInt(result.numUpdatedRows) > 0n;
+	return new ContentRepository(db).delete(collection, id);
 }
 
 // ── Batch Content Operations ─────────────────────────────────────────────
@@ -1824,7 +1825,7 @@ async function contentCreateMany(
 	if (items.length > MAX_BATCH_SIZE) {
 		throw new Error(`Batch size ${items.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
 	}
-	return db.transaction().execute(async (trx) => {
+	return withTransaction(db, async (trx) => {
 		const results = [];
 		for (const data of items) {
 			results.push(await contentCreate(trx, collection, data, locale));
@@ -1850,7 +1851,7 @@ async function contentUpdateMany(
 	if (items.length > MAX_BATCH_SIZE) {
 		throw new Error(`Batch size ${items.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
 	}
-	return db.transaction().execute(async (trx) => {
+	return withTransaction(db, async (trx) => {
 		const results = [];
 		for (const item of items) {
 			results.push(await contentUpdate(trx, collection, item.id, item.data));
@@ -1867,7 +1868,7 @@ async function contentDeleteMany(
 	if (ids.length > MAX_BATCH_SIZE) {
 		throw new Error(`Batch size ${ids.length} exceeds maximum of ${MAX_BATCH_SIZE}`);
 	}
-	return db.transaction().execute(async (trx) => {
+	return withTransaction(db, async (trx) => {
 		let count = 0;
 		for (const id of ids) {
 			const deleted = await contentDelete(trx, collection, id);
@@ -2085,12 +2086,13 @@ async function mediaDelete(
 	db: Kysely<Database>,
 	id: string,
 	storage?: BridgeStorage | null,
+	invalidateMedia?: (storageKey: string) => Promise<void>,
 ): Promise<boolean> {
 	// Look up storage key before deleting
 	const media = await db
 		.selectFrom("media")
 		.where("id", "=", id)
-		.select("storage_key")
+		.select(["storage_key", "mime_type"])
 		.executeTakeFirst();
 
 	if (!media) return false;
@@ -2102,10 +2104,15 @@ async function mediaDelete(
 	// the DB row is already deleted and the orphan cleanup cron will
 	// catch it. Matches the Cloudflare bridge's behavior.
 	if (storage && media.storage_key) {
+		let storageDeleted = false;
 		try {
 			await storage.delete(media.storage_key);
+			storageDeleted = true;
 		} catch (error) {
 			console.warn(`[bridge] Failed to delete storage object ${media.storage_key}:`, error);
+		}
+		if (storageDeleted && isRouteCachedMedia(media.storage_key, media.mime_type)) {
+			await invalidateMedia?.(media.storage_key);
 		}
 	}
 

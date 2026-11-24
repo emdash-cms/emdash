@@ -1,7 +1,7 @@
 ---
 title: Draft access for trusted editor panels
 type: rfc
-status: proposed
+status: implemented
 authors:
   - Noah Pham (@khoinguyenpham04)
 champion: Noah Pham (@khoinguyenpham04)
@@ -132,7 +132,7 @@ The editor doesn't accept edits when it is read-only or a version of the entry i
 
 ### Revision
 
-A patch succeeds only when the editor shows the same entry and the same draft values as when `get()` returned `expectedRevision`. An autosave completing never changes the revision, because autosave doesn't write the server's response back into the form. A manual save changes the revision only when the server returns values that differ from the ones the form sent, for example a boolean read back as `0` or `1`, or a value that a `content:beforeSave` hook changed. Edits to the bylines, taxonomy terms or other SEO settings don't change it.
+A patch succeeds only when the editor shows the same entry and the same draft values as when `get()` returned `expectedRevision`. An autosave completing never changes the revision, because autosave doesn't write the server's response back into the form. A manual save's reload, or a read that replaces a form without unsaved changes, changes the revision only when the server returns values that differ from the ones the form holds, for example a boolean read back as `0` or `1`, or a value that a `content:beforeSave` hook changed. Edits to the bylines, taxonomy terms or other SEO settings don't change it.
 
 After a successful `patch()`, `get()` returns the patched values, even before the editor re-renders.
 
@@ -183,7 +183,7 @@ Only trusted patches can name the three extra keys, because sandboxed draft sele
 
 A patch that changes both form values and SEO values applies to the form in one step, but is saved in two requests, and either can fail on its own.
 
-The rich text editor builds its document once, when it mounts, and ignores later changes to its value. Today's sandboxed apply step updates the form value but keeps the field's React key, so a patched rich text field goes on showing the old document, and the next keystroke there writes the old document back over the patch. Remounting each patched field fixes this for sandboxed patches as well. Fields the patch doesn't touch keep their editors, cursor position and undo history. The block sidebar edits a block through the rich text editor that opened it, which can be nested in a `blocks` item. A patch to a `portableText` or `blocks` field therefore closes the sidebar before replacing that editor. Other patches leave it open, so unsaved changes in it, such as alt text, stay.
+The rich text editor builds its document once, when it mounts, and ignores later changes to its value. Today's sandboxed apply step updates the form value but keeps the field's React key, so a patched rich text field goes on showing the old document, and the next keystroke there writes the old document back over the patch. Remounting each patched field fixes this for sandboxed patches as well. Because the remounted editor loads the patched value, the apply step refuses a sandboxed patch whose Portable Text the rich text editor can't load, shows the existing "Plugin changes were not applied" notice, and changes nothing. Fields the patch doesn't touch keep their editors, cursor position and undo history. The block sidebar edits a block through the rich text editor that opened it, which can be nested in a `blocks` item. A patch to a `portableText` or `blocks` field therefore closes the sidebar before replacing that editor. Other patches leave it open, so unsaved changes in it, such as alt text, stay.
 
 Autosave normally deletes the draft revision it replaces, and a manual save keeps it. The first save that sends a patch's values keeps it even when that save is an autosave. A save that was already in flight when the patch applied carries the earlier values and doesn't count. In collections with revisions, the user can then restore the values saved before the patch from the revision history. Unsaved edits that a patch replaced can't be restored.
 
@@ -203,7 +203,9 @@ The change is additive: an optional property on `ContentEditorPanelContext`, new
 
 Existing panels keep working unchanged. A panel that uses `editorDraft` sees `undefined` on an older host. It can hide its draft actions in that case, or declare the minimum `emdash` version in its peer dependencies.
 
-For sandboxed panels and actions, a patch to a rich text field now shows in the editor, and the first save that sends a patch keeps the draft revision it replaces. Their capabilities, field selectors, preview and staleness rule don't change.
+For sandboxed panels and actions, a patch to a rich text field now shows in the editor, the first save that sends a patch keeps the draft revision it replaces, and a patch whose Portable Text the editor can't load is refused with the existing notice. Their capabilities, field selectors, preview and staleness rule don't change.
+
+Edits made while a manual save is in flight, typed or patched, stay in the form when the save reloads the entry, and the next autosave sends them.
 
 ## Security and privacy
 

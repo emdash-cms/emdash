@@ -8,8 +8,8 @@ describe("publisher summary", () => {
 	it("uses the earliest listing and the latest update across plugins", () => {
 		const summary = publisherSummary(
 			[
-				{ indexedAt: "2026-10-01T00:00:00Z", profile: { lastUpdated: "2026-10-07T09:00:00Z" } },
-				{ indexedAt: "2026-09-12T00:00:00Z", profile: { lastUpdated: "2026-10-15T09:00:00Z" } },
+				{ indexedAt: "2026-10-07T09:00:08Z", profile: { lastUpdated: "2026-10-07T09:00:00Z" } },
+				{ indexedAt: "2026-10-15T09:00:08Z", profile: { lastUpdated: "2026-10-15T09:00:00Z" } },
 				{ indexedAt: "2026-09-30T00:00:00Z", profile: null },
 			],
 			now,
@@ -21,6 +21,18 @@ describe("publisher summary", () => {
 			listedSince: { datetime: "2026-09", label: "Sep 2026" },
 			lastUpdated: { datetime: "2026-10-15T09:00:00Z", label: "yesterday" },
 		});
+	});
+
+	it("never reports an update later than the registry saw it", () => {
+		const summary = publisherSummary(
+			[
+				{ indexedAt: "2026-10-15T09:00:08Z", profile: { lastUpdated: "2026-10-15T09:00:00Z" } },
+				{ indexedAt: "2026-09-12T00:00:00Z", profile: { lastUpdated: "2026-10-16T11:00:00Z" } },
+			],
+			now,
+		);
+
+		expect(summary.lastUpdated).toEqual({ datetime: "2026-10-15T09:00:00Z", label: "yesterday" });
 	});
 
 	it("skips unparseable dates and omits what it cannot work out", () => {

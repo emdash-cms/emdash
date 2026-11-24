@@ -135,6 +135,25 @@ describe("searchCatalog", () => {
 		expect(isRegistryRequestRejected(await errorOf(answering(502)))).toBe(false);
 		expect(isRegistryRequestRejected(await errorOf(rejectingPage2))).toBe(false);
 	});
+
+	it("keeps the plugins it collected before a later page failed", async () => {
+		const { client } = registryAnswering((url) =>
+			url.searchParams.has("cursor")
+				? Response.json({ error: "InternalServerError", message: "Down" }, { status: 502 })
+				: Response.json({
+						packages: [packageView("alpha"), packageView("beta")],
+						cursor: "page-2",
+					}),
+		);
+		const failingFirst = registryAnswering(() =>
+			Response.json({ error: "InternalServerError", message: "Down" }, { status: 502 }),
+		).client;
+
+		const result = await searchCatalog("", client);
+		expect(result).toHaveProperty("error");
+		expect("error" in result && result.partial?.map((pkg) => pkg.slug)).toEqual(["alpha", "beta"]);
+		expect(await searchCatalog("", failingFirst)).toEqual({ error: expect.any(Error) });
+	});
 });
 
 describe("withLatestReleases", () => {
@@ -151,7 +170,10 @@ describe("withLatestReleases", () => {
 			latestVersion: undefined,
 		});
 
-		const entries = await withLatestReleases(packages, client);
+		const entries = await withLatestReleases(
+			packages.map((pkg) => ({ package: pkg })),
+			client,
+		);
 
 		expect(entries.map((entry) => [entry.package.slug, entry.latestRelease?.version])).toEqual([
 			["alpha", "1.0.0"],
@@ -173,12 +195,29 @@ describe("withLatestReleases", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const packages = await validated(packageView("alpha"));
 
-		const pending = withLatestReleases(packages, client);
+		const pending = withLatestReleases(
+			packages.map((pkg) => ({ package: pkg })),
+			client,
+		);
 		await vi.advanceTimersByTimeAsync(LATEST_RELEASE_TIMEOUT_MS);
 		const entries = await pending;
 		await vi.advanceTimersByTimeAsync(1000);
 
 		expect(entries).toEqual([{ package: packages[0] }]);
 		expect(warn).toHaveBeenCalledOnce();
+	});
+
+	it("keeps what else each item carries", async () => {
+		const { client } = registryAnswering(() => Response.json(releaseView("alpha")));
+		const packages = await validated(packageView("alpha"));
+
+		const entries = await withLatestReleases(
+			packages.map((pkg) => ({ package: pkg, moreFromPublisher: 3 })),
+			client,
+		);
+
+		expect(entries).toMatchObject([
+			{ package: { slug: "alpha" }, moreFromPublisher: 3, latestRelease: { version: "1.0.0" } },
+		]);
 	});
 });
