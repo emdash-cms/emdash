@@ -54,6 +54,8 @@ describeEachDialect("image metadata normalization", (dialect) => {
 				height: 800,
 				alt: "Provider alt",
 				caption: "Provider caption",
+				focal_x: 0.25,
+				focal_y: 0.75,
 				storage_key: storageKey,
 				content_hash: null,
 				blurhash: null,
@@ -121,6 +123,53 @@ describeEachDialect("image metadata normalization", (dialect) => {
 		const dataAfterSecondSave = savedAgain.data.item.data as typeof data;
 		expect(dataAfterSecondSave.hero).toEqual(expected);
 		expect(dataAfterSecondSave.gallery[0]!.image).toEqual(expected);
+	});
+
+	it.each([
+		{ name: "missing coordinates", input: {}, expected: { focalX: 0.25, focalY: 0.75 } },
+		{ name: "valid override", input: { focalX: 0, focalY: 1 }, expected: { focalX: 0, focalY: 1 } },
+		{
+			name: "partial coordinates",
+			input: { focalX: 0.9 },
+			expected: { focalX: 0.25, focalY: 0.75 },
+		},
+		{
+			name: "invalid coordinate pair",
+			input: { focalX: -1, focalY: 0.8 },
+			expected: { focalX: 0.25, focalY: 0.75 },
+		},
+		{
+			name: "malformed coordinate pair",
+			input: { focalX: "0.9", focalY: "0.8" },
+			expected: { focalX: 0.25, focalY: 0.75 },
+		},
+	])("retains local focal points and alt text with $name", async ({ name, input, expected }) => {
+		const created = await runtime.handleContentCreate("posts", {
+			slug: `local-focal-${name.replaceAll(" ", "-")}`,
+			data: { title: "Before" },
+		});
+		expect(created.success).toBe(true);
+		if (!created.success) return;
+
+		const updated = await runtime.handleContentUpdate("posts", created.data.item.id, {
+			data: {
+				title: "After",
+				hero: { src: mediaId, alt: "Caller alt", ...input },
+				gallery: [
+					{ image: { src: `${INTERNAL_MEDIA_PREFIX}${mediaId}`, alt: "Caller alt", ...input } },
+				],
+			},
+		});
+		expect(updated.success).toBe(true);
+		if (!updated.success) return;
+
+		const data = updated.data.item.data as {
+			hero: ImageValue;
+			gallery: Array<{ image: ImageValue }>;
+		};
+		for (const image of [data.hero, data.gallery[0]!.image]) {
+			expect(image).toMatchObject({ alt: "Caller alt", ...expected });
+		}
 	});
 
 	it("resolves local legacy values while keeping caller metadata and removing derived src", async () => {

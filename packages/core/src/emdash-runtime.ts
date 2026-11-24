@@ -97,6 +97,7 @@ import { repairLocaleCasing } from "./i18n/repair-locale-casing.js";
 import { warnAboutUnconfiguredTaxonomyLocales } from "./i18n/taxonomy-locale-diagnostic.js";
 import { safeJsonSchemaToZod } from "./mcp/json-schema.js";
 import { pluginToolName } from "./mcp/plugin-tool-name.js";
+import { normalizeFocalPoint } from "./media/focal-point.js";
 import { mediaCacheTag } from "./media/image-endpoint.js";
 import { normalizeMediaValue } from "./media/normalize.js";
 import { linkPortableTextFileUrls } from "./media/portable-text-file-refs.js";
@@ -7810,8 +7811,17 @@ async function normalizePrimaryImageValue(
 	if (isRecord(value) && !value.id && typeof value.src === "string" && !value.provider) {
 		const normalized = await normalizeMediaValue(value.src, getProvider);
 		if (!normalized) return null;
+		const focalPoint =
+			normalizeFocalPoint(value.focalX, value.focalY) ??
+			normalizeFocalPoint(normalized.focalX, normalized.focalY);
 		return normalizeMediaValue(
-			{ ...value, provider: normalized.provider, id: normalized.id, src: normalized.src },
+			{
+				...value,
+				...focalPoint,
+				provider: normalized.provider,
+				id: normalized.id,
+				src: normalized.src,
+			},
 			getProvider,
 		);
 	}
