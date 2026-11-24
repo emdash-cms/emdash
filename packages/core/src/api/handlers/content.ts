@@ -855,13 +855,15 @@ async function removeShadowingAutoRedirect(
 		.where("slug", "=", collection)
 		.executeTakeFirst();
 
-	const url = interpolateUrlPattern({
+	const baseUrl = import.meta.env?.BASE_URL ?? "/";
+	const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
+	const url = `${base}${interpolateUrlPattern({
 		pattern: collectionRow?.url_pattern ?? null,
 		collection,
 		slug,
 		id: contentId,
 		date: publishedAt,
-	});
+	})}`;
 
 	const result = await db
 		.deleteFrom("_emdash_redirects")

@@ -562,7 +562,7 @@ export class RedirectRepository {
 
 	/**
 	 * Create an auto-redirect when a content slug changes.
-	 * Uses the collection's URL pattern to compute old/new URLs.
+	 * Uses the collection's URL pattern and Astro base to compute old/new URLs.
 	 * Collapses existing redirect chains pointing to the old URL and
 	 * removes redirects that would shadow the now-live new URL, so a
 	 * rename that is later reverted cannot form a loop (#1986).
@@ -580,10 +580,12 @@ export class RedirectRepository {
 		oldPublishedAt?: string | null,
 		newPublishedAt?: string | null,
 	): Promise<Redirect | null> {
+		const baseUrl = import.meta.env?.BASE_URL ?? "/";
+		const base = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
 		const withPatternSlash = (path: string) =>
 			urlPattern?.endsWith("/") && !path.endsWith("/") ? `${path}/` : path;
 		return this.withWriteLock(async (fence, repository) => {
-			const oldUrl = withPatternSlash(
+			const oldUrl = `${base}${withPatternSlash(
 				interpolateUrlPattern({
 					pattern: urlPattern,
 					collection,
@@ -591,8 +593,8 @@ export class RedirectRepository {
 					id: contentId,
 					date: oldPublishedAt,
 				}),
-			);
-			const newUrl = withPatternSlash(
+			)}`;
+			const newUrl = `${base}${withPatternSlash(
 				interpolateUrlPattern({
 					pattern: urlPattern,
 					collection,
@@ -600,7 +602,7 @@ export class RedirectRepository {
 					id: contentId,
 					date: newPublishedAt,
 				}),
-			);
+			)}`;
 
 			// A redirect from a URL to itself would make the page unreachable
 			if (oldUrl === newUrl) return null;
