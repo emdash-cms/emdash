@@ -42,8 +42,8 @@ jobs:
         with:
           fetch-depth: 0
           persist-credentials: false
-      - name: Test the workflow scripts
-        run: node --test .github/scripts/approval.test.mjs .github/scripts/e2e-shard.test.mjs
+      - name: Test CI scripts
+        run: node --test .github/scripts/*.test.mjs scripts/*.test.mjs
       - name: Select tests for this change
         id: plan
         env:
