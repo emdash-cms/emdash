@@ -7808,7 +7808,12 @@ async function normalizePrimaryImageValue(
 	getProvider: (id: string) => MediaProvider | undefined,
 ): Promise<ImageValue | null> {
 	if (isRecord(value) && !value.id && typeof value.src === "string" && !value.provider) {
-		return normalizeMediaValue(value.src, getProvider);
+		const normalized = await normalizeMediaValue(value.src, getProvider);
+		if (!normalized) return null;
+		return normalizeMediaValue(
+			{ ...value, provider: normalized.provider, id: normalized.id, src: normalized.src },
+			getProvider,
+		);
 	}
 	return normalizeMediaValue(value, getProvider);
 }
