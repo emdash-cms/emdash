@@ -234,7 +234,12 @@ describe("plugin storage index readiness", () => {
 				await expect(repository.put("two", { externalId: "duplicate" })).rejects.toThrow();
 
 				releaseFirst();
-				await expect(first).resolves.toMatchObject({ status: 200 });
+				await expect(first).resolves.toMatchObject({
+					status: pauseAt === "registry read" ? 200 : 503,
+				});
+				const retryRecorder = createRecorder("after-superseded-owner", "POST", "retry");
+				expect((await dispatchWithRecorder(runtime, "POST", retryRecorder)).status).toBe(200);
+				expect(ddlQueries(retryRecorder)).toHaveLength(pauseAt === "registry read" ? 0 : 3);
 				expect(ddlQueries(firstRecorder)).toHaveLength(pauseAt === "registry read" ? 0 : 1);
 			} finally {
 				releaseFirst();

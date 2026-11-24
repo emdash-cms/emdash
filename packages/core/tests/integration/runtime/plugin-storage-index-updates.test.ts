@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { SqliteDialect } from "kysely";
+import { sql, SqliteDialect } from "kysely";
 import type { KyselyPlugin } from "kysely";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -1177,6 +1177,144 @@ describe.each(["registry", "marketplace"] as const)(
 					releaseOldSync();
 					await oldSync.catch(() => undefined);
 					await newPost?.catch(() => undefined);
+				}
+			},
+		);
+
+		it.each(["after drop", "before drop"] as const)(
+			"reclaims an interrupted index drop before restoring a previous declaration (%s)",
+			async (pausePoint) => {
+				const storage = new MemoryStorage();
+				await putBundle(storage, source, "1.0.0", true);
+				const uniqueIndexName = generateIndexName(pluginId, "records", ["externalId"], {
+					unique: true,
+				});
+				const deps = createDeps(storage, source);
+				let releaseOldSync!: () => void;
+				const oldSyncReleased = new Promise<void>((resolve) => (releaseOldSync = resolve));
+				let dropPaused = false;
+				let interceptDrops = false;
+				if (pausePoint === "before drop") {
+					const createDialect = deps.createDialect;
+					deps.createDialect = (config) => {
+						const dialect = createDialect(config);
+						const createAdapter = dialect.createAdapter.bind(dialect);
+						dialect.createAdapter = () => {
+							const adapter = createAdapter();
+							// D1 statements can proceed independently of a stalled request.
+							Object.defineProperty(adapter, "supportsMultipleConnections", { value: true });
+							return adapter;
+						};
+						const createDriver = dialect.createDriver.bind(dialect);
+						dialect.createDriver = () => {
+							const driver = createDriver();
+							const acquire = driver.acquireConnection.bind(driver);
+							driver.acquireConnection = async () => {
+								const connection = await acquire();
+								return {
+									executeQuery: async (query) => {
+										if (
+											interceptDrops &&
+											!dropPaused &&
+											query.sql.toUpperCase().includes("DROP INDEX") &&
+											query.sql.includes(uniqueIndexName)
+										) {
+											dropPaused = true;
+											await oldSyncReleased;
+										}
+										return connection.executeQuery(query);
+									},
+									streamQuery: connection.streamQuery.bind(connection),
+								};
+							};
+							return driver;
+						};
+						return dialect;
+					};
+				}
+				runtime = await EmDashRuntime.create(deps);
+				const states = new PluginStateRepository(runtime.db);
+				await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+				await syncPlugins(runtime, source);
+				invokeRoute = async () => ({ ok: true });
+				expect(await post(runtime)).toMatchObject({ success: true });
+
+				const repository = new PluginStorageRepository<{ externalId: string }>(
+					runtime.db,
+					pluginId,
+					"records",
+					["externalId"],
+				);
+				await repository.put("one", { externalId: "duplicate" });
+				await expect(repository.put("two", { externalId: "duplicate" })).rejects.toThrow();
+
+				await putBundle(storage, source, "2.0.0", false);
+				const nextManifest = manifest("2.0.0", false);
+				nextManifest.storage.records.indexes = ["status", "externalId"];
+				storage.putText(`${source}/${pluginId}/2.0.0/manifest.json`, JSON.stringify(nextManifest));
+				await states.upsert(pluginId, "2.0.0", "active", stateOptions(source, "2.0.0"));
+				await syncPlugins(runtime, source);
+
+				const pausedQueryIds = new Set<unknown>();
+				const oldSyncDb =
+					pausePoint === "before drop"
+						? runtime.db
+						: runtime.db.withPlugin({
+								transformQuery: ({ node, queryId }) => {
+									const query = runtime!.db.getExecutor().compileQuery(node, queryId);
+									if (
+										!dropPaused &&
+										query.sql.toUpperCase().includes("DROP INDEX") &&
+										query.sql.includes(`"${uniqueIndexName}"`)
+									) {
+										pausedQueryIds.add(queryId);
+									}
+									return node;
+								},
+								async transformResult({ queryId, result }) {
+									if (pausedQueryIds.has(queryId)) {
+										dropPaused = true;
+										await oldSyncReleased;
+									}
+									return result;
+								},
+							} satisfies KyselyPlugin);
+
+				const now = vi.spyOn(Date, "now").mockReturnValue(3_000_000);
+				let oldSync: Promise<boolean> | undefined;
+				try {
+					interceptDrops = true;
+					oldSync = runWithContext({ editMode: false, db: oldSyncDb }, () =>
+						runtime!.ensureStorageIndexesSynced(pluginId),
+					);
+					await vi.waitFor(() => expect(dropPaused).toBe(true), { timeout: 1000 });
+
+					await states.upsert(pluginId, "1.0.0", "active", stateOptions(source, "1.0.0"));
+					await syncPlugins(runtime, source);
+					now.mockReturnValue(3_020_001);
+
+					await expect(post(runtime)).resolves.toMatchObject({ success: true });
+					await repository.put("replacement-one", { externalId: "replacement" });
+					await expect(
+						repository.put("replacement-two", { externalId: "replacement" }),
+					).rejects.toThrow();
+
+					releaseOldSync();
+					await oldSync;
+					await expect(post(runtime)).resolves.toMatchObject({ success: true });
+					await expect(
+						repository.put("after-recovery", { externalId: "replacement" }),
+					).rejects.toThrow();
+
+					const physicalIndex = await sql<{ name: string }>`
+					SELECT name FROM sqlite_master
+					WHERE type = 'index' AND name = ${uniqueIndexName}
+				`.execute(runtime.db);
+					expect(physicalIndex.rows).toHaveLength(1);
+				} finally {
+					releaseOldSync();
+					await oldSync?.catch(() => undefined);
+					now.mockRestore();
 				}
 			},
 		);

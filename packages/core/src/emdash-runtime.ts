@@ -974,7 +974,7 @@ export class EmDashRuntime {
 	>();
 	private readonly storageIndexSyncStates = new Map<
 		string,
-		{ lock: InitLock; lastFailure?: { declaration: object } }
+		{ lock: InitLock; needsReconciliation: boolean; lastFailure?: { declaration: object } }
 	>();
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
@@ -1339,6 +1339,7 @@ export class EmDashRuntime {
 	private async runStorageIndexSync(
 		pluginId: string,
 		isCurrentClaim: () => boolean,
+		syncState: { needsReconciliation: boolean },
 	): Promise<StorageIndexSyncResult> {
 		const candidates = [...this.getStorageIndexPlugins().values()].filter(
 			(plugin) => !this.storageIndexesReady.has(plugin.id) && plugin.id === pluginId,
@@ -1348,7 +1349,12 @@ export class EmDashRuntime {
 		// from issuing more DDL or registry writes after its replacement takes over.
 		const db = this.db.withPlugin({
 			transformQuery: ({ node }) => {
-				if (!isCurrentClaim()) throw new Error("Storage index synchronization superseded");
+				if (!isCurrentClaim()) {
+					// An already-issued DROP may finish after the replacement's pass.
+					syncState.needsReconciliation = true;
+					this.storageIndexesReady.delete(pluginId);
+					throw new Error("Storage index synchronization superseded");
+				}
 				return node;
 			},
 			transformResult: async ({ result }) => result,
@@ -1384,10 +1390,14 @@ export class EmDashRuntime {
 					if (!Object.hasOwn(storage, row.collection)) storage[row.collection] = { indexes: [] };
 				}
 				const hasMissing = [...expected.values()].some((names) => names.size > 0);
-				if (hasExtra || hasMissing) {
+				if (syncState.needsReconciliation || hasExtra || hasMissing) {
+					// A cancelled DROP can leave its registry row behind. Until a full
+					// pass finishes, registry names alone cannot establish readiness.
+					syncState.needsReconciliation = true;
 					const result = await syncDeclaredStorageIndexes(db, [{ id: plugin.id, storage }]);
 					errors.push(...result.errors);
 					if (!result.ok) continue;
+					if (isCurrentClaim()) syncState.needsReconciliation = false;
 				}
 
 				// A version change can invalidate a pass while its database work is in flight.
@@ -1435,7 +1445,7 @@ export class EmDashRuntime {
 		if (!declaration) return false;
 		let state = this.storageIndexSyncStates.get(pluginId);
 		if (!state) {
-			state = { lock: createInitLock() };
+			state = { lock: createInitLock(), needsReconciliation: false };
 			this.storageIndexSyncStates.set(pluginId, state);
 		}
 		const syncState = state;
@@ -1459,7 +1469,7 @@ export class EmDashRuntime {
 					return null;
 				},
 				async (isCurrentClaim) => {
-					await this.runStorageIndexSync(pluginId, isCurrentClaim);
+					await this.runStorageIndexSync(pluginId, isCurrentClaim, syncState);
 					const ready = isReady();
 					if (isCurrentClaim() && !ready) syncState.lastFailure = { declaration };
 					return ready;
