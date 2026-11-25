@@ -148,6 +148,13 @@ export const LOCALES: LocaleDefinition[] = [
 		enabled: true,
 		dateLocale: () => import("react-day-picker/locale/de").then((m) => m.de),
 	},
+	// Greek
+	{
+		code: "el",
+		label: "Ελληνικά",
+		enabled: false,
+		dateLocale: () => import("react-day-picker/locale/el").then((m) => m.el),
+	},
 	// Hebrew
 	{
 		code: "he",
