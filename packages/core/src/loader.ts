@@ -561,6 +561,10 @@ function normalizeLocalMediaValue(value: unknown): unknown {
 
 	const normalized: Record<string, unknown> = {};
 	for (const [key, child] of Object.entries(value)) {
+		// `JSON.parse` keeps a stored `__proto__` key as an own property, which no
+		// write check reads as a field. Assigning it would make it the copy's
+		// prototype instead and expose its contents as the copy's own fields.
+		if (key === "__proto__") continue;
 		normalized[key] = normalizeLocalMediaValue(child);
 	}
 

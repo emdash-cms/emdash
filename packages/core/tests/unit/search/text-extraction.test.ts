@@ -29,4 +29,12 @@ describe("extractPlainText", () => {
 
 		expect(text).toBe("");
 	});
+
+	it("does not read text through a stored __proto__ key", () => {
+		const text = extractPlainText(
+			'[{"_type":"block","_key":"b1","__proto__":{"children":[{"_type":"span","_key":"s1","text":"Hidden"}]}}]',
+		);
+
+		expect(text).toBe("");
+	});
 });
