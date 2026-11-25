@@ -172,4 +172,40 @@ describe("registry artifact fetch", () => {
 			}
 		},
 	);
+
+	it("rejects a status that the Response constructor refuses", async () => {
+		let requests = 0;
+		const server = createServer(
+			{ cert: REGISTRY_TEST_CERT, key: REGISTRY_TEST_KEY },
+			(_req, res) => {
+				requests++;
+				res.writeHead(999, { "Content-Type": "image/png", "Content-Length": "5" });
+				res.end("image");
+			},
+		);
+		server.listen(0, "127.0.0.1");
+		await once(server, "listening");
+		const { port } = server.address() as AddressInfo;
+
+		try {
+			const transport = await createNodeRegistryArtifactTransport((options, callback) =>
+				request({ ...options, ca: REGISTRY_TEST_CERT }, callback),
+			);
+
+			await expect(
+				transport.fetch({
+					url: new URL(`https://registry.test:${port}/banner.png`),
+					allowedAddresses: ["127.0.0.1"],
+					signal: new AbortController().signal,
+					maxResponseBytes: 1024,
+				}),
+			).rejects.toMatchObject({
+				message: "Registry artifact transport could not connect to an approved address",
+				cause: expect.any(RangeError),
+			});
+			expect(requests).toBe(1);
+		} finally {
+			server.close();
+		}
+	});
 });

@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "ตัวเลือกบล็อก HTML"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "ตัวอย่างบล็อก HTML"
 
@@ -8514,7 +8514,7 @@ msgstr "กำลังทำดัชนีเนื้อหาที่มี
 msgid "Inline"
 msgstr "ในบรรทัด"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "บล็อกแบบในบรรทัดใช้สไตล์ของไซต์คุณ ไซต์ของคุณจะนำสคริปต์ แท็ก style และแอตทริบิวต์ style ออก และทำให้ iframe ว่างเปล่า ยกเว้น YouTube และ Vimeo"
 
@@ -10795,7 +10795,7 @@ msgstr "ไม่มีสิ่งใดในเว็บไซต์นี้
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "ไม่มีรายการที่เผยแพร่หรือกำหนดเวลาไว้ใน {monthTitle}"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "ยังไม่มีอะไรให้ดูตัวอย่าง"
@@ -12969,7 +12969,7 @@ msgstr "แถว"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "เรียกใช้ตัวอย่าง"
 
@@ -14865,7 +14865,7 @@ msgstr "ฟิลด์ {0} ใน {1} ซึ่งเลือกรายก�
 msgid "The admin was updated"
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "นโยบายความปลอดภัยของหน้าผู้ดูแลระบบบล็อกทรัพยากรบางส่วนที่บล็อกนี้โหลด เช่น สคริปต์ภายนอก ฟอนต์ หรือเฟรม เว็บไซต์ของคุณอาจยังโหลดทรัพยากรเหล่านั้นได้"
 
@@ -15353,7 +15353,7 @@ msgstr "บล็อกนี้ฝังหน้าจาก {0}"
 msgid "This block has no fields."
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "บล็อกนี้เรียกใช้ JavaScript"
 

@@ -340,7 +340,7 @@ emdash({
 }),
 ```
 
-Set `CF_ACCESS_AUDIENCE` with `pnpm wrangler secret put CF_ACCESS_AUDIENCE`. The [authentication guide](/guides/authentication/#cloudflare-access) explains user provisioning, default roles, and role synchronization.
+Set `CF_ACCESS_AUDIENCE` with `pnpm wrangler secret put CF_ACCESS_AUDIENCE`. The [authentication guide](/guides/authentication/#cloudflare-access) explains user provisioning, default roles, and role synchronization. This example keys `roleMapping` by group name; if members of your directory can create or rename groups, key it by group ID instead, as described in [Matching groups by ID](/guides/authentication/#matching-groups-by-id).
 
 ## Email
 

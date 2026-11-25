@@ -251,7 +251,12 @@ export async function pluginRouteResponseToWire(
 		if (options.publicRequestUrl) {
 			try {
 				const requestUrl = new URL(options.publicRequestUrl);
-				if (new URL(headerValue, requestUrl).origin === requestUrl.origin) {
+				// "http:host/path" is relative against an http: base but absolute against
+				// an https: one, and the browser's base may differ from ours.
+				const target = URL.canParse(headerValue)
+					? new URL(headerValue)
+					: new URL(headerValue, requestUrl);
+				if (target.origin === requestUrl.origin) {
 					headers.set(name, headerValue);
 					return;
 				}

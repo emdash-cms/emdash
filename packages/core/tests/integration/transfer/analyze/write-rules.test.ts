@@ -425,9 +425,14 @@ describeEachDialect("site import analysis: values the site's write paths refuse"
 	});
 
 	describe("URLs and URL patterns", () => {
-		it("blocks unsafe URL fields in entries, revisions, repeaters, and blocks", async () => {
+		/**
+		 * A package whose posts have a `website` URL field, a gallery `href` URL
+		 * sub-field and a callout v2 `href` URL field, with `values` written over
+		 * the `hello` entry's fields and its live revision's data.
+		 */
+		function withUrlFieldValues(values: Record<string, unknown>): StagePackageOptions {
 			const websiteField = `${ids.postTitle}u`;
-			const plan = await planFor({
+			return {
 				mutate: (records) => {
 					const title = records.field.find((record) => record.id === ids.postTitle) as FieldRecord;
 					records.field.push({
@@ -437,6 +442,7 @@ describeEachDialect("site import analysis: values the site's write paths refuse"
 						label: "Website",
 						type: "url",
 						columnType: "TEXT",
+						required: false,
 						sortOrder: 8,
 					});
 					records.field.sort((a, b) => compareIds(a.id, b.id));
@@ -454,42 +460,125 @@ describeEachDialect("site import analysis: values the site's write paths refuse"
 						...version,
 						fields: [...version.fields, { slug: "href", label: "Href", type: "url" }],
 					}));
-					const unsafeFields = (fields: unknown) => ({
+					const withValues = (fields: unknown) => ({
 						...(typeof fields === "object" && fields !== null && !Array.isArray(fields)
 							? fields
 							: {}),
-						website: "/\\evil.example/path",
-						gallery: [{ href: "\t//evil.example/path" }],
-						blocks: [{ _type: "callout", _version: 2, _key: "unsafe", href: "//evil.example" }],
+						...values,
 					});
 					update<EntryRecord>(records.entry, ids.hello, (entry) => ({
 						...entry,
-						fields: unsafeFields(entry.fields),
+						fields: withValues(entry.fields),
 					}));
 					update<RevisionRecord>(records.revision, ids.helloLive, (revision) => ({
 						...revision,
-						data: unsafeFields(revision.data),
+						data: withValues(revision.data),
 					}));
 				},
-			});
+			};
+		}
 
-			const unsafe = plan.blockers
-				.filter(
-					(blocker) =>
-						blocker.code === "value_constraint_violation" &&
-						(blocker.kind === "entry" || blocker.kind === "revision"),
-				)
-				.map((blocker) => [blocker.kind, blocker.detail?.property, blocker.detail?.field]);
-			expect(unsafe).toEqual(
+		function contentBlockers(plan: SiteImportPlan) {
+			return plan.blockers
+				.filter((blocker) => blocker.kind === "entry" || blocker.kind === "revision")
+				.map((blocker) => [
+					blocker.code,
+					blocker.kind,
+					blocker.detail?.property,
+					blocker.detail?.field,
+				]);
+		}
+
+		it("blocks unsafe URL fields in entries, revisions, repeaters, and blocks", async () => {
+			const plan = await planFor(
+				withUrlFieldValues({
+					website: "/\\evil.example/path",
+					gallery: [{ href: "\t//evil.example/path" }],
+					blocks: [{ _type: "callout", _version: 2, _key: "unsafe", href: "//evil.example" }],
+				}),
+			);
+
+			expect(contentBlockers(plan)).toEqual(
 				expect.arrayContaining([
-					["entry", "fields", "website"],
-					["entry", "fields", "gallery.0.href"],
-					["entry", "fields", "blocks.0.href"],
-					["revision", "data", "website"],
-					["revision", "data", "gallery.0.href"],
-					["revision", "data", "blocks.0.href"],
+					["value_constraint_violation", "entry", "fields", "website"],
+					["value_constraint_violation", "entry", "fields", "gallery.0.href"],
+					["value_constraint_violation", "entry", "fields", "blocks.0.href"],
+					["value_constraint_violation", "revision", "data", "website"],
+					["value_constraint_violation", "revision", "data", "gallery.0.href"],
+					["value_constraint_violation", "revision", "data", "blocks.0.href"],
 				]),
 			);
+		});
+
+		it("blocks URL field values that do not read back as the string checked", async () => {
+			const script = "javascript:alert(1)";
+			const plan = await planFor(
+				withUrlFieldValues({
+					website: JSON.stringify([script]),
+					gallery: [{ href: [script] }, { href: JSON.stringify([script]) }],
+					blocks: [{ _type: "callout", _version: 2, _key: "unsafe", href: [script] }],
+				}),
+			);
+
+			const blockers = contentBlockers(plan);
+			expect(blockers).toEqual(
+				expect.arrayContaining([
+					["value_constraint_violation", "entry", "fields", "website"],
+					["value_constraint_violation", "entry", "fields", "gallery.0.href"],
+					["value_constraint_violation", "entry", "fields", "gallery.1.href"],
+					["value_constraint_violation", "entry", "fields", "blocks.0.href"],
+					["value_constraint_violation", "revision", "data", "website"],
+					["value_constraint_violation", "revision", "data", "gallery.0.href"],
+					["value_constraint_violation", "revision", "data", "gallery.1.href"],
+					["value_constraint_violation", "revision", "data", "blocks.0.href"],
+				]),
+			);
+			expect(blockers).toHaveLength(8);
+		});
+
+		it("blocks a block whose type or version the package lacks", async () => {
+			const href = "javascript:alert(1)";
+			const plan = await planFor(
+				withUrlFieldValues({
+					blocks: [
+						{ _type: "callout", _version: 7, _key: "version", href },
+						{ _type: "callout", _version: "2", _key: "text-version", href },
+						{ _type: "missing", _version: 1, _key: "type", href },
+						{ _key: "untyped", href },
+						{ _type: "callout", _key: "current", href: "/about" },
+					],
+				}),
+			);
+
+			const blockers = contentBlockers(plan);
+			expect(blockers).toEqual(
+				expect.arrayContaining([
+					["dangling_reference", "entry", "fields", "blocks.0"],
+					["dangling_reference", "entry", "fields", "blocks.1"],
+					["dangling_reference", "entry", "fields", "blocks.2"],
+					["dangling_reference", "entry", "fields", "blocks.3"],
+					["dangling_reference", "revision", "data", "blocks.0"],
+					["dangling_reference", "revision", "data", "blocks.1"],
+					["dangling_reference", "revision", "data", "blocks.2"],
+					["dangling_reference", "revision", "data", "blocks.3"],
+				]),
+			);
+			expect(blockers).toHaveLength(8);
+		});
+
+		it("accepts safe and empty URL field values", async () => {
+			const plan = await planFor(
+				withUrlFieldValues({
+					website: "www.example.com",
+					gallery: [{ href: null }, { caption: "No link" }],
+					blocks: [
+						{ _type: "callout", _version: 2, _key: "linked", href: "/about" },
+						{ _type: "callout", _version: 1, _key: "older" },
+					],
+				}),
+			);
+
+			expect(plan.blockers).toEqual([]);
 		});
 
 		it("blocks URLs and URL patterns the admin API would refuse, without echoing them", async () => {

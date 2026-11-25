@@ -460,7 +460,9 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 			// its writes landed on the primary, and the follow-up request reads
 			// authenticated — without this bookmark it can hit a replica that
 			// doesn't have the new user/session rows yet.
-			if (!opts.isAuthenticated && !opts.endedAuthenticated?.()) return;
+			// `isAuthenticated` is also set by an unverified Bearer header, so
+			// `endedAuthenticated` (verified callers only) decides when provided.
+			if (!(opts.endedAuthenticated?.() ?? opts.isAuthenticated)) return;
 			const newBookmark = session.getBookmark?.();
 			if (!newBookmark) return;
 			opts.cookies.set(cookieName, newBookmark, {

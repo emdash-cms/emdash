@@ -8148,7 +8148,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "אפשרויות בלוק HTML"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "תצוגה מקדימה של בלוק HTML"
 
@@ -8515,7 +8515,7 @@ msgstr "אינדוקס תוכן קיים"
 msgid "Inline"
 msgstr "בתוך הדף"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "בלוקים בתוך הדף מקבלים את העיצוב של האתר. האתר מסיר סקריפטים, תגי style ומאפייני style, ומרוקן כל iframe שאינו של YouTube או Vimeo."
 
@@ -10796,7 +10796,7 @@ msgstr "שום דבר באתר הזה לא השתנה."
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "לא פורסם ולא תוזמן דבר ב{monthTitle}"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "אין עדיין מה להציג."
@@ -12970,7 +12970,7 @@ msgstr "שורות"
 msgid "Ruby"
 msgstr "שפת Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "הרצת תצוגה מקדימה"
 
@@ -14866,7 +14866,7 @@ msgstr "השדה {0} ב-{1}, שבוחר פריטים שהוא מקשר אליה�
 msgid "The admin was updated"
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "מדיניות האבטחה של ממשק הניהול חסמה חלק מהמשאבים שהבלוק טוען, כמו סקריפטים חיצוניים, גופנים או מסגרות. ייתכן שהאתר עצמו עדיין יטען אותם."
 
@@ -15354,7 +15354,7 @@ msgstr "הבלוק הזה מטמיע דף מ-{0}."
 msgid "This block has no fields."
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "הבלוק הזה מריץ JavaScript."
 

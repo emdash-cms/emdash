@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "Opcje bloku HTML"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "Podgląd bloku HTML"
 
@@ -8514,7 +8514,7 @@ msgstr "Indeksowanie istniejących treści"
 msgid "Inline"
 msgstr "W treści"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Bloki w treści korzystają ze stylów Twojej witryny. Twoja witryna usuwa skrypty, znaczniki style i atrybuty style oraz opróżnia ramki iframe inne niż YouTube i Vimeo."
 
@@ -10795,7 +10795,7 @@ msgstr "Nic w tej witrynie nie zostało zmienione."
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "Brak opublikowanych i zaplanowanych wpisów w okresie: {monthTitle}"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "Nie ma jeszcze nic do podglądu."
@@ -12969,7 +12969,7 @@ msgstr "Wiersze"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "Uruchom podgląd"
 
@@ -14865,7 +14865,7 @@ msgstr "pole {0} w kolekcji {1}, które wybiera wpisy, z którymi łączy się d
 msgid "The admin was updated"
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "Zasady bezpieczeństwa panelu administracyjnego zablokowały niektóre zasoby wczytywane przez ten blok, np. zewnętrzne skrypty, czcionki lub ramki. Twoja witryna może nadal je wczytywać."
 
@@ -15353,7 +15353,7 @@ msgstr "Ten blok osadza stronę z domeny {0}."
 msgid "This block has no fields."
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "Ten blok uruchamia JavaScript."
 

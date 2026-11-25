@@ -228,6 +228,7 @@ import {
 	handleContentAuthors,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
+	handleContentGetById,
 	handleContentCreate,
 	handleContentUpdate,
 	handleContentDelete,
@@ -4252,6 +4253,10 @@ export class EmDashRuntime {
 	) {
 		const result = await handleContentGet(this.db, collection, id, locale, referenceOptions);
 		return this.hydrateDraftData(result, draftOptions);
+	}
+
+	async handleContentGetById(collection: string, id: string) {
+		return handleContentGetById(this.db, collection, id);
 	}
 
 	async handleContentGetIncludingTrashed(collection: string, id: string, locale?: string) {

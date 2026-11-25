@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "Opcije HTML bloka"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "Pregled HTML bloka"
 
@@ -8514,7 +8514,7 @@ msgstr "Indeksiranje postojećeg sadržaja"
 msgid "Inline"
 msgstr "Ugrađeno"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Ugrađeni se blokovi koriste stilovima vaše web-stranice. Vaša web-stranica uklanja skripte, oznake i atribute stila te prazni iframeove osim YouTubea i Vimea."
 
@@ -10795,7 +10795,7 @@ msgstr "Ništa se na ovoj web-stranici nije promijenilo."
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "Ništa nije objavljeno ni zakazano u razdoblju: {monthTitle}"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "Još nema ničega za pregled."
@@ -12969,7 +12969,7 @@ msgstr "Retci"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "Pokreni pregled"
 
@@ -14865,7 +14865,7 @@ msgstr "polje {0} na {1}, koje bira unose s kojima se povezuje"
 msgid "The admin was updated"
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "Sigurnosna pravila administracije blokirala su neke resurse koje ovaj blok učitava, poput vanjskih skripti, fontova ili okvira. Vaša ih web-stranica možda ipak učitava."
 
@@ -15353,7 +15353,7 @@ msgstr "Ovaj blok ugrađuje stranicu s {0}."
 msgid "This block has no fields."
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "Ovaj blok izvodi JavaScript."
 

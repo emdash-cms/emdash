@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "HTML 區塊選項"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "HTML 區塊預覽"
 
@@ -8514,7 +8514,7 @@ msgstr "正在為現有內容建立索引"
 msgid "Inline"
 msgstr "直接嵌入"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "直接嵌入的區塊會使用網站的樣式。網站會移除指令碼、style 標籤及 style 屬性，並清空 YouTube 和 Vimeo 以外的 iframe。"
 
@@ -10795,7 +10795,7 @@ msgstr "這個網站沒有任何變更。"
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "{monthTitle} 沒有已發佈或已排程的內容"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "尚無可預覽的內容。"
@@ -12969,7 +12969,7 @@ msgstr "列"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "執行預覽"
 
@@ -14865,7 +14865,7 @@ msgstr "{1} 上的 {0} 欄位，用來選取該內容項目連到的項目"
 msgid "The admin was updated"
 msgstr "管理介面已更新"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "管理介面的安全性原則封鎖了這個區塊載入的部分資源，例如外部指令碼、字型或框架。網站上仍可能載入這些資源。"
 
@@ -15353,7 +15353,7 @@ msgstr "這個區塊內嵌了 {0} 的頁面。"
 msgid "This block has no fields."
 msgstr "這個區塊沒有欄位。"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "這個區塊會執行 JavaScript。"
 
