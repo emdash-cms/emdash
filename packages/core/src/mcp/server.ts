@@ -2752,7 +2752,9 @@ export function createMcpServer(
 				"POST /_emdash/api/media/upload-url. `storageKey` must be the key returned " +
 				"for the same user. Confirmation checks that the stored file exists and " +
 				"matches the size fixed when the URL was issued, then makes it available " +
-				"through media_list / media_get. To upload through MCP, use media_upload instead.",
+				"through media_list / media_get. The confirmed item is stored under a new " +
+				"key, so reference the storageKey and url of the returned item, not the " +
+				"key passed in. To upload through MCP, use media_upload instead.",
 			inputSchema: z.object({
 				storageKey: z.string().describe("Storage key returned by the signed upload URL request"),
 			}),
