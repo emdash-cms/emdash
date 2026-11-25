@@ -5,38 +5,63 @@ import * as React from "react";
 
 import { guardUnsavedInput } from "../lib/dialog-form.js";
 
+interface PreviewField {
+	label?: string;
+	kind?: string;
+	widget?: string;
+}
+
 interface EditorDraftPatchPreviewProps {
 	operations: EditorDraftPatchOperation[];
-	fields: Record<string, { label?: string }>;
+	fields: Record<string, PreviewField>;
 	currentValues: Record<string, unknown>;
 	onApply: () => void;
 	onClose: () => void;
 }
 
-function collectText(value: unknown, output: string[]): void {
-	if (Array.isArray(value)) {
-		for (const item of value) collectText(item, output);
-		return;
-	}
-	if (typeof value !== "object" || value === null) return;
-	if ("text" in value && typeof value.text === "string") output.push(value.text);
-	if ("children" in value) collectText(value.children, output);
+function spanText(child: unknown): string | null {
+	if (typeof child !== "object" || child === null) return null;
+	if (!("_type" in child) || child._type !== "span") return null;
+	return "text" in child && typeof child.text === "string" ? child.text : null;
 }
 
-function summarize(value: unknown): string {
-	if (value === null || value === undefined || value === "") return "—";
-	if (Array.isArray(value)) {
-		const text: string[] = [];
-		collectText(value, text);
-		if (text.length > 0) return summarize(text.join(" "));
+/**
+ * One rich-text block on one line. A text block reads as its text followed by the JSON of what
+ * the text doesn't show: inline objects and the mark definitions that hold link targets. Any
+ * other block is its JSON.
+ */
+function describeBlock(block: unknown): string {
+	if (typeof block !== "object" || block === null) return JSON.stringify(block);
+	if (!("_type" in block) || block._type !== "block") return JSON.stringify(block);
+	if (!("children" in block) || !Array.isArray(block.children)) return JSON.stringify(block);
+	const markDefs: unknown = "markDefs" in block ? block.markDefs : [];
+	if (!Array.isArray(markDefs)) return JSON.stringify(block);
+	let text = "";
+	const rest: unknown[] = [];
+	for (const child of block.children) {
+		const span = spanText(child);
+		if (span === null) rest.push(child);
+		else text += span;
 	}
-	let rendered: string;
+	rest.push(...markDefs);
+	return [text, ...rest.map((part) => JSON.stringify(part))].join(" ");
+}
+
+/**
+ * The whole value, untruncated, since applying takes all of it. Only rich text without a plugin
+ * widget is read as blocks: elsewhere an item shaped like a text block can hold more than its text.
+ */
+function describe(value: unknown, field: PreviewField | undefined): string {
+	if (value === null || value === undefined || value === "") return "—";
+	if (typeof value === "string") return value;
 	try {
-		rendered = typeof value === "string" ? value : JSON.stringify(value);
+		if (field?.kind === "portableText" && !field.widget && Array.isArray(value)) {
+			return value.map(describeBlock).join("\n").trim() || "—";
+		}
+		return JSON.stringify(value) ?? "—";
 	} catch {
 		return "—";
 	}
-	return rendered.length > 160 ? `${rendered.slice(0, 157)}…` : rendered;
 }
 
 export function EditorDraftPatchPreview({
@@ -67,14 +92,17 @@ export function EditorDraftPatchPreview({
 								<dl className="mt-2 grid gap-2 text-sm sm:grid-cols-2">
 									<div className="min-w-0">
 										<dt className="text-kumo-subtle">{t`Before`}</dt>
-										<dd className="break-words" dir="auto">
-											{summarize(currentValues[operation.field])}
+										<dd className="break-words whitespace-pre-wrap" dir="auto">
+											{describe(currentValues[operation.field], fields[operation.field])}
 										</dd>
 									</div>
 									<div className="min-w-0">
 										<dt className="text-kumo-subtle">{t`After`}</dt>
-										<dd className="break-words" dir="auto">
-											{summarize(operation.op === "clear" ? null : operation.value)}
+										<dd className="break-words whitespace-pre-wrap" dir="auto">
+											{describe(
+												operation.op === "clear" ? null : operation.value,
+												fields[operation.field],
+											)}
 										</dd>
 									</div>
 								</dl>
