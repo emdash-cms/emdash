@@ -21,7 +21,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { magicLinkSendBody } from "#api/schemas.js";
 import { resolveSiteTitle } from "#api/site-title.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
-import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
+import { checkRateLimit, getClientNetwork } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
@@ -40,8 +40,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		// Rate limit: 3 requests per 300 seconds (5 minutes) per IP
-		const ip = getClientIp(request, getTrustedProxyHeaders(emdash.config));
-		const rateLimit = await checkRateLimit(emdash.db, ip, "magic-link/send", 3, 300);
+		const client = getClientNetwork(request, getTrustedProxyHeaders(emdash.config));
+		const rateLimit = await checkRateLimit(emdash.db, client, "magic-link/send", 3, 300);
 		if (!rateLimit.allowed) {
 			// Return success-shaped response to avoid revealing rate limit
 			// (which could leak information about email enumeration attempts)
