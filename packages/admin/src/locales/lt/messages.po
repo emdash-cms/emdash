@@ -213,7 +213,7 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {# kolekcija} few {# kolekcijos} many {# kolekcijos} other {# kolekcijų}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2323
+#: packages/admin/src/components/WordPressImport.tsx:2340
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {Importuotas # komentaras} few {Importuoti # komentarai} many {Importuota # komentaro} other {Importuota # komentarų}}"
 
@@ -228,12 +228,12 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {# komentaras} few {# komentarai} many {# komentaro} other {# komentarų}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2334
+#: packages/admin/src/components/WordPressImport.tsx:2351
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {# turinio klaida} few {# turinio klaidos} many {# turinio klaidos} other {# turinio klaidų}}"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2265
+#: packages/admin/src/components/WordPressImport.tsx:2282
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {Importuotas # turinio elementas} few {Importuoti # turinio elementai} many {Importuota # turinio elemento} other {Importuota # turinio elementų}}"
 
@@ -299,27 +299,27 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {# MCP įrankis} few {# MCP įrankiai} many {# MCP įrankio} other {# MCP įrankių}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2339
+#: packages/admin/src/components/WordPressImport.tsx:2356
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {# medijos failų klaida} few {# medijos failų klaidos} many {# medijos failų klaidos} other {# medijos failų klaidų}}"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2281
+#: packages/admin/src/components/WordPressImport.tsx:2298
 msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {Importuotas # medijos failas} few {Importuoti # medijos failai} many {Importuota # medijos failo} other {Importuota # medijos failų}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2306
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {Importuotas # meniu} few {Importuoti # meniu} many {Importuota # meniu} other {Importuota # meniu}}"
 
 #. placeholder {0}: result.menus.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2314
+#: packages/admin/src/components/WordPressImport.tsx:2331
 msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
 msgstr ""
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1953
+#: packages/admin/src/components/WordPressImport.tsx:1970
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {Bus importuotas # meniu} few {Bus importuoti # meniu} many {Bus importuota # meniu} other {Bus importuota # meniu}}"
 
@@ -345,7 +345,7 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr "{0, plural, one {# įskiepis} few {# įskiepiai} many {# įskiepio} other {# įskiepių}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2578
+#: packages/admin/src/components/WordPressImport.tsx:2595
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# įrašas} few {# įrašai} many {# įrašo} other {# įrašų}}"
 
@@ -375,17 +375,17 @@ msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} oth
 msgstr "Pasirinkta: {0, plural, one {# eilutė} few {# eilutės} many {# eilutės} other {# eilučių}} × {1, plural, one {# stulpelis} few {# stulpeliai} many {# stulpelio} other {# stulpelių}}"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2273
+#: packages/admin/src/components/WordPressImport.tsx:2290
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
 msgstr "{0, plural, one {Praleistas # (jau yra)} few {Praleisti # (jau yra)} many {Praleista # (jau yra)} other {Praleista # (jau yra)}}"
 
 #. placeholder {0}: result.taxonomyAssignments
-#: packages/admin/src/components/WordPressImport.tsx:2297
+#: packages/admin/src/components/WordPressImport.tsx:2314
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
 msgstr "{0, plural, one {# taksonomijos priskyrimas} few {# taksonomijos priskyrimai} many {# taksonomijos priskyrimo} other {# taksonomijos priskyrimų}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
-#: packages/admin/src/components/WordPressImport.tsx:2289
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {Sukurta # taksonomija} few {Sukurtos # taksonomijos} many {Sukurta # taksonomijos} other {Sukurta # taksonomijų}}"
 
@@ -492,7 +492,7 @@ msgid "{0} can't be moved here — its parent has no translation in this locale,
 msgstr "„{0}“ čia perkelti negalima. Pirminis elementas neturi vertimo į šią kalbą, todėl elementas priklauso kitam sąrašui."
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
-#: packages/admin/src/components/WordPressImport.tsx:1359
+#: packages/admin/src/components/WordPressImport.tsx:1376
 msgid "{0} detected"
 msgstr "Aptikta: {0}"
 
@@ -528,12 +528,12 @@ msgstr "Įskiepis „{0}“ įjungtas"
 
 #. placeholder {0}: postType.count
 #. placeholder {1}: postType.suggestedCollection
-#: packages/admin/src/components/WordPressImport.tsx:2023
+#: packages/admin/src/components/WordPressImport.tsx:2040
 msgid "{0} items → {1}"
 msgstr "Elementai: {0} → {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1946
+#: packages/admin/src/components/WordPressImport.tsx:1963
 msgid "{0} items will be imported"
 msgstr "Bus importuota elementų: {0}"
 
@@ -676,17 +676,17 @@ msgstr "{count, plural, one {# blokas} few {# blokai} many {# bloko} other {# bl
 msgid "{count, plural, one {# entry} other {# entries}}"
 msgstr "{count, plural, one {# įrašas} few {# įrašai} many {# įrašo} other {# įrašų}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2122
+#: packages/admin/src/components/WordPressImport.tsx:2139
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {# failas} few {# failai} many {# failo} other {# failų}}"
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2411
+#: packages/admin/src/components/WordPressImport.tsx:2428
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {# elementas} few {# elementai} many {# elemento} other {# elementų}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2193
+#: packages/admin/src/components/WordPressImport.tsx:2210
 msgid "{current} of {total}"
 msgstr "{current} iš {total}"
 
@@ -810,11 +810,11 @@ msgstr "{list} +{more}"
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {# elementas atitinka „{searchQuery}“} few {# elementai atitinka „{searchQuery}“} many {Užklausą „{searchQuery}“ atitinka # elemento} other {Užklausą „{searchQuery}“ atitinka # elementų}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2565
+#: packages/admin/src/components/WordPressImport.tsx:2582
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "Priskirta: {matchedCount} iš {totalCount}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2570
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "Pagal el. paštą susieta autorių: {matchedCount} iš {totalCount}"
 
@@ -928,11 +928,11 @@ msgstr "„{name}“ neperkelta"
 msgid "{name}: this site already has some"
 msgstr "{name}: svetainėje jau yra šių duomenų"
 
-#: packages/admin/src/components/WordPressImport.tsx:1929
+#: packages/admin/src/components/WordPressImport.tsx:1946
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {Bus sukurta # nauja kolekcija} few {Bus sukurtos # naujos kolekcijos} many {Bus sukurta # naujos kolekcijos} other {Bus sukurta # naujų kolekcijų}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1938
+#: packages/admin/src/components/WordPressImport.tsx:1955
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {Laukai bus pridėti prie # esamos kolekcijos} few {Laukai bus pridėti prie # esamų kolekcijų} many {Laukai bus pridėti prie # esamos kolekcijos} other {Laukai bus pridėti prie # esamų kolekcijų}}"
 
@@ -1153,21 +1153,21 @@ msgstr "/naujas-puslapis arba /straipsniai/[slug]"
 msgid "/old-page or /blog/[slug]"
 msgstr "/senas-puslapis arba /tinklarastis/[slug]"
 
-#: packages/admin/src/components/WordPressImport.tsx:2143
+#: packages/admin/src/components/WordPressImport.tsx:2160
 msgid "• Files are downloaded from your WordPress site"
 msgstr "• Failai atsisiunčiami iš jūsų „WordPress“ svetainės"
 
-#: packages/admin/src/components/WordPressImport.tsx:2144
+#: packages/admin/src/components/WordPressImport.tsx:2161
 msgid "• Uploaded to your EmDash media storage"
 msgstr "• Įkeliami į „EmDash“ medijos failų saugyklą"
 
-#: packages/admin/src/components/WordPressImport.tsx:2145
+#: packages/admin/src/components/WordPressImport.tsx:2162
 msgid "• URLs in your content are updated automatically"
 msgstr "• Turinyje esantys URL atnaujinami automatiškai"
 
 #: packages/admin/src/components/SetupWizard.tsx:290
 #: packages/admin/src/components/SetupWizard.tsx:341
-#: packages/admin/src/components/WordPressImport.tsx:1658
+#: packages/admin/src/components/WordPressImport.tsx:1675
 msgid "← Back"
 msgstr "← Atgal"
 
@@ -1219,11 +1219,11 @@ msgstr "Atnaujintas 1 įrašas"
 msgid "1 year"
 msgstr "1 metai"
 
-#: packages/admin/src/components/WordPressImport.tsx:1579
+#: packages/admin/src/components/WordPressImport.tsx:1596
 msgid "1. Log into your WordPress admin"
 msgstr "1. Prisijunkite prie „WordPress“ administravimo srities"
 
-#: packages/admin/src/components/WordPressImport.tsx:1331
+#: packages/admin/src/components/WordPressImport.tsx:1348
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. Prisijunkite prie „WordPress“ valdymo skydo"
 
@@ -1235,7 +1235,7 @@ msgstr "16:9"
 msgid "2. Go to <0>Tools → Export</0>"
 msgstr "2. Pasirinkite <0>Įrankiai → Eksportuoti</0>"
 
-#: packages/admin/src/components/WordPressImport.tsx:1580
+#: packages/admin/src/components/WordPressImport.tsx:1597
 msgid "2. Go to Users → Profile"
 msgstr "2. Pasirinkite Naudotojai → Profilis"
 
@@ -1243,11 +1243,11 @@ msgstr "2. Pasirinkite Naudotojai → Profilis"
 msgid "3:2"
 msgstr "3:2"
 
-#: packages/admin/src/components/WordPressImport.tsx:1581
+#: packages/admin/src/components/WordPressImport.tsx:1598
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. Slinkite iki skilties „Programų slaptažodžiai“"
 
-#: packages/admin/src/components/WordPressImport.tsx:1335
+#: packages/admin/src/components/WordPressImport.tsx:1352
 msgid "3. Select \"All content\""
 msgstr "3. Pasirinkite „Visas turinys“"
 
@@ -1275,11 +1275,11 @@ msgstr "308 Nuolatinis (išlaiko metodą)"
 msgid "4:3"
 msgstr "4:3"
 
-#: packages/admin/src/components/WordPressImport.tsx:1336
+#: packages/admin/src/components/WordPressImport.tsx:1353
 msgid "4. Click \"Download Export File\""
 msgstr "4. Spustelėkite „Atsisiųsti eksporto failą“"
 
-#: packages/admin/src/components/WordPressImport.tsx:1582
+#: packages/admin/src/components/WordPressImport.tsx:1599
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Įveskite „EmDash“ ir spustelėkite „Pridėti naują“"
 
@@ -1295,11 +1295,11 @@ msgstr "410 Turinys pašalintas visam laikui"
 msgid "451 Unavailable for legal reasons"
 msgstr "451 Nepasiekiama dėl teisinių priežasčių"
 
-#: packages/admin/src/components/WordPressImport.tsx:1583
+#: packages/admin/src/components/WordPressImport.tsx:1600
 msgid "5. Copy the generated password"
 msgstr "5. Nukopijuokite sugeneruotą slaptažodį"
 
-#: packages/admin/src/components/WordPressImport.tsx:1337
+#: packages/admin/src/components/WordPressImport.tsx:1354
 msgid "5. Upload the file here"
 msgstr "5. Čia įkelkite failą"
 
@@ -1490,7 +1490,7 @@ msgstr "Tokia paskyra jau yra"
 msgid "Account Info"
 msgstr "Paskyros informacija"
 
-#: packages/admin/src/components/WordPressImport.tsx:1210
+#: packages/admin/src/components/WordPressImport.tsx:1227
 msgid "ACF Fields"
 msgstr "ACF laukai"
 
@@ -1680,7 +1680,7 @@ msgstr "Pridėti domeną"
 msgid "Add Field"
 msgstr "Pridėti lauką"
 
-#: packages/admin/src/components/WordPressImport.tsx:2034
+#: packages/admin/src/components/WordPressImport.tsx:2051
 msgid "Add fields"
 msgstr "Pridėti laukų"
 
@@ -1900,7 +1900,7 @@ msgstr "Pridedama..."
 msgid "Adding…"
 msgstr "Pridedama…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1806
+#: packages/admin/src/components/WordPressImport.tsx:1823
 msgid "Additional data to import."
 msgstr "Papildomi importuojami duomenys."
 
@@ -1912,7 +1912,7 @@ msgstr "Papildoma informacija"
 msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
 msgstr "Į robots.txt įtraukiamos taisyklės, kuriomis DI robotų prašoma nenaudoti svetainės mokymui. Paieškos sistemos vis tiek gali ją indeksuoti."
 
-#: packages/admin/src/components/WordPressImport.tsx:1540
+#: packages/admin/src/components/WordPressImport.tsx:1557
 msgid "admin"
 msgstr "administratorius"
 
@@ -2026,7 +2026,7 @@ msgstr "Visos kolekcijos"
 msgid "All comments require approval"
 msgstr "Visus komentarus būtina patvirtinti"
 
-#: packages/admin/src/components/WordPressImport.tsx:2610
+#: packages/admin/src/components/WordPressImport.tsx:2627
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "Importuotas turinys bus be priskirtų autorių. Juos galėsite priskirti vėliau turinio rengyklėje."
 
@@ -2141,7 +2141,7 @@ msgstr "Aplankai neturi alternatyviojo teksto"
 msgid "Alt text set"
 msgstr "Alternatyvusis tekstas nustatytas"
 
-#: packages/admin/src/components/WordPressImport.tsx:1451
+#: packages/admin/src/components/WordPressImport.tsx:1468
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "Taip pat galite eksportuoti duomenis iš „WordPress“ (Įrankiai → Eksportuoti) ir įkelti failą."
 
@@ -2226,11 +2226,11 @@ msgstr "Įvyko netikėta klaida."
 msgid "An unknown error occurred"
 msgstr "Įvyko nežinoma klaida"
 
-#: packages/admin/src/components/WordPressImport.tsx:1632
+#: packages/admin/src/components/WordPressImport.tsx:1649
 msgid "Analyzing export file..."
 msgstr "Analizuojamas eksporto failas..."
 
-#: packages/admin/src/components/WordPressImport.tsx:857
+#: packages/admin/src/components/WordPressImport.tsx:874
 msgid "Analyzing WordPress site..."
 msgstr "Analizuojama „WordPress“ svetainė..."
 
@@ -2320,7 +2320,7 @@ msgstr "API raktai"
 msgid "Appears on posts and pages"
 msgstr "Rodoma įrašuose ir puslapiuose"
 
-#: packages/admin/src/components/WordPressImport.tsx:1547
+#: packages/admin/src/components/WordPressImport.tsx:1564
 msgid "Application Password"
 msgstr "Programos slaptažodis"
 
@@ -2431,7 +2431,7 @@ msgstr "Paprašykite administratoriaus užbaigti sąranką."
 msgid "Aspect ratio"
 msgstr "Kraštinių santykis"
 
-#: packages/admin/src/components/WordPressImport.tsx:2548
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "Susiekite „WordPress“ autorius su „EmDash“ naudotojais. Įrašai bus priskirti pasirinktam naudotojui."
 
@@ -2501,7 +2501,7 @@ msgstr "Tapatybės patvirtinimas atšauktas arba baigėsi jam skirtas laikas. Ba
 msgid "Author"
 msgstr "Autorius"
 
-#: packages/admin/src/components/WordPressImport.tsx:2563
+#: packages/admin/src/components/WordPressImport.tsx:2580
 msgid "Author Mapping"
 msgstr "Autorių susiejimas"
 
@@ -2623,8 +2623,8 @@ msgstr "Atgal"
 #: packages/admin/src/components/BulkTagDialog.tsx:501
 #: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2619
+#: packages/admin/src/components/WordPressImport.tsx:1584
+#: packages/admin/src/components/WordPressImport.tsx:2636
 msgid "Back"
 msgstr "Atgal"
 
@@ -2777,7 +2777,7 @@ msgstr "Pusjuodis"
 msgid "Boolean"
 msgstr "Loginė reikšmė"
 
-#: packages/admin/src/components/WordPressImport.tsx:1316
+#: packages/admin/src/components/WordPressImport.tsx:1333
 msgid "Bot protection blocked the connection"
 msgstr "Apsauga nuo robotų užblokavo ryšį"
 
@@ -2809,8 +2809,8 @@ msgstr "Naršykite ir diekite įskiepius savo svetainės galimybėms išplėsti.
 msgid "Browse files"
 msgstr "Naršyti failus"
 
-#: packages/admin/src/components/WordPressImport.tsx:1176
-#: packages/admin/src/components/WordPressImport.tsx:1651
+#: packages/admin/src/components/WordPressImport.tsx:1193
+#: packages/admin/src/components/WordPressImport.tsx:1668
 msgid "Browse Files"
 msgstr "Naršyti failus"
 
@@ -2986,7 +2986,7 @@ msgstr "Nepavyko prisijungti prie „EmDash“"
 #: packages/admin/src/components/TaxonomyManager.tsx:1021
 #: packages/admin/src/components/users/InviteUserModal.tsx:232
 #: packages/admin/src/components/Widgets.tsx:524
-#: packages/admin/src/components/WordPressImport.tsx:1967
+#: packages/admin/src/components/WordPressImport.tsx:1984
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:14
 msgid "Cancel"
 msgstr "Atšaukti"
@@ -3061,11 +3061,11 @@ msgid "Categories"
 msgstr "Kategorijos"
 
 #. placeholder {0}: analysis.categories
-#: packages/admin/src/components/WordPressImport.tsx:1835
+#: packages/admin/src/components/WordPressImport.tsx:1852
 msgid "Categories ({0})"
 msgstr "Kategorijos ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1198
+#: packages/admin/src/components/WordPressImport.tsx:1215
 msgid "Categories & Tags"
 msgstr "Kategorijos ir žymos"
 
@@ -3256,7 +3256,7 @@ msgstr "Patikrinkite „registry.policy.minimumReleaseAge“ reikšmę faile ast
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
 msgstr "Patikrinkite „registry.policy.minimumReleaseAgeExclude“ reikšmę faile astro.config.mjs ir iš naujo paleiskite „EmDash“."
 
-#: packages/admin/src/components/WordPressImport.tsx:1147
+#: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Check Site"
 msgstr "Patikrinti svetainę"
 
@@ -3278,7 +3278,7 @@ msgstr "Patikrinkite ryšį ir bandykite dar kartą."
 msgid "Check your email"
 msgstr "Patikrinkite el. paštą"
 
-#: packages/admin/src/components/WordPressImport.tsx:823
+#: packages/admin/src/components/WordPressImport.tsx:840
 msgid "Checking {urlInput}..."
 msgstr "Tikrinama {urlInput}..."
 
@@ -3666,7 +3666,7 @@ msgstr "Kolekcijos"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "Kolekcijos ir laukai, visas turinys su juodraščiais, versijomis, suplanuotais įrašais ir šiukšlinės turiniu, vertimai, taksonomijos, autorių profiliai, medijos failai, meniu, valdikliai, skiltys, peradresavimai, SEO ir svetainės nustatymai."
 
-#: packages/admin/src/components/WordPressImport.tsx:2387
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Collections created:"
 msgstr "Sukurtos kolekcijos:"
 
@@ -3780,17 +3780,17 @@ msgstr "Patvirtinkite naudodami „Face ID“, „Touch ID“ arba įrenginio at
 msgid "Confirm with your fingerprint, face, or PIN."
 msgstr "Patvirtinkite piršto atspaudu, veido atpažinimu arba PIN kodu."
 
-#: packages/admin/src/components/WordPressImport.tsx:748
-#: packages/admin/src/components/WordPressImport.tsx:1104
+#: packages/admin/src/components/WordPressImport.tsx:756
+#: packages/admin/src/components/WordPressImport.tsx:1121
 msgid "Connect"
 msgstr "Prisijungti"
 
-#: packages/admin/src/components/WordPressImport.tsx:1564
+#: packages/admin/src/components/WordPressImport.tsx:1581
 msgid "Connect & Analyze"
 msgstr "Prisijungti ir analizuoti"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1513
+#: packages/admin/src/components/WordPressImport.tsx:1530
 msgid "Connect to {0}"
 msgstr "Prisijungti prie „{0}“"
 
@@ -3804,7 +3804,7 @@ msgstr "Jungtis prie bet kurio tinklo serverio ir įkelti išorinius įskiepio a
 msgid "Connect to network hosts and load external plugin admin images"
 msgstr "Jungtis prie tinklo serverių ir įkelti išorinius įskiepio administravimo sąsajos paveikslėlius"
 
-#: packages/admin/src/components/WordPressImport.tsx:1429
+#: packages/admin/src/components/WordPressImport.tsx:1446
 msgid "Connect with WordPress"
 msgstr "Prisijungti prie „WordPress“"
 
@@ -3850,11 +3850,11 @@ msgid "Content digest"
 msgstr "Turinio kontrolinė suma"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2472
+#: packages/admin/src/components/WordPressImport.tsx:2489
 msgid "Content Errors ({0})"
 msgstr "Turinio klaidos ({0})"
 
-#: packages/admin/src/components/WordPressImport.tsx:1373
+#: packages/admin/src/components/WordPressImport.tsx:1390
 msgid "Content found:"
 msgstr "Rasta turinio:"
 
@@ -3911,7 +3911,7 @@ msgstr "Turinio paieškos rezultatai"
 msgid "Content that credits this byline loses the credit."
 msgstr "Turinyje, kuriame naudojamas šis autoriaus profilis, jis nebebus nurodytas."
 
-#: packages/admin/src/components/WordPressImport.tsx:1784
+#: packages/admin/src/components/WordPressImport.tsx:1801
 msgid "Content to Import"
 msgstr "Importuojamas turinys"
 
@@ -3934,7 +3934,7 @@ msgstr "Tai pačiai grupei priskirti turinio tipai šoninėje juostoje rodomi vi
 msgid "Content using this media item may show a broken reference."
 msgstr "Turinyje, kuriame naudojamas šis medijos failas, gali likti neveikianti nuoroda."
 
-#: packages/admin/src/components/WordPressImport.tsx:2370
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Content was skipped because it already exists"
 msgstr "Turinys praleistas, nes jau yra"
 
@@ -3953,7 +3953,7 @@ msgstr "Tęsti"
 msgid "Continue →"
 msgstr "Tęsti →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2621
+#: packages/admin/src/components/WordPressImport.tsx:2638
 msgid "Continue Import"
 msgstr "Tęsti importavimą"
 
@@ -4141,7 +4141,7 @@ msgstr "Nepavyko patikrinti, ar medijos failas arba pasirinktas aplankas vis dar
 msgid "Couldn’t copy. Select the text on the page and copy it instead."
 msgstr "Nepavyko nukopijuoti. Pažymėkite tekstą puslapyje ir nukopijuokite jį."
 
-#: packages/admin/src/components/WordPressImport.tsx:1317
+#: packages/admin/src/components/WordPressImport.tsx:1334
 msgid "Couldn't detect WordPress"
 msgstr "Nepavyko aptikti „WordPress“"
 
@@ -4345,7 +4345,7 @@ msgstr "Sukurti naują „{singularLower}“"
 msgid "Create New Token"
 msgstr "Sukurti naują API raktą"
 
-#: packages/admin/src/components/WordPressImport.tsx:1558
+#: packages/admin/src/components/WordPressImport.tsx:1575
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "Sukurkite slaptažodį „WordPress“ svetainėje: Naudotojai → Profilis → Programų slaptažodžiai"
 
@@ -4385,7 +4385,7 @@ msgstr "Sukurti ryšį"
 msgid "Create Relation"
 msgstr "Sukurti ryšį"
 
-#: packages/admin/src/components/WordPressImport.tsx:1971
+#: packages/admin/src/components/WordPressImport.tsx:1988
 msgid "Create Schema & Import"
 msgstr "Sukurti schemą ir importuoti"
 
@@ -4489,7 +4489,7 @@ msgstr "Sukūrimo data"
 msgid "Creating collections and fields"
 msgstr "Kuriamos kolekcijos ir laukai"
 
-#: packages/admin/src/components/WordPressImport.tsx:934
+#: packages/admin/src/components/WordPressImport.tsx:951
 msgid "Creating collections and fields..."
 msgstr "Kuriamos kolekcijos ir laukai..."
 
@@ -4583,7 +4583,7 @@ msgstr "Pasirinktinis robots.txt turinys. Palikite tuščią, jei norite naudoti
 msgid "Custom Section"
 msgstr "Pasirinktinė skiltis"
 
-#: packages/admin/src/components/WordPressImport.tsx:1199
+#: packages/admin/src/components/WordPressImport.tsx:1216
 msgid "Custom Taxonomies"
 msgstr "Pasirinktinės taksonomijos"
 
@@ -5287,7 +5287,7 @@ msgstr "Nesusieti"
 #: packages/admin/src/components/ContentList.tsx:1280
 #: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
-#: packages/admin/src/components/WordPressImport.tsx:2178
+#: packages/admin/src/components/WordPressImport.tsx:2195
 msgid "Done"
 msgstr "Atlikta"
 
@@ -5349,7 +5349,7 @@ msgstr "Atsisiųskite šią svetainę kaip vieną .emdash paketo failą, kurį g
 msgid "Downloaded"
 msgstr "Atsisiųsta"
 
-#: packages/admin/src/components/WordPressImport.tsx:2176
+#: packages/admin/src/components/WordPressImport.tsx:2193
 msgid "Downloading"
 msgstr "Atsisiunčiama"
 
@@ -5386,7 +5386,7 @@ msgstr "juodraštis, paskelbta arba archyvuota"
 msgid "Drafts"
 msgstr "Juodraščiai"
 
-#: packages/admin/src/components/WordPressImport.tsx:1218
+#: packages/admin/src/components/WordPressImport.tsx:1235
 msgid "Drafts & Private"
 msgstr "Juodraščiai ir privatus turinys"
 
@@ -5394,7 +5394,7 @@ msgstr "Juodraščiai ir privatus turinys"
 msgid "Drag and drop files here"
 msgstr "Nuvilkite failus čia"
 
-#: packages/admin/src/components/WordPressImport.tsx:1171
+#: packages/admin/src/components/WordPressImport.tsx:1188
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "Nuvilkite failą arba spustelėkite ir jį pasirinkite (.xml)"
 
@@ -5445,7 +5445,7 @@ msgstr "Vienu metu nuvilkite po vieną paveikslėlį."
 msgid "Drop to add widget"
 msgstr "Atleiskite, kad pridėtumėte valdiklį"
 
-#: packages/admin/src/components/WordPressImport.tsx:1645
+#: packages/admin/src/components/WordPressImport.tsx:1662
 msgid "Drop your WordPress export file here"
 msgstr "Nuvilkite „WordPress“ eksporto failą čia"
 
@@ -5784,7 +5784,7 @@ msgstr "Rengyklės šoninės juostos skiltys"
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "Redaktoriai gali pasirinkti antrą paveikslėlį, kurį svetainė rodys įjungus tamsiąją veikseną."
 
-#: packages/admin/src/components/WordPressImport.tsx:1094
+#: packages/admin/src/components/WordPressImport.tsx:1111
 msgid "em1.…"
 msgstr "em1.…"
 
@@ -5909,7 +5909,7 @@ msgstr "Ankstesnio paveikslėlio „EmDash“ neišsaugo."
 msgid "EmDash does not keep the uncropped image."
 msgstr "Neapkirpto paveikslėlio „EmDash“ neišsaugo."
 
-#: packages/admin/src/components/WordPressImport.tsx:1363
+#: packages/admin/src/components/WordPressImport.tsx:1380
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "Aptiktas įskiepis „EmDash Exporter“! Galite importuoti tiesiogiai."
 
@@ -6156,7 +6156,7 @@ msgstr "Įveskite sveikąjį skaičių, lygų 2 arba didesnį."
 msgid "Enter an email address."
 msgstr "Įveskite el. pašto adresą."
 
-#: packages/admin/src/components/WordPressImport.tsx:1436
+#: packages/admin/src/components/WordPressImport.tsx:1453
 msgid "Enter credentials manually"
 msgstr "Įvesti prisijungimo duomenis rankiniu būdu"
 
@@ -6194,12 +6194,12 @@ msgstr "Įveskite URL adresą..."
 msgid "Enter your handle to sign in."
 msgstr "Norėdami prisijungti, įveskite savo naudotojo identifikatorių."
 
-#: packages/admin/src/components/WordPressImport.tsx:1515
+#: packages/admin/src/components/WordPressImport.tsx:1532
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "Įveskite „WordPress“ prisijungimo duomenis, kad galėtumėte tiesiogiai importuoti turinį."
 
-#: packages/admin/src/components/WordPressImport.tsx:1132
-#: packages/admin/src/components/WordPressImport.tsx:1144
+#: packages/admin/src/components/WordPressImport.tsx:1149
+#: packages/admin/src/components/WordPressImport.tsx:1161
 msgid "Enter your WordPress site URL"
 msgstr "Įveskite savo „WordPress“ svetainės URL adresą"
 
@@ -6306,7 +6306,7 @@ msgstr "Esami įrašai („{pluralLower}“) lieka savo vietose."
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr "Esamas turinys indeksuotas. Nauji pakeitimai stebimi automatiškai."
 
-#: packages/admin/src/components/WordPressImport.tsx:2060
+#: packages/admin/src/components/WordPressImport.tsx:2077
 msgid "Exists"
 msgstr "Yra"
 
@@ -6337,7 +6337,7 @@ msgstr "Galiojimo pabaiga"
 msgid "Export"
 msgstr "Eksportuoti"
 
-#: packages/admin/src/components/WordPressImport.tsx:1329
+#: packages/admin/src/components/WordPressImport.tsx:1346
 msgid "Export from WordPress manually"
 msgstr "Eksportuoti iš „WordPress“ rankiniu būdu"
 
@@ -6353,7 +6353,7 @@ msgstr "Eksporto paprašė {requester}"
 msgid "Export site"
 msgstr "Eksportuoti svetainę"
 
-#: packages/admin/src/components/WordPressImport.tsx:1453
+#: packages/admin/src/components/WordPressImport.tsx:1470
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "Eksportuokite turinį iš „WordPress“, kad galėtumėte importuoti viską, įskaitant juodraščius."
 
@@ -6387,7 +6387,7 @@ msgstr "Neišlaikyta"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:70
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:306
-#: packages/admin/src/components/WordPressImport.tsx:2180
+#: packages/admin/src/components/WordPressImport.tsx:2197
 msgid "Failed"
 msgstr "Nepavyko"
 
@@ -6448,7 +6448,7 @@ msgstr "Nepavyko patikrinti, ar yra naujinimų"
 msgid "Failed to communicate with plugin"
 msgstr "Nepavyko susisiekti su įskiepiu"
 
-#: packages/admin/src/lib/api/content.ts:599
+#: packages/admin/src/lib/api/content.ts:600
 msgid "Failed to compare revisions"
 msgstr "Nepavyko palyginti versijų"
 
@@ -6511,7 +6511,7 @@ msgstr "Nepavyko sukurti autoriaus profilio vertimo"
 msgid "Failed to create collection"
 msgstr "Nepavyko sukurti kolekcijos"
 
-#: packages/admin/src/lib/api/content.ts:311
+#: packages/admin/src/lib/api/content.ts:312
 msgid "Failed to create content"
 msgstr "Nepavyko sukurti turinio"
 
@@ -6547,7 +6547,7 @@ msgstr "Nepavyko sukurti ryšio"
 msgid "Failed to create section"
 msgstr "Nepavyko sukurti skilties"
 
-#: packages/admin/src/components/WordPressImport.tsx:1767
+#: packages/admin/src/components/WordPressImport.tsx:1784
 msgid "Failed to create some collections"
 msgstr "Nepavyko sukurti kai kurių kolekcijų"
 
@@ -6605,7 +6605,7 @@ msgstr "Nepavyko ištrinti kolekcijos"
 msgid "Failed to delete comment"
 msgstr "Nepavyko ištrinti komentaro"
 
-#: packages/admin/src/lib/api/content.ts:354
+#: packages/admin/src/lib/api/content.ts:355
 msgid "Failed to delete content"
 msgstr "Nepavyko ištrinti turinio"
 
@@ -6682,7 +6682,7 @@ msgstr "Nepavyko išjungti paieškos"
 msgid "Failed to disable user"
 msgstr "Nepavyko išjungti naudotojo paskyros"
 
-#: packages/admin/src/lib/api/content.ts:578
+#: packages/admin/src/lib/api/content.ts:579
 msgid "Failed to discard draft"
 msgstr "Nepavyko atmesti juodraščio"
 
@@ -6703,7 +6703,7 @@ msgstr "Nepavyko atsisiųsti paketo failo"
 msgid "Failed to duplicate"
 msgstr "Nepavyko sukurti kopijos"
 
-#: packages/admin/src/lib/api/content.ts:414
+#: packages/admin/src/lib/api/content.ts:415
 msgid "Failed to duplicate content"
 msgstr "Nepavyko sukurti turinio kopijos"
 
@@ -6790,11 +6790,11 @@ msgid "Failed to fetch comments"
 msgstr "Nepavyko gauti komentarų"
 
 #: packages/admin/src/lib/api/content.ts:242
-#: packages/admin/src/lib/api/content.ts:282
+#: packages/admin/src/lib/api/content.ts:283
 msgid "Failed to fetch content"
 msgstr "Nepavyko gauti turinio"
 
-#: packages/admin/src/lib/api/content.ts:263
+#: packages/admin/src/lib/api/content.ts:264
 msgid "Failed to fetch content authors"
 msgstr "Nepavyko gauti turinio autorių"
 
@@ -6900,16 +6900,16 @@ msgstr "Nepavyko gauti ryšio"
 msgid "Failed to fetch relations"
 msgstr "Nepavyko gauti ryšių"
 
-#: packages/admin/src/lib/api/content.ts:684
-#: packages/admin/src/lib/api/content.ts:689
+#: packages/admin/src/lib/api/content.ts:685
+#: packages/admin/src/lib/api/content.ts:690
 msgid "Failed to fetch revision"
 msgstr "Nepavyko gauti versijos"
 
-#: packages/admin/src/lib/api/content.ts:669
+#: packages/admin/src/lib/api/content.ts:670
 msgid "Failed to fetch revision editors"
 msgstr "Nepavyko gauti versiją redagavusių naudotojų sąrašo"
 
-#: packages/admin/src/lib/api/content.ts:649
+#: packages/admin/src/lib/api/content.ts:650
 msgid "Failed to fetch revisions"
 msgstr "Nepavyko gauti versijų"
 
@@ -6954,7 +6954,7 @@ msgstr "Nepavyko gauti temos"
 msgid "Failed to fetch translations"
 msgstr "Nepavyko gauti vertimų"
 
-#: packages/admin/src/lib/api/content.ts:380
+#: packages/admin/src/lib/api/content.ts:381
 msgid "Failed to fetch trashed content"
 msgstr "Nepavyko gauti į šiukšlinę perkelto turinio"
 
@@ -7158,7 +7158,7 @@ msgstr "Nepavyko užrakinti įrašo"
 msgid "Failed to perform bulk action"
 msgstr "Nepavyko atlikti masinio veiksmo"
 
-#: packages/admin/src/lib/api/content.ts:402
+#: packages/admin/src/lib/api/content.ts:403
 msgid "Failed to permanently delete content"
 msgstr "Nepavyko visam laikui ištrinti turinio"
 
@@ -7177,7 +7177,7 @@ msgstr "Nepavyko patikrinti URL adreso"
 msgid "Failed to publish"
 msgstr "Nepavyko paskelbti"
 
-#: packages/admin/src/lib/api/content.ts:534
+#: packages/admin/src/lib/api/content.ts:535
 msgid "Failed to publish content"
 msgstr "Nepavyko paskelbti turinio"
 
@@ -7244,12 +7244,12 @@ msgstr "Nepavyko pakeisti medijos paveikslėlio"
 msgid "Failed to restore"
 msgstr "Nepavyko atkurti"
 
-#: packages/admin/src/lib/api/content.ts:391
+#: packages/admin/src/lib/api/content.ts:392
 msgid "Failed to restore content"
 msgstr "Nepavyko atkurti turinio"
 
-#: packages/admin/src/lib/api/content.ts:706
-#: packages/admin/src/lib/api/content.ts:711
+#: packages/admin/src/lib/api/content.ts:707
+#: packages/admin/src/lib/api/content.ts:712
 msgid "Failed to restore revision"
 msgstr "Nepavyko atkurti versijos"
 
@@ -7295,7 +7295,7 @@ msgstr "Nepavyko išsaugoti nustatymų"
 msgid "Failed to save sidebar layout"
 msgstr "Nepavyko išsaugoti šoninės juostos išdėstymo"
 
-#: packages/admin/src/lib/api/content.ts:438
+#: packages/admin/src/lib/api/content.ts:439
 msgid "Failed to schedule content"
 msgstr "Nepavyko suplanuoti turinio paskelbimo"
 
@@ -7347,7 +7347,7 @@ msgstr "Nepavyko pašalinti įskiepio"
 msgid "Failed to unpublish"
 msgstr "Nepavyko atšaukti paskelbimo"
 
-#: packages/admin/src/lib/api/content.ts:557
+#: packages/admin/src/lib/api/content.ts:558
 msgid "Failed to unpublish content"
 msgstr "Nepavyko atšaukti turinio paskelbimo"
 
@@ -7356,7 +7356,7 @@ msgstr "Nepavyko atšaukti turinio paskelbimo"
 msgid "Failed to unschedule"
 msgstr "Nepavyko atšaukti tvarkaraščio"
 
-#: packages/admin/src/lib/api/content.ts:459
+#: packages/admin/src/lib/api/content.ts:460
 msgid "Failed to unschedule content"
 msgstr "Nepavyko atšaukti suplanuoto turinio paskelbimo"
 
@@ -7397,7 +7397,7 @@ msgstr "Nepavyko atnaujinti kolekcijos"
 msgid "Failed to update comment status"
 msgstr "Nepavyko atnaujinti komentaro būsenos"
 
-#: packages/admin/src/lib/api/content.ts:335
+#: packages/admin/src/lib/api/content.ts:336
 msgid "Failed to update content"
 msgstr "Nepavyko atnaujinti turinio"
 
@@ -7505,11 +7505,11 @@ msgstr "DUK"
 msgid "Favicon"
 msgstr "Svetainės piktograma"
 
-#: packages/admin/src/components/WordPressImport.tsx:1232
+#: packages/admin/src/components/WordPressImport.tsx:1249
 msgid "Feature"
 msgstr "Funkcija"
 
-#: packages/admin/src/components/WordPressImport.tsx:1200
+#: packages/admin/src/components/WordPressImport.tsx:1217
 msgid "Featured Images"
 msgstr "Pagrindiniai paveikslėliai"
 
@@ -7518,7 +7518,7 @@ msgstr "Pagrindiniai paveikslėliai"
 msgid "Features"
 msgstr "Funkcijos"
 
-#: packages/admin/src/components/WordPressImport.tsx:858
+#: packages/admin/src/components/WordPressImport.tsx:875
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "Gaunamas turinys iš „EmDash Exporter“ API."
 
@@ -7560,7 +7560,7 @@ msgstr "lauko_adreso_dalis"
 msgid "Fields"
 msgstr "Laukai"
 
-#: packages/admin/src/components/WordPressImport.tsx:2393
+#: packages/admin/src/components/WordPressImport.tsx:2410
 msgid "Fields created:"
 msgstr "Sukurta laukų:"
 
@@ -7569,7 +7569,7 @@ msgid "File"
 msgstr "Failas"
 
 #. placeholder {0}: progress.current
-#: packages/admin/src/components/WordPressImport.tsx:2208
+#: packages/admin/src/components/WordPressImport.tsx:2225
 msgid "File {0}"
 msgstr "Failas „{0}“"
 
@@ -7762,7 +7762,7 @@ msgstr "Nepavyko įkelti aplankų."
 msgid "Fonts"
 msgstr "Šriftai"
 
-#: packages/admin/src/components/WordPressImport.tsx:1454
+#: packages/admin/src/components/WordPressImport.tsx:1471
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "Jei norite importuoti visą turinį, įskaitant juodraščius, eksportuokite jį iš „WordPress“."
 
@@ -7804,7 +7804,7 @@ msgid "From URL"
 msgstr "Iš URL adreso"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:280
-#: packages/admin/src/components/WordPressImport.tsx:1207
+#: packages/admin/src/components/WordPressImport.tsx:1224
 msgid "Full"
 msgstr "Visas"
 
@@ -7878,7 +7878,7 @@ msgstr "Paskelbti"
 msgid "Go live {countdown}"
 msgstr "Paskelbti {countdown}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2510
+#: packages/admin/src/components/WordPressImport.tsx:2527
 #: packages/admin/src/router.tsx:4191
 msgid "Go to Dashboard"
 msgstr "Atverti valdymo skydą"
@@ -8131,7 +8131,7 @@ msgstr "Kaip sudaroma nuorodos dalis?"
 msgid "How many"
 msgstr "Kiek"
 
-#: packages/admin/src/components/WordPressImport.tsx:1577
+#: packages/admin/src/components/WordPressImport.tsx:1594
 msgid "How to create an Application Password"
 msgstr "Kaip sukurti programos slaptažodį"
 
@@ -8180,7 +8180,7 @@ msgstr "https://example.com/blog/my-post"
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
 
-#: packages/admin/src/components/WordPressImport.tsx:1140
+#: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "https://yoursite.com"
 msgstr "https://yoursite.com"
 
@@ -8326,12 +8326,12 @@ msgstr "Tiesioginis TLS (465 prievadas)"
 #: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
 #: packages/admin/src/components/Sidebar.tsx:606
-#: packages/admin/src/components/WordPressImport.tsx:785
+#: packages/admin/src/components/WordPressImport.tsx:793
 msgid "Import"
 msgstr "Importuoti"
 
 #. placeholder {0}: postType.name
-#: packages/admin/src/components/WordPressImport.tsx:2008
+#: packages/admin/src/components/WordPressImport.tsx:2025
 msgid "Import {0}"
 msgstr "Importuoti „{0}“"
 
@@ -8343,7 +8343,7 @@ msgstr "Importuoti svetainės paketą"
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr "Importuokite svetainės paketą į šią dar tuščią svetainę ir perrašykite pradinę jos sąranką. Administratoriaus teisės apima ir šią galimybę. Pasirinkite šią teisę, jei norite agentui suteikti siauresnę prieigą."
 
-#: packages/admin/src/components/WordPressImport.tsx:1422
+#: packages/admin/src/components/WordPressImport.tsx:1439
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "Tiesiogiai importuokite visą turinį, įskaitant juodraščius, pasirinktinius įrašų tipus, ACF laukus ir SEO duomenis. Failo atsisiųsti nereikia."
 
@@ -8351,11 +8351,11 @@ msgstr "Tiesiogiai importuokite visą turinį, įskaitant juodraščius, pasirin
 msgid "Import an existing EmDash site"
 msgstr "Importuoti esamą „EmDash“ svetainę"
 
-#: packages/admin/src/components/WordPressImport.tsx:2508
+#: packages/admin/src/components/WordPressImport.tsx:2525
 msgid "Import Another File"
 msgstr "Importuoti kitą failą"
 
-#: packages/admin/src/components/WordPressImport.tsx:1226
+#: packages/admin/src/components/WordPressImport.tsx:1243
 msgid "Import Capabilities"
 msgstr "Importavimo galimybės"
 
@@ -8364,32 +8364,32 @@ msgstr "Importavimo galimybės"
 msgid "Import complete"
 msgstr "Importavimas baigtas"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2381
 msgid "Import Complete"
 msgstr "Importavimas baigtas"
 
-#: packages/admin/src/components/WordPressImport.tsx:2365
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Import Completed with Errors"
 msgstr "Importavimas baigtas su klaidomis"
 
-#: packages/admin/src/components/WordPressImport.tsx:1752
+#: packages/admin/src/components/WordPressImport.tsx:1769
 msgid "Import failed"
 msgstr "Importuoti nepavyko"
 
-#: packages/admin/src/components/WordPressImport.tsx:738
+#: packages/admin/src/components/WordPressImport.tsx:746
 #: packages/admin/src/router.tsx:3516
 msgid "Import from WordPress"
 msgstr "Importuoti iš „WordPress“"
 
-#: packages/admin/src/components/WordPressImport.tsx:2157
+#: packages/admin/src/components/WordPressImport.tsx:2174
 msgid "Import Media"
 msgstr "Importuoti medijos failus"
 
-#: packages/admin/src/components/WordPressImport.tsx:2110
+#: packages/admin/src/components/WordPressImport.tsx:2127
 msgid "Import Media Files"
 msgstr "Importuoti medijos failus"
 
-#: packages/admin/src/components/WordPressImport.tsx:740
+#: packages/admin/src/components/WordPressImport.tsx:748
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "Importuokite įrašus, puslapius ir pasirinktinius įrašų tipus iš „WordPress“."
 
@@ -8397,7 +8397,7 @@ msgstr "Importuokite įrašus, puslapius ir pasirinktinius įrašų tipus iš �
 msgid "Import requested by {requester}"
 msgstr "Importavimo paprašė {requester}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1864
+#: packages/admin/src/components/WordPressImport.tsx:1881
 msgid "Import site configuration from WordPress."
 msgstr "Importuoti svetainės konfigūraciją iš „WordPress“."
 
@@ -8405,7 +8405,7 @@ msgstr "Importuoti svetainės konfigūraciją iš „WordPress“."
 msgid "Import this package?"
 msgstr "Importuoti šį paketą?"
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1437
 msgid "Import via EmDash Exporter"
 msgstr "Importuoti naudojant „EmDash Exporter“"
 
@@ -8413,7 +8413,7 @@ msgstr "Importuoti naudojant „EmDash Exporter“"
 msgid "Imported"
 msgstr "Importuota"
 
-#: packages/admin/src/components/WordPressImport.tsx:2404
+#: packages/admin/src/components/WordPressImport.tsx:2421
 msgid "Imported by Collection"
 msgstr "Importuota pagal kolekciją"
 
@@ -8422,7 +8422,7 @@ msgid "Importing"
 msgstr "Importuojama"
 
 #. placeholder {0}: wpImportProgress.comments
-#: packages/admin/src/components/WordPressImport.tsx:951
+#: packages/admin/src/components/WordPressImport.tsx:968
 msgid "Importing comments... {0}"
 msgstr "Importuojami komentarai... {0}"
 
@@ -8430,25 +8430,25 @@ msgstr "Importuojami komentarai... {0}"
 msgid "Importing content"
 msgstr "Importuojamas turinys"
 
-#: packages/admin/src/components/WordPressImport.tsx:969
+#: packages/admin/src/components/WordPressImport.tsx:986
 msgid "Importing content..."
 msgstr "Importuojamas turinys..."
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:949
+#: packages/admin/src/components/WordPressImport.tsx:966
 msgid "Importing content... {0}"
 msgstr "Importuojamas turinys... {0}"
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:948
+#: packages/admin/src/components/WordPressImport.tsx:965
 msgid "Importing content... {0} of {totalSelectedPosts}"
 msgstr "Importuojamas turinys... {0} iš {totalSelectedPosts}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2189
+#: packages/admin/src/components/WordPressImport.tsx:2206
 msgid "Importing Media"
 msgstr "Importuojami medijos failai"
 
-#: packages/admin/src/components/WordPressImport.tsx:952
+#: packages/admin/src/components/WordPressImport.tsx:969
 msgid "Importing menus and site settings..."
 msgstr "Importuojami meniu ir svetainės nustatymai..."
 
@@ -8456,7 +8456,7 @@ msgstr "Importuojami meniu ir svetainės nustatymai..."
 msgid "Importing menus, widgets, and settings"
 msgstr "Importuojami meniu, valdikliai ir nustatymai"
 
-#: packages/admin/src/components/WordPressImport.tsx:953
+#: packages/admin/src/components/WordPressImport.tsx:970
 msgid "Importing reusable blocks..."
 msgstr "Importuojami daugkartinio naudojimo blokai..."
 
@@ -8485,7 +8485,7 @@ msgstr "Įtraukti komentarus"
 msgid "Include inferred bylines"
 msgstr "Įtraukti iš duomenų nustatytus autorių profilius"
 
-#: packages/admin/src/components/WordPressImport.tsx:2030
+#: packages/admin/src/components/WordPressImport.tsx:2047
 msgid "Incompatible"
 msgstr "Nesuderinama"
 
@@ -8624,7 +8624,7 @@ msgstr "Įdiegti"
 msgid "Install blocked"
 msgstr "Diegimas užblokuotas"
 
-#: packages/admin/src/components/WordPressImport.tsx:1088
+#: packages/admin/src/components/WordPressImport.tsx:1105
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr "„WordPress“ svetainėje įdiekite įskiepį „EmDash Exporter“, tada skiltyje „Tools → EmDash Migration“ sugeneruokite raktą."
 
@@ -8869,7 +8869,7 @@ msgstr "Palikti šios svetainės reikšmę (tuščia)"
 msgid "Keep this site’s: “{targetValue}”"
 msgstr "Palikti šios svetainės reikšmę: „{targetValue}“"
 
-#: packages/admin/src/components/WordPressImport.tsx:965
+#: packages/admin/src/components/WordPressImport.tsx:982
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "Palikite šį skirtuką atvertą. Importuojama dalimis. Procesui nutrūkus, jį galima saugiai paleisti iš naujo."
 
@@ -9001,7 +9001,7 @@ msgstr "Išeiti"
 msgid "Leave empty to keep current password"
 msgstr "Palikite tuščią, jei norite pasilikti dabartinį slaptažodį"
 
-#: packages/admin/src/components/WordPressImport.tsx:2589
+#: packages/admin/src/components/WordPressImport.tsx:2606
 msgid "Leave unassigned"
 msgstr "Nepriskirti"
 
@@ -9413,7 +9413,7 @@ msgstr "Atsijungti"
 msgid "Logo"
 msgstr "Logotipas"
 
-#: packages/admin/src/components/WordPressImport.tsx:1882
+#: packages/admin/src/components/WordPressImport.tsx:1899
 msgid "Logo & favicon"
 msgstr "Logotipas ir svetainės piktograma"
 
@@ -9498,12 +9498,12 @@ msgstr "Valdo jūsų tapatybės teikėjas. Vardą pakeiskite jo sistemoje."
 msgid "Manual"
 msgstr "Rankinis"
 
-#: packages/admin/src/components/WordPressImport.tsx:2546
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Map Authors"
 msgstr "Susieti autorius"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2594
+#: packages/admin/src/components/WordPressImport.tsx:2611
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "Susieti „WordPress“ naudotoją {0} su „EmDash“ naudotoju"
 
@@ -9582,9 +9582,9 @@ msgstr "MDX"
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:501
-#: packages/admin/src/components/WordPressImport.tsx:799
-#: packages/admin/src/components/WordPressImport.tsx:1197
-#: packages/admin/src/components/WordPressImport.tsx:1390
+#: packages/admin/src/components/WordPressImport.tsx:807
+#: packages/admin/src/components/WordPressImport.tsx:1214
+#: packages/admin/src/components/WordPressImport.tsx:1407
 #: packages/admin/src/router.tsx:2728
 msgid "Media"
 msgstr "Medija"
@@ -9594,7 +9594,7 @@ msgid "Media details"
 msgstr "Medijos failo informacija"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2490
+#: packages/admin/src/components/WordPressImport.tsx:2507
 msgid "Media Errors ({0})"
 msgstr "Medijos klaidos ({0})"
 
@@ -9603,15 +9603,15 @@ msgstr "Medijos klaidos ({0})"
 msgid "Media folders"
 msgstr "Medijos aplankai"
 
-#: packages/admin/src/components/WordPressImport.tsx:2452
+#: packages/admin/src/components/WordPressImport.tsx:2469
 msgid "Media Import"
 msgstr "Medijos importas"
 
-#: packages/admin/src/components/WordPressImport.tsx:2363
+#: packages/admin/src/components/WordPressImport.tsx:2380
 msgid "Media Import Complete"
 msgstr "Medijos importas baigtas"
 
-#: packages/admin/src/components/WordPressImport.tsx:2374
+#: packages/admin/src/components/WordPressImport.tsx:2391
 msgid "Media import was skipped"
 msgstr "Medijos importas praleistas"
 
@@ -9743,13 +9743,13 @@ msgstr "Meniu pervadintas"
 #: packages/admin/src/components/MenuList.tsx:159
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:522
-#: packages/admin/src/components/WordPressImport.tsx:1201
+#: packages/admin/src/components/WordPressImport.tsx:1218
 #: packages/admin/src/router.tsx:3524
 msgid "Menus"
 msgstr "Meniu"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1818
+#: packages/admin/src/components/WordPressImport.tsx:1835
 msgid "Menus ({0})"
 msgstr "Meniu ({0})"
 
@@ -9775,7 +9775,7 @@ msgstr "Metažymos turinys, skirtas patvirtinti svetainę „Bing Webmaster Tool
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Metažymos turinys, skirtas patvirtinti svetainę „Google Search Console“"
 
-#: packages/admin/src/components/WordPressImport.tsx:1895
+#: packages/admin/src/components/WordPressImport.tsx:1912
 msgid "Meta titles, descriptions, and social images"
 msgstr "Metapavadinimai, aprašymai ir paveikslėliai socialiniams tinklams"
 
@@ -9783,7 +9783,7 @@ msgstr "Metapavadinimai, aprašymai ir paveikslėliai socialiniams tinklams"
 msgid "Migration guide"
 msgstr "Perkėlimo vadovas"
 
-#: packages/admin/src/components/WordPressImport.tsx:1101
+#: packages/admin/src/components/WordPressImport.tsx:1118
 msgid "Migration key"
 msgstr "Perkėlimo raktas"
 
@@ -10178,7 +10178,7 @@ msgstr "Naujas autoriaus profilis"
 msgid "New byline field"
 msgstr "Naujas autoriaus profilio laukas"
 
-#: packages/admin/src/components/WordPressImport.tsx:2032
+#: packages/admin/src/components/WordPressImport.tsx:2049
 msgid "New collection"
 msgstr "Nauja kolekcija"
 
@@ -10440,7 +10440,7 @@ msgstr "Nesukonfigūruotas el. pašto paslaugų teikėjas"
 msgid "No email provider configured. Share this link manually."
 msgstr "Nesukonfigūruotas el. pašto paslaugų teikėjas. Pasidalykite šia nuoroda patys."
 
-#: packages/admin/src/components/WordPressImport.tsx:2608
+#: packages/admin/src/components/WordPressImport.tsx:2625
 msgid "No EmDash users found"
 msgstr "„EmDash“ naudotojų nerasta"
 
@@ -10828,7 +10828,7 @@ msgstr "Viename sąrašo puslapyje rodomų įrašų skaičius"
 msgid "Numbered List"
 msgstr "Numeruotas sąrašas"
 
-#: packages/admin/src/components/WordPressImport.tsx:543
+#: packages/admin/src/components/WordPressImport.tsx:544
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
 msgstr "„OAuth“ autorizacijai būtinas HTTPS. Įveskite prisijungimo duomenis rankiniu būdu."
 
@@ -10963,7 +10963,7 @@ msgstr "Atverkite prisijungimo puslapį naujuoju adresu:"
 msgid "Open Windows settings"
 msgstr "Atverti „Windows“ nustatymus"
 
-#: packages/admin/src/components/WordPressImport.tsx:1591
+#: packages/admin/src/components/WordPressImport.tsx:1608
 msgid "Open WordPress Profile"
 msgstr "Atverti „WordPress“ profilį"
 
@@ -11013,11 +11013,11 @@ msgstr "Parinktys (po vieną eilutėje)"
 msgid "Or browse files from your computer"
 msgstr "Arba pasirinkite failus savo kompiuteryje"
 
-#: packages/admin/src/components/WordPressImport.tsx:1647
+#: packages/admin/src/components/WordPressImport.tsx:1664
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "Arba spustelėkite, kad pasirinktumėte failą. Priimami iš „WordPress“ eksportuoti .xml failai."
 
-#: packages/admin/src/components/WordPressImport.tsx:1121
+#: packages/admin/src/components/WordPressImport.tsx:1138
 msgid "or connect by URL"
 msgstr "arba prisijunkite naudodami URL"
 
@@ -11027,11 +11027,11 @@ msgstr "arba prisijunkite naudodami URL"
 msgid "Or continue with"
 msgstr "Arba tęskite naudodami"
 
-#: packages/admin/src/components/WordPressImport.tsx:1447
+#: packages/admin/src/components/WordPressImport.tsx:1464
 msgid "Or upload an export file"
 msgstr "Arba įkelkite eksporto failą"
 
-#: packages/admin/src/components/WordPressImport.tsx:1159
+#: packages/admin/src/components/WordPressImport.tsx:1176
 msgid "or upload directly"
 msgstr "arba įkelkite tiesiogiai"
 
@@ -11137,7 +11137,7 @@ msgid "Page size"
 msgstr "Puslapio dydis"
 
 #: packages/admin/src/components/PluginManager.tsx:488
-#: packages/admin/src/components/WordPressImport.tsx:1384
+#: packages/admin/src/components/WordPressImport.tsx:1401
 msgid "Pages"
 msgstr "Puslapiai"
 
@@ -11164,7 +11164,7 @@ msgstr "Pirminis elementas"
 msgid "Part of a redirect loop"
 msgstr "Peradresavimų ciklo dalis"
 
-#: packages/admin/src/components/WordPressImport.tsx:1205
+#: packages/admin/src/components/WordPressImport.tsx:1222
 msgid "Partial"
 msgstr "Dalinis"
 
@@ -11253,7 +11253,7 @@ msgid "Password"
 msgstr "Slaptažodis"
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2423
+#: packages/admin/src/components/WordPressImport.tsx:2440
 msgid "Password-Protected Entries ({0})"
 msgstr "Slaptažodžiu apsaugoti įrašai ({0})"
 
@@ -11265,7 +11265,7 @@ msgstr "Įklijuokite įterpimo kodą arba HTTPS nuorodą…"
 msgid "Paste the address of what to embed."
 msgstr "Įklijuokite turinio, kurį norite įterpti, adresą."
 
-#: packages/admin/src/components/WordPressImport.tsx:1086
+#: packages/admin/src/components/WordPressImport.tsx:1103
 msgid "Paste your migration key"
 msgstr "Įklijuokite perkėlimo raktą"
 
@@ -11409,7 +11409,7 @@ msgstr "Įveskite galiojantį el. pašto adresą"
 msgid "Please enter a valid URL"
 msgstr "Įveskite galiojantį URL"
 
-#: packages/admin/src/components/WordPressImport.tsx:1234
+#: packages/admin/src/components/WordPressImport.tsx:1251
 #: packages/admin/src/router.tsx:4034
 msgid "Plugin"
 msgstr "Įskiepis"
@@ -11611,11 +11611,11 @@ msgstr "Įrašų URL (po vieną eilutėje)"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:499
 #: packages/admin/src/components/RelationForm.tsx:369
-#: packages/admin/src/components/WordPressImport.tsx:1378
+#: packages/admin/src/components/WordPressImport.tsx:1395
 msgid "Posts"
 msgstr "Įrašai"
 
-#: packages/admin/src/components/WordPressImport.tsx:1196
+#: packages/admin/src/components/WordPressImport.tsx:1213
 msgid "Posts & Pages"
 msgstr "Įrašai ir puslapiai"
 
@@ -11627,7 +11627,7 @@ msgstr "Įrašų skaičius puslapyje"
 msgid "Pre-release"
 msgstr "Išankstinė versija"
 
-#: packages/admin/src/components/WordPressImport.tsx:945
+#: packages/admin/src/components/WordPressImport.tsx:962
 msgid "Preparing categories and tags..."
 msgstr "Ruošiamos kategorijos ir žymos..."
 
@@ -11639,7 +11639,7 @@ msgstr "Ruošiamasi registracijai..."
 msgid "Preparing this site"
 msgstr "Ruošiama ši svetainė"
 
-#: packages/admin/src/components/WordPressImport.tsx:2229
+#: packages/admin/src/components/WordPressImport.tsx:2246
 msgid "Preparing to download files from WordPress..."
 msgstr "Ruošiamasi atsisiųsti failus iš „WordPress“..."
 
@@ -11901,7 +11901,7 @@ msgstr "Kuriant ryšį sparčiuoju būdu, jo pavadinimas sudaromas iš šio lauk
 msgid "Quote"
 msgstr "Citata"
 
-#: packages/admin/src/components/WordPressImport.tsx:1214
+#: packages/admin/src/components/WordPressImport.tsx:1231
 msgid "Raw meta"
 msgstr "Neapdoroti metaduomenys"
 
@@ -11993,7 +11993,7 @@ msgstr "Skaitomas paketas"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:301
-#: packages/admin/src/components/WordPressImport.tsx:2036
+#: packages/admin/src/components/WordPressImport.tsx:2053
 msgid "Ready"
 msgstr "Paruošta"
 
@@ -12591,7 +12591,7 @@ msgstr "Reikalauti nuorodos dalies prieš skelbiant turinį"
 msgid "Required"
 msgstr "Privaloma"
 
-#: packages/admin/src/components/WordPressImport.tsx:2049
+#: packages/admin/src/components/WordPressImport.tsx:2066
 msgid "Required fields:"
 msgstr "Privalomi laukai:"
 
@@ -12808,7 +12808,7 @@ msgstr "Daugkartinio naudojimo blokai, kuriuos galite įterpti į bet kokį turi
 msgid "Reverted to published version"
 msgstr "Grąžinta paskelbta versija"
 
-#: packages/admin/src/components/WordPressImport.tsx:771
+#: packages/admin/src/components/WordPressImport.tsx:779
 msgid "Review"
 msgstr "Peržiūrėti"
 
@@ -12853,8 +12853,8 @@ msgstr "Peržiūrėti patikrintą naujinį"
 msgid "Reviewing…"
 msgstr "Peržiūrima…"
 
-#: packages/admin/src/lib/api/content.ts:682
-#: packages/admin/src/lib/api/content.ts:704
+#: packages/admin/src/lib/api/content.ts:683
+#: packages/admin/src/lib/api/content.ts:705
 msgid "Revision not found: {revisionId}"
 msgstr "Versija nerasta: {revisionId}"
 
@@ -13208,11 +13208,11 @@ msgstr "Suplanuotas skelbimas"
 msgid "Scheduled publishing needs attention"
 msgstr "Reikia patikrinti suplanuotą skelbimą"
 
-#: packages/admin/src/components/WordPressImport.tsx:2382
+#: packages/admin/src/components/WordPressImport.tsx:2399
 msgid "Schema Changes"
 msgstr "Schemos pakeitimai"
 
-#: packages/admin/src/components/WordPressImport.tsx:1752
+#: packages/admin/src/components/WordPressImport.tsx:1769
 msgid "Schema preparation failed"
 msgstr "Nepavyko paruošti schemos"
 
@@ -13716,7 +13716,7 @@ msgstr "Vienu metu pasirinkite iki 50 įrašų."
 msgid "Select video"
 msgstr "Pasirinkti vaizdo įrašą"
 
-#: packages/admin/src/components/WordPressImport.tsx:1785
+#: packages/admin/src/components/WordPressImport.tsx:1802
 msgid "Select which content types to import."
 msgstr "Pasirinkite importuojamo turinio tipus."
 
@@ -13828,7 +13828,7 @@ msgstr "SEO"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:27
 #: packages/admin/src/components/settings/transfer/labels.ts:87
-#: packages/admin/src/components/WordPressImport.tsx:1893
+#: packages/admin/src/components/WordPressImport.tsx:1910
 msgid "SEO settings"
 msgstr "SEO nustatymai"
 
@@ -13915,7 +13915,7 @@ msgstr "Ruošiama..."
 #: packages/admin/src/components/PluginManager.tsx:546
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:611
-#: packages/admin/src/components/WordPressImport.tsx:1861
+#: packages/admin/src/components/WordPressImport.tsx:1878
 #: packages/admin/src/router.tsx:3215
 msgid "Settings"
 msgstr "Nustatymai"
@@ -14141,7 +14141,7 @@ msgstr "Svetainės tapatybė"
 msgid "Site Identity"
 msgstr "Svetainės tapatybė"
 
-#: packages/admin/src/components/WordPressImport.tsx:2330
+#: packages/admin/src/components/WordPressImport.tsx:2347
 msgid "site identity applied (title, tagline, logo)"
 msgstr "pritaikyta svetainės tapatybė (pavadinimas, poantraštė, logotipas)"
 
@@ -14168,7 +14168,7 @@ msgstr "Svetainės nustatymai"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
 #: packages/admin/src/components/SetupWizard.tsx:407
-#: packages/admin/src/components/WordPressImport.tsx:1203
+#: packages/admin/src/components/WordPressImport.tsx:1220
 msgid "Site Settings"
 msgstr "Svetainės nustatymai"
 
@@ -14189,7 +14189,7 @@ msgstr "Svetainės pavadinimas"
 msgid "Site Title"
 msgstr "Svetainės pavadinimas"
 
-#: packages/admin/src/components/WordPressImport.tsx:1873
+#: packages/admin/src/components/WordPressImport.tsx:1890
 msgid "Site title & tagline"
 msgstr "Svetainės pavadinimas ir poantraštė"
 
@@ -14230,11 +14230,11 @@ msgstr "Aplankų dydis nenurodomas"
 msgid "Size:"
 msgstr "Dydis:"
 
-#: packages/admin/src/components/WordPressImport.tsx:2154
+#: packages/admin/src/components/WordPressImport.tsx:2171
 msgid "Skip Media Import"
 msgstr "Praleisti medijos failų importą"
 
-#: packages/admin/src/components/WordPressImport.tsx:2179
+#: packages/admin/src/components/WordPressImport.tsx:2196
 msgid "Skipped"
 msgstr "Praleista"
 
@@ -14351,7 +14351,7 @@ msgstr "Kai kur turinyje pateikiamos nuorodos į medijos failus, kurių pradinė
 msgid "Some content may not appear here yet."
 msgstr "Dalis turinio čia dar gali būti nerodoma."
 
-#: packages/admin/src/components/WordPressImport.tsx:1910
+#: packages/admin/src/components/WordPressImport.tsx:1927
 msgid "Some content types cannot be imported"
 msgstr "Kai kurių tipų turinio importuoti negalima"
 
@@ -14483,7 +14483,7 @@ msgstr "Pradėti naują importą"
 msgid "Start import"
 msgstr "Pradėti importą"
 
-#: packages/admin/src/components/WordPressImport.tsx:1972
+#: packages/admin/src/components/WordPressImport.tsx:1989
 msgid "Start Import"
 msgstr "Pradėti importą"
 
@@ -14584,11 +14584,11 @@ msgstr "Saugoma atskirai kiekvienai lokalei. Kiekvienas autoriaus profilio verti
 msgid "Strikethrough"
 msgstr "Perbraukimas"
 
-#: packages/admin/src/components/WordPressImport.tsx:1805
+#: packages/admin/src/components/WordPressImport.tsx:1822
 msgid "Structure"
 msgstr "Struktūra"
 
-#: packages/admin/src/components/WordPressImport.tsx:1216
+#: packages/admin/src/components/WordPressImport.tsx:1233
 msgid "Structured"
 msgstr "Struktūrinis"
 
@@ -14707,7 +14707,7 @@ msgid "Tags"
 msgstr "Žymos"
 
 #. placeholder {0}: analysis.tags
-#: packages/admin/src/components/WordPressImport.tsx:1847
+#: packages/admin/src/components/WordPressImport.tsx:1864
 msgid "Tags ({0})"
 msgstr "Žymos ({0})"
 
@@ -14929,7 +14929,7 @@ msgstr "Įrenginiui prieiga nebus suteikta."
 msgid "The download stopped"
 msgstr "Atsisiuntimas sustojo"
 
-#: packages/admin/src/components/WordPressImport.tsx:1912
+#: packages/admin/src/components/WordPressImport.tsx:1929
 msgid "The existing collection has fields with incompatible types."
 msgstr "Esamoje kolekcijoje yra nesuderinamų tipų laukų."
 
@@ -15324,7 +15324,7 @@ msgstr "Temos"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "Peradresavimų per daug, kad prieš importuojant būtų galima patikrinti, ar nėra ciklų"
 
-#: packages/admin/src/components/WordPressImport.tsx:2426
+#: packages/admin/src/components/WordPressImport.tsx:2443
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr "Šie įrašai „WordPress“ svetainėje apsaugoti slaptažodžiais. „EmDash“ nepalaiko atskirų įrašų slaptažodžių, todėl įrašai importuoti kaip juodraščiai. Prieš skelbdami peržiūrėkite kiekvieną įrašą."
 
@@ -15415,7 +15415,7 @@ msgstr "Šios dienos nepavyko įkelti. Pasirinktu laikotarpiu įrašų yra daugi
 msgid "This device is requesting permission to use:"
 msgstr "Šis įrenginys prašo leidimo naudoti:"
 
-#: packages/admin/src/components/WordPressImport.tsx:1109
+#: packages/admin/src/components/WordPressImport.tsx:1126
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "Tai nepanašu į galiojantį perkėlimo raktą. Sugeneruokite įskiepyje naują raktą ir įklijuokite visą eilutę, prasidedančią „em1.“."
 
@@ -15554,7 +15554,7 @@ msgstr "Šis importas jau pradėtas"
 msgid "This is a custom section."
 msgstr "Tai pasirinktinė skiltis."
 
-#: packages/admin/src/components/WordPressImport.tsx:1364
+#: packages/admin/src/components/WordPressImport.tsx:1381
 msgid "This is a WordPress site."
 msgstr "Tai „WordPress“ svetainė."
 
@@ -15578,7 +15578,7 @@ msgstr "Nuoroda galioja 7 dienas ir ją galima panaudoti tik vieną kartą."
 msgid "This link expires in 7 days."
 msgstr "Nuoroda galioja 7 dienas."
 
-#: packages/admin/src/components/WordPressImport.tsx:970
+#: packages/admin/src/components/WordPressImport.tsx:987
 msgid "This may take a while for large exports."
 msgstr "Eksportuojant daug duomenų tai gali užtrukti."
 
@@ -16036,7 +16036,7 @@ msgstr "Pakeiskite paieškos tekstą arba filtrus."
 msgid "Try again"
 msgstr "Bandyti dar kartą"
 
-#: packages/admin/src/components/WordPressImport.tsx:1639
+#: packages/admin/src/components/WordPressImport.tsx:1656
 msgid "Try Again"
 msgstr "Bandyti dar kartą"
 
@@ -16065,8 +16065,8 @@ msgstr "Įveskite kitą failo pavadinimą arba išvalykite paiešką."
 msgid "Try another filename, or clear your search and filters."
 msgstr "Įveskite kitą failo pavadinimą arba išvalykite paiešką ir filtrus."
 
-#: packages/admin/src/components/WordPressImport.tsx:1342
-#: packages/admin/src/components/WordPressImport.tsx:1464
+#: packages/admin/src/components/WordPressImport.tsx:1359
+#: packages/admin/src/components/WordPressImport.tsx:1481
 msgid "Try Another URL"
 msgstr "Bandyti kitą URL"
 
@@ -16149,7 +16149,7 @@ msgid "Type caption for video (optional)"
 msgstr "Įveskite vaizdo įrašo užrašą (nebūtina)"
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:2068
+#: packages/admin/src/components/WordPressImport.tsx:2085
 msgid "Type mismatch ({0})"
 msgstr "Tipo neatitiktis ({0})"
 
@@ -16244,6 +16244,8 @@ msgstr "Atrakinti kraštinių santykį"
 msgid "Unnamed passkey"
 msgstr "Bevardis prieigos raktas"
 
+#: packages/admin/src/components/ContentList.tsx:1133
+#: packages/admin/src/components/ContentList.tsx:1139
 #: packages/admin/src/components/revisions/revision-format.ts:103
 msgid "Unnamed user"
 msgstr "Bevardis naudotojas"
@@ -16400,7 +16402,7 @@ msgstr "Atnaujinta"
 msgid "Updated At"
 msgstr "Atnaujinimo laikas"
 
-#: packages/admin/src/components/WordPressImport.tsx:995
+#: packages/admin/src/components/WordPressImport.tsx:1012
 msgid "Updating content URLs..."
 msgstr "Atnaujinami turinio URL..."
 
@@ -16438,7 +16440,7 @@ msgstr "Pradėkite įkeldami failą"
 msgid "Upload a video to get started"
 msgstr "Pradėkite įkeldami vaizdo įrašą"
 
-#: packages/admin/src/components/WordPressImport.tsx:1447
+#: packages/admin/src/components/WordPressImport.tsx:1464
 msgid "Upload an export file"
 msgstr "Įkelti eksporto failą"
 
@@ -16455,8 +16457,8 @@ msgstr "Įkelti ir trinti medijos failus"
 msgid "Upload and manage media"
 msgstr "Įkelti ir tvarkyti medijos failus"
 
-#: packages/admin/src/components/WordPressImport.tsx:1340
-#: packages/admin/src/components/WordPressImport.tsx:1461
+#: packages/admin/src/components/WordPressImport.tsx:1357
+#: packages/admin/src/components/WordPressImport.tsx:1478
 msgid "Upload Export File"
 msgstr "Įkelti eksporto failą"
 
@@ -16513,7 +16515,7 @@ msgstr "Įkelti į {0}"
 msgid "Upload to {providerName}"
 msgstr "Įkelti į {providerName}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1170
+#: packages/admin/src/components/WordPressImport.tsx:1187
 msgid "Upload WordPress export file"
 msgstr "Įkelti „WordPress“ eksporto failą"
 
@@ -16527,7 +16529,7 @@ msgstr "Įkelta:"
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:208
 #: packages/admin/src/components/MediaUploadDialog.tsx:60
-#: packages/admin/src/components/WordPressImport.tsx:2177
+#: packages/admin/src/components/WordPressImport.tsx:2194
 msgid "Uploading"
 msgstr "Įkeliama"
 
@@ -16990,11 +16992,11 @@ msgid "We checked before opening the browser's passkey prompt so you can choose 
 msgstr "Prieš atverdami naršyklės prieigos rakto dialogą atlikome patikrą, kad galėtumėte pasirinkti tolesnį veiksmą."
 
 #. placeholder {0}: result.url
-#: packages/admin/src/components/WordPressImport.tsx:1322
+#: packages/admin/src/components/WordPressImport.tsx:1339
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "Nepavyko prisijungti prie „WordPress“ svetainės adresu {0}. Galbūt tai ne „WordPress“ svetainė, išjungta REST API arba svetainė nepasiekiama."
 
-#: packages/admin/src/components/WordPressImport.tsx:1134
+#: packages/admin/src/components/WordPressImport.tsx:1151
 msgid "We'll check what import options are available for your site."
 msgstr "Patikrinsime, kokiais būdais galite importuoti duomenis į savo svetainę."
 
@@ -17049,7 +17051,7 @@ msgstr "Abiejų ryšio pusių pavadinimai. Jie naudojami su šiuo ryšiu susieti
 msgid "What happens next?"
 msgstr "Kas vyks toliau?"
 
-#: packages/admin/src/components/WordPressImport.tsx:2141
+#: packages/admin/src/components/WordPressImport.tsx:2158
 msgid "What happens when you import:"
 msgstr "Kas vyksta importuojant:"
 
@@ -17073,7 +17075,7 @@ msgstr "Kas įtraukta į paketą"
 msgid "What will be imported"
 msgstr "Kas bus importuota"
 
-#: packages/admin/src/components/WordPressImport.tsx:1924
+#: packages/admin/src/components/WordPressImport.tsx:1941
 msgid "What will happen when you import"
 msgstr "Kas vyks importuojant"
 
@@ -17193,7 +17195,7 @@ msgstr "Valdiklis atnaujintas"
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:536
 #: packages/admin/src/components/Widgets.tsx:456
-#: packages/admin/src/components/WordPressImport.tsx:1209
+#: packages/admin/src/components/WordPressImport.tsx:1226
 #: packages/admin/src/router.tsx:3558
 msgid "Widgets"
 msgstr "Valdikliai"
@@ -17211,7 +17213,7 @@ msgstr "Pločiai"
 msgid "Will be cleared on save"
 msgstr "Bus išvalyta išsaugant"
 
-#: packages/admin/src/components/WordPressImport.tsx:2064
+#: packages/admin/src/components/WordPressImport.tsx:2081
 msgid "Will create"
 msgstr "Bus sukurta"
 
@@ -17232,10 +17234,10 @@ msgid "Without an email provider, invite links must be shared manually."
 msgstr "Jei el. pašto paslaugos teikėjas nesukonfigūruotas, kvietimo nuorodas reikia perduoti patiems."
 
 #: packages/admin/src/components/WordPressImport.tsx:237
-msgid "WordPress authorization was rejected"
-msgstr "„WordPress“ nesuteikė prieigos"
+msgid "WordPress did not approve the connection, or the approval expired."
+msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1532
+#: packages/admin/src/components/WordPressImport.tsx:1549
 msgid "WordPress Username"
 msgstr "„WordPress“ naudotojo vardas"
 
@@ -17271,7 +17273,7 @@ msgstr "Įrašykite valdiklio turinį..."
 msgid "Writing the file index"
 msgstr "Rašoma failų rodyklė"
 
-#: packages/admin/src/components/WordPressImport.tsx:1233
+#: packages/admin/src/components/WordPressImport.tsx:1250
 msgid "WXR File"
 msgstr "WXR failas"
 
@@ -17279,7 +17281,7 @@ msgstr "WXR failas"
 msgid "XML"
 msgstr "XML"
 
-#: packages/admin/src/components/WordPressImport.tsx:1554
+#: packages/admin/src/components/WordPressImport.tsx:1571
 msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
 msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 
@@ -17302,7 +17304,7 @@ msgstr "Taip"
 msgid "Yesterday"
 msgstr "Vakar"
 
-#: packages/admin/src/components/WordPressImport.tsx:1212
+#: packages/admin/src/components/WordPressImport.tsx:1229
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
@@ -17397,7 +17399,7 @@ msgstr "Jums bus suteikta rolė <0>{0}</0>"
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "Jūsų bus paprašyta patvirtinti tapatybę biometriniais duomenimis, saugos raktu arba PIN kodu."
 
-#: packages/admin/src/components/WordPressImport.tsx:1425
+#: packages/admin/src/components/WordPressImport.tsx:1442
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "Būsite nukreipti į „WordPress“, kur galėsite suteikti leidimą prisijungti."
 
@@ -17605,7 +17607,7 @@ msgid "Your unsaved media changes will be lost."
 msgstr "Neišsaugoti medijos failo pakeitimai bus prarasti."
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:2112
+#: packages/admin/src/components/WordPressImport.tsx:2129
 msgid "Your WordPress export contains {0} media files."
 msgstr "„WordPress“ eksporte yra {0} medijos failų."
 
