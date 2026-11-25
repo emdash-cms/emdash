@@ -1,8 +1,39 @@
-import type { MessageDescriptor, Messages } from "@lingui/core";
+import { setupI18n, type MessageDescriptor, type Messages } from "@lingui/core";
 import { msg } from "@lingui/core/macro";
 
 import { resolveLocale } from "./config.js";
 import { loadMessages } from "./loadMessages.js";
+
+export interface AdminShellStrings {
+	pageTitle: string;
+	loading: string;
+}
+
+const ADMIN_SHELL_MESSAGES = {
+	pageTitle: msg({ id: "adminShell.pageTitle", message: "{siteName} Admin" }),
+	loading: msg({ id: "adminShell.loading", message: "Loading {siteName}..." }),
+} satisfies Record<keyof AdminShellStrings, MessageDescriptor>;
+
+export function translateAdminShellStrings(
+	locale: string,
+	messages: Messages,
+	siteName?: string,
+): AdminShellStrings {
+	const brand = siteName?.trim() || "EmDash";
+	const i18n = setupI18n({ locale, messages: { [locale]: messages } });
+	return {
+		pageTitle: i18n._(
+			ADMIN_SHELL_MESSAGES.pageTitle.id,
+			{ siteName: brand },
+			{ message: ADMIN_SHELL_MESSAGES.pageTitle.message },
+		),
+		loading: i18n._(
+			ADMIN_SHELL_MESSAGES.loading.id,
+			{ siteName: brand },
+			{ message: ADMIN_SHELL_MESSAGES.loading.message },
+		),
+	};
+}
 
 export interface VisualEditingToolbarLabels {
 	publish: string;

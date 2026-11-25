@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { runInNewContext } from "node:vm";
 
+import { translateAdminShellStrings } from "@emdash-cms/admin/locales/server";
 import { describe, expect, it } from "vitest";
 
 const adminRouteUrl = new URL("../../../src/astro/routes/admin.astro", import.meta.url);
@@ -66,5 +67,31 @@ describe("admin boot loader theme", () => {
 		expect(loaderStyles).toContain("var(--text-color-kumo-subtle)");
 		expect(loaderStyles).not.toContain("hsl(");
 		expect(loaderStyles).not.toContain("light-dark(");
+	});
+
+	it("localizes the boot loader and initial page title from the resolved locale catalog", async () => {
+		const source = await readAdminRoute();
+
+		expect(source).toContain("translateAdminShellStrings(resolvedLocale, messages,");
+		expect(source).not.toContain('"Loading EmDash..."');
+		expect(source).not.toContain('"EmDash Admin"');
+
+		expect(translateAdminShellStrings("en", {})).toEqual({
+			pageTitle: "EmDash Admin",
+			loading: "Loading EmDash...",
+		});
+		expect(
+			translateAdminShellStrings(
+				"es-419",
+				{
+					"adminShell.pageTitle": ["Administración de ", ["siteName"]],
+					"adminShell.loading": ["Cargando ", ["siteName"], "..."],
+				},
+				"Gaucho en Red",
+			),
+		).toEqual({
+			pageTitle: "Administración de Gaucho en Red",
+			loading: "Cargando Gaucho en Red...",
+		});
 	});
 });
