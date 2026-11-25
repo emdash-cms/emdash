@@ -2243,17 +2243,37 @@ export class ContentRepository {
 	 * full user directory (which requires admin privileges to read).
 	 */
 	async findDistinctAuthorIds(type: string): Promise<string[]> {
-		const tableName = getTableName(type);
-
-		const rows = await this.db
-			.selectFrom(tableName as keyof Database)
-			.select("author_id")
-			.distinct()
-			.where("deleted_at" as never, "is", null)
-			.where("author_id" as never, "is not", null)
-			.execute();
+		const rows = await this.liveAuthorIds(type).distinct().execute();
 
 		return rows.map((row) => row.author_id).filter((id): id is string => id !== null);
+	}
+
+	/**
+	 * The users behind `findDistinctAuthorIds`, read in one statement.
+	 */
+	async findAuthors(
+		type: string,
+	): Promise<Array<{ id: string; name: string | null; email: string; avatarUrl: string | null }>> {
+		const rows = await this.db
+			.selectFrom("users")
+			.select(["id", "name", "email", "avatar_url"])
+			.where("id", "in", this.liveAuthorIds(type))
+			.execute();
+
+		return rows.map((row) => ({
+			id: row.id,
+			name: row.name,
+			email: row.email,
+			avatarUrl: row.avatar_url,
+		}));
+	}
+
+	private liveAuthorIds(type: string) {
+		return this.db
+			.selectFrom(getTableName(type) as keyof Database)
+			.select("author_id")
+			.where("deleted_at" as never, "is", null)
+			.where("author_id" as never, "is not", null);
 	}
 
 	// get overall statistics for a content type in a single query

@@ -100,6 +100,12 @@ export type ConditionalCommentStatusResult =
 // Repository
 // ---------------------------------------------------------------------------
 
+function statusCount(status: CommentStatus) {
+	return sql<
+		number | string
+	>`(SELECT COUNT(id) FROM ${sql.ref("_emdash_comments")} WHERE status = ${status})`;
+}
+
 export class CommentRepository {
 	constructor(private db: Kysely<Database>) {}
 
@@ -441,40 +447,24 @@ export class CommentRepository {
 	/**
 	 * Count comments grouped by status (for inbox badges)
 	 *
-	 * Uses four parallel COUNT queries with WHERE filters to leverage partial indexes
-	 * (idx_comments_pending, idx_comments_approved, idx_comments_spam, idx_comments_trash)
-	 * instead of a full table GROUP BY scan.
+	 * Four scalar COUNT subqueries in one statement, each filtered by status so
+	 * it can use a status index instead of a full table GROUP BY scan.
 	 */
 	async countByStatus(): Promise<Record<CommentStatus, number>> {
-		// Execute four parallel COUNT queries, each using its partial index
-		const [pending, approved, spam, trash] = await Promise.all([
-			this.db
-				.selectFrom("_emdash_comments")
-				.select((eb) => eb.fn.count("id").as("count"))
-				.where("status", "=", "pending")
-				.executeTakeFirst(),
-			this.db
-				.selectFrom("_emdash_comments")
-				.select((eb) => eb.fn.count("id").as("count"))
-				.where("status", "=", "approved")
-				.executeTakeFirst(),
-			this.db
-				.selectFrom("_emdash_comments")
-				.select((eb) => eb.fn.count("id").as("count"))
-				.where("status", "=", "spam")
-				.executeTakeFirst(),
-			this.db
-				.selectFrom("_emdash_comments")
-				.select((eb) => eb.fn.count("id").as("count"))
-				.where("status", "=", "trash")
-				.executeTakeFirst(),
-		]);
+		const row = await this.db
+			.selectNoFrom([
+				statusCount("pending").as("pending"),
+				statusCount("approved").as("approved"),
+				statusCount("spam").as("spam"),
+				statusCount("trash").as("trash"),
+			])
+			.executeTakeFirst();
 
 		return {
-			pending: Number(pending?.count ?? 0),
-			approved: Number(approved?.count ?? 0),
-			spam: Number(spam?.count ?? 0),
-			trash: Number(trash?.count ?? 0),
+			pending: Number(row?.pending ?? 0),
+			approved: Number(row?.approved ?? 0),
+			spam: Number(row?.spam ?? 0),
+			trash: Number(row?.trash ?? 0),
 		};
 	}
 

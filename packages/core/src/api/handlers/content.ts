@@ -39,7 +39,6 @@ import {
 	type ContentSeoInput,
 	type FindManyOptions,
 } from "../../database/repositories/types.js";
-import { UserRepository } from "../../database/repositories/user.js";
 import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
@@ -1140,18 +1139,11 @@ export async function handleContentAuthors(
 	collection: string,
 ): Promise<ApiResult<{ items: ContentAuthor[] }>> {
 	try {
-		const repo = new ContentRepository(db);
-		const authorIds = await repo.findDistinctAuthorIds(collection);
-		if (authorIds.length === 0) {
-			return { success: true, data: { items: [] } };
-		}
+		const users = await new ContentRepository(db).findAuthors(collection);
 
-		const userRepo = new UserRepository(db);
-		const users = await userRepo.findByIds(authorIds);
-
-		const items: ContentAuthor[] = users
-			.map((u) => ({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatarUrl }))
-			.toSorted((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email));
+		const items: ContentAuthor[] = users.toSorted((a, b) =>
+			(a.name ?? a.email).localeCompare(b.name ?? b.email),
+		);
 
 		return { success: true, data: { items } };
 	} catch (error) {
