@@ -5,6 +5,7 @@
  */
 
 import { htmlBlockFields } from "@emdash-cms/admin/html-block";
+import { normalizeAdjacentLinks } from "@emdash-cms/admin/internal/portable-text-links";
 import {
 	UnsafePortableTextTableError,
 	proseMirrorTableToPortableText,
@@ -566,7 +567,16 @@ function convertInlineContent(
 		});
 	}
 
-	return { children, markDefs };
+	return {
+		children,
+		markDefs: normalizeAdjacentLinks(
+			children,
+			markDefs,
+			new Set(
+				nodes.flatMap((node) => portableTextMarkDefsFromMarks(node.marks).map((def) => def._key)),
+			),
+		),
+	};
 }
 
 /**
