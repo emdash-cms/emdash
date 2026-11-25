@@ -25,6 +25,11 @@ export interface SignupConfig {
 	siteName: string;
 	/** Optional email sender. When omitted, signup verification cannot be sent. */
 	email?: EmailSendFn;
+	/**
+	 * Wait 100-250 ms before resolving when nothing is sent. Defaults to true.
+	 * Set to false when the call runs after the response has been sent.
+	 */
+	delayWhenUnsent?: boolean;
 }
 
 /**
@@ -66,7 +71,7 @@ export async function requestSignup(
 	const existing = await adapter.getUserByEmail(email);
 	if (existing) {
 		// Don't reveal that user exists - add delay to match successful path timing
-		await timingDelay();
+		if (config.delayWhenUnsent !== false) await timingDelay();
 		return;
 	}
 
@@ -74,7 +79,7 @@ export async function requestSignup(
 	const signup = await canSignup(adapter, email);
 	if (!signup) {
 		// Don't reveal that domain is not allowed - add delay to match successful path timing
-		await timingDelay();
+		if (config.delayWhenUnsent !== false) await timingDelay();
 		return;
 	}
 
