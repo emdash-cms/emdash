@@ -37,8 +37,8 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 | `comments:read`                     | `ctx.comments.get()`, `ctx.comments.list()`, `ctx.comments.count()` and comment personal data |
 | `comments:moderate`                 | `ctx.comments.setStatus()` with expected-status concurrency control (implies `comments:read`) |
 | `schema:read`                       | `ctx.schema.listCollections()`, `ctx.schema.getCollection()`                      |
-| `admin.editor-draft:read`           | `routeCtx.input.draft` for extension-selected unsaved editor fields in trusted editor panels |
-| `admin.editor-draft:patch`          | Whole-field `set` and `clear` draft patch responses from trusted editor panel routes (independent of `admin.editor-draft:read`) |
+| `admin.editor-draft:read`           | `routeCtx.input.draft` on explicit editor panel and editor action interactions, scoped to fields selected by `draft.read` |
+| `admin.editor-draft:patch`          | Returning whole-field `set` and `clear` draft `patch` proposals from editor panel and editor action routes, scoped to `draft.patch` |
 | `hooks.content-policy:register`     | `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` policy hooks |
 | `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
 | `taxonomies:write`                  | `ctx.taxonomies.createTerm()`, `ctx.taxonomies.addEntryTerms()`, `ctx.taxonomies.removeEntryTerms()` (implies `taxonomies:read`) |
@@ -64,6 +64,7 @@ The following rules affect which capabilities a plugin needs:
 - **Taxonomies are separate from content.** Taxonomy capabilities do not grant `content:read` or `content:write`. Declare the matching content capability if the plugin also reads or edits entry fields.
 - **Bylines are separate from content and users.** `bylines:read` does not grant `content:read` or `users:read`, and neither of those grants byline access. Declare `content:read` as well if the plugin lists entries to look up their credits.
 - **Publication policy is separate from content access.** `hooks.content-policy:register` lets a plugin inspect and reject publication state changes through policy hook events. It does not provide `ctx.content` or grant content editing or publication actions.
+- **Editor draft read and patch are separate and opt-in per extension.** `admin.editor-draft:read` and `admin.editor-draft:patch` do not imply one another. Each editor panel or action must also declare explicit `collections` and narrow `draft.read` or `draft.patch` in the manifest; panel load never receives draft data. See [Saved-entry panels and actions](/plugins/creating-plugins/block-kit/#saved-entry-panels-and-actions).
 - **`network:request:unrestricted` exists for user-configured URLs.** A webhook plugin where the operator types in the destination URL needs to reach hosts that aren't in the manifest. Plugins that always call known APIs should use `network:request` + `allowedHosts`.
 - **`email:send` is gated by configuration, not just the capability.** A plugin can declare `email:send`, but `ctx.email` will only be populated if some other plugin has registered an `email:deliver` transport.
 

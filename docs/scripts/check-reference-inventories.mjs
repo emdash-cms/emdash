@@ -437,6 +437,42 @@ function stringLiteralArray(source, name) {
 	});
 }
 
+const LINE_BREAK_PATTERN = /\r?\n/;
+const TABLE_FIRST_COLUMN_PATTERN = /^\|\s*`([^`]+)`\s*\|/;
+
+function firstTableBacktickValues(section) {
+	const lines = section.split(LINE_BREAK_PATTERN);
+	let inFence = false;
+	const values = [];
+	for (const line of lines) {
+		if (line.trim().startsWith("```")) {
+			inFence = !inFence;
+			continue;
+		}
+		if (inFence) continue;
+		const match = line.match(TABLE_FIRST_COLUMN_PATTERN);
+		if (match) {
+			values.push(match[1]);
+		} else if (values.length > 0) {
+			break;
+		}
+	}
+	return values;
+}
+
+function assertNoDuplicates(label, values) {
+	const seen = new Set();
+	const duplicates = new Set();
+	for (const value of values) {
+		if (seen.has(value)) duplicates.add(value);
+		seen.add(value);
+	}
+	if (duplicates.size > 0) {
+		const list = [...duplicates].toSorted((a, b) => a.localeCompare(b)).join(", ");
+		throw new Error(`${label} contains duplicate entries: ${list}`);
+	}
+}
+
 function checkPluginCapabilities() {
 	const source = parseSource("packages/plugin-types/src/manifest-schema.ts");
 	const capabilities = stringLiteralArray(source, "CURRENT_PLUGIN_CAPABILITIES");
@@ -444,7 +480,8 @@ function checkPluginCapabilities() {
 		"docs/src/content/docs/plugins/creating-plugins/capabilities.mdx",
 	);
 	const section = markdownSection(reference, "## Capability reference");
-	const documented = Array.from(section.matchAll(HOOK_TABLE_PATTERN), (match) => match[1]);
+	const documented = firstTableBacktickValues(section);
+	assertNoDuplicates("Plugin capabilities", documented);
 	compareInventory("Plugin capabilities", capabilities, documented);
 }
 
