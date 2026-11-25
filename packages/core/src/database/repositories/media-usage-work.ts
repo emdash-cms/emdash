@@ -719,6 +719,25 @@ export class MediaUsageWorkRepository {
 		return completed;
 	}
 
+	/**
+	 * Lock the collections' coverage rows ahead of their work rows. The capture
+	 * trigger a content write fires updates the coverage row before it queues
+	 * work, so taking them in the other order lets a write and a processing
+	 * transaction deadlock.
+	 */
+	async lockCollectionCoverage(collectionIds: readonly string[]): Promise<void> {
+		if (!isPostgres(this.db) || collectionIds.length === 0) return;
+		await this.db
+			.selectFrom("_emdash_media_usage_index_status")
+			.select("collection_id")
+			.where("adapter_id", "=", "content-media")
+			.where("scope_type", "=", "collection")
+			.where("collection_id", "in", [...new Set(collectionIds)].toSorted())
+			.orderBy("collection_id")
+			.forUpdate()
+			.execute();
+	}
+
 	async lockClaimedWorkBatch(inputs: readonly MediaUsageWorkLease[]): Promise<Set<string>> {
 		const unique = [
 			...new Map(

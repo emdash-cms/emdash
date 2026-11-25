@@ -219,6 +219,7 @@ async function processClaimedBatch(
 	candidates: readonly MediaUsageWorkRecord[],
 ): Promise<Map<string, MediaUsageWorkProcessingResult>> {
 	const results = new Map<string, MediaUsageWorkProcessingResult>();
+	await repo.lockCollectionCoverage(candidates.map((candidate) => candidate.collectionId));
 	const locked = await repo.lockClaimedWorkBatch(candidates.map(workLease));
 	const owned: MediaUsageWorkRecord[] = [];
 	for (const candidate of candidates) {
