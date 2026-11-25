@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { cssColor, cssLength } from "../../../src/utils/css-value.js";
+import { cssColor, cssLength, cssOpacity } from "../../../src/utils/css-value.js";
 
 describe("cssColor", () => {
 	it("keeps the color an upload's placeholder is stored as", () => {
@@ -15,6 +15,8 @@ describe("cssColor", () => {
 			"#336699cc",
 			"rebeccapurple",
 			"vivid-red",
+			"accent-1",
+			"var(--wp--preset--color--accent)",
 			"transparent",
 			"rgba(0, 0, 0, 0.5)",
 			"rgb(0 0 0 / 50%)",
@@ -27,16 +29,17 @@ describe("cssColor", () => {
 	});
 
 	it("drops a value that continues past the color", () => {
-		expect(cssColor("transparent;position:fixed;inset:0")).toBeUndefined();
-		expect(cssColor("#336699;opacity:0")).toBeUndefined();
-		expect(cssColor("rgb(0,0,0);position:fixed")).toBeUndefined();
+		expect(cssColor("transparent;outline:1px solid red")).toBeUndefined();
+		expect(cssColor("#336699;outline:0")).toBeUndefined();
+		expect(cssColor("rgb(0,0,0);outline:1px solid red")).toBeUndefined();
 		expect(cssColor("red !important")).toBeUndefined();
-		expect(cssColor("red\n;position:fixed")).toBeUndefined();
-		expect(cssColor("vivid-red;position:fixed")).toBeUndefined();
+		expect(cssColor("red\n;outline:1px solid red")).toBeUndefined();
+		expect(cssColor("vivid-red;outline:1px solid red")).toBeUndefined();
 	});
 
-	it("drops functions that can reference other values", () => {
-		expect(cssColor("var(--accent)")).toBeUndefined();
+	it("drops functions other than a single var() reference", () => {
+		expect(cssColor("var(--accent, red)")).toBeUndefined();
+		expect(cssColor("var(--accent);outline:1px solid red")).toBeUndefined();
 		expect(cssColor("url(https://example.com/a.png)")).toBeUndefined();
 		expect(cssColor("rgb(var(--r), 0, 0)")).toBeUndefined();
 	});
@@ -52,14 +55,22 @@ describe("cssColor", () => {
 
 describe("cssLength", () => {
 	it("keeps lengths and percentages", () => {
-		for (const length of ["0", "300px", "50vh", "12.5rem", "33.33%", "80dvh"]) {
+		for (const length of [
+			"0",
+			"300px",
+			"50vh",
+			"12.5rem",
+			"33.33%",
+			"80dvh",
+			"var(--hero-height)",
+		]) {
 			expect(cssLength(length)).toBe(length);
 		}
 	});
 
 	it("drops a value that continues past the length", () => {
-		expect(cssLength("300px;position:fixed;inset:0")).toBeUndefined();
-		expect(cssLength("50%;background:url(https://example.com/a.png)")).toBeUndefined();
+		expect(cssLength("300px;outline:1px solid red")).toBeUndefined();
+		expect(cssLength("50%;outline:1px solid red")).toBeUndefined();
 		expect(cssLength("300px !important")).toBeUndefined();
 	});
 
@@ -71,5 +82,29 @@ describe("cssLength", () => {
 		expect(cssLength("calc(100% - 1px)")).toBeUndefined();
 		expect(cssLength(300)).toBeUndefined();
 		expect(cssLength(undefined)).toBeUndefined();
+	});
+});
+
+describe("cssOpacity", () => {
+	it("keeps numbers and numeric strings", () => {
+		expect(cssOpacity(0.3)).toBe(0.3);
+		expect(cssOpacity("0.3")).toBe(0.3);
+		expect(cssOpacity(".5")).toBe(0.5);
+		expect(cssOpacity("1")).toBe(1);
+	});
+
+	it("clamps values outside 0 to 1", () => {
+		expect(cssOpacity(1.5)).toBe(1);
+		expect(cssOpacity(-1)).toBe(0);
+		expect(cssOpacity("2")).toBe(1);
+	});
+
+	it("drops values that are not a single number", () => {
+		expect(cssOpacity("")).toBeUndefined();
+		expect(cssOpacity("0.3;outline:1px solid red")).toBeUndefined();
+		expect(cssOpacity("0x1")).toBeUndefined();
+		expect(cssOpacity(Number.NaN)).toBeUndefined();
+		expect(cssOpacity(Number.POSITIVE_INFINITY)).toBeUndefined();
+		expect(cssOpacity(null)).toBeUndefined();
 	});
 });

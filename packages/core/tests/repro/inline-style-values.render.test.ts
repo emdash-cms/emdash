@@ -12,7 +12,7 @@ import EmDashImage from "../../src/components/EmDashImage.astro";
 import Gallery from "../../src/components/Gallery.astro";
 import Image from "../../src/components/Image.astro";
 
-const INJECTED = ";position:fixed;inset:0;opacity:0";
+const EXTRA_DECLARATION = ";outline:1px solid red";
 
 const locals = {
 	emdash: { getPublicMediaUrl: (key: string) => `/_emdash/api/media/file/${key}` },
@@ -50,8 +50,14 @@ describe("stored values in inline styles", () => {
 
 	it("drops an image block's dominant color that is not a color", async () => {
 		for (const node of [
-			{ dominantColor: `transparent${INJECTED}` },
-			{ asset: { _ref: "", url: "/photo.png", meta: { dominantColor: `#336699${INJECTED}` } } },
+			{ dominantColor: `transparent${EXTRA_DECLARATION}` },
+			{
+				asset: {
+					_ref: "",
+					url: "/photo.png",
+					meta: { dominantColor: `#336699${EXTRA_DECLARATION}` },
+				},
+			},
 		]) {
 			const html = await render(Image, {
 				node: {
@@ -75,8 +81,8 @@ describe("stored values in inline styles", () => {
 		expect(styles(kept)).toEqual(["background-color: #336699;"]);
 
 		for (const value of [
-			{ dominantColor: `transparent${INJECTED}` },
-			{ meta: { dominantColor: `transparent${INJECTED}` } },
+			{ dominantColor: `transparent${EXTRA_DECLARATION}` },
+			{ meta: { dominantColor: `transparent${EXTRA_DECLARATION}` } },
 		]) {
 			const html = await render(EmDashImage, { image: { ...image, ...value } });
 
@@ -91,10 +97,10 @@ describe("stored values in inline styles", () => {
 			node: {
 				_type: "gallery",
 				_key: "g",
-				columns: `2${INJECTED}`,
+				columns: `2${EXTRA_DECLARATION}`,
 				images: [
 					{ ...image, _key: "a", dominantColor: "rgb(51,102,153)" },
-					{ ...image, _key: "b", dominantColor: `transparent${INJECTED}` },
+					{ ...image, _key: "b", dominantColor: `transparent${EXTRA_DECLARATION}` },
 				],
 			},
 		});
@@ -131,15 +137,33 @@ describe("stored values in inline styles", () => {
 		expect(styles(html)).toEqual(["min-height: 50vh;", "background-color: #112233; opacity: 0.3;"]);
 	});
 
+	it("renders a cover's preset color name and numeric string opacity", async () => {
+		const html = await render(Cover, {
+			node: {
+				_type: "cover",
+				_key: "c",
+				backgroundImage: "https://example.com/hall.jpg",
+				overlayColor: "accent-1",
+				overlayOpacity: "0.3",
+				content: [paragraph],
+			},
+		});
+
+		expect(styles(html)).toEqual([
+			"min-height: 300px;",
+			"background-color: accent-1; opacity: 0.3;",
+		]);
+	});
+
 	it("falls back to a cover's defaults for values that are not valid", async () => {
 		const html = await render(Cover, {
 			node: {
 				_type: "cover",
 				_key: "c",
 				backgroundImage: "https://example.com/hall.jpg",
-				overlayColor: `#112233${INJECTED}`,
-				overlayOpacity: `0.3${INJECTED}`,
-				minHeight: `50vh${INJECTED}`,
+				overlayColor: `#112233${EXTRA_DECLARATION}`,
+				overlayOpacity: `0.3${EXTRA_DECLARATION}`,
+				minHeight: `50vh${EXTRA_DECLARATION}`,
 				content: [paragraph],
 			},
 		});
@@ -154,7 +178,7 @@ describe("stored values in inline styles", () => {
 				_key: "c",
 				columns: [
 					{ _type: "column", _key: "a", width: "33.33%", content: [paragraph] },
-					{ _type: "column", _key: "b", width: `66.66%${INJECTED}`, content: [paragraph] },
+					{ _type: "column", _key: "b", width: `66.66%${EXTRA_DECLARATION}`, content: [paragraph] },
 				],
 			},
 		});
