@@ -1139,20 +1139,11 @@ export async function handleContentAuthors(
 	collection: string,
 ): Promise<ApiResult<{ items: ContentAuthor[] }>> {
 	try {
-		validateIdentifier(collection, "collection");
-		const users = await db
-			.selectFrom("users")
-			.select(["id", "name", "email", "avatar_url"])
-			.where(
-				"id",
-				"in",
-				sql<string>`(SELECT author_id FROM ${sql.ref(`ec_${collection}`)} WHERE deleted_at IS NULL AND author_id IS NOT NULL)`,
-			)
-			.execute();
+		const users = await new ContentRepository(db).findAuthors(collection);
 
-		const items: ContentAuthor[] = users
-			.map((u) => ({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatar_url }))
-			.toSorted((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email));
+		const items: ContentAuthor[] = users.toSorted((a, b) =>
+			(a.name ?? a.email).localeCompare(b.name ?? b.email),
+		);
 
 		return { success: true, data: { items } };
 	} catch (error) {
