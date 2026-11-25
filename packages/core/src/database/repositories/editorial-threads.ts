@@ -2,7 +2,7 @@ import { sql, type Kysely, type Selectable, type SelectQueryBuilder } from "kyse
 import { monotonicFactory } from "ulidx";
 
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
-import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
+import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js";
 import type { Database, EditorialThreadTable } from "../types.js";
 import { validateIdentifier } from "../validate.js";
 import {
@@ -581,6 +581,12 @@ export class EditorialThreadRepository {
 			return batched.slice(1).reduce((total, result) => total + result.rows.length, 0);
 		}
 
+		// A PostgreSQL UPDATE that waits for a thread lock still reads the entry
+		// from its earlier snapshot, so hold the entry row while the anchors change.
+		if (isPostgres(this.db)) {
+			const locked = await sql`${currentEntry} FOR UPDATE`.execute(this.db);
+			if (locked.rows.length === 0) throw new ContentMutationConflictError();
+		}
 		let updated = 0;
 		for (const write of writes) {
 			// oxlint-disable-next-line no-await-in-loop -- each row gets its own anchor value
