@@ -78,7 +78,7 @@ function context(definition: FormDefinition, data: Record<string, unknown>) {
 		storage: {
 			forms: {
 				get: async (id: string) => (id === "contact" ? definition : null),
-				put: async () => {},
+				updateIf: async () => ({ applied: false }),
 				query: async () => ({ items: [] }),
 			},
 			submissions: { put: async () => {}, count: async () => 1 },
