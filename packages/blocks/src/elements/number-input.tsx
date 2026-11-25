@@ -43,6 +43,7 @@ export function NumberInputElementComponent({
 			form={form}
 			label={element.label}
 			type="number"
+			step="any"
 			min={element.min}
 			max={element.max}
 			defaultValue={element.initial_value}

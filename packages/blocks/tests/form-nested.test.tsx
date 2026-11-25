@@ -74,4 +74,31 @@ describe("form block inside another form", () => {
 		fireEvent.click(button);
 		expect(onAction).toHaveBeenCalledTimes(1);
 	});
+
+	it.each(["5.00", "5.25"])("submits %s with a fractional minimum", (value) => {
+		const onAction = vi.fn();
+		render(
+			<BlockRenderer
+				blocks={[
+					{
+						type: "form",
+						block_id: "plan",
+						fields: [{ type: "number_input", action_id: "price", label: "Price", min: 0.01 }],
+						submit: { label: "Save price", action_id: "save_price" },
+					},
+				]}
+				onAction={onAction}
+			/>,
+		);
+
+		fireEvent.change(screen.getByRole("spinbutton", { name: "Price" }), { target: { value } });
+		fireEvent.click(screen.getByRole("button", { name: "Save price" }));
+
+		expect(onAction).toHaveBeenCalledExactlyOnceWith({
+			type: "form_submit",
+			action_id: "save_price",
+			block_id: "plan",
+			values: { price: Number(value) },
+		});
+	});
 });
