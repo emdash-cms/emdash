@@ -112,46 +112,67 @@ describe("first admin through AT Protocol during setup", () => {
 		expect(locations).toContain("/_emdash/admin/login?error=signup_not_allowed");
 	});
 
-	describe("when the account link fails after the admin is created", () => {
-		async function failedFirstSignIn() {
-			const failingDb = db.withPlugin(failFirstInsertInto("oauth_accounts"));
-			expect(await signIn("did:plc:owner", failingDb)).toBe(
-				"/_emdash/admin/login?error=atproto_error",
-			);
-			expect(await db.selectFrom("oauth_accounts").select("user_id").execute()).toEqual([]);
-		}
+	async function storedClaim() {
+		const row = await db.selectFrom("users").select("data").executeTakeFirstOrThrow();
+		return row.data ? (JSON.parse(row.data) as Record<string, unknown>).firstAdminClaim : undefined;
+	}
 
-		it("lets the same DID finish setup", async () => {
-			await failedFirstSignIn();
-
-			expect(await signIn("did:plc:owner")).toBe("/_emdash/admin");
-
-			const [owner] = await db.selectFrom("users").select(["id", "email", "role"]).execute();
-			expect(owner).toMatchObject({ email: "owner@example.com", role: Role.ADMIN });
-			expect(
-				await db.selectFrom("oauth_accounts").select(["provider_account_id", "user_id"]).execute(),
-			).toEqual([{ provider_account_id: "did:plc:owner", user_id: owner?.id }]);
-			expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBe(true);
-		});
-
-		it("refuses a different DID", async () => {
-			await failedFirstSignIn();
-
-			expect(await signIn("did:plc:second")).toBe("/_emdash/admin/login?error=signup_not_allowed");
-
-			expect(await db.selectFrom("oauth_accounts").select("user_id").execute()).toEqual([]);
-			expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBeNull();
-		});
-
-		it("removes the claim once the DID is linked", async () => {
-			await failedFirstSignIn();
-			expect(await db.selectFrom("users").select("data").executeTakeFirst()).not.toEqual({
-				data: null,
+	describe.each([
+		{ wizardEmail: "owner@example.com", storedEmail: "owner@example.com" },
+		{ wizardEmail: undefined, storedEmail: "did-plc-owner@atproto.invalid" },
+	])(
+		"when the account link fails after the admin is created (wizard email: $wizardEmail)",
+		({ wizardEmail, storedEmail }) => {
+			beforeEach(async () => {
+				await new OptionsRepository(db).set("emdash:setup_state", { email: wizardEmail });
 			});
 
-			await signIn("did:plc:owner");
+			async function failedFirstSignIn() {
+				const failingDb = db.withPlugin(failFirstInsertInto("oauth_accounts"));
+				expect(await signIn("did:plc:owner", failingDb)).toBe(
+					"/_emdash/admin/login?error=atproto_error",
+				);
+				expect(await db.selectFrom("oauth_accounts").select("user_id").execute()).toEqual([]);
+			}
 
-			expect(await db.selectFrom("users").select("data").execute()).toEqual([{ data: null }]);
-		});
-	});
+			it("lets the same DID finish setup", async () => {
+				await failedFirstSignIn();
+
+				expect(await signIn("did:plc:owner")).toBe("/_emdash/admin");
+
+				const [owner] = await db.selectFrom("users").select(["id", "email", "role"]).execute();
+				expect(owner).toMatchObject({ email: storedEmail, role: Role.ADMIN });
+				expect(
+					await db
+						.selectFrom("oauth_accounts")
+						.select(["provider_account_id", "user_id"])
+						.execute(),
+				).toEqual([{ provider_account_id: "did:plc:owner", user_id: owner?.id }]);
+				expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBe(true);
+			});
+
+			it("refuses a different DID", async () => {
+				await failedFirstSignIn();
+
+				expect(await signIn("did:plc:second")).toBe(
+					"/_emdash/admin/login?error=signup_not_allowed",
+				);
+
+				expect(await db.selectFrom("oauth_accounts").select("user_id").execute()).toEqual([]);
+				expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBeNull();
+			});
+
+			it("removes the claim once the DID is linked", async () => {
+				await failedFirstSignIn();
+				expect(await storedClaim()).toEqual({
+					provider: "atproto",
+					providerAccountId: "did:plc:owner",
+				});
+
+				await signIn("did:plc:owner");
+
+				expect(await storedClaim()).toBeUndefined();
+			});
+		},
+	);
 });

@@ -12,11 +12,12 @@ import { ulid } from "ulidx";
 
 import { isPostgres } from "../database/dialect-helpers.js";
 import { OptionsRepository } from "../database/repositories/options.js";
+import { UserRepository, type UserDataKey } from "../database/repositories/user.js";
 import type { Database } from "../database/types.js";
 
 export const FIRST_ADMIN_LOCK_KEY = 1_168_624_764;
 
-const FIRST_ADMIN_CLAIM_KEY = "firstAdminClaim";
+const FIRST_ADMIN_CLAIM_KEY = "firstAdminClaim" satisfies UserDataKey;
 
 export interface FirstAdmin {
 	id: string;
@@ -121,19 +122,7 @@ export async function findClaimedFirstAdmin(
 
 /** Remove the first-admin claim once its sign-in account is linked. */
 export async function clearFirstAdminClaim(db: Kysely<Database>, userId: string): Promise<void> {
-	const user = await db
-		.selectFrom("users")
-		.select("data")
-		.where("id", "=", userId)
-		.executeTakeFirst();
-	const data = readClaimData(user?.data ?? null);
-	if (!data || !(FIRST_ADMIN_CLAIM_KEY in data)) return;
-	delete data[FIRST_ADMIN_CLAIM_KEY];
-	await db
-		.updateTable("users")
-		.set({ data: Object.keys(data).length > 0 ? JSON.stringify(data) : null })
-		.where("id", "=", userId)
-		.execute();
+	await new UserRepository(db).removeDataKey(userId, FIRST_ADMIN_CLAIM_KEY);
 }
 
 /**

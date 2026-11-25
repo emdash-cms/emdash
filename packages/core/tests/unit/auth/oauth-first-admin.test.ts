@@ -125,18 +125,22 @@ describe("first admin through an OAuth provider during setup", () => {
 		});
 	});
 
+	async function storedClaim() {
+		const row = await db.selectFrom("users").select("data").executeTakeFirstOrThrow();
+		return row.data ? (JSON.parse(row.data) as Record<string, unknown>).firstAdminClaim : undefined;
+	}
+
 	it("finishes setup and removes the claim when a retry follows a failed account link", async () => {
 		const failingDb = db.withPlugin(failFirstInsertInto("oauth_accounts"));
 		const firstTry = await approve("owner", failingDb);
 		expect(await firstTry()).toBe("/_emdash/admin/login?error=oauth_error");
-		expect(await db.selectFrom("users").select("data").execute()).not.toEqual([{ data: null }]);
+		expect(await storedClaim()).toEqual({ provider: "github", providerAccountId: "1" });
 
 		const retry = await approve("owner", db);
 		expect(await retry()).toBe("/_emdash/admin");
 
-		expect(await db.selectFrom("users").select(["role", "data"]).execute()).toEqual([
-			{ role: Role.ADMIN, data: null },
-		]);
+		expect(await db.selectFrom("users").select("role").execute()).toEqual([{ role: Role.ADMIN }]);
+		expect(await storedClaim()).toBeUndefined();
 		expect(await db.selectFrom("oauth_accounts").select("provider_account_id").execute()).toEqual([
 			{ provider_account_id: "1" },
 		]);

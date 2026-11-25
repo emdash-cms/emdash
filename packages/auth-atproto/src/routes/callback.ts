@@ -23,6 +23,7 @@ import {
 	OAuthError,
 	type RoleLevel,
 	type OAuthProfile,
+	type User,
 } from "@emdash-cms/auth";
 import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
 import type { AuthProviderDescriptor } from "emdash";
@@ -155,33 +156,54 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 			emailVerified: false,
 		};
 
+		// A first admin created by this DID whose account link never landed
+		// resumes here. findOrCreateOAuthUser would otherwise refuse the
+		// unverified synthetic email when the admin was stored with it.
+		const resumeClaimedFirstAdmin = async (): Promise<User | null> => {
+			const adminId = await findClaimedFirstAdmin(emdash.db, {
+				provider: "atproto",
+				providerAccountId: did,
+			});
+			if (!adminId) return null;
+			if (!(await adapter.getOAuthAccount("atproto", did))) {
+				await adapter.createOAuthAccount({
+					provider: "atproto",
+					providerAccountId: did,
+					userId: adminId,
+				});
+			}
+			return adapter.getUserById(adminId);
+		};
+
 		// Use shared find-or-create with canSelfSignup policy.
 		// When no allowlists are configured, forbid self-signup — only the
 		// initial admin (first user during setup) is allowed through.
-		const user = await findOrCreateOAuthUser(adapter, "atproto", profile, async () => {
-			if (isFirstUser) {
-				return {
-					allowed: true,
-					role: Role.ADMIN,
-					createUser: async (newUser, account) => {
-						const setupState = await options.get<Record<string, unknown>>("emdash:setup_state");
-						const setupEmail = typeof setupState?.email === "string" ? setupState.email : "";
-						const admin = await createFirstAdmin(emdash.db, {
-							email: setupEmail || newUser.email,
-							name: newUser.name ?? null,
-							emailVerified: setupEmail !== "",
-							claim: account,
-						});
-						const adminId = admin?.id ?? (await findClaimedFirstAdmin(emdash.db, account));
-						return adminId ? adapter.getUserById(adminId) : null;
-					},
-				};
-			}
-			if (!hasAllowedDIDs && !hasAllowedHandles) {
-				return null;
-			}
-			return { allowed: true, role: defaultRole };
-		});
+		const claimedAdmin = isFirstUser ? await resumeClaimedFirstAdmin() : null;
+		const user =
+			claimedAdmin ??
+			(await findOrCreateOAuthUser(adapter, "atproto", profile, async () => {
+				if (isFirstUser) {
+					return {
+						allowed: true,
+						role: Role.ADMIN,
+						createUser: async (newUser, account) => {
+							const setupState = await options.get<Record<string, unknown>>("emdash:setup_state");
+							const setupEmail = typeof setupState?.email === "string" ? setupState.email : "";
+							const admin = await createFirstAdmin(emdash.db, {
+								email: setupEmail || newUser.email,
+								name: newUser.name ?? null,
+								emailVerified: setupEmail !== "",
+								claim: account,
+							});
+							return admin ? adapter.getUserById(admin.id) : null;
+						},
+					};
+				}
+				if (!hasAllowedDIDs && !hasAllowedHandles) {
+					return null;
+				}
+				return { allowed: true, role: defaultRole };
+			}));
 
 		if (isFirstUser) {
 			await clearFirstAdminClaim(emdash.db, user.id);
