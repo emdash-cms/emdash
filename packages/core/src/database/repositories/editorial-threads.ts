@@ -1,6 +1,7 @@
-import type { Kysely, Selectable, SelectQueryBuilder } from "kysely";
+import { sql, type Kysely, type Selectable, type SelectQueryBuilder } from "kysely";
 import { monotonicFactory } from "ulidx";
 
+import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
 import type { Database, EditorialThreadTable } from "../types.js";
 import { decodeCursor, encodeCursor, type FindManyResult } from "./types.js";
 
@@ -304,7 +305,7 @@ export class EditorialThreadRepository {
 	/**
 	 * Creates a thread together with its first comment. Call it inside
 	 * `withTransaction`, so both rows commit together where the database has
-	 * transactions.
+	 * transactions. On D1 they go in one batch.
 	 */
 	async createThread(input: {
 		collection: string;
@@ -316,45 +317,31 @@ export class EditorialThreadRepository {
 	}): Promise<{ threadId: string; commentId: string }> {
 		const threadId = ulid();
 		const commentId = ulid();
-		await this.db
-			.insertInto("_emdash_editorial_threads")
-			.values({
-				id: threadId,
-				collection: input.collection,
-				entry_id: input.entryId,
-				anchor: JSON.stringify(input.anchor),
-				anchor_state: "attached",
-				status: "open",
-				created_by: input.createdBy,
-				resolved_by: null,
-				resolved_at: null,
-				created_at: input.now,
-				updated_at: input.now,
-			})
-			.execute();
-		try {
-			await this.db
-				.insertInto("_emdash_editorial_comments")
-				.values({
-					id: commentId,
-					thread_id: threadId,
-					author_id: input.createdBy,
-					body: input.body,
-					created_at: input.now,
-					edited_at: null,
-					deleted_at: null,
-				})
-				.execute();
-		} catch (error) {
-			// Without a transaction, as on D1, the thread would stay behind with no comments.
-			if (!this.db.isTransaction) {
-				await this.db
-					.deleteFrom("_emdash_editorial_threads")
-					.where("id", "=", threadId)
-					.execute()
-					.catch(() => {});
-			}
-			throw error;
+		const insertThread = this.db.insertInto("_emdash_editorial_threads").values({
+			id: threadId,
+			collection: input.collection,
+			entry_id: input.entryId,
+			anchor: JSON.stringify(input.anchor),
+			anchor_state: "attached",
+			status: "open",
+			created_by: input.createdBy,
+			resolved_by: null,
+			resolved_at: null,
+			created_at: input.now,
+			updated_at: input.now,
+		});
+		const insertComment = this.db.insertInto("_emdash_editorial_comments").values({
+			id: commentId,
+			thread_id: threadId,
+			author_id: input.createdBy,
+			body: input.body,
+			created_at: input.now,
+			edited_at: null,
+			deleted_at: null,
+		});
+		if (!(await executeAtomicBatchIfSupported(this.db, [insertThread, insertComment]))) {
+			await insertThread.execute();
+			await insertComment.execute();
 		}
 		return { threadId, commentId };
 	}
@@ -362,27 +349,37 @@ export class EditorialThreadRepository {
 	/**
 	 * Adds a reply, reopening the thread if it was resolved. Call it inside
 	 * `withTransaction`, so the reply and the reopening commit together.
+	 * Returns the reply's ID, or `null` when the thread no longer exists.
 	 */
 	async addComment(input: {
 		threadId: string;
 		authorId: string;
 		body: string;
 		now: string;
-	}): Promise<string> {
+	}): Promise<string | null> {
 		const id = ulid();
-		await this.lockThread(input.threadId);
-		await this.db
+		if (!(await this.lockThread(input.threadId))) return null;
+		// Selecting from the thread keeps a thread deleted since the lock, as on D1, from failing the foreign key.
+		const inserted = await this.db
 			.insertInto("_emdash_editorial_comments")
-			.values({
-				id,
-				thread_id: input.threadId,
-				author_id: input.authorId,
-				body: input.body,
-				created_at: input.now,
-				edited_at: null,
-				deleted_at: null,
-			})
+			.columns(["id", "thread_id", "author_id", "body", "created_at", "edited_at", "deleted_at"])
+			.expression((eb) =>
+				eb
+					.selectFrom("_emdash_editorial_threads")
+					.select([
+						eb.val(id).as("id"),
+						eb.val(input.threadId).as("thread_id"),
+						eb.val(input.authorId).as("author_id"),
+						eb.val(input.body).as("body"),
+						eb.val(input.now).as("created_at"),
+						sql<null>`NULL`.as("edited_at"),
+						sql<null>`NULL`.as("deleted_at"),
+					])
+					.where("id", "=", input.threadId),
+			)
+			.returning("id")
 			.execute();
+		if (inserted.length === 0) return null;
 		await this.db
 			.updateTable("_emdash_editorial_threads")
 			.set({ status: "open", resolved_by: null, resolved_at: null, updated_at: input.now })
@@ -391,8 +388,14 @@ export class EditorialThreadRepository {
 		return id;
 	}
 
-	async editComment(input: { commentId: string; threadId: string; body: string; now: string }) {
-		await this.lockThread(input.threadId);
+	/** Returns whether a live comment on the thread was edited. */
+	async editComment(input: {
+		commentId: string;
+		threadId: string;
+		body: string;
+		now: string;
+	}): Promise<boolean> {
+		if (!(await this.lockThread(input.threadId))) return false;
 		const edited = await this.db
 			.updateTable("_emdash_editorial_comments")
 			.set({ body: input.body, edited_at: input.now })
@@ -400,31 +403,31 @@ export class EditorialThreadRepository {
 			.where("thread_id", "=", input.threadId)
 			.where("deleted_at", "is", null)
 			.executeTakeFirst();
-		if (Number(edited.numUpdatedRows) > 0) await this.touch(input.threadId, input.now);
+		if (Number(edited.numUpdatedRows) === 0) return false;
+		await this.touch(input.threadId, input.now);
+		return true;
 	}
 
 	/**
 	 * Clears the comment's body and marks it deleted. When no live comment
 	 * remains, the thread goes too. Returns whether the thread was deleted.
-	 * Call it inside `withTransaction`.
+	 * Call it inside `withTransaction`. On D1 the writes go in one batch.
 	 */
 	async deleteComment(input: {
 		commentId: string;
 		threadId: string;
 		now: string;
 	}): Promise<boolean> {
-		await this.lockThread(input.threadId);
-		const tombstoned = await this.db
+		const tombstone = this.db
 			.updateTable("_emdash_editorial_comments")
 			.set({ body: "", deleted_at: input.now })
 			.where("id", "=", input.commentId)
 			.where("thread_id", "=", input.threadId)
 			.where("deleted_at", "is", null)
-			.executeTakeFirst();
-		if (Number(tombstoned.numUpdatedRows) === 0) return false;
+			.returning("id");
 		// Checking for live comments in the delete itself keeps a reply that lands
-		// after the update from going with the thread.
-		const deleted = await this.db
+		// after the tombstone from going with the thread.
+		const deleteThread = this.db
 			.deleteFrom("_emdash_editorial_threads")
 			.where("id", "=", input.threadId)
 			.where(({ exists, not, selectFrom }) =>
@@ -437,15 +440,45 @@ export class EditorialThreadRepository {
 					),
 				),
 			)
-			.executeTakeFirst();
-		if (Number(deleted.numDeletedRows ?? 0) > 0) {
-			await this.db
-				.deleteFrom("_emdash_editorial_comments")
-				.where("thread_id", "=", input.threadId)
-				.execute();
+			.returning("id");
+		const deleteOrphans = this.db
+			.deleteFrom("_emdash_editorial_comments")
+			.where("thread_id", "=", input.threadId)
+			.where(({ exists, not, selectFrom }) =>
+				not(
+					exists(
+						selectFrom("_emdash_editorial_threads").select("id").where("id", "=", input.threadId),
+					),
+				),
+			);
+		const touch = this.db
+			.updateTable("_emdash_editorial_threads")
+			.set({ updated_at: input.now })
+			.where("id", "=", input.threadId)
+			.where(({ exists, selectFrom }) =>
+				exists(
+					selectFrom("_emdash_editorial_comments")
+						.select("id")
+						.where("id", "=", input.commentId)
+						.where("deleted_at", "=", input.now),
+				),
+			);
+
+		const batched = await executeAtomicBatchIfSupported(this.db, [
+			tombstone,
+			deleteThread,
+			deleteOrphans,
+			touch,
+		]);
+		if (batched) return batched[0]?.rows.length === 1 && batched[1]?.rows.length === 1;
+
+		await this.lockThread(input.threadId);
+		if ((await tombstone.execute()).length === 0) return false;
+		if ((await deleteThread.execute()).length > 0) {
+			await deleteOrphans.execute();
 			return true;
 		}
-		await this.touch(input.threadId, input.now);
+		await touch.execute();
 		return false;
 	}
 
@@ -498,6 +531,7 @@ export class EditorialThreadRepository {
 	}
 
 	async deleteThread(threadId: string): Promise<void> {
+		await this.lockThread(threadId);
 		await this.db
 			.deleteFrom("_emdash_editorial_comments")
 			.where("thread_id", "=", threadId)
@@ -514,6 +548,13 @@ export class EditorialThreadRepository {
 	}
 
 	private async deleteWhere(collection: string, entryId?: string): Promise<void> {
+		// Locks the threads before their comments, in the order comment writes take them.
+		let locked = this.db
+			.updateTable("_emdash_editorial_threads")
+			.set((eb) => ({ updated_at: eb.ref("updated_at") }))
+			.where("collection", "=", collection);
+		if (entryId !== undefined) locked = locked.where("entry_id", "=", entryId);
+		await locked.execute();
 		await this.db
 			.deleteFrom("_emdash_editorial_comments")
 			.where((eb) => {
@@ -536,13 +577,15 @@ export class EditorialThreadRepository {
 	 * Takes the thread row's write lock, so concurrent transactions changing
 	 * one thread's comments run one after another and each sees the comments
 	 * the last one committed. SQLite already allows one writer at a time.
+	 * Returns whether the thread exists.
 	 */
-	private async lockThread(threadId: string): Promise<void> {
-		await this.db
+	private async lockThread(threadId: string): Promise<boolean> {
+		const locked = await this.db
 			.updateTable("_emdash_editorial_threads")
 			.set((eb) => ({ updated_at: eb.ref("updated_at") }))
 			.where("id", "=", threadId)
-			.execute();
+			.executeTakeFirst();
+		return Number(locked.numUpdatedRows) > 0;
 	}
 
 	private async touch(threadId: string, now: string): Promise<void> {

@@ -11,6 +11,7 @@ import {
 	EditorialThreadRepository,
 	type EditorialAnchor,
 } from "../../../src/database/repositories/editorial-threads.js";
+import { withTransaction } from "../../../src/database/transaction.js";
 import type { Database } from "../../../src/database/types.js";
 import {
 	describeEachDialect,
@@ -259,19 +260,83 @@ describeEachDialect("editorial threads", (dialect) => {
 
 	it("leaves no thread behind when its first comment can't be stored", async () => {
 		await expect(
-			threads.createThread({
-				collection: "post",
-				entryId,
-				anchor: TEXT_ANCHOR,
-				createdBy: ADA,
-				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- a null body breaks the comment insert
-				body: null as unknown as string,
-				now: now(),
-			}),
+			withTransaction(db, (trx) =>
+				new EditorialThreadRepository(trx).createThread({
+					collection: "post",
+					entryId,
+					anchor: TEXT_ANCHOR,
+					createdBy: ADA,
+					// eslint-disable-next-line typescript/no-unsafe-type-assertion -- a null body breaks the comment insert
+					body: null as unknown as string,
+					now: now(),
+				}),
+			),
 		).rejects.toThrow();
 
 		expect((await threads.listForEntry("post", entryId, { limit: 50 })).items).toEqual([]);
 	});
+
+	it("reports a reply or an edit to a thread that has been deleted", async () => {
+		const { threadId, commentId } = await createThread();
+		await threads.deleteThread(threadId);
+
+		expect(
+			await threads.addComment({ threadId, authorId: LINUS, body: "Here.", now: now() }),
+		).toBeNull();
+		expect(await threads.editComment({ commentId, threadId, body: "Later", now: now() })).toBe(
+			false,
+		);
+		expect(await threads.findComment(commentId)).toBeNull();
+	});
+
+	it("reports an edit to a comment that has been deleted", async () => {
+		const { threadId, commentId } = await createThread();
+		await threads.addComment({ threadId, authorId: LINUS, body: "Here.", now: now() });
+		await threads.deleteComment({ commentId, threadId, now: now() });
+
+		expect(await threads.editComment({ commentId, threadId, body: "Later", now: now() })).toBe(
+			false,
+		);
+	});
+
+	it.runIf(dialect === "postgres")(
+		"deletes a thread while its comments are being edited without deadlocking",
+		async () => {
+			const { threadId, commentId: first } = await createThread();
+			const second = await threads.addComment({
+				threadId,
+				authorId: ADA,
+				body: "Also this.",
+				now: now(),
+			});
+			if (!second) throw new Error("Expected a reply");
+
+			let releaseEdit!: () => void;
+			const editHeld = new Promise<void>((resolve) => {
+				releaseEdit = resolve;
+			});
+			let markEdited!: () => void;
+			const edited = new Promise<void>((resolve) => {
+				markEdited = resolve;
+			});
+			const edits = db.transaction().execute(async (trx) => {
+				const repo = new EditorialThreadRepository(trx);
+				await repo.editComment({ commentId: second, threadId, body: "Changed", now: now() });
+				markEdited();
+				await editHeld;
+				await repo.editComment({ commentId: first, threadId, body: "Changed", now: now() });
+			});
+			await edited;
+			const deletion = db
+				.transaction()
+				.execute((trx) => new EditorialThreadRepository(trx).deleteThread(threadId));
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			releaseEdit();
+
+			await expect(Promise.all([edits, deletion])).resolves.toBeDefined();
+			expect(await threads.findThread(threadId)).toBeNull();
+		},
+	);
 
 	it("deletes the thread when its last live comment is deleted", async () => {
 		const { threadId, commentId } = await createThread();
