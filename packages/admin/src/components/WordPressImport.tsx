@@ -547,7 +547,14 @@ export function WordPressImport() {
 
 		// Build the WordPress Application Password authorization URL
 		const wpUrl = probeResult.url.replace(TRAILING_SLASH_REGEX, "");
-		const callbackUrl = `${window.location.origin}/_emdash/api/import/wordpress-plugin/callback`;
+		// The callback compares `state` with this cookie. WordPress keeps the
+		// existing query string when it appends its parameters to `success_url`.
+		const state = Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) =>
+			n.toString(36),
+		).join("");
+		const secure = window.location.protocol === "https:" ? "; secure" : "";
+		document.cookie = `emdash_wp_auth_state=${state}; path=/_emdash/; max-age=600; samesite=lax${secure}`;
+		const callbackUrl = `${window.location.origin}/_emdash/api/import/wordpress-plugin/callback?state=${state}`;
 
 		// WordPress requires a valid UUID for app_id
 		const appId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
