@@ -19,6 +19,19 @@ interface EditorDraftPatchPreviewProps {
 	onClose: () => void;
 }
 
+function annotates(child: unknown, markDefs: unknown[]): boolean {
+	if (typeof child !== "object" || child === null) return false;
+	if (!("marks" in child) || !Array.isArray(child.marks)) return false;
+	const marks: unknown[] = child.marks;
+	return markDefs.some(
+		(markDef) =>
+			typeof markDef === "object" &&
+			markDef !== null &&
+			"_key" in markDef &&
+			marks.includes(markDef._key),
+	);
+}
+
 function spanText(child: unknown): string | null {
 	if (typeof child !== "object" || child === null) return null;
 	if (!("_type" in child) || child._type !== "span") return null;
@@ -27,8 +40,9 @@ function spanText(child: unknown): string | null {
 
 /**
  * One rich-text block on one line. A text block reads as its text followed by the JSON of what
- * the text doesn't show: inline objects and the mark definitions that hold link targets. Any
- * other block is its JSON.
+ * the text doesn't show: inline objects and mark definitions. A block whose spans carry a mark
+ * definition, such as a link, is its JSON, since the text alone doesn't show which span it covers.
+ * Any other block is its JSON.
  */
 function describeBlock(block: unknown): string {
 	if (typeof block !== "object" || block === null) return JSON.stringify(block);
@@ -36,6 +50,7 @@ function describeBlock(block: unknown): string {
 	if (!("children" in block) || !Array.isArray(block.children)) return JSON.stringify(block);
 	const markDefs: unknown = "markDefs" in block ? block.markDefs : [];
 	if (!Array.isArray(markDefs)) return JSON.stringify(block);
+	if (block.children.some((child) => annotates(child, markDefs))) return JSON.stringify(block);
 	let text = "";
 	const rest: unknown[] = [];
 	for (const child of block.children) {

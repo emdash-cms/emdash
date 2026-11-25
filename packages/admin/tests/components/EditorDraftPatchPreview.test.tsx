@@ -61,6 +61,22 @@ describe("EditorDraftPatchPreview", () => {
 		expect(shown.after).toContain("https://example.net/figures");
 	});
 
+	it("shows which rich text a link covers", async () => {
+		const linkedAt = (index: number) => ({
+			...paragraph,
+			markDefs: [{ _type: "link", _key: "l1", href: "https://example.com/docs" }],
+			children: ["Read ", "the docs", ". ", "Sign in", "."].map((text, position) => ({
+				_type: "span",
+				_key: `s${position}`,
+				text,
+				marks: position === index ? ["l1"] : [],
+			})),
+		});
+		const shown = await review([linkedAt(1)], [linkedAt(3)]);
+
+		expect(shown.after).not.toBe(shown.before);
+	});
+
 	it("shows long values to their end", async () => {
 		const text = `${"Figures follow. ".repeat(40)}The last word.`;
 		const image = { id: "media-1", alt: "A chart. ".repeat(40), src: "https://example.com/a.png" };
