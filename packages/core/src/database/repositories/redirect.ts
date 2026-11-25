@@ -1,7 +1,7 @@
 import { sql, type Kysely } from "kysely";
 import { ulid } from "ulidx";
 
-import { interpolateUrlPattern } from "../../i18n/resolve.js";
+import { interpolateUrlPattern, siteBasePath } from "../../i18n/resolve.js";
 import { isSiteRelativeDestination } from "../../redirects/destination.js";
 import {
 	compilePattern,
@@ -562,7 +562,7 @@ export class RedirectRepository {
 
 	/**
 	 * Create an auto-redirect when a content slug changes.
-	 * Uses the collection's URL pattern to compute old/new URLs.
+	 * Uses the collection's URL pattern and Astro base to compute old/new URLs.
 	 * Collapses existing redirect chains pointing to the old URL and
 	 * removes redirects that would shadow the now-live new URL, so a
 	 * rename that is later reverted cannot form a loop (#1986).
@@ -580,10 +580,11 @@ export class RedirectRepository {
 		oldPublishedAt?: string | null,
 		newPublishedAt?: string | null,
 	): Promise<Redirect | null> {
+		const base = siteBasePath();
 		const withPatternSlash = (path: string) =>
 			urlPattern?.endsWith("/") && !path.endsWith("/") ? `${path}/` : path;
 		return this.withWriteLock(async (fence, repository) => {
-			const oldUrl = withPatternSlash(
+			const oldUrl = `${base}${withPatternSlash(
 				interpolateUrlPattern({
 					pattern: urlPattern,
 					collection,
@@ -591,8 +592,8 @@ export class RedirectRepository {
 					id: contentId,
 					date: oldPublishedAt,
 				}),
-			);
-			const newUrl = withPatternSlash(
+			)}`;
+			const newUrl = `${base}${withPatternSlash(
 				interpolateUrlPattern({
 					pattern: urlPattern,
 					collection,
@@ -600,7 +601,7 @@ export class RedirectRepository {
 					id: contentId,
 					date: newPublishedAt,
 				}),
-			);
+			)}`;
 
 			// A redirect from a URL to itself would make the page unreachable
 			if (oldUrl === newUrl) return null;

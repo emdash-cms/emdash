@@ -77,6 +77,11 @@ function applyDateTokens(path: string, date: string | Date | null | undefined): 
 	return path.replace(DATE_TOKEN, (match, key: string) => parts[key] ?? match);
 }
 
+/** Astro's base path without a trailing slash, or an empty string at the site root. */
+export function siteBasePath(): string {
+	return (import.meta.env?.BASE_URL ?? "/").replace(TRAILING_SLASH, "");
+}
+
 /**
  * Interpolate a collection `url_pattern` with a row's slug, id and publish date.
  *

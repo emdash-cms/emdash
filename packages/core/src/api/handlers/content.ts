@@ -44,7 +44,7 @@ import { withTransaction } from "../../database/transaction.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, isI18nEnabled, resolveConfiguredLocale } from "../../i18n/config.js";
-import { interpolateUrlPattern } from "../../i18n/resolve.js";
+import { interpolateUrlPattern, siteBasePath } from "../../i18n/resolve.js";
 import {
 	scheduledPolicyRejectionKey,
 	type ScheduledPolicyRejection,
@@ -855,13 +855,14 @@ async function removeShadowingAutoRedirect(
 		.where("slug", "=", collection)
 		.executeTakeFirst();
 
-	const url = interpolateUrlPattern({
+	const base = siteBasePath();
+	const url = `${base}${interpolateUrlPattern({
 		pattern: collectionRow?.url_pattern ?? null,
 		collection,
 		slug,
 		id: contentId,
 		date: publishedAt,
-	});
+	})}`;
 
 	const result = await db
 		.deleteFrom("_emdash_redirects")
