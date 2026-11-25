@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "HTML 区块选项"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "HTML 区块预览"
 
@@ -8514,7 +8514,7 @@ msgstr "正在为现有内容建立索引"
 msgid "Inline"
 msgstr "内联"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "内联区块使用您站点的样式。您的站点会移除脚本、style 标签和 style 属性，并清空除 YouTube 和 Vimeo 之外的 iframe。"
 
@@ -10795,7 +10795,7 @@ msgstr "本站没有任何更改。"
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "{monthTitle} 没有已发布或定时发布的内容"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "暂无可预览的内容。"
@@ -12969,7 +12969,7 @@ msgstr "行"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "运行预览"
 
@@ -14865,7 +14865,7 @@ msgstr "{1} 上的 {0} 字段，选择它所链接的条目"
 msgid "The admin was updated"
 msgstr "后台已更新"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "管理员的安全策略阻止了此区块加载的部分资源，如外部脚本、字体或框架。您的站点可能仍会加载它们。"
 
@@ -15353,7 +15353,7 @@ msgstr "此区块嵌入了来自 {0} 的页面。"
 msgid "This block has no fields."
 msgstr "此区块没有字段。"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "此区块运行 JavaScript。"
 

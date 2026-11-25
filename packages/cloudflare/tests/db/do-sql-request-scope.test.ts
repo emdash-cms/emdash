@@ -71,6 +71,26 @@ describe("DO SQL request scoping", () => {
 		);
 	});
 
+	it("persists nothing when the credential the request arrived with was never verified", async () => {
+		// Core sets isAuthenticated for any `Authorization: Bearer` header, before
+		// anything resolves the token; endedAuthenticated reports the verified state.
+		mocks.query.mockResolvedValue({ rows: [], bookmark: "do-bookmark-1" });
+		const cookies = { get: vi.fn(), set: vi.fn() };
+		const scoped = createRequestScopedDb({
+			config: { binding: "DB_DO", session: "auto" },
+			isAuthenticated: true,
+			endedAuthenticated: () => false,
+			isWrite: true,
+			cookies,
+			url: new URL("https://example.com/_emdash/api/auth/magic-link/verify"),
+		});
+
+		expect(scoped).not.toBeNull();
+		await sql`UPDATE users SET name = 'x'`.execute(scoped!.db);
+		scoped!.commit();
+		expect(cookies.set).not.toHaveBeenCalled();
+	});
+
 	it("persists nothing for a request that stays anonymous", async () => {
 		mocks.query.mockResolvedValue({ rows: [], bookmark: "do-bookmark-1" });
 		const cookies = { get: vi.fn(), set: vi.fn() };

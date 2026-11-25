@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "HTMLブロックのオプション"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "HTMLブロックのプレビュー"
 
@@ -8514,7 +8514,7 @@ msgstr "既存コンテンツを確認中"
 msgid "Inline"
 msgstr "インライン"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "インラインのブロックには、サイトのスタイルが適用されます。サイト側でスクリプト・styleタグ・style属性を取り除き、YouTubeとVimeo以外のiframeは空にします。"
 
@@ -10795,7 +10795,7 @@ msgstr "このサイトへの変更はありません。"
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "{monthTitle}に公開済み・公開予約済みのコンテンツはありません"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "プレビューする内容はまだありません。"
@@ -12969,7 +12969,7 @@ msgstr "行"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "プレビューを実行"
 
@@ -14865,7 +14865,7 @@ msgstr "「{1}」の「{0}」フィールド（参照先のコンテンツを選
 msgid "The admin was updated"
 msgstr "管理画面が更新されました"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "管理画面のセキュリティポリシーにより、このブロックが読み込む外部スクリプト・フォント・フレームなどの一部リソースがブロックされました。サイト側では読み込める場合があります。"
 
@@ -15353,7 +15353,7 @@ msgstr "このブロックには、{0}のページが埋め込まれています
 msgid "This block has no fields."
 msgstr "このブロックにはフィールドがありません。"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "このブロックはJavaScriptを実行します。"
 

@@ -14,13 +14,14 @@ import { buildRenderMediaUrl } from "../media/url.js";
 import {
 	canOptimizeImage,
 	toAbsoluteMediaUrl,
+	galleryColumns,
 	gallerySizes,
-	GALLERY_DEFAULT_COLUMNS,
 	responsiveWidths,
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 import { sanitizeGalleryImages } from "../content/converters/gallery.js";
 import { focalPointToObjectPosition } from "../media/focal-point.js";
+import { cssColor } from "../utils/css-value.js";
 
 export interface Props {
 	node: {
@@ -77,7 +78,7 @@ function generateSrcset(
 
 const { node, placeholder = true, sizes: sizesOverride } = Astro.props;
 const images = sanitizeGalleryImages(node?.images);
-const columns = node?.columns ?? GALLERY_DEFAULT_COLUMNS;
+const columns = galleryColumns(node?.columns);
 // Each image fills one grid cell, not the viewport.
 const cellSizes = sizesOverride ?? gallerySizes(columns);
 
@@ -147,14 +148,16 @@ const resolvedImages = await Promise.all(
 			}
 		}
 
+		const dominantColor = cssColor(image.dominantColor);
+
 		// Prefer blurhash over dominant color for the LQIP placeholder, like
 		// Image.astro.
 		let placeholderStyle = "";
 		if (placeholder && image.blurhash) {
 			const { blurhashToImageCssString } = await import("@unpic/placeholder");
 			placeholderStyle = blurhashToImageCssString(image.blurhash);
-		} else if (placeholder && image.dominantColor) {
-			placeholderStyle = `background-color: ${image.dominantColor};`;
+		} else if (placeholder && dominantColor) {
+			placeholderStyle = `background-color: ${dominantColor};`;
 		}
 
 		return {

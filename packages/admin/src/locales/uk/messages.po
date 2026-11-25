@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "Параметри HTML-блоку"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "Попередній перегляд HTML-блоку"
 
@@ -8514,7 +8514,7 @@ msgstr "Індексування наявного вмісту"
 msgid "Inline"
 msgstr "Вбудований у сторінку"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Блоки, вбудовані в сторінку, використовують стилі вашого сайту. Сайт вилучає з них скрипти, теги style та атрибути style, а всі iframe, крім YouTube і Vimeo, залишає порожніми."
 
@@ -10795,7 +10795,7 @@ msgstr "На сайті нічого не змінилося."
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "За {monthTitle} нічого не опубліковано й не заплановано"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "Поки що немає чого показати."
@@ -12969,7 +12969,7 @@ msgstr "Рядки"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "Запустити попередній перегляд"
 
@@ -14865,7 +14865,7 @@ msgstr "поле {0} у {1}, що задає вихідні посилання"
 msgid "The admin was updated"
 msgstr "Адмін-панель оновлено"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "Політика безпеки адмін-панелі заблокувала деякі ресурси, які завантажує цей блок, як-от зовнішні скрипти, шрифти чи фрейми. Ваш сайт усе одно може їх завантажувати."
 
@@ -15353,7 +15353,7 @@ msgstr "Цей блок вбудовує сторінку з {0}."
 msgid "This block has no fields."
 msgstr "Цей блок не має полів."
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "Цей блок запускає JavaScript."
 

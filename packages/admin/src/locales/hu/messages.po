@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "HTML-blokk beállításai"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "HTML-blokk előnézete"
 
@@ -8514,7 +8514,7 @@ msgstr "Meglévő tartalom indexelése"
 msgid "Inline"
 msgstr "Oldalba illesztve"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Az oldalba illesztett blokkok a weboldal stílusait használják. A weboldal eltávolítja a szkripteket, a style címkéket és attribútumokat, valamint kiüríti a YouTube-on és Vimeón kívüli iframe-eket."
 
@@ -10795,7 +10795,7 @@ msgstr "Ezen a weboldalon semmi sem változott."
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "Nincs publikált vagy ütemezett bejegyzés ekkor: {monthTitle}"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "Még nincs mit előnézetben megjeleníteni."
@@ -12969,7 +12969,7 @@ msgstr "Sorok"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "Előnézet futtatása"
 
@@ -14865,7 +14865,7 @@ msgstr "a(z) {1} tartalomtípus {0} mezője, amely az általa hivatkozott bejegy
 msgid "The admin was updated"
 msgstr "Az adminfelület frissült"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "Az adminfelület biztonsági szabályzata blokkolta a blokk által betöltött egyes erőforrásokat, például külső szkripteket, betűtípusokat vagy kereteket. A weboldal ettől még betöltheti őket."
 
@@ -15353,7 +15353,7 @@ msgstr "Ez a blokk innen ágyaz be egy oldalt: {0}."
 msgid "This block has no fields."
 msgstr "Ennek a blokknak nincsenek mezői."
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "Ez a blokk JavaScript-kódot futtat."
 
