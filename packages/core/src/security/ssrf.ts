@@ -132,7 +132,8 @@ function parseIpv4(ip: string): number | null {
 	return ip4ToNum(nums[0], nums[1], nums[2], nums[3]);
 }
 
-function parseIpv6(ip: string): number[] | null {
+/** Parse an IPv6 literal into its eight 16-bit groups. Returns null for anything else. */
+export function parseIpv6(ip: string): number[] | null {
 	let address = ip;
 	if (address.includes(".")) {
 		const separator = address.lastIndexOf(":");

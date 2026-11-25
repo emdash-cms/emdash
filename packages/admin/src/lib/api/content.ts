@@ -247,14 +247,15 @@ export async function fetchContentList(
 export interface ContentAuthor {
 	id: string;
 	name: string | null;
-	email: string;
+	/** Omitted for callers without `users:read`. */
+	email?: string;
 	avatarUrl: string | null;
 }
 
 /**
  * Fetch the distinct authors of a collection's content. Gated on
- * `content:read`, so unlike the user-management API it's available to any
- * editor. Returns only users who have authored at least one live entry.
+ * `content:read_drafts`, so unlike the user-management API it's available to
+ * any editor. Returns only users who have authored at least one live entry.
  */
 export async function fetchContentAuthors(collection: string): Promise<ContentAuthor[]> {
 	const response = await apiFetch(`${API_BASE}/content/${collection}/authors`);

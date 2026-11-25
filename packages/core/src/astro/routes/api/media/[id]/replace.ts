@@ -4,12 +4,14 @@ import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaReplaceMetadataForm } from "#api/schemas.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
+import { MediaRepository } from "#db/repositories/media.js";
 import {
 	isCacheableMediaKey,
 	mediaCacheTag,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 } from "#media/image-endpoint.js";
 import { normalizeMime } from "#media/mime.js";
+import { removeUploadAttempt } from "#media/upload-attempts.js";
 import { computeContentHash } from "#utils/hash.js";
 
 export const prerender = false;
@@ -28,24 +30,29 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	}
 	if (!emdash.storage) return apiError("NO_STORAGE", "Storage not configured", 500);
 
-	const getResult = await emdash.handleMediaGet(id);
-	if (!getResult.success) return unwrapResult(getResult);
-	const media = getResult.data.item;
-	const ownerDenied = requireOwnerPerm(
-		user,
-		media.authorId ?? "",
-		"media:edit_own",
-		"media:edit_any",
-	);
-	if (ownerDenied) return ownerDenied;
-	if (media.status !== "ready") {
-		return apiError("INVALID_STATE", "Only ready media can be replaced", 400);
-	}
+	const loadTarget = async () => {
+		const getResult = await emdash.handleMediaGet(id);
+		if (!getResult.success) return unwrapResult(getResult);
+		const media = getResult.data.item;
+		const ownerDenied = requireOwnerPerm(
+			user,
+			media.authorId ?? "",
+			"media:edit_own",
+			"media:edit_any",
+		);
+		if (ownerDenied) return ownerDenied;
+		if (media.status !== "ready") {
+			return apiError("INVALID_STATE", "Only ready media can be replaced", 400);
+		}
+		const sourceMime = normalizeMime(media.mimeType);
+		if (!REPLACEABLE_IMAGE_TYPES.has(sourceMime)) {
+			return apiError("INVALID_TYPE", "Media type cannot be replaced", 400);
+		}
+		return { media, sourceMime };
+	};
 
-	const sourceMime = normalizeMime(media.mimeType);
-	if (!REPLACEABLE_IMAGE_TYPES.has(sourceMime)) {
-		return apiError("INVALID_TYPE", "Media type cannot be replaced", 400);
-	}
+	const early = await loadTarget();
+	if (early instanceof Response) return early;
 
 	const rawMax = emdash.config.maxUploadSize ?? DEFAULT_MAX_UPLOAD_SIZE;
 	if (!Number.isFinite(rawMax) || rawMax <= 0) {
@@ -58,7 +65,14 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	}
 
 	try {
+		// The client paces the body, so check the item again once it has
+		// arrived: it can be deleted, with its stored file, in the meantime.
 		const formData = await request.formData();
+
+		const target = await loadTarget();
+		if (target instanceof Response) return target;
+		const { media, sourceMime } = target;
+
 		const fileEntry = formData.get("file");
 		const file = fileEntry instanceof File ? fileEntry : null;
 		if (!file) return apiError("NO_FILE", "No file provided", 400);
@@ -109,7 +123,20 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 			height,
 			contentHash,
 		});
-		if (!result.success) return unwrapResult(result);
+		if (!result.success) {
+			// If the item was deleted while its bytes were being written, its
+			// stored file is already gone; remove the one written here too.
+			try {
+				const repo = new MediaRepository(emdash.db);
+				if (!(await repo.isStorageKeyReferenced(media.storageKey))) {
+					await repo.trackStorageKeyForCleanup(id, media.storageKey);
+					await removeUploadAttempt(emdash.storage, repo, media.storageKey);
+				}
+			} catch (error) {
+				console.error("[media] replacement cleanup failed:", error);
+			}
+			return unwrapResult(result);
+		}
 
 		return apiSuccess({
 			item: {

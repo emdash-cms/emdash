@@ -356,7 +356,7 @@ A plan lists at most 500 blockers and warnings. An `issues_truncated` warning re
 | `record_count_mismatch` | The number of records of a kind differs from the manifest. |
 | `record_order_invalid` | Records are out of order, or a parent appears after its child. |
 | `duplicate_id` | Two records of the same kind share an ID. |
-| `dangling_reference` | A record refers to a record that is not in the package. This includes a blocks field that names a block type the package lacks, and a block type whose current version the package lacks. |
+| `dangling_reference` | A record refers to a record that is not in the package. This includes a blocks field that names a block type the package lacks, a block type whose current version the package lacks, and a block in an entry or revision whose block type or version the package lacks. |
 | `reference_cycle` | A term, comment, or menu item is its own parent. |
 | `media_ref_invalid` | Content refers to a media record that is not in the package. |
 | `media_blob_missing` | A media record's file is not in the package. |
@@ -372,6 +372,7 @@ A plan lists at most 500 blockers and warnings. An `issues_truncated` warning re
 The importer writes records directly, so analysis applies the same checks the admin API applies when those records are saved. Each of these values is a `value_constraint_violation`:
 
 - an entry value that does not fit its field's column, a required field without a value, or a value for a field the collection does not have;
+- a `url` field value in an entry or revision, including one inside a repeater or block, that is [not safe to store](/reference/field-types/#url);
 - a redirect whose source or destination is not a path on the site, whose type is not supported, whose source pattern is invalid, or whose destination uses a parameter the source does not capture;
 - a byline website that is not an `http` or `https` URL, a byline field value that does not fit its field's type or choices, or a byline field with more choices than a site supports;
 - a collection URL pattern that is invalid;

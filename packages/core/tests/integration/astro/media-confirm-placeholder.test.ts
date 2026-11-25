@@ -11,9 +11,19 @@ import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js"
 
 vi.mock("jpeg-js", { spy: true });
 
+/**
+ * What confirm needs to move a signed upload to a key its URL cannot write,
+ * for an adapter that copies inside the storage service.
+ */
+const signedUploadCopy = {
+	async copy() {},
+	async delete() {},
+};
+
 /** Storage stub matching the real interface: download returns a ReadableStream. */
 function storageWith(bytes: Uint8Array) {
 	return {
+		...signedUploadCopy,
 		async exists() {
 			return true;
 		},
@@ -35,6 +45,7 @@ function spyableStorage(bytes: Uint8Array, reportedSize = bytes.byteLength) {
 		size: reportedSize,
 	}));
 	return {
+		...signedUploadCopy,
 		exists: vi.fn(async () => true),
 		download,
 	};
@@ -157,6 +168,7 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 				db,
 				id: pending.id,
 				storage: {
+					...signedUploadCopy,
 					async exists() {
 						return true;
 					},
@@ -189,6 +201,7 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 		});
 		const cancel = vi.fn();
 		const storage = {
+			...signedUploadCopy,
 			async exists() {
 				return true;
 			},
@@ -449,6 +462,7 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 			});
 			const cancel = vi.fn(async () => undefined);
 			const storage = {
+				...signedUploadCopy,
 				exists: vi.fn(async () => true),
 				download: vi.fn(async () => ({
 					body: { getReader, cancel },
@@ -611,6 +625,7 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 				db,
 				id: pending.id,
 				storage: {
+					...signedUploadCopy,
 					async exists() {
 						return true;
 					},
@@ -653,6 +668,7 @@ describe("POST /media/:id/confirm — placeholder read-back", () => {
 				db,
 				id: pending.id,
 				storage: {
+					...signedUploadCopy,
 					async exists() {
 						return true;
 					},

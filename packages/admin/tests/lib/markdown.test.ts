@@ -56,6 +56,30 @@ describe("renderMarkdown", () => {
 		expect(html).not.toContain("<script");
 	});
 
+	it.each(["pre", "code", "kbd", "script"])(
+		"shows HTML written after an unclosed inline <%s> tag as text",
+		(tag) => {
+			const html = renderMarkdown(
+				`x <${tag}><a/href="//example.org/"/target="w"/data-x="1">click</a/>\n\nnext <b/onclick="x()">`,
+			);
+			expect(html).not.toContain("<a");
+			expect(html).not.toContain("<b");
+			expect(html).toContain("&lt;a/href=");
+			expect(html).toContain("&lt;b/onclick=");
+		},
+	);
+
+	it("renders inline formatting and links inside a loose list", () => {
+		const html = renderMarkdown("- **bold** and [link](https://example.com)\n\n- second");
+		expect(html).toContain("<strong>bold</strong>");
+		expect(html).toContain('<a href="https://example.com"');
+		expect(html).not.toContain("&lt;");
+	});
+
+	it("keeps character references in text as written", () => {
+		expect(renderMarkdown("a &amp; b &copy; <kbd>c &lt; d")).toContain("a &amp; b © c &lt; d");
+	});
+
 	it("never emits an inline style attribute", () => {
 		const html = renderMarkdown('<p style="position:fixed;inset:0">x</p>');
 		expect(html).not.toContain("style=");
