@@ -272,7 +272,7 @@ msgstr "{0, plural, one {已加载 # 个文件夹} other {已加载 # 个文件�
 #. placeholder {0}: item.count
 #. placeholder {0}: redirect.hits
 #: packages/admin/src/components/Redirects.tsx:382
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:505
 msgid "{0, plural, one {# hit} other {# hits}}"
 msgstr "{0, plural, one {# 次点击} other {# 次点击}}"
 
@@ -350,7 +350,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# 篇文章} other {# 篇文章}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:776
+#: packages/admin/src/components/Redirects.tsx:792
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# 个重定向是循环的一部分。} other {# 个重定向是循环的一部分。}}"
 
@@ -1283,7 +1283,7 @@ msgstr "4. 点击“下载导出文件”"
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. 输入“EmDash”并点击“添加新密码”"
 
-#: packages/admin/src/components/Redirects.tsx:751
+#: packages/admin/src/components/Redirects.tsx:767
 msgid "404 Errors"
 msgstr "404 错误"
 
@@ -1500,7 +1500,7 @@ msgstr "ACF 字段"
 #: packages/admin/src/components/ContentList.tsx:980
 #: packages/admin/src/components/ContentTypeList.tsx:227
 #: packages/admin/src/components/Redirects.tsx:362
-#: packages/admin/src/components/Redirects.tsx:827
+#: packages/admin/src/components/Redirects.tsx:843
 #: packages/admin/src/components/RelationList.tsx:99
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1529,7 +1529,7 @@ msgid "Actions for comment by {author}"
 msgstr "{author} 的评论的操作"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:514
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Actions for redirect {0}"
 msgstr "重定向 {0} 的操作"
 
@@ -2044,13 +2044,13 @@ msgid "All sources"
 msgstr "所有来源"
 
 #: packages/admin/src/components/ContentList.tsx:1071
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 msgid "All statuses"
 msgstr "所有状态"
 
 #: packages/admin/src/components/MediaLibrary.tsx:921
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "All types"
 msgstr "所有类型"
 
@@ -2547,11 +2547,11 @@ msgstr ""
 msgid "Authors will be assigned to users on this site"
 msgstr "作者将被分配给此站点的用户"
 
-#: packages/admin/src/components/Redirects.tsx:467
+#: packages/admin/src/components/Redirects.tsx:478
 msgid "auto"
 msgstr "自动"
 
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "Auto (slug change)"
 msgstr "自动（URL 标识变更）"
 
@@ -3601,7 +3601,7 @@ msgstr "Cloudflare 的机器人防护返回了验证页面，因此 EmDash 无�
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/Redirects.tsx:820
+#: packages/admin/src/components/Redirects.tsx:836
 msgid "Code"
 msgstr "代码"
 
@@ -4373,7 +4373,7 @@ msgstr "为 {0} 创建重定向"
 msgid "Create redirect for this path"
 msgstr "为此路径创建重定向"
 
-#: packages/admin/src/components/Redirects.tsx:798
+#: packages/admin/src/components/Redirects.tsx:814
 msgid "Create redirect rules to manage URL changes."
 msgstr "创建重定向规则以管理 URL 更改。"
 
@@ -4717,8 +4717,8 @@ msgstr "代码定义"
 #: packages/admin/src/components/MenuEditor.tsx:790
 #: packages/admin/src/components/MenuEditor.tsx:808
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:528
-#: packages/admin/src/components/Redirects.tsx:886
+#: packages/admin/src/components/Redirects.tsx:539
+#: packages/admin/src/components/Redirects.tsx:902
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:239
 #: packages/admin/src/components/RowMenuItems.tsx:106
@@ -4877,11 +4877,11 @@ msgid "Delete Permanently?"
 msgstr "永久删除？"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:525
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Delete redirect {0}"
 msgstr "删除重定向 {0}"
 
-#: packages/admin/src/components/Redirects.tsx:884
+#: packages/admin/src/components/Redirects.tsx:900
 msgid "Delete Redirect?"
 msgstr "删除重定向？"
 
@@ -4957,7 +4957,7 @@ msgstr "删除“{0}”将同时移除所有署名中的 {1, plural, one {# 个�
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:809
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:887
+#: packages/admin/src/components/Redirects.tsx:903
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -5048,7 +5048,7 @@ msgstr "描述"
 msgid "Description (optional)"
 msgstr "描述（可选）"
 
-#: packages/admin/src/components/Redirects.tsx:811
+#: packages/admin/src/components/Redirects.tsx:827
 msgid "Destination"
 msgstr "目标"
 
@@ -5111,7 +5111,7 @@ msgid "Disable plugin MCP tools"
 msgstr "禁用插件 MCP 工具"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:508
+#: packages/admin/src/components/Redirects.tsx:519
 msgid "Disable redirect {0}"
 msgstr "停用重定向 {0}"
 
@@ -5124,7 +5124,7 @@ msgid "Disable User?"
 msgstr "禁用用户？"
 
 #: packages/admin/src/components/PluginManager.tsx:461
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 #: packages/admin/src/components/users/UserDetail.tsx:205
 #: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
@@ -5514,7 +5514,7 @@ msgstr "最早保存的版本"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:785
-#: packages/admin/src/components/Redirects.tsx:519
+#: packages/admin/src/components/Redirects.tsx:530
 #: packages/admin/src/components/RelationList.tsx:230
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:131
@@ -5666,7 +5666,7 @@ msgid "Edit Redirect"
 msgstr "编辑重定向"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:451
+#: packages/admin/src/components/Redirects.tsx:462
 msgid "Edit redirect {0}"
 msgstr "编辑重定向 {0}"
 
@@ -5972,7 +5972,7 @@ msgid "Enable plugin MCP tools"
 msgstr "启用插件 MCP 工具"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:509
+#: packages/admin/src/components/Redirects.tsx:520
 msgid "Enable redirect {0}"
 msgstr "启用重定向 {0}"
 
@@ -5985,7 +5985,7 @@ msgid "Enable tracking to index existing content and keep references up to date.
 msgstr "启用跟踪以索引现有内容并保持引用为最新。"
 
 #: packages/admin/src/components/Redirects.tsx:301
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 msgid "Enabled"
 msgstr "已启用"
 
@@ -6285,7 +6285,7 @@ msgstr "此内容类型参与的所有关联也将被删除："
 msgid "Everything is shown again, in the default order."
 msgstr "所有内容将重新显示，并恢复默认顺序。"
 
-#: packages/admin/src/components/Redirects.tsx:695
+#: packages/admin/src/components/Redirects.tsx:711
 msgid "Exact group name..."
 msgstr "完整的分组名称……"
 
@@ -7632,7 +7632,7 @@ msgstr "按合集筛选"
 msgid "Filter by date range: {rangeLabel}"
 msgstr "按日期范围筛选：{rangeLabel}"
 
-#: packages/admin/src/components/Redirects.tsx:694
+#: packages/admin/src/components/Redirects.tsx:710
 msgid "Filter by group"
 msgstr "按分组筛选"
 
@@ -7645,13 +7645,13 @@ msgid "Filter by source"
 msgstr "按来源筛选"
 
 #: packages/admin/src/components/ContentList.tsx:1110
-#: packages/admin/src/components/Redirects.tsx:707
+#: packages/admin/src/components/Redirects.tsx:723
 msgid "Filter by status"
 msgstr "按状态筛选"
 
 #: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:714
+#: packages/admin/src/components/Redirects.tsx:730
 msgid "Filter by type"
 msgstr "按类型筛选"
 
@@ -7913,8 +7913,8 @@ msgid "Grid view"
 msgstr "网格视图"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:583
-#: packages/admin/src/components/Redirects.tsx:484
-#: packages/admin/src/components/Redirects.tsx:815
+#: packages/admin/src/components/Redirects.tsx:495
+#: packages/admin/src/components/Redirects.tsx:831
 msgid "Group"
 msgstr "组"
 
@@ -8073,7 +8073,7 @@ msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "层级式（类似分类，具有父子关系）"
 
 #: packages/admin/src/components/Redirects.tsx:356
-#: packages/admin/src/components/Redirects.tsx:823
+#: packages/admin/src/components/Redirects.tsx:839
 msgid "Hits"
 msgstr "点击量"
 
@@ -9162,7 +9162,7 @@ msgstr "实时预览"
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:851
+#: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -9274,7 +9274,7 @@ msgstr "正在加载插件面板"
 msgid "Loading plugins..."
 msgstr "正在加载插件……"
 
-#: packages/admin/src/components/Redirects.tsx:788
+#: packages/admin/src/components/Redirects.tsx:804
 msgid "Loading redirects..."
 msgstr "正在加载重定向……"
 
@@ -9332,7 +9332,7 @@ msgstr "正在加载小部件……"
 #: packages/admin/src/components/MediaLibrary.tsx:1254
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:1925
-#: packages/admin/src/components/Redirects.tsx:851
+#: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -9473,7 +9473,7 @@ msgstr "管理您站点的导航菜单"
 msgid "Manage the people and teams credited on your content."
 msgstr "管理在您的内容中署名的人员和团队。"
 
-#: packages/admin/src/components/Redirects.tsx:673
+#: packages/admin/src/components/Redirects.tsx:689
 msgid "Manage URL redirects and view 404 errors."
 msgstr "管理 URL 重定向并查看 404 错误。"
 
@@ -9494,7 +9494,7 @@ msgstr "由外部媒体提供商管理"
 msgid "Managed by your identity provider. Change the name there."
 msgstr "由您的身份提供商管理。请在该处修改名称。"
 
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "Manual"
 msgstr "手动"
 
@@ -10216,7 +10216,7 @@ msgid "New public routes"
 msgstr "新增公共路由"
 
 #: packages/admin/src/components/Redirects.tsx:243
-#: packages/admin/src/components/Redirects.tsx:680
+#: packages/admin/src/components/Redirects.tsx:696
 msgid "New Redirect"
 msgstr "新重定向"
 
@@ -10474,7 +10474,7 @@ msgstr "未添加文件"
 msgid "No folders found"
 msgstr "未找到文件夹"
 
-#: packages/admin/src/components/Redirects.tsx:489
+#: packages/admin/src/components/Redirects.tsx:500
 msgid "No group"
 msgstr "无分组"
 
@@ -10640,11 +10640,11 @@ msgstr "无可用的公开 URL"
 msgid "No recent activity"
 msgstr "暂无最近活动"
 
-#: packages/admin/src/components/Redirects.tsx:793
+#: packages/admin/src/components/Redirects.tsx:809
 msgid "No redirects match these filters"
 msgstr "没有符合这些筛选条件的重定向"
 
-#: packages/admin/src/components/Redirects.tsx:793
+#: packages/admin/src/components/Redirects.tsx:809
 msgid "No redirects yet"
 msgstr "暂无重定向"
 
@@ -11159,8 +11159,8 @@ msgstr "已在表格前插入段落"
 msgid "Parent"
 msgstr "父级"
 
-#: packages/admin/src/components/Redirects.tsx:457
-#: packages/admin/src/components/Redirects.tsx:463
+#: packages/admin/src/components/Redirects.tsx:468
+#: packages/admin/src/components/Redirects.tsx:474
 msgid "Part of a redirect loop"
 msgstr "重定向循环的一部分"
 
@@ -12051,7 +12051,7 @@ msgstr "未包含无父级的记录"
 msgid "Recovery link sent to {0}"
 msgstr "恢复链接已发送至 {0}"
 
-#: packages/admin/src/components/Redirects.tsx:774
+#: packages/admin/src/components/Redirects.tsx:790
 msgid "Redirect loop detected"
 msgstr "检测到重定向循环"
 
@@ -12059,8 +12059,8 @@ msgstr "检测到重定向循环"
 msgid "Redirecting to login..."
 msgstr "正在重定向到登录……"
 
-#: packages/admin/src/components/Redirects.tsx:672
-#: packages/admin/src/components/Redirects.tsx:731
+#: packages/admin/src/components/Redirects.tsx:688
+#: packages/admin/src/components/Redirects.tsx:747
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:529
@@ -13418,7 +13418,7 @@ msgstr "搜索可复用的公开资料。"
 msgid "Search sections..."
 msgstr "搜索片段……"
 
-#: packages/admin/src/components/Redirects.tsx:667
+#: packages/admin/src/components/Redirects.tsx:683
 msgid "Search source or destination..."
 msgstr "搜索源或目标……"
 
@@ -14422,7 +14422,7 @@ msgstr "可排序"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:791
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:652
-#: packages/admin/src/components/Redirects.tsx:808
+#: packages/admin/src/components/Redirects.tsx:824
 #: packages/admin/src/components/SectionEditor.tsx:298
 msgid "Source"
 msgstr "来源"
@@ -14538,7 +14538,7 @@ msgstr "状态"
 #: packages/admin/src/components/ContentList.tsx:510
 #: packages/admin/src/components/ContentList.tsx:810
 #: packages/admin/src/components/ContentTypeEditor.tsx:139
-#: packages/admin/src/components/Redirects.tsx:825
+#: packages/admin/src/components/Redirects.tsx:841
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -15660,11 +15660,11 @@ msgstr "此发布者的用户名无法解析回其身份。在发布者修复其
 msgid "This range has more than {maxEntries} entries"
 msgstr "此范围包含的条目超过 {maxEntries} 个"
 
-#: packages/admin/src/components/Redirects.tsx:885
+#: packages/admin/src/components/Redirects.tsx:901
 msgid "This redirect rule will be permanently removed."
 msgstr "此重定向规则将被永久移除。"
 
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:643
 msgid "This redirect was already deleted."
 msgstr "此重定向已被删除。"
 
@@ -16070,7 +16070,7 @@ msgstr "尝试其他文件名，或清除搜索和筛选条件。"
 msgid "Try Another URL"
 msgstr "尝试其他 URL"
 
-#: packages/admin/src/components/Redirects.tsx:797
+#: packages/admin/src/components/Redirects.tsx:813
 msgid "Try changing or clearing your filters."
 msgstr "请尝试修改或清除筛选条件。"
 
@@ -16932,7 +16932,7 @@ msgstr "搜索引擎可见"
 msgid "Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found."
 msgstr "访客可以打开本站，但搜索引擎会被要求不要收录。准备好被搜索到时再上线。"
 
-#: packages/admin/src/components/Redirects.tsx:780
+#: packages/admin/src/components/Redirects.tsx:796
 msgid "Visitors hitting these paths will see an error."
 msgstr "访问这些路径的用户将看到错误。"
 

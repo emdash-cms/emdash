@@ -272,7 +272,7 @@ msgstr "{0, plural, one {Įkeltas # aplankas} few {Įkelti # aplankai} many {Įk
 #. placeholder {0}: item.count
 #. placeholder {0}: redirect.hits
 #: packages/admin/src/components/Redirects.tsx:382
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:505
 msgid "{0, plural, one {# hit} other {# hits}}"
 msgstr "{0, plural, one {# kreipinys} few {# kreipiniai} many {# kreipinio} other {# kreipinių}}"
 
@@ -350,7 +350,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# įrašas} few {# įrašai} many {# įrašo} other {# įrašų}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:776
+#: packages/admin/src/components/Redirects.tsx:792
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# peradresavimas sudaro ciklą.} few {# peradresavimai sudaro ciklą.} many {Ciklui priklauso # peradresavimo.} other {Ciklui priklauso # peradresavimų.}}"
 
@@ -1283,7 +1283,7 @@ msgstr "4. Spustelėkite „Atsisiųsti eksporto failą“"
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Įveskite „EmDash“ ir spustelėkite „Pridėti naują“"
 
-#: packages/admin/src/components/Redirects.tsx:751
+#: packages/admin/src/components/Redirects.tsx:767
 msgid "404 Errors"
 msgstr "404 klaidos"
 
@@ -1500,7 +1500,7 @@ msgstr "ACF laukai"
 #: packages/admin/src/components/ContentList.tsx:980
 #: packages/admin/src/components/ContentTypeList.tsx:227
 #: packages/admin/src/components/Redirects.tsx:362
-#: packages/admin/src/components/Redirects.tsx:827
+#: packages/admin/src/components/Redirects.tsx:843
 #: packages/admin/src/components/RelationList.tsx:99
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1529,7 +1529,7 @@ msgid "Actions for comment by {author}"
 msgstr "Autoriaus {author} komentaro veiksmai"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:514
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Actions for redirect {0}"
 msgstr "Peradresavimo „{0}“ veiksmai"
 
@@ -2044,13 +2044,13 @@ msgid "All sources"
 msgstr "Visi šaltiniai"
 
 #: packages/admin/src/components/ContentList.tsx:1071
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 msgid "All statuses"
 msgstr "Visos būsenos"
 
 #: packages/admin/src/components/MediaLibrary.tsx:921
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "All types"
 msgstr "Visi tipai"
 
@@ -2547,11 +2547,11 @@ msgstr ""
 msgid "Authors will be assigned to users on this site"
 msgstr "Autoriai bus susieti su šios svetainės naudotojais"
 
-#: packages/admin/src/components/Redirects.tsx:467
+#: packages/admin/src/components/Redirects.tsx:478
 msgid "auto"
 msgstr "automatiškai"
 
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "Auto (slug change)"
 msgstr "Automatinis (pakeista nuorodos dalis)"
 
@@ -3601,7 +3601,7 @@ msgstr "„Cloudflare“ apsauga nuo robotų pateikė patikros puslapį, todėl 
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/Redirects.tsx:820
+#: packages/admin/src/components/Redirects.tsx:836
 msgid "Code"
 msgstr "Kodas"
 
@@ -4373,7 +4373,7 @@ msgstr "Sukurti „{0}“ peradresavimą"
 msgid "Create redirect for this path"
 msgstr "Sukurti šio kelio peradresavimą"
 
-#: packages/admin/src/components/Redirects.tsx:798
+#: packages/admin/src/components/Redirects.tsx:814
 msgid "Create redirect rules to manage URL changes."
 msgstr "Sukurkite peradresavimo taisykles pasikeitusiems URL tvarkyti."
 
@@ -4717,8 +4717,8 @@ msgstr "Apibrėžta kode"
 #: packages/admin/src/components/MenuEditor.tsx:790
 #: packages/admin/src/components/MenuEditor.tsx:808
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:528
-#: packages/admin/src/components/Redirects.tsx:886
+#: packages/admin/src/components/Redirects.tsx:539
+#: packages/admin/src/components/Redirects.tsx:902
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:239
 #: packages/admin/src/components/RowMenuItems.tsx:106
@@ -4877,11 +4877,11 @@ msgid "Delete Permanently?"
 msgstr "Ištrinti visam laikui?"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:525
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Delete redirect {0}"
 msgstr "Ištrinti peradresavimą „{0}“"
 
-#: packages/admin/src/components/Redirects.tsx:884
+#: packages/admin/src/components/Redirects.tsx:900
 msgid "Delete Redirect?"
 msgstr "Ištrinti peradresavimą?"
 
@@ -4957,7 +4957,7 @@ msgstr "Ištrynus „{0}“, iš visų autorių profilių taip pat bus pašalint
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:809
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:887
+#: packages/admin/src/components/Redirects.tsx:903
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -5048,7 +5048,7 @@ msgstr "Aprašas"
 msgid "Description (optional)"
 msgstr "Aprašas (nebūtinas)"
 
-#: packages/admin/src/components/Redirects.tsx:811
+#: packages/admin/src/components/Redirects.tsx:827
 msgid "Destination"
 msgstr "Paskirties vieta"
 
@@ -5111,7 +5111,7 @@ msgid "Disable plugin MCP tools"
 msgstr "Išjungti įskiepio MCP įrankius"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:508
+#: packages/admin/src/components/Redirects.tsx:519
 msgid "Disable redirect {0}"
 msgstr "Išjungti peradresavimą „{0}“"
 
@@ -5124,7 +5124,7 @@ msgid "Disable User?"
 msgstr "Išjungti naudotojo paskyrą?"
 
 #: packages/admin/src/components/PluginManager.tsx:461
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 #: packages/admin/src/components/users/UserDetail.tsx:205
 #: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
@@ -5514,7 +5514,7 @@ msgstr "Anksčiausia išsaugota versija"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:785
-#: packages/admin/src/components/Redirects.tsx:519
+#: packages/admin/src/components/Redirects.tsx:530
 #: packages/admin/src/components/RelationList.tsx:230
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:131
@@ -5666,7 +5666,7 @@ msgid "Edit Redirect"
 msgstr "Redaguoti peradresavimą"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:451
+#: packages/admin/src/components/Redirects.tsx:462
 msgid "Edit redirect {0}"
 msgstr "Redaguoti peradresavimą „{0}“"
 
@@ -5972,7 +5972,7 @@ msgid "Enable plugin MCP tools"
 msgstr "Įjungti įskiepio MCP įrankius"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:509
+#: packages/admin/src/components/Redirects.tsx:520
 msgid "Enable redirect {0}"
 msgstr "Įjungti peradresavimą „{0}“"
 
@@ -5985,7 +5985,7 @@ msgid "Enable tracking to index existing content and keep references up to date.
 msgstr "Įjunkite stebėjimą, kad esamas turinys būtų indeksuojamas ir nuorodos nuolat atnaujinamos."
 
 #: packages/admin/src/components/Redirects.tsx:301
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 msgid "Enabled"
 msgstr "Įjungta"
 
@@ -6285,7 +6285,7 @@ msgstr "Taip pat bus pašalinti visi šio turinio tipo ryšiai:"
 msgid "Everything is shown again, in the default order."
 msgstr "Vėl viskas rodoma numatytąja tvarka."
 
-#: packages/admin/src/components/Redirects.tsx:695
+#: packages/admin/src/components/Redirects.tsx:711
 msgid "Exact group name..."
 msgstr "Tikslus grupės pavadinimas..."
 
@@ -7632,7 +7632,7 @@ msgstr "Filtruoti pagal kolekciją"
 msgid "Filter by date range: {rangeLabel}"
 msgstr "Filtruoti pagal laikotarpį: {rangeLabel}"
 
-#: packages/admin/src/components/Redirects.tsx:694
+#: packages/admin/src/components/Redirects.tsx:710
 msgid "Filter by group"
 msgstr "Filtruoti pagal grupę"
 
@@ -7645,13 +7645,13 @@ msgid "Filter by source"
 msgstr "Filtruoti pagal šaltinį"
 
 #: packages/admin/src/components/ContentList.tsx:1110
-#: packages/admin/src/components/Redirects.tsx:707
+#: packages/admin/src/components/Redirects.tsx:723
 msgid "Filter by status"
 msgstr "Filtruoti pagal būseną"
 
 #: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:714
+#: packages/admin/src/components/Redirects.tsx:730
 msgid "Filter by type"
 msgstr "Filtruoti pagal tipą"
 
@@ -7913,8 +7913,8 @@ msgid "Grid view"
 msgstr "Tinklelio rodinys"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:583
-#: packages/admin/src/components/Redirects.tsx:484
-#: packages/admin/src/components/Redirects.tsx:815
+#: packages/admin/src/components/Redirects.tsx:495
+#: packages/admin/src/components/Redirects.tsx:831
 msgid "Group"
 msgstr "Grupė"
 
@@ -8073,7 +8073,7 @@ msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Hierarchinė (kaip kategorijos, turinčios pirminius ir antrinius elementus)"
 
 #: packages/admin/src/components/Redirects.tsx:356
-#: packages/admin/src/components/Redirects.tsx:823
+#: packages/admin/src/components/Redirects.tsx:839
 msgid "Hits"
 msgstr "Kreipiniai"
 
@@ -9162,7 +9162,7 @@ msgstr "Tiesioginė peržiūra"
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:851
+#: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -9274,7 +9274,7 @@ msgstr "Įkeliamas įskiepio skydelis"
 msgid "Loading plugins..."
 msgstr "Įkeliami įskiepiai..."
 
-#: packages/admin/src/components/Redirects.tsx:788
+#: packages/admin/src/components/Redirects.tsx:804
 msgid "Loading redirects..."
 msgstr "Įkeliami peradresavimai..."
 
@@ -9332,7 +9332,7 @@ msgstr "Įkeliami valdikliai..."
 #: packages/admin/src/components/MediaLibrary.tsx:1254
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:1925
-#: packages/admin/src/components/Redirects.tsx:851
+#: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -9473,7 +9473,7 @@ msgstr "Tvarkykite svetainės naršymo meniu."
 msgid "Manage the people and teams credited on your content."
 msgstr "Tvarkykite žmones ir komandas, nurodomus kaip jūsų turinio autoriai."
 
-#: packages/admin/src/components/Redirects.tsx:673
+#: packages/admin/src/components/Redirects.tsx:689
 msgid "Manage URL redirects and view 404 errors."
 msgstr "Tvarkykite URL peradresavimus ir peržiūrėkite 404 klaidas."
 
@@ -9494,7 +9494,7 @@ msgstr "Valdo išorinis medijos paslaugų teikėjas"
 msgid "Managed by your identity provider. Change the name there."
 msgstr "Valdo jūsų tapatybės teikėjas. Vardą pakeiskite jo sistemoje."
 
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "Manual"
 msgstr "Rankinis"
 
@@ -10216,7 +10216,7 @@ msgid "New public routes"
 msgstr "Nauji viešieji maršrutai"
 
 #: packages/admin/src/components/Redirects.tsx:243
-#: packages/admin/src/components/Redirects.tsx:680
+#: packages/admin/src/components/Redirects.tsx:696
 msgid "New Redirect"
 msgstr "Naujas peradresavimas"
 
@@ -10474,7 +10474,7 @@ msgstr "Nepridėtas nė vienas failas"
 msgid "No folders found"
 msgstr "Aplankų nerasta"
 
-#: packages/admin/src/components/Redirects.tsx:489
+#: packages/admin/src/components/Redirects.tsx:500
 msgid "No group"
 msgstr "Be grupės"
 
@@ -10640,11 +10640,11 @@ msgstr "Viešojo URL nėra"
 msgid "No recent activity"
 msgstr "Naujos veiklos nėra"
 
-#: packages/admin/src/components/Redirects.tsx:793
+#: packages/admin/src/components/Redirects.tsx:809
 msgid "No redirects match these filters"
 msgstr "Nė vienas peradresavimas neatitinka šių filtrų"
 
-#: packages/admin/src/components/Redirects.tsx:793
+#: packages/admin/src/components/Redirects.tsx:809
 msgid "No redirects yet"
 msgstr "Peradresavimų dar nėra"
 
@@ -11159,8 +11159,8 @@ msgstr "Prieš lentelę įterpta pastraipa"
 msgid "Parent"
 msgstr "Pirminis elementas"
 
-#: packages/admin/src/components/Redirects.tsx:457
-#: packages/admin/src/components/Redirects.tsx:463
+#: packages/admin/src/components/Redirects.tsx:468
+#: packages/admin/src/components/Redirects.tsx:474
 msgid "Part of a redirect loop"
 msgstr "Peradresavimų ciklo dalis"
 
@@ -12051,7 +12051,7 @@ msgstr "Įrašai be pirminio elemento praleisti"
 msgid "Recovery link sent to {0}"
 msgstr "Atkūrimo nuoroda išsiųsta adresu {0}"
 
-#: packages/admin/src/components/Redirects.tsx:774
+#: packages/admin/src/components/Redirects.tsx:790
 msgid "Redirect loop detected"
 msgstr "Aptiktas peradresavimų ciklas"
 
@@ -12059,8 +12059,8 @@ msgstr "Aptiktas peradresavimų ciklas"
 msgid "Redirecting to login..."
 msgstr "Peradresuojama į prisijungimo puslapį..."
 
-#: packages/admin/src/components/Redirects.tsx:672
-#: packages/admin/src/components/Redirects.tsx:731
+#: packages/admin/src/components/Redirects.tsx:688
+#: packages/admin/src/components/Redirects.tsx:747
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:529
@@ -13418,7 +13418,7 @@ msgstr "Ieškokite daugkartinio naudojimo viešųjų profilių."
 msgid "Search sections..."
 msgstr "Ieškoti skilčių..."
 
-#: packages/admin/src/components/Redirects.tsx:667
+#: packages/admin/src/components/Redirects.tsx:683
 msgid "Search source or destination..."
 msgstr "Ieškoti pradinio arba paskirties adreso..."
 
@@ -14422,7 +14422,7 @@ msgstr "galima rikiuoti"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:791
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:652
-#: packages/admin/src/components/Redirects.tsx:808
+#: packages/admin/src/components/Redirects.tsx:824
 #: packages/admin/src/components/SectionEditor.tsx:298
 msgid "Source"
 msgstr "Šaltinis"
@@ -14538,7 +14538,7 @@ msgstr "Būsena"
 #: packages/admin/src/components/ContentList.tsx:510
 #: packages/admin/src/components/ContentList.tsx:810
 #: packages/admin/src/components/ContentTypeEditor.tsx:139
-#: packages/admin/src/components/Redirects.tsx:825
+#: packages/admin/src/components/Redirects.tsx:841
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -15660,11 +15660,11 @@ msgstr "Pagal leidėjo naudotojo vardą nepavyksta patvirtinti jo tapatybės. Di
 msgid "This range has more than {maxEntries} entries"
 msgstr "Pasirinktu laikotarpiu yra daugiau nei {maxEntries} įrašų"
 
-#: packages/admin/src/components/Redirects.tsx:885
+#: packages/admin/src/components/Redirects.tsx:901
 msgid "This redirect rule will be permanently removed."
 msgstr "Ši peradresavimo taisyklė bus pašalinta visam laikui."
 
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:643
 msgid "This redirect was already deleted."
 msgstr "Šis peradresavimas jau ištrintas."
 
@@ -16070,7 +16070,7 @@ msgstr "Įveskite kitą failo pavadinimą arba išvalykite paiešką ir filtrus.
 msgid "Try Another URL"
 msgstr "Bandyti kitą URL"
 
-#: packages/admin/src/components/Redirects.tsx:797
+#: packages/admin/src/components/Redirects.tsx:813
 msgid "Try changing or clearing your filters."
 msgstr "Pakeiskite arba išvalykite filtrus."
 
@@ -16932,7 +16932,7 @@ msgstr "Matoma paieškos sistemoms"
 msgid "Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found."
 msgstr "Lankytojai gali atverti svetainę, tačiau paieškos sistemų prašoma jos neindeksuoti. Kai būsite pasiruošę, paskelbkite svetainę, kad ją būtų galima rasti."
 
-#: packages/admin/src/components/Redirects.tsx:780
+#: packages/admin/src/components/Redirects.tsx:796
 msgid "Visitors hitting these paths will see an error."
 msgstr "Šiais adresais apsilankę lankytojai matys klaidą."
 

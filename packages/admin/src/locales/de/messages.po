@@ -272,7 +272,7 @@ msgstr "{0, plural, one {# Ordner geladen} other {# Ordner geladen}}"
 #. placeholder {0}: item.count
 #. placeholder {0}: redirect.hits
 #: packages/admin/src/components/Redirects.tsx:382
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:505
 msgid "{0, plural, one {# hit} other {# hits}}"
 msgstr "{0, plural, one {# Aufruf} other {# Aufrufe}}"
 
@@ -350,7 +350,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# Beitrag} other {# Beiträge}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:776
+#: packages/admin/src/components/Redirects.tsx:792
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# Weiterleitung ist Teil einer Schleife.} other {# Weiterleitungen sind Teil einer Schleife.}}"
 
@@ -1283,7 +1283,7 @@ msgstr "4. Klicke auf „Export-Datei herunterladen“"
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Gib „EmDash“ ein und klicke auf „Neu hinzufügen“"
 
-#: packages/admin/src/components/Redirects.tsx:751
+#: packages/admin/src/components/Redirects.tsx:767
 msgid "404 Errors"
 msgstr "404-Fehler"
 
@@ -1500,7 +1500,7 @@ msgstr "ACF-Felder"
 #: packages/admin/src/components/ContentList.tsx:980
 #: packages/admin/src/components/ContentTypeList.tsx:227
 #: packages/admin/src/components/Redirects.tsx:362
-#: packages/admin/src/components/Redirects.tsx:827
+#: packages/admin/src/components/Redirects.tsx:843
 #: packages/admin/src/components/RelationList.tsx:99
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1529,7 +1529,7 @@ msgid "Actions for comment by {author}"
 msgstr "Aktionen für Kommentar von {author}"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:514
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Actions for redirect {0}"
 msgstr "Aktionen für Weiterleitung {0}"
 
@@ -2044,13 +2044,13 @@ msgid "All sources"
 msgstr "Alle Quellen"
 
 #: packages/admin/src/components/ContentList.tsx:1071
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 msgid "All statuses"
 msgstr "Alle Status"
 
 #: packages/admin/src/components/MediaLibrary.tsx:921
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "All types"
 msgstr "Alle Typen"
 
@@ -2547,11 +2547,11 @@ msgstr ""
 msgid "Authors will be assigned to users on this site"
 msgstr "Autoren werden Benutzern dieser Website zugeordnet"
 
-#: packages/admin/src/components/Redirects.tsx:467
+#: packages/admin/src/components/Redirects.tsx:478
 msgid "auto"
 msgstr "automatisch"
 
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "Auto (slug change)"
 msgstr "Automatisch (Slug-Änderung)"
 
@@ -3601,7 +3601,7 @@ msgstr "Der Bot-Schutz von Cloudflare hat mit einer Challenge-Seite geantwortet,
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/Redirects.tsx:820
+#: packages/admin/src/components/Redirects.tsx:836
 msgid "Code"
 msgstr "Code"
 
@@ -4373,7 +4373,7 @@ msgstr "Weiterleitung für {0} erstellen"
 msgid "Create redirect for this path"
 msgstr "Weiterleitung für diesen Pfad erstellen"
 
-#: packages/admin/src/components/Redirects.tsx:798
+#: packages/admin/src/components/Redirects.tsx:814
 msgid "Create redirect rules to manage URL changes."
 msgstr "Erstelle Weiterleitungsregeln, um URL-Änderungen zu verwalten."
 
@@ -4717,8 +4717,8 @@ msgstr "Im Code definiert"
 #: packages/admin/src/components/MenuEditor.tsx:790
 #: packages/admin/src/components/MenuEditor.tsx:808
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:528
-#: packages/admin/src/components/Redirects.tsx:886
+#: packages/admin/src/components/Redirects.tsx:539
+#: packages/admin/src/components/Redirects.tsx:902
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:239
 #: packages/admin/src/components/RowMenuItems.tsx:106
@@ -4877,11 +4877,11 @@ msgid "Delete Permanently?"
 msgstr "Endgültig löschen?"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:525
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Delete redirect {0}"
 msgstr "Weiterleitung {0} löschen"
 
-#: packages/admin/src/components/Redirects.tsx:884
+#: packages/admin/src/components/Redirects.tsx:900
 msgid "Delete Redirect?"
 msgstr "Weiterleitung löschen?"
 
@@ -4957,7 +4957,7 @@ msgstr "Beim Löschen von „{0}“ {1, plural, one {wird auch # gespeicherter W
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:809
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:887
+#: packages/admin/src/components/Redirects.tsx:903
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -5048,7 +5048,7 @@ msgstr "Beschreibung"
 msgid "Description (optional)"
 msgstr "Beschreibung (optional)"
 
-#: packages/admin/src/components/Redirects.tsx:811
+#: packages/admin/src/components/Redirects.tsx:827
 msgid "Destination"
 msgstr "Ziel"
 
@@ -5111,7 +5111,7 @@ msgid "Disable plugin MCP tools"
 msgstr "MCP-Tools des Plugins deaktivieren"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:508
+#: packages/admin/src/components/Redirects.tsx:519
 msgid "Disable redirect {0}"
 msgstr "Weiterleitung {0} deaktivieren"
 
@@ -5124,7 +5124,7 @@ msgid "Disable User?"
 msgstr "Benutzer deaktivieren?"
 
 #: packages/admin/src/components/PluginManager.tsx:461
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 #: packages/admin/src/components/users/UserDetail.tsx:205
 #: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
@@ -5514,7 +5514,7 @@ msgstr "Älteste gespeicherte Version"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:785
-#: packages/admin/src/components/Redirects.tsx:519
+#: packages/admin/src/components/Redirects.tsx:530
 #: packages/admin/src/components/RelationList.tsx:230
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:131
@@ -5666,7 +5666,7 @@ msgid "Edit Redirect"
 msgstr "Weiterleitung bearbeiten"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:451
+#: packages/admin/src/components/Redirects.tsx:462
 msgid "Edit redirect {0}"
 msgstr "Weiterleitung {0} bearbeiten"
 
@@ -5972,7 +5972,7 @@ msgid "Enable plugin MCP tools"
 msgstr "MCP-Tools des Plugins aktivieren"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:509
+#: packages/admin/src/components/Redirects.tsx:520
 msgid "Enable redirect {0}"
 msgstr "Weiterleitung {0} aktivieren"
 
@@ -5985,7 +5985,7 @@ msgid "Enable tracking to index existing content and keep references up to date.
 msgstr "Aktiviere die Erfassung, um bestehende Inhalte zu indexieren und Verweise aktuell zu halten."
 
 #: packages/admin/src/components/Redirects.tsx:301
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 msgid "Enabled"
 msgstr "Aktiviert"
 
@@ -6285,7 +6285,7 @@ msgstr "Alle Beziehungen, an denen dieser Inhaltstyp beteiligt ist, werden ebenf
 msgid "Everything is shown again, in the default order."
 msgstr "Alles wird wieder in der Standardreihenfolge angezeigt."
 
-#: packages/admin/src/components/Redirects.tsx:695
+#: packages/admin/src/components/Redirects.tsx:711
 msgid "Exact group name..."
 msgstr "Exakter Gruppenname..."
 
@@ -7632,7 +7632,7 @@ msgstr "Nach Sammlung filtern"
 msgid "Filter by date range: {rangeLabel}"
 msgstr "Nach Zeitraum filtern: {rangeLabel}"
 
-#: packages/admin/src/components/Redirects.tsx:694
+#: packages/admin/src/components/Redirects.tsx:710
 msgid "Filter by group"
 msgstr "Nach Gruppe filtern"
 
@@ -7645,13 +7645,13 @@ msgid "Filter by source"
 msgstr "Nach Quelle filtern"
 
 #: packages/admin/src/components/ContentList.tsx:1110
-#: packages/admin/src/components/Redirects.tsx:707
+#: packages/admin/src/components/Redirects.tsx:723
 msgid "Filter by status"
 msgstr "Nach Status filtern"
 
 #: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:714
+#: packages/admin/src/components/Redirects.tsx:730
 msgid "Filter by type"
 msgstr "Nach Typ filtern"
 
@@ -7913,8 +7913,8 @@ msgid "Grid view"
 msgstr "Rasteransicht"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:583
-#: packages/admin/src/components/Redirects.tsx:484
-#: packages/admin/src/components/Redirects.tsx:815
+#: packages/admin/src/components/Redirects.tsx:495
+#: packages/admin/src/components/Redirects.tsx:831
 msgid "Group"
 msgstr "Gruppe"
 
@@ -8073,7 +8073,7 @@ msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Hierarchisch (wie Kategorien, mit über- und untergeordneten Begriffen)"
 
 #: packages/admin/src/components/Redirects.tsx:356
-#: packages/admin/src/components/Redirects.tsx:823
+#: packages/admin/src/components/Redirects.tsx:839
 msgid "Hits"
 msgstr "Aufrufe"
 
@@ -9162,7 +9162,7 @@ msgstr "Live-Ansicht"
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:851
+#: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -9274,7 +9274,7 @@ msgstr "Plugin-Bereich wird geladen"
 msgid "Loading plugins..."
 msgstr "Plugins werden geladen..."
 
-#: packages/admin/src/components/Redirects.tsx:788
+#: packages/admin/src/components/Redirects.tsx:804
 msgid "Loading redirects..."
 msgstr "Weiterleitungen werden geladen..."
 
@@ -9332,7 +9332,7 @@ msgstr "Widgets werden geladen..."
 #: packages/admin/src/components/MediaLibrary.tsx:1254
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:1925
-#: packages/admin/src/components/Redirects.tsx:851
+#: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -9473,7 +9473,7 @@ msgstr "Verwalte Navigationsmenüs für deine Website"
 msgid "Manage the people and teams credited on your content."
 msgstr "Verwalte die Personen und Teams, die in deinen Inhalten namentlich genannt werden."
 
-#: packages/admin/src/components/Redirects.tsx:673
+#: packages/admin/src/components/Redirects.tsx:689
 msgid "Manage URL redirects and view 404 errors."
 msgstr "Verwalte URL-Weiterleitungen und prüfe 404-Fehler."
 
@@ -9494,7 +9494,7 @@ msgstr "Verwaltet von einem externen Medienanbieter"
 msgid "Managed by your identity provider. Change the name there."
 msgstr "Wird von deinem Identitätsanbieter verwaltet. Ändere den Namen dort."
 
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "Manual"
 msgstr "Manuell"
 
@@ -10216,7 +10216,7 @@ msgid "New public routes"
 msgstr "Neue öffentliche Routen"
 
 #: packages/admin/src/components/Redirects.tsx:243
-#: packages/admin/src/components/Redirects.tsx:680
+#: packages/admin/src/components/Redirects.tsx:696
 msgid "New Redirect"
 msgstr "Neue Weiterleitung"
 
@@ -10474,7 +10474,7 @@ msgstr "Keine Dateien hinzugefügt"
 msgid "No folders found"
 msgstr "Keine Ordner gefunden"
 
-#: packages/admin/src/components/Redirects.tsx:489
+#: packages/admin/src/components/Redirects.tsx:500
 msgid "No group"
 msgstr "Keine Gruppe"
 
@@ -10640,11 +10640,11 @@ msgstr "Keine öffentliche URL verfügbar"
 msgid "No recent activity"
 msgstr "Keine aktuellen Aktivitäten"
 
-#: packages/admin/src/components/Redirects.tsx:793
+#: packages/admin/src/components/Redirects.tsx:809
 msgid "No redirects match these filters"
 msgstr "Keine Weiterleitungen entsprechen diesen Filtern"
 
-#: packages/admin/src/components/Redirects.tsx:793
+#: packages/admin/src/components/Redirects.tsx:809
 msgid "No redirects yet"
 msgstr "Noch keine Weiterleitungen"
 
@@ -11159,8 +11159,8 @@ msgstr "Absatz vor der Tabelle eingefügt"
 msgid "Parent"
 msgstr "Übergeordnetes Element"
 
-#: packages/admin/src/components/Redirects.tsx:457
-#: packages/admin/src/components/Redirects.tsx:463
+#: packages/admin/src/components/Redirects.tsx:468
+#: packages/admin/src/components/Redirects.tsx:474
 msgid "Part of a redirect loop"
 msgstr "Teil einer Weiterleitungsschleife"
 
@@ -12051,7 +12051,7 @@ msgstr "Datensätze ohne übergeordneten Eintrag wurden nicht berücksichtigt"
 msgid "Recovery link sent to {0}"
 msgstr "Link zur Wiederherstellung wurde an {0} gesendet"
 
-#: packages/admin/src/components/Redirects.tsx:774
+#: packages/admin/src/components/Redirects.tsx:790
 msgid "Redirect loop detected"
 msgstr "Weiterleitungsschleife erkannt"
 
@@ -12059,8 +12059,8 @@ msgstr "Weiterleitungsschleife erkannt"
 msgid "Redirecting to login..."
 msgstr "Du wirst zur Anmeldung weitergeleitet..."
 
-#: packages/admin/src/components/Redirects.tsx:672
-#: packages/admin/src/components/Redirects.tsx:731
+#: packages/admin/src/components/Redirects.tsx:688
+#: packages/admin/src/components/Redirects.tsx:747
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:529
@@ -13418,7 +13418,7 @@ msgstr "Wiederverwendbare öffentliche Profile durchsuchen."
 msgid "Search sections..."
 msgstr "Abschnitte durchsuchen..."
 
-#: packages/admin/src/components/Redirects.tsx:667
+#: packages/admin/src/components/Redirects.tsx:683
 msgid "Search source or destination..."
 msgstr "Nach Quelle/Ziel suchen..."
 
@@ -14422,7 +14422,7 @@ msgstr "sortierbar"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:791
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:652
-#: packages/admin/src/components/Redirects.tsx:808
+#: packages/admin/src/components/Redirects.tsx:824
 #: packages/admin/src/components/SectionEditor.tsx:298
 msgid "Source"
 msgstr "Quelle"
@@ -14538,7 +14538,7 @@ msgstr "Status"
 #: packages/admin/src/components/ContentList.tsx:510
 #: packages/admin/src/components/ContentList.tsx:810
 #: packages/admin/src/components/ContentTypeEditor.tsx:139
-#: packages/admin/src/components/Redirects.tsx:825
+#: packages/admin/src/components/Redirects.tsx:841
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -15660,11 +15660,11 @@ msgstr "Das Handle dieses Herausgebers verweist nicht auf seine Identität zurü
 msgid "This range has more than {maxEntries} entries"
 msgstr "Dieser Zeitraum enthält mehr als {maxEntries} Einträge"
 
-#: packages/admin/src/components/Redirects.tsx:885
+#: packages/admin/src/components/Redirects.tsx:901
 msgid "This redirect rule will be permanently removed."
 msgstr "Diese Weiterleitungsregel wird endgültig entfernt."
 
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:643
 msgid "This redirect was already deleted."
 msgstr "Diese Weiterleitung wurde bereits gelöscht."
 
@@ -16070,7 +16070,7 @@ msgstr "Versuche es mit einem anderen Dateinamen oder setze Suche und Filter zur
 msgid "Try Another URL"
 msgstr "Versuche es mit einer anderen URL"
 
-#: packages/admin/src/components/Redirects.tsx:797
+#: packages/admin/src/components/Redirects.tsx:813
 msgid "Try changing or clearing your filters."
 msgstr "Ändere deine Filter oder setze sie zurück."
 
@@ -16932,7 +16932,7 @@ msgstr "Für Suchmaschinen sichtbar"
 msgid "Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found."
 msgstr "Besucher können die Website aufrufen, Suchmaschinen werden aber gebeten, sie nicht zu indexieren. Schalte die Website live, sobald sie gefunden werden soll."
 
-#: packages/admin/src/components/Redirects.tsx:780
+#: packages/admin/src/components/Redirects.tsx:796
 msgid "Visitors hitting these paths will see an error."
 msgstr "Besucher, die diese Pfade aufrufen, erhalten eine Fehlermeldung."
 

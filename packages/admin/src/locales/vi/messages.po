@@ -272,7 +272,7 @@ msgstr "{0, plural, one {Đã tải # thư mục} other {Đã tải # thư mục
 #. placeholder {0}: item.count
 #. placeholder {0}: redirect.hits
 #: packages/admin/src/components/Redirects.tsx:382
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:505
 msgid "{0, plural, one {# hit} other {# hits}}"
 msgstr "{0, plural, one {# lượt truy cập} other {# lượt truy cập}}"
 
@@ -350,7 +350,7 @@ msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {# bài viết} other {# bài viết}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:776
+#: packages/admin/src/components/Redirects.tsx:792
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {# chuyển hướng nằm trong một vòng lặp.} other {# chuyển hướng nằm trong một vòng lặp.}}"
 
@@ -1283,7 +1283,7 @@ msgstr "4. Bấm \"Tải về tập tin được xuất ra\""
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. Nhập \"EmDash\" và bấm \"Thêm mới\""
 
-#: packages/admin/src/components/Redirects.tsx:751
+#: packages/admin/src/components/Redirects.tsx:767
 msgid "404 Errors"
 msgstr "Lỗi 404"
 
@@ -1500,7 +1500,7 @@ msgstr "Trường ACF"
 #: packages/admin/src/components/ContentList.tsx:980
 #: packages/admin/src/components/ContentTypeList.tsx:227
 #: packages/admin/src/components/Redirects.tsx:362
-#: packages/admin/src/components/Redirects.tsx:827
+#: packages/admin/src/components/Redirects.tsx:843
 #: packages/admin/src/components/RelationList.tsx:99
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1529,7 +1529,7 @@ msgid "Actions for comment by {author}"
 msgstr "Thao tác cho bình luận của {author}"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:514
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Actions for redirect {0}"
 msgstr "Thao tác cho chuyển hướng {0}"
 
@@ -2044,13 +2044,13 @@ msgid "All sources"
 msgstr "Tất cả nguồn"
 
 #: packages/admin/src/components/ContentList.tsx:1071
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 msgid "All statuses"
 msgstr "Tất cả trạng thái"
 
 #: packages/admin/src/components/MediaLibrary.tsx:921
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "All types"
 msgstr "Tất cả loại"
 
@@ -2547,11 +2547,11 @@ msgstr ""
 msgid "Authors will be assigned to users on this site"
 msgstr "Tác giả sẽ được gán cho tài khoản trên trang web này"
 
-#: packages/admin/src/components/Redirects.tsx:467
+#: packages/admin/src/components/Redirects.tsx:478
 msgid "auto"
 msgstr "tự động"
 
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "Auto (slug change)"
 msgstr "Tự động (đổi slug)"
 
@@ -3601,7 +3601,7 @@ msgstr "Cơ chế chống bot của Cloudflare đã chặn và trả về trang 
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/Redirects.tsx:820
+#: packages/admin/src/components/Redirects.tsx:836
 msgid "Code"
 msgstr "Mã"
 
@@ -4373,7 +4373,7 @@ msgstr "Tạo chuyển hướng cho {0}"
 msgid "Create redirect for this path"
 msgstr "Tạo chuyển hướng cho đường dẫn này"
 
-#: packages/admin/src/components/Redirects.tsx:798
+#: packages/admin/src/components/Redirects.tsx:814
 msgid "Create redirect rules to manage URL changes."
 msgstr "Tạo quy tắc chuyển hướng để quản lý các thay đổi URL."
 
@@ -4717,8 +4717,8 @@ msgstr "Khai báo trong mã"
 #: packages/admin/src/components/MenuEditor.tsx:790
 #: packages/admin/src/components/MenuEditor.tsx:808
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:528
-#: packages/admin/src/components/Redirects.tsx:886
+#: packages/admin/src/components/Redirects.tsx:539
+#: packages/admin/src/components/Redirects.tsx:902
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:239
 #: packages/admin/src/components/RowMenuItems.tsx:106
@@ -4877,11 +4877,11 @@ msgid "Delete Permanently?"
 msgstr "Xoá vĩnh viễn?"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:525
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Delete redirect {0}"
 msgstr "Xoá chuyển hướng {0}"
 
-#: packages/admin/src/components/Redirects.tsx:884
+#: packages/admin/src/components/Redirects.tsx:900
 msgid "Delete Redirect?"
 msgstr "Xoá chuyển hướng?"
 
@@ -4957,7 +4957,7 @@ msgstr "Việc xoá \"{0}\" cũng sẽ xoá {1, plural, one {# giá trị đã l
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:809
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:887
+#: packages/admin/src/components/Redirects.tsx:903
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -5048,7 +5048,7 @@ msgstr "Mô tả"
 msgid "Description (optional)"
 msgstr "Mô tả (không bắt buộc)"
 
-#: packages/admin/src/components/Redirects.tsx:811
+#: packages/admin/src/components/Redirects.tsx:827
 msgid "Destination"
 msgstr "Đích đến"
 
@@ -5111,7 +5111,7 @@ msgid "Disable plugin MCP tools"
 msgstr "Tắt công cụ MCP của plugin"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:508
+#: packages/admin/src/components/Redirects.tsx:519
 msgid "Disable redirect {0}"
 msgstr "Tắt chuyển hướng {0}"
 
@@ -5124,7 +5124,7 @@ msgid "Disable User?"
 msgstr "Tắt tài khoản?"
 
 #: packages/admin/src/components/PluginManager.tsx:461
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 #: packages/admin/src/components/users/UserDetail.tsx:205
 #: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
@@ -5514,7 +5514,7 @@ msgstr "Phiên bản lưu cũ nhất"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:785
-#: packages/admin/src/components/Redirects.tsx:519
+#: packages/admin/src/components/Redirects.tsx:530
 #: packages/admin/src/components/RelationList.tsx:230
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:131
@@ -5666,7 +5666,7 @@ msgid "Edit Redirect"
 msgstr "Sửa chuyển hướng"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:451
+#: packages/admin/src/components/Redirects.tsx:462
 msgid "Edit redirect {0}"
 msgstr "Sửa chuyển hướng {0}"
 
@@ -5972,7 +5972,7 @@ msgid "Enable plugin MCP tools"
 msgstr "Bật công cụ MCP của plugin"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:509
+#: packages/admin/src/components/Redirects.tsx:520
 msgid "Enable redirect {0}"
 msgstr "Bật chuyển hướng {0}"
 
@@ -5985,7 +5985,7 @@ msgid "Enable tracking to index existing content and keep references up to date.
 msgstr "Bật theo dõi để lập chỉ mục nội dung hiện có và cập nhật các tham chiếu."
 
 #: packages/admin/src/components/Redirects.tsx:301
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 msgid "Enabled"
 msgstr "Đã bật"
 
@@ -6285,7 +6285,7 @@ msgstr "Mọi quan hệ mà loại nội dung này tham gia cũng bị xoá theo
 msgid "Everything is shown again, in the default order."
 msgstr "Mọi mục được hiển thị lại, theo thứ tự mặc định."
 
-#: packages/admin/src/components/Redirects.tsx:695
+#: packages/admin/src/components/Redirects.tsx:711
 msgid "Exact group name..."
 msgstr "Tên nhóm chính xác..."
 
@@ -7632,7 +7632,7 @@ msgstr "Lọc theo bộ sưu tập"
 msgid "Filter by date range: {rangeLabel}"
 msgstr "Lọc theo khoảng ngày: {rangeLabel}"
 
-#: packages/admin/src/components/Redirects.tsx:694
+#: packages/admin/src/components/Redirects.tsx:710
 msgid "Filter by group"
 msgstr "Lọc theo nhóm"
 
@@ -7645,13 +7645,13 @@ msgid "Filter by source"
 msgstr "Lọc theo nguồn"
 
 #: packages/admin/src/components/ContentList.tsx:1110
-#: packages/admin/src/components/Redirects.tsx:707
+#: packages/admin/src/components/Redirects.tsx:723
 msgid "Filter by status"
 msgstr "Lọc theo trạng thái"
 
 #: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:714
+#: packages/admin/src/components/Redirects.tsx:730
 msgid "Filter by type"
 msgstr "Lọc theo loại"
 
@@ -7913,8 +7913,8 @@ msgid "Grid view"
 msgstr "Xem dạng lưới"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:583
-#: packages/admin/src/components/Redirects.tsx:484
-#: packages/admin/src/components/Redirects.tsx:815
+#: packages/admin/src/components/Redirects.tsx:495
+#: packages/admin/src/components/Redirects.tsx:831
 msgid "Group"
 msgstr "Nhóm"
 
@@ -8073,7 +8073,7 @@ msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "Phân cấp (như chuyên mục, có quan hệ cha/con)"
 
 #: packages/admin/src/components/Redirects.tsx:356
-#: packages/admin/src/components/Redirects.tsx:823
+#: packages/admin/src/components/Redirects.tsx:839
 msgid "Hits"
 msgstr "Lượt truy cập"
 
@@ -9162,7 +9162,7 @@ msgstr "Xem bản live"
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:851
+#: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -9274,7 +9274,7 @@ msgstr "Đang tải bảng plugin"
 msgid "Loading plugins..."
 msgstr "Đang tải plugin..."
 
-#: packages/admin/src/components/Redirects.tsx:788
+#: packages/admin/src/components/Redirects.tsx:804
 msgid "Loading redirects..."
 msgstr "Đang tải chuyển hướng..."
 
@@ -9332,7 +9332,7 @@ msgstr "Đang tải tiện ích..."
 #: packages/admin/src/components/MediaLibrary.tsx:1254
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:1925
-#: packages/admin/src/components/Redirects.tsx:851
+#: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -9473,7 +9473,7 @@ msgstr "Quản lý các menu điều hướng trên trang web"
 msgid "Manage the people and teams credited on your content."
 msgstr "Quản lý những người và nhóm được ghi tên trong nội dung của bạn."
 
-#: packages/admin/src/components/Redirects.tsx:673
+#: packages/admin/src/components/Redirects.tsx:689
 msgid "Manage URL redirects and view 404 errors."
 msgstr "Quản lý chuyển hướng URL và theo dõi lỗi 404."
 
@@ -9494,7 +9494,7 @@ msgstr "Do nhà cung cấp thư viện bên ngoài quản lý"
 msgid "Managed by your identity provider. Change the name there."
 msgstr "Tên được đồng bộ từ dịch vụ đăng nhập liên kết. Vui lòng đổi tên tại hệ thống đó."
 
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "Manual"
 msgstr "Thủ công"
 
@@ -10216,7 +10216,7 @@ msgid "New public routes"
 msgstr "Định tuyến (route) công khai mới"
 
 #: packages/admin/src/components/Redirects.tsx:243
-#: packages/admin/src/components/Redirects.tsx:680
+#: packages/admin/src/components/Redirects.tsx:696
 msgid "New Redirect"
 msgstr "Chuyển hướng mới"
 
@@ -10474,7 +10474,7 @@ msgstr "Chưa có tệp nào được thêm"
 msgid "No folders found"
 msgstr "Không tìm thấy thư mục nào"
 
-#: packages/admin/src/components/Redirects.tsx:489
+#: packages/admin/src/components/Redirects.tsx:500
 msgid "No group"
 msgstr "Không có nhóm"
 
@@ -10640,11 +10640,11 @@ msgstr "Không có URL công khai"
 msgid "No recent activity"
 msgstr "Chưa có hoạt động nào gần đây"
 
-#: packages/admin/src/components/Redirects.tsx:793
+#: packages/admin/src/components/Redirects.tsx:809
 msgid "No redirects match these filters"
 msgstr "Không có chuyển hướng nào khớp với các bộ lọc này"
 
-#: packages/admin/src/components/Redirects.tsx:793
+#: packages/admin/src/components/Redirects.tsx:809
 msgid "No redirects yet"
 msgstr "Chưa có chuyển hướng nào"
 
@@ -11159,8 +11159,8 @@ msgstr "Đã chèn đoạn văn trước bảng"
 msgid "Parent"
 msgstr "Mục cha"
 
-#: packages/admin/src/components/Redirects.tsx:457
-#: packages/admin/src/components/Redirects.tsx:463
+#: packages/admin/src/components/Redirects.tsx:468
+#: packages/admin/src/components/Redirects.tsx:474
 msgid "Part of a redirect loop"
 msgstr "Nằm trong vòng lặp chuyển hướng"
 
@@ -12051,7 +12051,7 @@ msgstr "Đã bỏ qua các bản ghi không có mục cha"
 msgid "Recovery link sent to {0}"
 msgstr "Đã gửi liên kết khôi phục tới {0}"
 
-#: packages/admin/src/components/Redirects.tsx:774
+#: packages/admin/src/components/Redirects.tsx:790
 msgid "Redirect loop detected"
 msgstr "Phát hiện vòng lặp chuyển hướng"
 
@@ -12059,8 +12059,8 @@ msgstr "Phát hiện vòng lặp chuyển hướng"
 msgid "Redirecting to login..."
 msgstr "Đang chuyển đến trang đăng nhập..."
 
-#: packages/admin/src/components/Redirects.tsx:672
-#: packages/admin/src/components/Redirects.tsx:731
+#: packages/admin/src/components/Redirects.tsx:688
+#: packages/admin/src/components/Redirects.tsx:747
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:529
@@ -13418,7 +13418,7 @@ msgstr "Tìm hồ sơ công khai dùng lại được."
 msgid "Search sections..."
 msgstr "Tìm mẫu..."
 
-#: packages/admin/src/components/Redirects.tsx:667
+#: packages/admin/src/components/Redirects.tsx:683
 msgid "Search source or destination..."
 msgstr "Tìm nguồn hoặc đích đến..."
 
@@ -14422,7 +14422,7 @@ msgstr "có thể sắp xếp"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:791
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:652
-#: packages/admin/src/components/Redirects.tsx:808
+#: packages/admin/src/components/Redirects.tsx:824
 #: packages/admin/src/components/SectionEditor.tsx:298
 msgid "Source"
 msgstr "Nguồn"
@@ -14538,7 +14538,7 @@ msgstr "Trạng thái"
 #: packages/admin/src/components/ContentList.tsx:510
 #: packages/admin/src/components/ContentList.tsx:810
 #: packages/admin/src/components/ContentTypeEditor.tsx:139
-#: packages/admin/src/components/Redirects.tsx:825
+#: packages/admin/src/components/Redirects.tsx:841
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -15660,11 +15660,11 @@ msgstr "Định danh của nhà phát hành không khớp với hồ sơ xác th
 msgid "This range has more than {maxEntries} entries"
 msgstr "Khoảng thời gian này có nhiều hơn {maxEntries} mục"
 
-#: packages/admin/src/components/Redirects.tsx:885
+#: packages/admin/src/components/Redirects.tsx:901
 msgid "This redirect rule will be permanently removed."
 msgstr "Quy tắc chuyển hướng này sẽ bị xoá vĩnh viễn."
 
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:643
 msgid "This redirect was already deleted."
 msgstr "Chuyển hướng này đã được xoá trước đó."
 
@@ -16070,7 +16070,7 @@ msgstr "Hãy thử tên tệp khác, hoặc xoá nội dung tìm kiếm và các
 msgid "Try Another URL"
 msgstr "Thử URL khác"
 
-#: packages/admin/src/components/Redirects.tsx:797
+#: packages/admin/src/components/Redirects.tsx:813
 msgid "Try changing or clearing your filters."
 msgstr "Hãy thử đổi hoặc xoá bộ lọc."
 
@@ -16932,7 +16932,7 @@ msgstr "Hiển thị với công cụ tìm kiếm"
 msgid "Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found."
 msgstr "Khách truy cập vẫn có thể vào trang web, nhưng hệ thống sẽ yêu cầu các công cụ tìm kiếm không lập chỉ mục. Hãy chuyển sang chế độ chính thức khi trang web đã sẵn sàng xuất hiện trên kết quả tìm kiếm."
 
-#: packages/admin/src/components/Redirects.tsx:780
+#: packages/admin/src/components/Redirects.tsx:796
 msgid "Visitors hitting these paths will see an error."
 msgstr "Khách truy cập vào các đường dẫn này sẽ thấy lỗi."
 
