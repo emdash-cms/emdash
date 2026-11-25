@@ -266,8 +266,9 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 			getI18nConfig()?.defaultLocale ?? "en",
 		);
 
-		// Every caller that gets here may edit the entry, so may read drafts.
-		return apiSuccess(assignmentResponse(assignments, entryLocale, true));
+		return apiSuccess(
+			assignmentResponse(assignments, entryLocale, hasPermission(user, "content:read_drafts")),
+		);
 	} catch (error) {
 		return handleError(error, "Failed to set entry terms", "TERMS_SET_ERROR");
 	}

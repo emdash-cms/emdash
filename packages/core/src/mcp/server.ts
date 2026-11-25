@@ -1137,7 +1137,8 @@ export function createMcpServer(
 			title: "Get Content",
 			description:
 				"Get a single content item by its ID or slug. Returns the full content data " +
-				"including all field values, metadata, and a _rev token. content_update, " +
+				"including all field values, metadata, and a _rev token (omitted for callers " +
+				"without content:read_drafts). content_update, " +
 				"content_publish, content_unpublish and content_discard_draft require that " +
 				"token, so read the item here before calling them.",
 			inputSchema: z.object({

@@ -25,9 +25,12 @@ import { ContentRepository } from "../../../src/database/repositories/content.js
 import type { Database } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import {
+	describeEachDialect,
+	setupForDialectWithCollections,
 	setupTestDatabase,
-	setupTestDatabaseWithCollections,
+	teardownForDialect,
 	teardownTestDatabase,
+	type DialectTestContext,
 } from "../../utils/test-db.js";
 
 describe("menu schemas", () => {
@@ -286,18 +289,20 @@ describe("handleMenuSetItems — concurrent delete race", () => {
 	});
 });
 
-describe("menu reads without draft access", () => {
+describeEachDialect("menu reads without draft access", (dialect) => {
+	let ctx: DialectTestContext;
 	let db: Kysely<Database>;
 	let content: ContentRepository;
 
 	beforeEach(async () => {
-		db = await setupTestDatabaseWithCollections();
+		ctx = await setupForDialectWithCollections(dialect);
+		db = ctx.db;
 		content = new ContentRepository(db);
 		await handleMenuCreate(db, { name: "primary", label: "Primary" });
 	});
 
 	afterEach(async () => {
-		await teardownTestDatabase(db);
+		await teardownForDialect(ctx);
 	});
 
 	async function addItem(input: Parameters<typeof handleMenuItemCreate>[2]): Promise<string> {
