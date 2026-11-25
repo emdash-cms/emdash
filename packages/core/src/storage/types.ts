@@ -199,6 +199,14 @@ export interface Storage {
 	download(key: string, options?: DownloadOptions): Promise<DownloadResult>;
 
 	/**
+	 * Copy a file to another key inside the storage service, with
+	 * `contentType` as the copy's MIME type. Optional: callers fall back to
+	 * `download()` followed by `upload()`, which routes the bytes through the
+	 * server.
+	 */
+	copy?(options: { sourceKey: string; key: string; contentType: string }): Promise<void>;
+
+	/**
 	 * Delete a file from storage
 	 * Idempotent - does not throw if file doesn't exist
 	 */
