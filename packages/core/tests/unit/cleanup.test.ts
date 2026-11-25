@@ -642,7 +642,7 @@ describeEachDialect("Expired OAuth login cleanup", (dialect) => {
 	});
 });
 
-describeEachDialect("Atmosphere sign-in state cleanup", (dialect) => {
+describeEachDialect("Atmosphere sign-in storage cleanup", (dialect) => {
 	let ctx: DialectTestContext;
 	const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60 * 1000).toISOString();
 	const stored = (plugin_id: string, collection: string, id: string, created_at: string) => ({
@@ -677,24 +677,39 @@ describeEachDialect("Atmosphere sign-in state cleanup", (dialect) => {
 
 		const result = await runSystemCleanup(ctx.db);
 
-		expect(result.atprotoStates).toBe(1);
+		expect(result.atprotoStorage).toBe(1);
 		expect(await remainingIds()).toEqual(["in-progress"]);
 	});
 
-	it("leaves other collections and other plugins' storage alone", async () => {
+	it("deletes token sets stored by earlier versions of the provider", async () => {
 		await ctx.db
 			.insertInto("_plugin_storage")
 			.values([
-				stored("auth:atproto", "sessions", "did:plc:user", minutesAgo(120)),
+				stored("auth:atproto", "sessions", "did:plc:old", minutesAgo(120)),
+				stored("auth:atproto", "sessions", "did:plc:recent", minutesAgo(1)),
+			])
+			.execute();
+
+		const result = await runSystemCleanup(ctx.db);
+
+		expect(result.atprotoStorage).toBe(2);
+		expect(await remainingIds()).toEqual([]);
+	});
+
+	it("leaves other plugins' and providers' storage alone", async () => {
+		await ctx.db
+			.insertInto("_plugin_storage")
+			.values([
 				stored("forms", "states", "plugin-states", minutesAgo(120)),
+				stored("forms", "sessions", "plugin-sessions", minutesAgo(120)),
 				stored("auth:other", "states", "provider-states", minutesAgo(120)),
 			])
 			.execute();
 
 		const result = await runSystemCleanup(ctx.db);
 
-		expect(result.atprotoStates).toBe(0);
-		expect(await remainingIds()).toEqual(["did:plc:user", "plugin-states", "provider-states"]);
+		expect(result.atprotoStorage).toBe(0);
+		expect(await remainingIds()).toEqual(["plugin-sessions", "plugin-states", "provider-states"]);
 	});
 });
 

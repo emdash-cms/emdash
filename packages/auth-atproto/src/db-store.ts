@@ -1,12 +1,12 @@
 /**
- * Database-backed store for AT Protocol OAuth state and sessions.
+ * Database-backed store for AT Protocol OAuth state.
  *
  * Wraps EmDash's plugin storage infrastructure to implement the `Store`
  * interface required by @atcute/oauth-node-client. Data is stored in the
  * shared `_plugin_storage` table under the `auth:atproto` namespace.
  *
- * Each store instance maps to a storage collection (e.g., "states" or
- * "sessions") and handles JSON serialization and TTL expiry checks.
+ * Each store instance maps to a storage collection (e.g., "states") and
+ * handles JSON serialization and TTL expiry checks.
  */
 
 import type { Store } from "@atcute/oauth-node-client";

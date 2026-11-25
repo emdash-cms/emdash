@@ -37,8 +37,11 @@ export interface CleanupResult {
 	oauthTokens: number;
 	authorizationCodes: number;
 	deviceCodes: number;
-	/** OAuth states of Atmosphere sign-ins that were started and never finished. */
-	atprotoStates: number;
+	/**
+	 * Atmosphere sign-in rows: OAuth states of sign-ins that were never
+	 * finished, and token sets stored by earlier versions of the provider.
+	 */
+	atprotoStorage: number;
 	pendingUploads: number;
 	pendingUploadFiles: number;
 	uploadAttempts: number;
@@ -63,7 +66,8 @@ const OAUTH_EXPIRY_GRACE_MS = ACCESS_TOKEN_TTL_SECONDS * 1000;
 /**
  * `@emdash-cms/auth-atproto` stores the OAuth state of each sign-in it starts
  * in `_plugin_storage`. A state is valid for 10 minutes and is otherwise only
- * deleted by the callback that presents it.
+ * deleted by the callback that presents it. Earlier versions of the provider
+ * also stored a `sessions` row per account that nothing reads.
  */
 const ATPROTO_STORAGE_NAMESPACE = "auth:atproto";
 const ATPROTO_STATE_MAX_AGE_MS = 60 * 60 * 1000;
@@ -119,7 +123,7 @@ export async function runSystemCleanup(
 		oauthTokens: -1,
 		authorizationCodes: -1,
 		deviceCodes: -1,
-		atprotoStates: -1,
+		atprotoStorage: -1,
 		pendingUploads: -1,
 		pendingUploadFiles: -1,
 		uploadAttempts: -1,
@@ -211,12 +215,16 @@ export async function runSystemCleanup(
 		const deleted = await db
 			.deleteFrom("_plugin_storage")
 			.where("plugin_id", "=", ATPROTO_STORAGE_NAMESPACE)
-			.where("collection", "=", "states")
-			.where("created_at", "<", stateCutoff)
+			.where((eb) =>
+				eb.or([
+					eb("collection", "=", "sessions"),
+					eb.and([eb("collection", "=", "states"), eb("created_at", "<", stateCutoff)]),
+				]),
+			)
 			.executeTakeFirst();
-		result.atprotoStates = Number(deleted.numDeletedRows);
+		result.atprotoStorage = Number(deleted.numDeletedRows);
 	} catch (error) {
-		console.error("[cleanup] Failed to clean Atmosphere sign-in states:", error);
+		console.error("[cleanup] Failed to clean Atmosphere sign-in storage:", error);
 	}
 
 	const oauthCutoff = new Date(Date.now() - OAUTH_EXPIRY_GRACE_MS).toISOString();
