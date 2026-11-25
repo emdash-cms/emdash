@@ -12,8 +12,8 @@
  */
 
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
-import { ContentRepository } from "../../database/repositories/content.js";
 import {
 	MenuGoneError,
 	MenuItemParentError,
@@ -27,7 +27,9 @@ import {
 	type UpdateMenuItemInput as UpdateMenuItemRepoInput,
 } from "../../database/repositories/menu.js";
 import type { Database } from "../../database/types.js";
+import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, getLocaleRank, resolveConfiguredLocale } from "../../i18n/config.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import type { ApiResult } from "../types.js";
 
@@ -151,24 +153,26 @@ async function omitUnpublishedTargets(
 
 	// `referenceId` is the target's translation_group, or the id of one row for
 	// items stored with that instead.
-	const content = new ContentRepository(db);
 	const published = new Map<string, Set<string>>();
 	for (const [collection, ids] of targets) {
 		const found = new Set<string>();
 		published.set(collection, found);
 		try {
-			const translations = await content.findTranslationsForGroups(collection, [...ids], {
-				publishedOnly: true,
-			});
-			for (const entry of translations) {
-				if (entry.translationGroup) found.add(entry.translationGroup);
-			}
-			const rows = await content.findManyByIds(
-				collection,
-				[...ids].filter((id) => !found.has(id)),
-			);
-			for (const entry of rows.values()) {
-				if (entry.status === "published") found.add(entry.id);
+			validateIdentifier(collection, "menu item collection");
+			// Each id is bound twice per batch.
+			for (const batch of chunks([...ids], Math.floor(SQL_BATCH_SIZE / 2))) {
+				const result = await sql<{ id: string; translation_group: string | null }>`
+					SELECT id, translation_group FROM ${sql.ref(`ec_${collection}`)}
+					WHERE (translation_group IN (${sql.join(batch)}) OR id IN (${sql.join(batch)}))
+					AND deleted_at IS NULL
+					AND status = 'published'
+				`.execute(db);
+				for (const row of result.rows) {
+					if (row.translation_group && ids.has(row.translation_group)) {
+						found.add(row.translation_group);
+					}
+					if (ids.has(row.id)) found.add(row.id);
+				}
 			}
 		} catch (error) {
 			// A collection that can't be read has nothing published to link to. One
