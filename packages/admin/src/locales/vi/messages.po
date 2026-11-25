@@ -1943,7 +1943,7 @@ msgstr "Nâng cao"
 msgid "Advanced: {blockLabel}"
 msgstr "Nâng cao: {blockLabel}"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:115
 msgid "After"
 msgstr "Sau"
 
@@ -2333,7 +2333,7 @@ msgstr "Áp dụng cho mọi bộ sưu tập. Những phần mà bộ sưu tập
 msgid "Apply"
 msgstr "Áp dụng"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:86
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:129
 msgid "Apply changes"
 msgstr "Áp dụng thay đổi"
 
@@ -2702,7 +2702,7 @@ msgstr "Bash"
 msgid "Basic blocks"
 msgstr "Khối cơ bản"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:69
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:109
 msgid "Before"
 msgstr "Trước"
 
@@ -2958,7 +2958,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:608
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:128
 #: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
@@ -11806,11 +11806,6 @@ msgstr "Xuất bản ngay?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Xuất bản, huỷ xuất bản, đặt lịch và huỷ đặt lịch nội dung"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "Đã xuất bản"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1072
@@ -11822,6 +11817,11 @@ msgstr "Đã xuất bản"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:164
 #: packages/admin/src/router.tsx:1989
 msgid "Published"
+msgstr "Đã xuất bản"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "Đã xuất bản"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12829,7 +12829,7 @@ msgstr "Xem xét quyền mới"
 msgid "Review posts"
 msgstr "Xem lại bài viết"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:58
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:98
 msgid "Review proposed changes"
 msgstr "Xem lại các thay đổi đề xuất"
 
@@ -15148,7 +15148,7 @@ msgstr "Kế hoạch đã bị thay đổi ở nơi khác, ví dụ từ dòng l
 msgid "The plugin field widget failed to render."
 msgstr "Tiện ích trường của plugin không hiển thị được."
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:60
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:100
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Plugin chưa lưu các thay đổi này. Hãy xem lại trước khi cập nhật trình soạn thảo."
 

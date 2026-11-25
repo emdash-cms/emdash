@@ -1943,7 +1943,7 @@ msgstr "進階"
 msgid "Advanced: {blockLabel}"
 msgstr "進階設定：{blockLabel}"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:115
 msgid "After"
 msgstr "變更後"
 
@@ -2333,7 +2333,7 @@ msgstr "套用至所有內容集合。內容集合未使用的區段會略過。
 msgid "Apply"
 msgstr "套用"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:86
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:129
 msgid "Apply changes"
 msgstr "套用變更"
 
@@ -2702,7 +2702,7 @@ msgstr "Bash"
 msgid "Basic blocks"
 msgstr "基本區塊"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:69
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:109
 msgid "Before"
 msgstr "變更前"
 
@@ -2958,7 +2958,7 @@ msgstr "無法連線至 EmDash"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:608
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:128
 #: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
@@ -11806,11 +11806,6 @@ msgstr "要立即發佈嗎？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "發佈、取消發佈、排程及取消排程內容"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "已發佈"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1072
@@ -11822,6 +11817,11 @@ msgstr "已發佈"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:164
 #: packages/admin/src/router.tsx:1989
 msgid "Published"
+msgstr "已發佈"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "已發佈"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12829,7 +12829,7 @@ msgstr "檢閱新權限"
 msgid "Review posts"
 msgstr "檢查文章"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:58
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:98
 msgid "Review proposed changes"
 msgstr "檢查建議的變更"
 
@@ -15148,7 +15148,7 @@ msgstr "這個頁面載入計畫後，計畫已在其他地方變更，例如命
 msgid "The plugin field widget failed to render."
 msgstr "無法轉譯外掛欄位小工具。"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:60
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:100
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "外掛尚未儲存這些變更。更新編輯器前請先檢查。"
 

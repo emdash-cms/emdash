@@ -1943,7 +1943,7 @@ msgstr "Avanceret"
 msgid "Advanced: {blockLabel}"
 msgstr ""
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:115
 msgid "After"
 msgstr "Efter"
 
@@ -2333,7 +2333,7 @@ msgstr ""
 msgid "Apply"
 msgstr "Anvend"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:86
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:129
 msgid "Apply changes"
 msgstr "Anvend ændringer"
 
@@ -2702,7 +2702,7 @@ msgstr "Bash"
 msgid "Basic blocks"
 msgstr ""
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:69
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:109
 msgid "Before"
 msgstr "Før"
 
@@ -2958,7 +2958,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:608
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:128
 #: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
@@ -11806,11 +11806,6 @@ msgstr "Udgiv nu?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Udgiv, fjern udgivelse af, planlæg og fjern planlægning af indhold"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr ""
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1072
@@ -11823,6 +11818,11 @@ msgstr ""
 #: packages/admin/src/router.tsx:1989
 msgid "Published"
 msgstr "Udgivet"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr ""
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
@@ -12829,7 +12829,7 @@ msgstr "Gennemgå nye tilladelser"
 msgid "Review posts"
 msgstr "Gennemgå indlæg"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:58
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:98
 msgid "Review proposed changes"
 msgstr "Gennemgå foreslåede ændringer"
 
@@ -15148,7 +15148,7 @@ msgstr "Planen blev ændret et andet sted, f.eks. fra kommandolinjen eller en AI
 msgid "The plugin field widget failed to render."
 msgstr "Pluginets feltwidget kunne ikke vises."
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:60
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:100
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Pluginet har ikke gemt disse ændringer. Gennemgå dem, før du opdaterer editoren."
 

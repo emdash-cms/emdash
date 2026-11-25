@@ -1943,7 +1943,7 @@ msgstr "高级"
 msgid "Advanced: {blockLabel}"
 msgstr "高级：{blockLabel}"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:115
 msgid "After"
 msgstr "之后"
 
@@ -2333,7 +2333,7 @@ msgstr "适用于所有合集。合集未使用的分组会被跳过。"
 msgid "Apply"
 msgstr "应用"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:86
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:129
 msgid "Apply changes"
 msgstr "应用更改"
 
@@ -2702,7 +2702,7 @@ msgstr "Bash"
 msgid "Basic blocks"
 msgstr "基础区块"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:69
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:109
 msgid "Before"
 msgstr "之前"
 
@@ -2958,7 +2958,7 @@ msgstr "无法连接到 EmDash"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:608
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:128
 #: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
@@ -11806,11 +11806,6 @@ msgstr "立即发布？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "发布、取消发布、定时发布和取消定时发布内容"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "已发布"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1072
@@ -11822,6 +11817,11 @@ msgstr "已发布"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:164
 #: packages/admin/src/router.tsx:1989
 msgid "Published"
+msgstr "已发布"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "已发布"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12829,7 +12829,7 @@ msgstr "查看新权限"
 msgid "Review posts"
 msgstr "审核文章"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:58
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:98
 msgid "Review proposed changes"
 msgstr "审核提议的更改"
 
@@ -15148,7 +15148,7 @@ msgstr "此页面加载后，计划已在其他地方（如命令行或 AI 助�
 msgid "The plugin field widget failed to render."
 msgstr "插件字段组件渲染失败。"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:60
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:100
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "插件尚未保存这些更改。更新编辑器前请检查。"
 

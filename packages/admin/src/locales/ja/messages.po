@@ -1943,7 +1943,7 @@ msgstr "高度なブロック"
 msgid "Advanced: {blockLabel}"
 msgstr "詳細設定：{blockLabel}"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:115
 msgid "After"
 msgstr "変更後"
 
@@ -2333,7 +2333,7 @@ msgstr "すべてのコレクションに適用されます。コレクション
 msgid "Apply"
 msgstr "適用"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:86
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:129
 msgid "Apply changes"
 msgstr "変更を適用"
 
@@ -2702,7 +2702,7 @@ msgstr "Bash"
 msgid "Basic blocks"
 msgstr "基本ブロック"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:69
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:109
 msgid "Before"
 msgstr "変更前"
 
@@ -2958,7 +2958,7 @@ msgstr "EmDashに接続できません"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:608
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:128
 #: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
@@ -11806,11 +11806,6 @@ msgstr "今すぐ公開しますか？"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "コンテンツの公開、非公開化、公開予約、予約取り消し"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "公開済み"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1072
@@ -11822,6 +11817,11 @@ msgstr "公開済み"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:164
 #: packages/admin/src/router.tsx:1989
 msgid "Published"
+msgstr "公開済み"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "公開済み"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12829,7 +12829,7 @@ msgstr "新しい権限を確認"
 msgid "Review posts"
 msgstr "投稿を確認"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:58
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:98
 msgid "Review proposed changes"
 msgstr "提案された変更を確認"
 
@@ -15148,7 +15148,7 @@ msgstr "このページに読み込んだ後、コマンドラインやAIアシ�
 msgid "The plugin field widget failed to render."
 msgstr "プラグインのフィールドウィジェットを表示できませんでした。"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:60
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:100
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "プラグインはこれらの変更を保存していません。エディターに反映する前に確認してください。"
 

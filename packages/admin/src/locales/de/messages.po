@@ -1943,7 +1943,7 @@ msgstr "Erweitert"
 msgid "Advanced: {blockLabel}"
 msgstr "Erweitert: {blockLabel}"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:115
 msgid "After"
 msgstr "Nachher"
 
@@ -2333,7 +2333,7 @@ msgstr "Gilt für alle Sammlungen. Bereiche, die eine Sammlung nicht verwendet, 
 msgid "Apply"
 msgstr "Anwenden"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:86
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:129
 msgid "Apply changes"
 msgstr "Änderungen übernehmen"
 
@@ -2702,7 +2702,7 @@ msgstr "Bash"
 msgid "Basic blocks"
 msgstr "Basisblöcke"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:69
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:109
 msgid "Before"
 msgstr "Vorher"
 
@@ -2958,7 +2958,7 @@ msgstr "EmDash ist nicht erreichbar"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:608
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:128
 #: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
@@ -11806,11 +11806,6 @@ msgstr "Jetzt veröffentlichen?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Inhalte veröffentlichen und zurückziehen, planen und die Planung aufheben"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr "Veröffentlicht"
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1072
@@ -11822,6 +11817,11 @@ msgstr "Veröffentlicht"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:164
 #: packages/admin/src/router.tsx:1989
 msgid "Published"
+msgstr "Veröffentlicht"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
 msgstr "Veröffentlicht"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
@@ -12829,7 +12829,7 @@ msgstr "Neue Berechtigungen prüfen"
 msgid "Review posts"
 msgstr "Beiträge prüfen"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:58
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:98
 msgid "Review proposed changes"
 msgstr "Vorgeschlagene Änderungen prüfen"
 
@@ -15148,7 +15148,7 @@ msgstr "Nachdem diese Seite den Plan geladen hatte, wurde er an anderer Stelle g
 msgid "The plugin field widget failed to render."
 msgstr "Das Feld-Widget des Plugins konnte nicht dargestellt werden."
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:60
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:100
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Das Plugin hat diese Änderungen nicht gespeichert. Prüfe sie, bevor du sie in den Editor übernimmst."
 

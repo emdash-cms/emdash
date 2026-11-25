@@ -1943,7 +1943,7 @@ msgstr "ขั้นสูง"
 msgid "Advanced: {blockLabel}"
 msgstr ""
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:115
 msgid "After"
 msgstr "หลัง"
 
@@ -2333,7 +2333,7 @@ msgstr ""
 msgid "Apply"
 msgstr "ใช้"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:86
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:129
 msgid "Apply changes"
 msgstr "นำการเปลี่ยนแปลงไปใช้"
 
@@ -2702,7 +2702,7 @@ msgstr "Bash"
 msgid "Basic blocks"
 msgstr ""
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:69
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:109
 msgid "Before"
 msgstr "ก่อน"
 
@@ -2958,7 +2958,7 @@ msgstr ""
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:608
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:128
 #: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
@@ -11806,11 +11806,6 @@ msgstr "เผยแพร่ทันทีหรือไม่?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "เผยแพร่ ยกเลิกการเผยแพร่ กำหนดเวลา และยกเลิกการกำหนดเวลาเนื้อหา"
 
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
-msgstr ""
-
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1072
@@ -11823,6 +11818,11 @@ msgstr ""
 #: packages/admin/src/router.tsx:1989
 msgid "Published"
 msgstr "เผยแพร่แล้ว"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr ""
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:348
@@ -12829,7 +12829,7 @@ msgstr "ตรวจสอบสิทธิ์ใหม่"
 msgid "Review posts"
 msgstr "ตรวจสอบโพสต์"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:58
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:98
 msgid "Review proposed changes"
 msgstr "ตรวจสอบการเปลี่ยนแปลงที่เสนอ"
 
@@ -15148,7 +15148,7 @@ msgstr "แผนถูกเปลี่ยนจากที่อื่น �
 msgid "The plugin field widget failed to render."
 msgstr "แสดงผลวิดเจ็ตฟิลด์ของปลั๊กอินไม่สำเร็จ"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:60
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:100
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "ปลั๊กอินยังไม่ได้บันทึกการเปลี่ยนแปลงเหล่านี้ ตรวจสอบก่อนอัปเดตตัวแก้ไข"
 
