@@ -1,12 +1,16 @@
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { handleReactionToggle } from "../../../src/api/handlers/comment-reactions.js";
+import {
+	handleReactionCounts,
+	handleReactionToggle,
+} from "../../../src/api/handlers/comment-reactions.js";
 import { getCommentsWithDb } from "../../../src/comments/query.js";
 import { CommentReactionRepository } from "../../../src/database/repositories/comment-reaction.js";
 import { CommentRepository } from "../../../src/database/repositories/comment.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../../utils/test-db.js";
 
 describe("CommentReactionRepository", () => {
 	let db: Kysely<Database>;
@@ -14,7 +18,7 @@ describe("CommentReactionRepository", () => {
 	let reactions: CommentReactionRepository;
 
 	beforeEach(async () => {
-		db = await setupTestDatabase();
+		db = await setupTestDatabaseWithCollections();
 		comments = new CommentRepository(db);
 		reactions = new CommentReactionRepository(db);
 	});
@@ -133,8 +137,23 @@ describe("CommentReactionRepository", () => {
 		});
 	});
 
+	function publishEntry() {
+		return new ContentRepository(db).create({
+			id: "content-1",
+			type: "post",
+			slug: "hello",
+			data: { title: "Hello" },
+			status: "published",
+			publishedAt: new Date().toISOString(),
+		});
+	}
+
 	describe("handleReactionToggle", () => {
 		const base = { collection: "post", contentId: "content-1" };
+
+		beforeEach(async () => {
+			await publishEntry();
+		});
 
 		it("toggles a reaction and returns updated counts", async () => {
 			const c = await approvedComment();
@@ -199,6 +218,74 @@ describe("CommentReactionRepository", () => {
 			// Invariant: never more than one row for the same (comment, voter, reaction).
 			const counts = await reactions.countsForComments([c.id]);
 			expect((counts.get(c.id)?.like ?? 0) <= 1).toBe(true);
+		});
+
+		it("rejects reacting to a comment on an unpublished or trashed entry", async () => {
+			const c = await approvedComment();
+			const content = new ContentRepository(db);
+			const toggle = () =>
+				handleReactionToggle(db, { ...base, commentId: c.id, reaction: "like", voterHash: "v1" });
+
+			await content.unpublish("post", "content-1");
+			const unpublished = await toggle();
+			expect(unpublished.success).toBe(false);
+			if (!unpublished.success) expect(unpublished.error.code).toBe("NOT_FOUND");
+
+			await content.delete("post", "content-1");
+			const trashed = await toggle();
+			expect(trashed.success).toBe(false);
+			if (!trashed.success) expect(trashed.error.code).toBe("NOT_FOUND");
+
+			expect((await reactions.countsForComments([c.id])).has(c.id)).toBe(false);
+		});
+
+		it("answers NOT_FOUND for a collection that does not exist", async () => {
+			const r = await handleReactionToggle(db, {
+				collection: "missing",
+				contentId: "content-1",
+				commentId: "does-not-exist",
+				reaction: "like",
+				voterHash: "v1",
+			});
+			expect(r.success).toBe(false);
+			if (!r.success) expect(r.error.code).toBe("NOT_FOUND");
+		});
+	});
+
+	describe("handleReactionCounts", () => {
+		beforeEach(async () => {
+			await publishEntry();
+		});
+
+		it("returns counts and the viewer's reactions for a published entry", async () => {
+			const c = await approvedComment();
+			await reactions.toggle({ commentId: c.id, reaction: "like", voterHash: "v1" });
+
+			const r = await handleReactionCounts(db, "post", "content-1", "v1");
+			expect(r).toEqual({
+				success: true,
+				data: { reactions: { [c.id]: { like: 1 } }, viewer: { [c.id]: ["like"] } },
+			});
+		});
+
+		it("returns nothing for an unpublished or trashed entry", async () => {
+			const c = await approvedComment();
+			await reactions.toggle({ commentId: c.id, reaction: "like", voterHash: "v1" });
+			const content = new ContentRepository(db);
+			const empty = { success: true, data: { reactions: {}, viewer: {} } };
+
+			await content.unpublish("post", "content-1");
+			expect(await handleReactionCounts(db, "post", "content-1", "v1")).toEqual(empty);
+
+			await content.delete("post", "content-1");
+			expect(await handleReactionCounts(db, "post", "content-1", "v1")).toEqual(empty);
+		});
+
+		it("returns nothing for a collection that does not exist", async () => {
+			expect(await handleReactionCounts(db, "missing", "content-1")).toEqual({
+				success: true,
+				data: { reactions: {} },
+			});
 		});
 	});
 });

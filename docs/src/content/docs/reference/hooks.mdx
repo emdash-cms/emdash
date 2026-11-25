@@ -735,6 +735,8 @@ interface CommentModerateEvent {
 }
 ```
 
+`priorApprovedCount` is the number of approved comments on the site whose author email matches `comment.authorEmail` exactly. For a visitor who is not signed in, that address is whatever the visitor typed and is not verified. The built-in moderator approves a comment in `first_time` mode when this count is above zero.
+
 #### Return value
 
 ```ts

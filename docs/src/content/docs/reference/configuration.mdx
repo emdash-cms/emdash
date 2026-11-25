@@ -608,6 +608,8 @@ export default defineConfig({
 
 On Cloudflare the `cf` object attached to the request is used automatically — you normally do **not** need to set this. On self-hosted deployments behind nginx, Caddy, Traefik, Fly, Railway, or similar, set this to the header your proxy writes so rate limits can count requests per real client IP.
 
+Rate limits and comment reactions count an IPv6 client by its /64 network, because one client can send from any address in that network. IPv4 clients are counted by address.
+
 The following example trusts the `x-real-ip` header set by nginx, Caddy, or Traefik:
 
 ```js
