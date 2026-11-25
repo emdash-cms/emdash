@@ -544,9 +544,12 @@ async function handlePublicRouteAuth(
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
 ): Promise<Response> {
 	// A managed site's browser session is not an authorization assertion.
-	// Never silently treat it as an authenticated editor on public pages.
+	// Never silently treat it as an authenticated editor on public pages. The
+	// provider's credential is one: when the request carries it, identify an
+	// already-linked user so visual editing works on public pages.
 	const mode = getAuthMode(context.locals.emdash?.config);
 	if (mode.type === "external" && !import.meta.env.DEV && isSubjectIdentityMode(mode.config)) {
+		await identifyLinkedSubject(context, mode);
 		return next();
 	}
 	if (
@@ -572,6 +575,38 @@ async function handlePublicRouteAuth(
 	}
 
 	return next();
+}
+
+/**
+ * Soft subject-mode identification for public routes. It verifies the
+ * provider's credential and sets `locals.user` to the already-linked account,
+ * at the role the provider asserts now. It never provisions, links, updates
+ * or blocks, and never falls back to the Astro session: a page renders
+ * normally for a visitor without a valid credential.
+ */
+async function identifyLinkedSubject(
+	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
+	authMode: ExternalAuthMode,
+): Promise<void> {
+	const { locals, request } = context;
+	const db = locals.emdash?.db;
+	if (!db || context.isPrerendered || typeof virtualAuthenticate !== "function") return;
+	let authResult: AuthResult;
+	try {
+		authResult = await virtualAuthenticate(request, authMode.config);
+	} catch {
+		return;
+	}
+	const subject = authResult.subject?.trim();
+	if (!subject || subject.length > 256) return;
+	try {
+		const adapter = createKyselyAdapter(db);
+		const linked = await adapter.getOAuthAccount("external:" + authMode.providerType, subject);
+		const user = linked ? await adapter.getUserById(linked.userId) : null;
+		if (user && !user.disabled) locals.user = { ...user, role: toRoleLevel(authResult.role) };
+	} catch {
+		// Identification is best effort: the public page still renders.
+	}
 }
 
 /**
@@ -805,7 +840,9 @@ async function handleExternalAuth(
 		// written to the store at the end of the request. Skip the set when the
 		// stored id already matches, or each request costs a session-store write
 		// (a KV put on Cloudflare, which also rate-limits writes to one key).
-		const { session } = context;
+		// A site without a session store has nothing to persist; reading
+		// `context.session` there only logs Astro's missing-store warning.
+		const session = virtualConfig?.sessionEnabled === false ? undefined : context.session;
 		if (session) {
 			const sessionUser = await resolveSessionUser(session);
 			if (sessionUser?.id !== user.id) await startUserSession(emdash.db, session, user.id);

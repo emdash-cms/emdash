@@ -33,6 +33,8 @@ declare module "virtual:emdash/config" {
 		trailingSlash?: "always" | "never" | "ignore";
 		robotsTxtOverridden?: boolean;
 		sessionCookieName?: string;
+		/** False when the site has no Astro session store (`session: false`, or no driver). */
+		sessionEnabled?: boolean;
 		/** `routePattern` of the image endpoint EmDash installed; absent when it installed none. */
 		imageEndpointRoute?: string;
 	}

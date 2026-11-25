@@ -767,8 +767,29 @@ type RenderLocals = App.Locals & {
 	};
 };
 
+/**
+ * The cookie a subject-mode external auth descriptor declares as its credential
+ * (`auth.config.credentialCookie`). A request carrying it may be an editor, so
+ * it never takes the anonymous fast path, which skips user identification.
+ */
+function externalCredentialCookie(): string | null {
+	const config: unknown = virtualConfig?.auth?.config;
+	if (
+		!config ||
+		typeof config !== "object" ||
+		!("identityMode" in config) ||
+		!("credentialCookie" in config)
+	)
+		return null;
+	const { identityMode, credentialCookie } = config;
+	return identityMode === "subject" && typeof credentialCookie === "string" && credentialCookie
+		? credentialCookie
+		: null;
+}
+
 function getPublicPageSignals(context: APIContext) {
 	const { url, cookies } = context;
+	const credentialCookie = externalCredentialCookie();
 	const base = import.meta.env.BASE_URL.replace(TRAILING_SLASH_RE, "");
 	const publicPath =
 		base && url.pathname.startsWith(`${base}/`) ? url.pathname.slice(base.length) : url.pathname;
@@ -782,6 +803,10 @@ function getPublicPageSignals(context: APIContext) {
 		hasSessionCookie:
 			!context.isPrerendered &&
 			cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") !== undefined,
+		hasExternalCredential:
+			!context.isPrerendered &&
+			credentialCookie !== null &&
+			cookies.get(credentialCookie) !== undefined,
 		playgroundDb: context.locals.__playgroundDb,
 	};
 }
@@ -796,6 +821,7 @@ function isAnonymousPublicPage(
 		!signals.hasEditCookie &&
 		!signals.hasPreviewToken &&
 		!hasSession &&
+		!signals.hasExternalCredential &&
 		!signals.playgroundDb
 	);
 }
@@ -897,7 +923,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			!context.isPrerendered &&
 			(request.headers.get("authorization") ?? "").toLowerCase().startsWith("bearer ");
 		const isWrite = request.method !== "GET" && request.method !== "HEAD";
-		const isAuthenticated = !!sessionUser || hasBearerAuth;
+		// A subject-mode credential is verified later by the auth middleware; until
+		// then it is treated like a session, so a possible editor reads the primary.
+		const isAuthenticated = !!sessionUser || hasBearerAuth || pageSignals.hasExternalCredential;
 		const endedAuthenticated = () => requestEndedAuthenticated(isAuthenticated, cookies);
 		const canUseCachedBinding =
 			!isAuthenticated &&

@@ -11,7 +11,8 @@ vi.mock("astro:middleware", () => ({
 
 const { authenticate } = vi.hoisted(() => ({ authenticate: vi.fn() }));
 vi.mock("virtual:emdash/auth", () => ({ authenticate }), { virtual: true });
-vi.mock("virtual:emdash/config", () => ({ default: {} }), { virtual: true });
+const virtualConfig = vi.hoisted(() => ({}) as Record<string, unknown>);
+vi.mock("virtual:emdash/config", () => ({ default: virtualConfig }), { virtual: true });
 vi.mock("../../../src/astro/session-user.js", () => ({
 	resolveSessionUser: vi.fn(async () => null),
 }));
@@ -64,6 +65,39 @@ async function request(
 			redirect: vi.fn(),
 		} as never,
 		async () => new Response("ok"),
+	);
+	return { response, locals, session };
+}
+
+async function publicPage(db: Kysely<Database>, assertion: Identity | Error) {
+	if (assertion instanceof Error) authenticate.mockRejectedValue(assertion);
+	else authenticate.mockResolvedValue(assertion);
+	const locals: Record<string, unknown> = {
+		emdash: {
+			db,
+			config: {
+				auth: {
+					type: "siteboulder",
+					entrypoint: "@siteboulder/emdash-auth",
+					config: { identityMode: "subject" },
+				},
+			},
+			getPluginRouteMeta: vi.fn(() => ({ public: false })),
+		},
+	};
+	const url = new URL("/blog/field-notes", "https://site-one.example.test");
+	const session = { get: vi.fn(async () => null), set: vi.fn() };
+	const response = await onRequest(
+		{
+			request: new Request(url),
+			url,
+			locals,
+			session,
+			cookies: { get: () => undefined },
+			isPrerendered: false,
+			redirect: vi.fn(),
+		} as never,
+		async () => new Response("page"),
 	);
 	return { response, locals, session };
 }
@@ -432,6 +466,83 @@ describe("subject-based external authentication for platform-managed sites", () 
 		};
 		const invalid = await onRequest(invalidContext as never, async () => new Response("ok"));
 		expect(invalid.status).toBe(401);
+	});
+
+	it("identifies an already-linked editor on public pages for visual editing, never provisioning", async () => {
+		await request(db, identity({ role: 40 }));
+		const [linked] = await userRows(db);
+		const page = await publicPage(db, identity({ role: 50 }));
+		expect(await page.response.text()).toBe("page");
+		expect((page.locals.user as { id: string; role: number }).id).toBe(linked.id);
+		// The provider's current role applies to this request; nothing is written.
+		expect((page.locals.user as { role: number }).role).toBe(50);
+		expect((await userRows(db))[0].role).toBe(40);
+		expect(page.session.set).not.toHaveBeenCalled();
+
+		for (const visitor of [
+			identity({ subject: "someone-else", email: "other@example.test" }),
+			identity({ subject: "" }),
+			new Error("No verified Site Boulder CMS identity"),
+		]) {
+			const anonymous = await publicPage(db, visitor);
+			expect(await anonymous.response.text()).toBe("page");
+			expect(anonymous.locals.user).toBeUndefined();
+		}
+		expect(await userRows(db)).toHaveLength(1);
+		expect(await db.selectFrom("oauth_accounts").select("user_id").execute()).toHaveLength(1);
+
+		// An unlinked subject asserting the linked user's email is not that user.
+		expect((await publicPage(db, identity({ subject: "impostor" }))).locals.user).toBeUndefined();
+
+		await db.updateTable("users").set({ disabled: 1 }).where("id", "=", linked.id).execute();
+		expect((await publicPage(db, identity())).locals.user).toBeUndefined();
+	});
+
+	it("applies a provider downgrade on public pages and never falls back to the Astro session", async () => {
+		await request(db, identity({ role: 50 }));
+		const [linked] = await userRows(db);
+		expect(linked.role).toBe(50);
+		expect(
+			((await publicPage(db, identity({ role: 40 }))).locals.user as { role: number }).role,
+		).toBe(40);
+		const { resolveSessionUser } = await import("../../../src/astro/session-user.js");
+		vi.mocked(resolveSessionUser).mockResolvedValue({ id: linked.id } as never);
+		try {
+			const anonymous = await publicPage(db, new Error("No verified Site Boulder CMS identity"));
+			expect(anonymous.locals.user).toBeUndefined();
+		} finally {
+			vi.mocked(resolveSessionUser).mockResolvedValue(null as never);
+		}
+	});
+
+	it("never touches the Astro session on a site that keeps no session store", async () => {
+		virtualConfig.sessionEnabled = false;
+		try {
+			authenticate.mockResolvedValue(identity());
+			const locals: Record<string, unknown> = {
+				emdash: {
+					db,
+					config: {
+						auth: {
+							type: "siteboulder",
+							entrypoint: "@siteboulder/emdash-auth",
+							config: { identityMode: "subject" },
+						},
+					},
+					getPluginRouteMeta: vi.fn(() => ({ public: false })),
+				},
+			};
+			const url = new URL("/_emdash/api/plugins/inquiries/list", "https://site-one.example.test");
+			const context = { request: new Request(url), url, locals, redirect: vi.fn() };
+			const read = vi.fn();
+			Object.defineProperty(context, "session", { get: read });
+			const response = await onRequest(context as never, async () => new Response("ok"));
+			expect(response.status).toBe(200);
+			expect((locals.user as { id: string }).id).toBeTruthy();
+			expect(read).not.toHaveBeenCalled();
+		} finally {
+			delete virtualConfig.sessionEnabled;
+		}
 	});
 
 	it("preserves the standalone legacy email-based first-user Admin default", async () => {

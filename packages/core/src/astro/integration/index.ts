@@ -836,6 +836,9 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					typeof cookie === "string"
 						? cookie || "astro-session"
 						: (cookie?.name ?? "astro-session");
+				// External auth reverifies every request; a site may keep no session
+				// store at all, and then must not touch `context.session`.
+				serializableConfig.sessionEnabled = sessionStoreEnabled(finalConfig.session);
 				serializableConfig.routeCacheProvider = routeCacheProviderName(finalConfig);
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
@@ -917,6 +920,11 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 		enumerable: false,
 	});
 	return integration;
+}
+
+/** Whether Astro will provide a session store, as Astro itself decides after adapters run. */
+export function sessionStoreEnabled(session: unknown): boolean {
+	return Boolean(session && typeof session === "object" && "driver" in session && session.driver);
 }
 
 export default emdash;
