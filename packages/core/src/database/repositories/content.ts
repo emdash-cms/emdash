@@ -5,7 +5,12 @@ import type { ContentFieldFilterValue, ContentFieldFilters } from "../../content
 import { keepKnownFields, staleStoredKeys } from "../../content/known-fields.js";
 import { normalizeExplicitDatetime } from "../../datetime-normalization.js";
 import { getLocaleCandidates } from "../../i18n/config.js";
-import { canonicalLocaleColumn, localeMatches, localeOrder } from "../../i18n/query.js";
+import {
+	canonicalLocaleColumn,
+	defaultLocaleFirst,
+	localeMatches,
+	localeOrder,
+} from "../../i18n/query.js";
 import { invalidateCollectionCache } from "../../object-cache/index.js";
 import { notifyRoom } from "../../rooms/notifications.js";
 import type { OutsideValue } from "../../rooms/types.js";
@@ -907,7 +912,8 @@ export class ContentRepository {
 	}
 
 	/**
-	 * Find content by slug
+	 * Find content by slug. Without a locale, a slug stored in several locales
+	 * resolves to the default locale's row, then the lowest locale code.
 	 */
 	async findBySlug(type: string, slug: string, locale?: string): Promise<ContentItem | null> {
 		const tableName = getTableName(type);
@@ -924,7 +930,7 @@ export class ContentRepository {
 					SELECT * FROM ${sql.ref(tableName)}
 					WHERE slug = ${slug}
 					AND deleted_at IS NULL
-					ORDER BY locale ASC
+					ORDER BY ${defaultLocaleFirst("locale")}, locale ASC, id ASC
 					LIMIT 1
 				`.execute(this.db);
 
@@ -957,7 +963,7 @@ export class ContentRepository {
 			: await sql<Record<string, unknown>>`
 					SELECT * FROM ${sql.ref(tableName)}
 					WHERE slug = ${slug}
-					ORDER BY locale ASC
+					ORDER BY ${defaultLocaleFirst("locale")}, locale ASC, id ASC
 					LIMIT 1
 				`.execute(this.db);
 
@@ -2578,8 +2584,8 @@ export class ContentRepository {
 	 *
 	 * Resolution mirrors {@link findByIdOrSlug}: a ULID-shaped identifier prefers
 	 * the id match and falls back to slug; anything else prefers the slug match
-	 * and falls back to id. Slug matches collapse to the lowest-locale variant
-	 * (`ORDER BY locale ASC`), matching the slug-without-locale lookup.
+	 * and falls back to id. Slug matches collapse to one variant the same way
+	 * {@link findBySlug} does without a locale.
 	 */
 	async findManyByIdOrSlug(type: string, identifiers: string[]): Promise<Map<string, ContentItem>> {
 		const resolved = new Map<string, ContentItem>();
@@ -2606,11 +2612,11 @@ export class ContentRepository {
 					SELECT * FROM ${sql.ref(tableName)}
 					WHERE slug IN (${sql.join(chunk)})
 					AND deleted_at IS NULL
-					ORDER BY locale ASC
+					ORDER BY ${defaultLocaleFirst("locale")}, locale ASC, id ASC
 				`.execute(this.db);
 				for (const row of slugRows.rows) {
 					const item = this.mapRow(type, row);
-					// First write wins → lowest locale, matching findBySlug without a locale.
+					// First write wins, matching findBySlug without a locale.
 					if (item.slug != null && !bySlug.has(item.slug)) bySlug.set(item.slug, item);
 				}
 			}

@@ -1429,9 +1429,7 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 				type,
 				id,
 				locale,
-				...(locale !== undefined && getLocaleCandidates(locale).length > 1
-					? { publishedOnly: true }
-					: {}),
+				publishedOnly: true,
 			});
 			if (error) {
 				// Astro reports a missing entry as an error; try the next locale.

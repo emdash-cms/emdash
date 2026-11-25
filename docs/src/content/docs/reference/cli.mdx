@@ -334,6 +334,11 @@ If someone has the entry open in the admin, the server returns 409 with code
 pass `--override-lock`. The same flag is available on `content delete`,
 `content publish`, `content unpublish` and `content schedule`.
 
+`content delete`, `content publish`, `content unpublish` and `content schedule`
+also accept `--locale`. When the ID argument is a slug that exists in more than
+one locale, the command acts on the default locale's entry unless you pass
+`--locale` or use the entry's ID.
+
 #### `content delete <collection> <id>`
 
 ```bash

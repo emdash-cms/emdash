@@ -45,3 +45,12 @@ export function storedLocaleOrder(column: string) {
 		sql` `,
 	)} ELSE 0 END`;
 }
+
+/**
+ * Rank rows stored under the site's default locale first. The comparison is
+ * case-sensitive so a row stored as `EN` does not rank level with `en`.
+ */
+export function defaultLocaleFirst(column: string) {
+	const candidates = getLocaleCandidates(getI18nConfig()?.defaultLocale ?? "en");
+	return sql<number>`CASE WHEN ${sql.ref(column)} IN (${sql.join(candidates)}) THEN 0 ELSE 1 END`;
+}
