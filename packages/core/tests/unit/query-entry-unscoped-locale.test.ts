@@ -1,4 +1,5 @@
 import { LiveEntryNotFoundError } from "astro/content/runtime";
+import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 vi.mock("astro:content", async () => {
@@ -117,6 +118,33 @@ describeEachDialect("getEmDashEntry without a locale", (dialect) => {
 		});
 
 		expect(await load("bonjour")).toMatchObject({ title: "Bonjour", locale: "fr" });
+	});
+
+	it("prefers the default locale's configured path over a legacy alias", async () => {
+		setI18nConfig({
+			defaultLocale: "english",
+			locales: ["english", "fr"],
+			localeAliases: { en: "english" },
+		});
+		await repo.create({
+			type: "post",
+			data: { title: "Legacy" },
+			slug: "notice",
+			locale: "en",
+			status: "published",
+		});
+		const canonical = await repo.create({
+			type: "post",
+			data: { title: "Canonical" },
+			slug: "notice-canonical",
+			locale: "english",
+			status: "published",
+		});
+		await sql`UPDATE ${sql.ref("ec_post")} SET slug = ${"notice"} WHERE id = ${canonical.id}`.execute(
+			ctx.db,
+		);
+
+		expect(await load("notice")).toMatchObject({ title: "Canonical" });
 	});
 
 	it("prefers the configured default locale", async () => {

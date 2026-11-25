@@ -1252,8 +1252,13 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 	 */
 	function servedForAnotherLocale(entry: ContentEntry<D>, fallbackLocale?: string): boolean {
 		if (fallbackLocale) return true;
-		if (!requestedLocale || entryDatabaseId(entry) === id) return false;
+		if (entryDatabaseId(entry) === id) return false;
 		const stored = dataStr(entryData(entry), "locale");
+		// Without a locale, a slug hit outside the default locale's own spelling
+		// is superseded once a default-locale row with that slug is published.
+		if (!requestedLocale) {
+			return stored !== resolveConfiguredLocale(getI18nConfig()?.defaultLocale ?? "en");
+		}
 		return stored.toLowerCase() !== requestedLocale.toLowerCase();
 	}
 

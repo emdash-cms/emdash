@@ -351,6 +351,8 @@ Soft-deletes the content item (moves to trash).
 
 Pass `--override-lock` to delete an entry that another editor has open.
 
+Pass `--locale` to choose the entry when the ID argument is a slug that exists in more than one locale.
+
 #### `content publish <collection> <id>`
 
 ```bash
@@ -359,6 +361,8 @@ npx emdash content publish posts 01ABC123
 
 Pass `--override-lock` to publish an entry that another editor has open.
 
+Pass `--locale` to choose the entry when the ID argument is a slug that exists in more than one locale.
+
 #### `content unpublish <collection> <id>`
 
 ```bash
@@ -366,6 +370,8 @@ npx emdash content unpublish posts 01ABC123
 ```
 
 Pass `--override-lock` to unpublish an entry that another editor has open.
+
+Pass `--locale` to choose the entry when the ID argument is a slug that exists in more than one locale.
 
 #### `content schedule <collection> <id>`
 
@@ -379,6 +385,8 @@ npx emdash content schedule posts 01ABC123 --at 2026-03-01T09:00:00Z
 
 Pass `--override-lock` to schedule an entry that another editor has open.
 
+Pass `--locale` to choose the entry when the ID argument is a slug that exists in more than one locale.
+
 #### `content restore <collection> <id>`
 
 ```bash
@@ -386,6 +394,8 @@ npx emdash content restore posts 01ABC123
 ```
 
 Restores a trashed content item.
+
+Pass `--locale` to choose the entry when the ID argument is a slug that exists in more than one locale.
 
 #### `content translations <collection> <id>`
 

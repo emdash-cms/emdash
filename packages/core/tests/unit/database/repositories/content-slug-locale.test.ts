@@ -1,3 +1,4 @@
+import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import { ContentRepository } from "../../../../src/database/repositories/content.js";
@@ -84,6 +85,35 @@ describeEachDialect("ContentRepository slug lookup without a locale", (dialect) 
 
 		expect((await repo.findBySlugIncludingTrashed("post", "press-release"))?.id).toBe(de.id);
 		expect((await repo.findBySlug("post", "press-release"))?.id).toBe(en.id);
+	});
+
+	it("prefers the default locale's configured path over a legacy alias", async () => {
+		setI18nConfig({
+			defaultLocale: "english",
+			locales: ["english", "fr"],
+			localeAliases: { en: "english" },
+		});
+		const legacy = await repo.create({
+			type: "post",
+			data: { title: "Legacy" },
+			slug: "notice",
+			locale: "en",
+		});
+		const canonical = await repo.create({
+			type: "post",
+			data: { title: "Canonical" },
+			slug: "notice-canonical",
+			locale: "english",
+		});
+		await sql`UPDATE ${sql.ref("ec_post")} SET slug = ${"notice"} WHERE id = ${canonical.id}`.execute(
+			ctx.db,
+		);
+
+		expect(legacy.locale).toBe("en");
+		expect((await repo.findBySlug("post", "notice"))?.id).toBe(canonical.id);
+		expect((await repo.findManyByIdOrSlug("post", ["notice"])).get("notice")?.id).toBe(
+			canonical.id,
+		);
 	});
 
 	it("still finds a slug that exists only in another locale", async () => {
