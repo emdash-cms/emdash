@@ -51,6 +51,12 @@ if its slug changes. Templates normally use the URL-facing identifier returned b
 `getEmDashCollection()`; the [querying content guide](/guides/querying-content/#entry-identifiers)
 explains both values.
 
+On screens 1024px and wider, the settings panel sits beside the page. Select **Hide settings** at
+the end of the editor's bar to give the page the full width, and **Show settings** to bring the
+panel back. Each browser remembers the choice. A hidden panel opens on its own for image and gallery
+settings, and when **Save** is blocked by an invalid field inside it. On smaller screens, the same
+button opens the panel over the page.
+
 ## Write rich text
 
 Portable Text fields provide a block editor for headings, paragraphs, quotations, lists, links,
@@ -157,7 +163,7 @@ label. A screen-reader-only status announces **Saving...** and **Saved**. An aut
 version before it when that version is also an autosave, so a run of autosaves leaves one version in
 revision history. The new version keeps the names of everyone who edited the one it replaced.
 
-On a phone, entries with drafts and revision history offer **Settings** > **Save draft** even after
+On a phone, entries with drafts and revision history offer **Show settings** > **Save draft** even after
 autosave finishes. To retain the autosaved version in history, wait for autosave before using this
 action. On tablet and desktop, the toolbar's **Save** action is only offered while there are unsaved
 changes. Both actions retain the preceding draft revision, and autosave never replaces the version
@@ -166,7 +172,7 @@ unpublishing an entry leaves.
 
 If a save fails, the editor keeps the unsaved fields in place, shows a dismissible error banner below
 the editor header, and displays an error toast. Dismissing the banner does not save the data. Retry
-with the toolbar's **Save** control when it appears, or on a phone use **Settings** > **Save draft**
+with the toolbar's **Save** control when it appears, or on a phone use **Show settings** > **Save draft**
 when available. Keep the page open until a successful retry clears the banner and the saving control
 settles. If you must leave first, copy the unsaved work elsewhere.
 
@@ -191,9 +197,13 @@ each other.
 ### See who else is editing
 
 - The editor bar shows each other person who has the entry open as a circle with their photo, or
-  their initials if they have none: up to three, then a count such as **+2**. Hover over or focus a
-  circle to see the person's name and the field they're editing, or **Viewing** when they aren't in
-  a field. Select a circle to go to that person's field, or select the count to list everyone.
+  their generated avatar if they have none: up to three, then a count such as **+2**. Hover over or
+  focus a circle to see the person's name and the field they're editing, or **Viewing** when they
+  aren't in a field. Select a circle to go to that person's field, or select the count to list
+  everyone.
+- Each person's color comes from their generated avatar, even when they have a photo, and is the
+  same in **Revisions**. People whose generated avatars use the same palette share a color, so read
+  the names to tell them apart.
 - The names of the people in a field appear at the end of its label row, in their colors.
 - In rich text, each person's cursor and selection appear in their color. Their name shows at the
   cursor for a couple of seconds after it moves, and while you hover over it.
@@ -381,8 +391,10 @@ Scheduling is available by default. A collection can disable creating or changin
 `no-scheduling` in its `supports` settings through a seed file, the schema API, or MCP. The Content
 Type editor has no checkbox for this flag. Existing schedules still run and can be removed.
 
-Node.js deployments run the scheduled-publishing sweep automatically. Cloudflare Workers require a
-Cron Trigger. The Cloudflare starter templates include it; existing deployments can follow
+Node.js deployments run the scheduled-publishing sweep automatically at the start of every minute, so
+an entry scheduled for a whole minute goes live at that minute. A schedule with seconds, which only
+the API and MCP can set, can go live up to a minute late. Cloudflare Workers require a Cron Trigger. The
+Cloudflare starter templates include it; existing deployments can follow
 [Scheduled publishing](/deployment/cloudflare/#scheduled-publishing) to verify the trigger.
 
 ## Review the publishing calendar
@@ -457,8 +469,8 @@ Select a version to show it in the editor, read-only:
 
 **Save** and **Publish** pause while a version is open, and your unsaved edits stay in the editor.
 Select the **×** in the bar (**Back to editing**) or press Esc to return to them. On a
-phone, choose a version in the settings panel, then use the arrows in the bar at the bottom of the
-editor to step between versions.
+phone, or while the settings panel is hidden, use the arrows in the bar at the bottom of the editor
+to step between versions.
 
 To use a version again, select **Restore** in that bar. Restoring copies the version into a new
 draft at the top of the list. Your previous draft stays in the list, and visitors keep seeing the

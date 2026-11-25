@@ -28,6 +28,8 @@ declare module "virtual:emdash/config" {
 		/** Public origin from astro.config.mjs, origin-normalized at startup. */
 		siteUrl?: string;
 		astroCspEnabled?: boolean;
+		/** `name` of the Astro route cache provider, e.g. `"memory"` for `memoryCache()`. */
+		routeCacheProvider?: string;
 		trailingSlash?: "always" | "never" | "ignore";
 		robotsTxtOverridden?: boolean;
 		sessionCookieName?: string;
@@ -244,14 +246,5 @@ declare module "virtual:emdash/admin-registry" {
 	 *   - contentEditorPanels: Trusted content editor sidebar panels
 	 *   - contentListColumns: trusted-plugin content list column definitions
 	 */
-	export const pluginAdmins: Record<
-		string,
-		{
-			pages?: Record<string, unknown>;
-			widgets?: Record<string, unknown>;
-			fields?: Record<string, unknown>;
-			contentEditorPanels?: readonly unknown[];
-			contentListColumns?: readonly unknown[];
-		}
-	>;
+	export const pluginAdmins: import("@emdash-cms/admin").PluginAdmins;
 }

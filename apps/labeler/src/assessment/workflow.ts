@@ -1,12 +1,22 @@
+import { NSID } from "@emdash-cms/registry-lexicons";
 import type { ListingModerationPolicy } from "@emdash-cms/registry-moderation";
 import { WorkflowEntrypoint } from "cloudflare:workers";
-import type { WorkflowEvent, WorkflowStep } from "cloudflare:workers";
+import type { WorkflowEvent, WorkflowStep, WorkflowStepConfig } from "cloudflare:workers";
 
 import type {
 	ImageModerationAdapter,
 	ImageModerationRequest,
 	TextModerationAdapter,
 } from "../ai/types.js";
+import {
+	checkReleasePackage,
+	combineCodeAssessment,
+	projectPackageCodeSubject,
+	reviewReleasePackage,
+	type CodeAssessmentDependencies,
+	type ListingText,
+} from "../code/assessment.js";
+import { buildCanonicalProfileInput, type ModerationTextField } from "./canonical.js";
 import {
 	createAssessmentFinalizationProposal,
 	finalizeResolvedAssessment,
@@ -17,13 +27,30 @@ import {
 	type AssessmentFoundationDependencies,
 	type DurableAssessmentStep,
 } from "./foundation.js";
-import { resolveAssessmentPolicy, type ModerationStage } from "./policy.js";
-import { workflowParamsToIdentity } from "./run-key.js";
+import {
+	resolveAssessmentPolicy,
+	type CodeAssessmentStage,
+	type ModerationStage,
+} from "./policy.js";
+import { verifyExactRegistryRecord } from "./records.js";
+import { parseSubjectUri, workflowParamsToIdentity } from "./run-key.js";
 import { createProductionAssessmentWorkflowDependencies } from "./runtime.js";
 import type { AssessmentWorkflowParams, AssessmentWorkflowResult } from "./types.js";
 
 const MAX_INFERENCE_MEDIA_BYTES = 8 * 1024 * 1024;
 const MAX_CONCURRENT_IMAGE_INFERENCE = 3;
+const MAX_REVIEW_BUDGET_WAITS = 7;
+const PACKAGE_REVIEW_STEP: WorkflowStepConfig = {
+	retries: { limit: 2, delay: "1 minute", backoff: "exponential" },
+	timeout: "20 minutes",
+};
+
+/** The Workflow step features the code stage needs beyond {@link DurableAssessmentStep}. */
+export interface CodeAssessmentStep extends DurableAssessmentStep {
+	do<T>(name: string, callback: () => Promise<T>): Promise<T>;
+	do<T>(name: string, config: WorkflowStepConfig, callback: () => Promise<T>): Promise<T>;
+	sleepUntil(name: string, timestamp: Date): Promise<void>;
+}
 
 export interface ModerationMediaReader {
 	read(input: {
@@ -37,6 +64,8 @@ export interface AssessmentWorkflowDependencies extends AssessmentFoundationDepe
 	textAdapter: TextModerationAdapter;
 	imageAdapter?: ImageModerationAdapter;
 	mediaReader?: ModerationMediaReader;
+	/** When set, every release must also pass code assessment before it can pass. */
+	codeAssessment?: CodeAssessmentDependencies;
 	policy: ListingModerationPolicy;
 	finalizer: AssessmentFinalizationIssuer;
 }
@@ -137,6 +166,16 @@ export async function runBoundAssessmentWorkflow(
 		),
 	];
 	const images = Object.fromEntries(imageEntries);
+	const code =
+		dependencies.codeAssessment && foundation.run.subject.kind === "release"
+			? await runCodeAssessmentStage(
+					step,
+					foundation.run.subject,
+					foundation.canonicalInput.text,
+					dependencies,
+					dependencies.codeAssessment,
+				)
+			: undefined;
 	const resolution = await step.do("resolve assessment policy", async () =>
 		resolveAssessmentPolicy({
 			policy: dependencies.policy,
@@ -148,6 +187,7 @@ export async function runBoundAssessmentWorkflow(
 			checkedLinks: foundation.checkedLinks,
 			...(text ? { text } : {}),
 			images,
+			...(code ? { code } : {}),
 		}),
 	);
 	const proposal = createAssessmentFinalizationProposal({
@@ -205,6 +245,118 @@ async function mapConcurrent<Input, Output>(
 		if (value === undefined) throw new Error("image inference did not produce every result");
 		return value;
 	});
+}
+
+async function runCodeAssessmentStage(
+	step: DurableAssessmentStep,
+	subject: { uri: string; cid: string; kind: "profile" | "release" },
+	listing: readonly ModerationTextField[],
+	dependencies: AssessmentWorkflowDependencies,
+	codeAssessment: CodeAssessmentDependencies,
+): Promise<CodeAssessmentStage> {
+	let check: Awaited<ReturnType<typeof checkReleasePackage>> | undefined;
+	try {
+		if (!isCodeAssessmentStep(step)) {
+			throw new AssessmentWorkflowConfigurationError(
+				"code assessment requires a Workflow step that can sleep",
+			);
+		}
+		const packageSubject = await step.do("verify and project release package", async () => {
+			const verified = await verifyExactRegistryRecord(dependencies.recordVerifier, subject);
+			if (verified.kind !== "release") {
+				throw new TypeError("code assessment requires a release record");
+			}
+			return projectPackageCodeSubject(verified);
+		});
+		check = await step.do("check release package", async () =>
+			checkReleasePackage(packageSubject, codeAssessment),
+		);
+		if (!check.reviewable) {
+			return { status: "complete", result: combineCodeAssessment(check, []) };
+		}
+		if (codeAssessment.budget) {
+			await reserveReviewBudget(step, subject.uri, codeAssessment.budget, dependencies.now);
+		}
+		const purpose = await step.do("verify package profile", async () =>
+			readPackagePurpose(packageSubject, codeAssessment, dependencies),
+		);
+		const listingText: ListingText[] = [...purpose, ...listing].map(({ ref, value }) => ({
+			ref,
+			text: value,
+		}));
+		const reviews = await Promise.all(
+			codeAssessment.models.map((model) =>
+				step.do(`review release package with ${model}`, PACKAGE_REVIEW_STEP, async () =>
+					reviewReleasePackage(packageSubject, listingText, model, codeAssessment),
+				),
+			),
+		);
+		return { status: "complete", result: combineCodeAssessment(check, reviews) };
+	} catch (error) {
+		console.error(
+			JSON.stringify({
+				event: "assessment_code_stage_failed",
+				subjectUri: subject.uri,
+				subjectCid: subject.cid,
+				error: error instanceof Error ? error.message : String(error),
+			}),
+		);
+		return {
+			status: "error",
+			code: "code-assessment-unavailable",
+			...(check && check.findings.length > 0 ? { findings: check.findings } : {}),
+		};
+	}
+}
+
+/**
+ * The package profile holds the description and sections that state what the
+ * plugin is for. A release published before its profile is known is reviewed
+ * against the release record alone.
+ */
+async function readPackagePurpose(
+	subject: { uri: string; packageSlug: string },
+	codeAssessment: CodeAssessmentDependencies,
+	dependencies: AssessmentWorkflowDependencies,
+): Promise<ModerationTextField[]> {
+	const { publisherDid } = parseSubjectUri(subject.uri);
+	const profileUri = `at://${publisherDid}/${NSID.packageProfile}/${subject.packageSlug}`;
+	const cid = await codeAssessment.profiles.currentCid(profileUri);
+	if (!cid) return [];
+	const verified = await verifyExactRegistryRecord(dependencies.recordVerifier, {
+		uri: profileUri,
+		cid,
+		kind: "profile",
+	});
+	if (verified.kind !== "profile") throw new TypeError("package profile is not a profile record");
+	return [...buildCanonicalProfileInput(verified).text];
+}
+
+async function reserveReviewBudget(
+	step: CodeAssessmentStep,
+	subjectUri: string,
+	budget: NonNullable<CodeAssessmentDependencies["budget"]>,
+	now: (() => Date) | undefined,
+): Promise<void> {
+	const publisherDid = parseSubjectUri(subjectUri).publisherDid;
+	for (let attempt = 0; attempt <= MAX_REVIEW_BUDGET_WAITS; attempt += 1) {
+		// oxlint-disable-next-line no-await-in-loop -- each wait depends on the previous reservation
+		const reservation = await step.do(`reserve package review budget (${attempt})`, async () =>
+			budget.reserve(publisherDid, (now ?? (() => new Date()))()),
+		);
+		if (reservation.reserved) return;
+		if (attempt === MAX_REVIEW_BUDGET_WAITS) break;
+		// oxlint-disable-next-line no-await-in-loop -- sequential by design
+		await step.sleepUntil(
+			`wait for package review budget (${attempt})`,
+			new Date(reservation.retryAt),
+		);
+	}
+	throw new Error("package review budget stayed exhausted");
+}
+
+function isCodeAssessmentStep(step: DurableAssessmentStep): step is CodeAssessmentStep {
+	return typeof Reflect.get(step, "sleepUntil") === "function";
 }
 
 async function runModerationStage(

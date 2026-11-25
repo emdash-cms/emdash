@@ -1,0 +1,22 @@
+{
+	"name": "@emdash-cms/plugin-review",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Agent review of EmDash plugin registry release bundles, called by the labeler.",
+	"type": "module",
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"types": "wrangler types",
+		"test": "vitest run",
+		"typecheck": "tsgo --noEmit",
+		"eval": "node --experimental-strip-types --import ./eval/register.mjs eval/run.ts"
+	},
+	"dependencies": {
+		"@earendil-works/pi-ai": "0.80.6"
+	},
+	"devDependencies": {
+		"typescript": "catalog:",
+		"vitest": "catalog:",
+		"wrangler": "catalog:"
+	}
+}

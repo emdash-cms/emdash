@@ -11,6 +11,7 @@ import {
 	listPresentation,
 	type PlanField,
 	planBlockFields,
+	repeaterSubFields,
 } from "../../src/lib/block-field-layout.js";
 
 const format = {
@@ -63,6 +64,31 @@ function placedSlugs(plan: ReturnType<typeof planBlockFields>): string[] {
 	});
 	return [...parts, ...plan.advanced].map((placed) => placed.slug);
 }
+
+describe("repeaterSubFields", () => {
+	it("retains allowed MIME types while filtering malformed values", () => {
+		expect(
+			repeaterSubFields({
+				validation: {
+					subFields: [
+						{
+							slug: "logo",
+							type: "image",
+							validation: { allowedMimeTypes: ["image/svg+xml", 42] },
+						},
+					],
+				},
+			}),
+		).toEqual([
+			{
+				slug: "logo",
+				type: "image",
+				label: "logo",
+				validation: { allowedMimeTypes: ["image/svg+xml"] },
+			},
+		]);
+	});
+});
 
 describe("planBlockFields", () => {
 	it.each(

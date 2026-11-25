@@ -7,7 +7,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, unwrapResult } from "#api/error.js";
 import { handleOrphanedTableRegister } from "#api/index.js";
 import { parseOptionalBody, isParseError } from "#api/parse.js";
 import { orphanRegisterBody } from "#api/schemas.js";
@@ -17,8 +17,9 @@ export const prerender = false;
 export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "schema:manage");
 	if (denied) return denied;

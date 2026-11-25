@@ -16,6 +16,7 @@ import type { APIContext } from "astro";
 import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { resolveFieldAllowlist } from "../../../src/api/handlers/media-allowlist.js";
 import { POST as postMedia } from "../../../src/astro/routes/api/media.js";
 import { POST as postUploadUrl } from "../../../src/astro/routes/api/media/upload-url.js";
 import type { Database } from "../../../src/database/types.js";
@@ -499,6 +500,7 @@ describeEachDialect("nested block field upload allowlists", (dialect) => {
 	let ctx: DialectTestContext;
 	let outerFieldId: string;
 	let imageFieldId: string;
+	let repeaterFieldId: string;
 	const composite = () => `${outerFieldId}:k1:file`;
 
 	beforeEach(async () => {
@@ -513,11 +515,31 @@ describeEachDialect("nested block field upload allowlists", (dialect) => {
 			validation: { allowedMimeTypes: ["image/"] },
 		});
 		imageFieldId = image.id;
+		const repeaterValidation = {
+			subFields: [
+				{
+					slug: "logo",
+					label: "Logo",
+					type: "image" as const,
+					validation: { allowedMimeTypes: ["image/svg+xml"] },
+				},
+				{ slug: "photo", label: "Photo", type: "image" as const },
+				{ slug: "name", label: "Name", type: "string" as const },
+			],
+		};
+		const repeater = await schema.createField("article", {
+			slug: "partners",
+			label: "Partners",
+			type: "repeater",
+			validation: repeaterValidation,
+		});
+		repeaterFieldId = repeater.id;
 		await blocks.createBlockType({
 			slug: "attachment",
 			label: "Attachment",
 			fields: [
 				{ slug: "label", label: "Label", type: "string" },
+				{ slug: "partners", label: "Partners", type: "repeater", validation: repeaterValidation },
 				{
 					slug: "file",
 					label: "File",
@@ -553,6 +575,86 @@ describeEachDialect("nested block field upload allowlists", (dialect) => {
 
 	const cases = [
 		{
+			name: "repeater image opt-in",
+			fieldId: () => `${repeaterFieldId}.logo`,
+			blockType: undefined,
+			blockVersion: undefined,
+			type: "image/svg+xml",
+			ok: true,
+		},
+		{
+			name: "block repeater image opt-in",
+			fieldId: () => `${outerFieldId}:k1:partners.logo`,
+			blockType: "attachment",
+			blockVersion: 1,
+			type: "image/svg+xml",
+			ok: true,
+		},
+		{
+			name: "repeater sibling without opt-in",
+			fieldId: () => `${repeaterFieldId}.photo`,
+			blockType: undefined,
+			blockVersion: undefined,
+			type: "image/svg+xml",
+			ok: false,
+		},
+		{
+			name: "block repeater sibling without opt-in",
+			fieldId: () => `${outerFieldId}:k1:partners.photo`,
+			blockType: "attachment",
+			blockVersion: 1,
+			type: "image/svg+xml",
+			ok: false,
+		},
+		{
+			name: "non-image repeater sub-field",
+			fieldId: () => `${repeaterFieldId}.name`,
+			blockType: undefined,
+			blockVersion: undefined,
+			type: "image/svg+xml",
+			ok: false,
+		},
+		{
+			name: "unknown repeater sub-field",
+			fieldId: () => `${repeaterFieldId}.missing`,
+			blockType: undefined,
+			blockVersion: undefined,
+			type: "image/svg+xml",
+			ok: false,
+		},
+		{
+			name: "unknown repeater parent",
+			fieldId: () => `missing.logo`,
+			blockType: undefined,
+			blockVersion: undefined,
+			type: "image/svg+xml",
+			ok: false,
+		},
+		{
+			name: "non-repeater parent",
+			fieldId: () => `${imageFieldId}.logo`,
+			blockType: undefined,
+			blockVersion: undefined,
+			type: "image/svg+xml",
+			ok: false,
+		},
+		{
+			name: "missing block repeater context",
+			fieldId: () => `${outerFieldId}:k1:partners.logo`,
+			blockType: undefined,
+			blockVersion: undefined,
+			type: "image/svg+xml",
+			ok: false,
+		},
+		{
+			name: "extra repeater path segment",
+			fieldId: () => `${repeaterFieldId}.logo.extra`,
+			blockType: undefined,
+			blockVersion: undefined,
+			type: "image/svg+xml",
+			ok: false,
+		},
+		{
 			name: "valid block context",
 			fieldId: () => composite(),
 			blockType: "attachment",
@@ -582,6 +684,22 @@ describeEachDialect("nested block field upload allowlists", (dialect) => {
 			blockType: "attachment",
 			blockVersion: 99,
 			type: "application/msword",
+			ok: false,
+		},
+		{
+			name: "unknown block version for repeater image",
+			fieldId: () => `${outerFieldId}:k1:partners.logo`,
+			blockType: "attachment",
+			blockVersion: 99,
+			type: "image/svg+xml",
+			ok: false,
+		},
+		{
+			name: "unauthorized block type for repeater image",
+			fieldId: () => `${outerFieldId}:k1:partners.logo`,
+			blockType: "other_attachment",
+			blockVersion: 1,
+			type: "image/svg+xml",
 			ok: false,
 		},
 		{
@@ -631,20 +749,23 @@ describeEachDialect("nested block field upload allowlists", (dialect) => {
 			for (const testCase of cases) {
 				it(testCase.name, async () => {
 					const type = testCase.type;
+					const filename = type === "image/svg+xml" ? "logo.svg" : "form.doc";
+					const contents =
+						type === "image/svg+xml" ? '<svg xmlns="http://www.w3.org/2000/svg" />' : "word";
 					const storage =
 						route === "media" ? createMemoryStorage() : { storage: createSignedUrlStorage() };
 					const request =
 						route === "media"
 							? buildUploadRequest({
-									file: new File(["word"], "form.doc", { type }),
+									file: new File([contents], filename, { type }),
 									fieldId: testCase.fieldId(),
 									blockType: testCase.blockType,
 									blockVersion: testCase.blockVersion,
 								})
 							: buildUploadUrlRequest({
-									filename: "form.doc",
+									filename,
 									contentType: type,
-									size: 4,
+									size: contents.length,
 									fieldId: testCase.fieldId(),
 									blockType: testCase.blockType,
 									blockVersion: testCase.blockVersion,
@@ -663,6 +784,81 @@ describeEachDialect("nested block field upload allowlists", (dialect) => {
 			}
 		});
 	}
+
+	it.each([["image/svg+xml", 1], [".svg"]])(
+		"falls back to the global allowlist for malformed stored repeater MIME lists: %j",
+		async (...allowedMimeTypes) => {
+			await ctx.db
+				.updateTable("_emdash_fields")
+				.set({
+					validation: JSON.stringify({
+						subFields: [
+							{
+								slug: "logo",
+								label: "Logo",
+								type: "image",
+								validation: { allowedMimeTypes },
+							},
+						],
+					}),
+				})
+				.where("id", "=", repeaterFieldId)
+				.execute();
+			expect(await resolveFieldAllowlist(ctx.db, `${repeaterFieldId}.logo`)).toBeNull();
+		},
+	);
+
+	it("uses retained repeater allowlists after their block type is retired", async () => {
+		await new SchemaRegistry(ctx.db).updateField("article", "attachments", {
+			validation: { allowedTypes: [], retiredTypes: ["attachment"] },
+		});
+		const request = buildUploadRequest({
+			file: new File(["svg"], "logo.svg", { type: "image/svg+xml" }),
+			fieldId: `${outerFieldId}:k1:partners.logo`,
+			blockType: "attachment",
+			blockVersion: 1,
+		});
+		const response = await postMedia(
+			buildContext({ db: ctx.db, request, storage: createMemoryStorage().storage }),
+		);
+		expect(response.status).toBe(201);
+	});
+
+	it("retains version 1's nested allowlist after a version 2 narrowing", async () => {
+		const blocks = new BlockTypeRegistry(ctx.db);
+		const current = await blocks.getBlockType("attachment");
+		expect(current).not.toBeNull();
+		await blocks.updateBlockType("attachment", {
+			expectedFingerprint: current!.versions[0]!.fingerprint,
+			fields: [
+				{
+					slug: "partners",
+					label: "Partners",
+					type: "repeater",
+					validation: {
+						subFields: [
+							{
+								slug: "logo",
+								label: "Logo",
+								type: "image",
+								validation: { allowedMimeTypes: ["image/png"] },
+							},
+						],
+					},
+				},
+			],
+			breaking: true,
+		});
+		const { storage } = createMemoryStorage();
+		const request = buildUploadRequest({
+			file: new File(["svg"], "logo.svg", { type: "image/svg+xml" }),
+			fieldId: `${outerFieldId}:k1:partners.logo`,
+			blockType: "attachment",
+			blockVersion: 1,
+		});
+		const response = await postMedia(buildContext({ db: ctx.db, request, storage }));
+		expect(response.status).toBe(201);
+	});
 
 	it("uses retained block types after they are retired from the outer field", async () => {
 		await new SchemaRegistry(ctx.db).updateField("article", "attachments", {
@@ -712,4 +908,27 @@ describeEachDialect("nested block field upload allowlists", (dialect) => {
 		const response = await postMedia(buildContext({ db: ctx.db, request, storage }));
 		expect(response.status).toBe(201);
 	});
+
+	it.each([
+		["invalid JSON", "not-json"],
+		["invalid subFields", JSON.stringify({ subFields: {} })],
+	])(
+		"falls back to the global allowlist for repeater validation with %s",
+		async (_label, validation) => {
+			await ctx.db
+				.updateTable("_emdash_fields")
+				.set({ validation })
+				.where("id", "=", repeaterFieldId)
+				.execute();
+			const request = buildUploadRequest({
+				file: new File(["svg"], "logo.svg", { type: "image/svg+xml" }),
+				fieldId: `${repeaterFieldId}.logo`,
+			});
+			const response = await postMedia(
+				buildContext({ db: ctx.db, request, storage: createMemoryStorage().storage }),
+			);
+			expect(response.status).toBe(400);
+			expect(await response.json()).toMatchObject({ error: { code: "INVALID_TYPE" } });
+		},
+	);
 });

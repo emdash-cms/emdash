@@ -1,0 +1,17 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-plugin-review",
+	"main": "./src/index.ts",
+	"compatibility_date": "2026-08-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"workers_dev": false,
+	"preview_urls": false,
+	// Set with `wrangler secret put <NAME>`. PLUGIN_REVIEW_PROMPT_ADDENDUM is
+	// optional private guidance appended to the public prompt.
+	"secrets": {
+		"required": ["AI_GATEWAY_ACCOUNT_ID", "AI_GATEWAY_NAME", "AI_GATEWAY_TOKEN"],
+	},
+	"observability": {
+		"enabled": true,
+	},
+}

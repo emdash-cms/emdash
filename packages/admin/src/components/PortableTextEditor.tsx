@@ -1549,6 +1549,7 @@ function BlockKitField({
 					label={field.label}
 					placeholder={field.placeholder}
 					mimeTypeFilter={field.mime_type_filter}
+					labelSize="sm"
 					value={value}
 					onChange={onChange}
 				/>
@@ -2119,7 +2120,7 @@ export interface PortableTextEditorProps {
 	"aria-labelledby"?: string;
 	/** Plugin blocks available for insertion via slash commands */
 	pluginBlocks?: PluginBlockDef[];
-	/** Focus mode - controlled from parent for distraction-free mode coordination */
+	/** Focus mode - controlled from parent */
 	focusMode?: FocusMode;
 	/** Callback when focus mode changes */
 	onFocusModeChange?: (mode: FocusMode) => void;
@@ -2127,7 +2128,7 @@ export interface PortableTextEditorProps {
 	 * Called with the editor on mount, and with `null` on unmount so consumers
 	 * can clear stale references (e.g. before the next instance mounts). */
 	onEditorReady?: (editor: Editor | null) => void;
-	/** Minimal chrome - hides toolbar, border, footer (distraction-free mode) */
+	/** Minimal chrome - hides toolbar, border, footer */
 	minimal?: boolean;
 	/** Callback when a block node requests sidebar space (e.g. image settings) */
 	onBlockSidebarOpen?: (panel: BlockSidebarPanel) => void;
@@ -2749,9 +2750,10 @@ export function PortableTextEditor({
 				"aria-label": editorLabel,
 				...(ariaLabelledby ? { "aria-labelledby": ariaLabelledby } : {}),
 				...(editableRef.current ? {} : { "aria-readonly": "true" }),
+				// The top padding leaves room over the first line for a co-editor's name.
 				class: isDocument
-					? "emdash-document flow-root min-h-32 pb-2 focus:outline-none"
-					: "prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 ps-14 pe-14 sm:ps-16 sm:pe-16",
+					? "emdash-document flow-root min-h-32 pt-1 pb-2 focus:outline-none"
+					: "prose prose-sm sm:prose-base dark:prose-invert flow-root w-full max-w-[calc(75ch+8rem)] mx-auto focus:outline-none min-h-[200px] p-4 pt-5 ps-14 pe-14 sm:ps-16 sm:pe-16",
 				dir: "auto",
 			}),
 		}),

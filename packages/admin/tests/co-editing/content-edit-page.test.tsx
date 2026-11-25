@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
 import { fireEvent } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { page } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import { ThemeProvider } from "../../src/components/ThemeProvider";
 import type { AdminManifest, ContentItem, EntryRef } from "../../src/lib/api";
@@ -361,6 +361,7 @@ describe("operations in a room", () => {
 		const { screen, server } = await openInRoom(entry({ draftRevisionId: null }));
 
 		await screen.getByRole("button", { name: "Unpublish Post" }).click();
+		await confirm(screen, "Unpublish Post?", "Unpublish");
 
 		await vi.waitFor(() =>
 			expect(server.log).toEqual([
@@ -515,6 +516,77 @@ describe("the editor in a room", () => {
 	});
 });
 
+describe("a field link to an entry whose room is slow to join", () => {
+	it("focuses the field once the room arrives, after the entry has shown read-only", async () => {
+		openServer = createServer(entry());
+		const fake = createRoom({ title: "First post", slug: "post-one" });
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const router = createAdminRouter(queryClient);
+		if (!i18n.locale) i18n.loadAndActivate({ locale: "en", messages: {} });
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+			search: { field: "title" },
+		});
+		const screen = await render(
+			<I18nProvider i18n={i18n}>
+				<ThemeProvider defaultTheme="light">
+					<Toasty>
+						<QueryClientProvider client={queryClient}>
+							<RouterProvider router={router} />
+						</QueryClientProvider>
+					</Toasty>
+				</ThemeProvider>
+			</I18nProvider>,
+		);
+		unmount = () => screen.unmount();
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		// The editor shows the stored entry once it has waited a while for the room.
+		await expect.element(title, { timeout: 3000 }).toHaveValue("First post");
+		await new Promise((resolve) => requestIdleCallback(resolve));
+
+		show(roomView(fake));
+
+		await expect.poll(() => document.activeElement?.id).toBe("field-title");
+		await expect.poll(() => router.state.location.search).toEqual({});
+	});
+
+	it("handles the link in the read-only view while a full room is retried, without a later jump", async () => {
+		openServer = createServer(entry());
+		const fake = createRoom({ title: "First post", slug: "post-one" });
+		show({ mode: "pending", waiting: true });
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const router = createAdminRouter(queryClient);
+		if (!i18n.locale) i18n.loadAndActivate({ locale: "en", messages: {} });
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+			search: { field: "title" },
+		});
+		const screen = await render(
+			<I18nProvider i18n={i18n}>
+				<ThemeProvider defaultTheme="light">
+					<Toasty>
+						<QueryClientProvider client={queryClient}>
+							<RouterProvider router={router} />
+						</QueryClientProvider>
+					</Toasty>
+				</ThemeProvider>
+			</I18nProvider>,
+		);
+		unmount = () => screen.unmount();
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		await expect.element(title, { timeout: 3000 }).toHaveValue("First post");
+
+		await expect.poll(() => router.state.location.search).toEqual({});
+
+		show(roomView(fake));
+		await expect.element(title).toBeEnabled();
+		await new Promise((resolve) => requestIdleCallback(resolve));
+		expect(document.activeElement?.id).not.toBe("field-title");
+	});
+});
+
 describe("reloading from a room", () => {
 	/** Whether closing or reloading the tab now would ask first. */
 	function asksBeforeUnload(): boolean {
@@ -590,21 +662,22 @@ describe("resetting a room", () => {
 
 	it("keeps the editor mounted, so its view survives", async () => {
 		const { screen } = await openInRoom(entry());
-		await screen.getByRole("button", { name: "Enter distraction-free mode" }).click();
-		const exit = screen.getByRole("button", { name: "Exit distraction-free mode" });
-		await expect.element(exit).toBeVisible();
+		const resize = screen.getByRole("separator", { name: "Resize settings panel" });
+		await expect.element(resize).toHaveAttribute("aria-valuenow", "368");
+		resize.element().focus();
+		await userEvent.keyboard("{End}");
+		await expect.element(resize).toHaveAttribute("aria-valuenow", "480");
 
 		show({ mode: "pending", waiting: false });
 
 		await expect
 			.element(screen.getByRole("textbox", { name: "Title", exact: true }))
 			.not.toBeInTheDocument();
-		await expect.element(exit).toBeVisible();
 		show(roomView(createRoom({ title: "From the new replica", slug: "post-one" })));
 		await expect
 			.element(screen.getByRole("textbox", { name: "Title", exact: true }))
 			.toHaveValue("From the new replica");
-		await expect.element(exit).toBeVisible();
+		await expect.element(resize).toHaveAttribute("aria-valuenow", "480");
 	});
 
 	it("saves a pending SEO edit as the room does, without _rev", async () => {

@@ -6,7 +6,6 @@
 import type { AnyExtension } from "@tiptap/core";
 
 import type { OutsideValue, RoomAccess } from "../../co-editing/types.js";
-import type { AuthorColor } from "../author-colors.js";
 
 /** The session's mode, as the page renders it. */
 export type CoEditing =
@@ -74,10 +73,7 @@ export interface RoomEditing {
 
 /** Who else is in the room, and where. */
 export interface RoomPresence {
-	/**
-	 * The user this tab belongs to. Colors are assigned over everyone present, this user included,
-	 * so every client gives each person the same color.
-	 */
+	/** The user this tab belongs to, whose other tabs aren't listed. */
 	setSelf(userId: string | null): void;
 	subscribe(listener: () => void): () => void;
 	/**
@@ -92,7 +88,6 @@ export interface RoomPresence {
 export interface PresenceUser {
 	readonly id: string;
 	readonly name: string;
-	readonly color: AuthorColor;
 	/** The field one of their tabs is in, or null for a viewer or someone in none. */
 	readonly field: string | null;
 }

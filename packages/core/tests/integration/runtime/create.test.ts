@@ -37,6 +37,7 @@ import {
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database as EmDashDatabase } from "../../../src/database/types.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
 import type { RuntimeDependencies } from "../../../src/emdash-runtime.js";
 import { getI18nConfig, setI18nConfig } from "../../../src/i18n/config.js";
@@ -211,6 +212,53 @@ describe("EmDashRuntime.create — cold boot", () => {
 			await runtime.shutdown();
 		}
 		expect(host.shutdown).toHaveBeenCalledOnce();
+	});
+
+	it("leaves stale cron locks to scheduled maintenance instead of writing on cold start", async () => {
+		const path = join(tmpdir(), `emdash-cron-cold-${randomUUID()}.db`);
+		const fileDeps = () => {
+			const deps = createDeps();
+			deps.createDialect = () => new SqliteDialect({ database: new Database(path) });
+			return deps;
+		};
+		const readStatus = (runtime: EmDashRuntime) =>
+			runtime.db
+				.selectFrom("_emdash_cron_tasks")
+				.select(["status", "locked_at"])
+				.where("id", "=", "stale")
+				.executeTakeFirstOrThrow();
+		try {
+			const first = await EmDashRuntime.create(fileDeps());
+			await first.db
+				.insertInto("_emdash_cron_tasks")
+				.values({
+					id: "stale",
+					plugin_id: "missing-plugin",
+					task_name: "crashed",
+					schedule: "@daily",
+					next_run_at: "2100-01-01T00:00:00.000Z",
+					status: "running",
+					locked_at: "2000-01-01T00:00:00.000Z",
+				})
+				.execute();
+			await first.shutdown();
+
+			const cold = await EmDashRuntime.create(fileDeps());
+			try {
+				await waitForDeferredTasks();
+				expect(await readStatus(cold)).toEqual({
+					status: "running",
+					locked_at: "2000-01-01T00:00:00.000Z",
+				});
+
+				await cold.runScheduledTasks();
+				expect(await readStatus(cold)).toEqual({ status: "idle", locked_at: null });
+			} finally {
+				await cold.shutdown();
+			}
+		} finally {
+			await rm(path, { force: true });
+		}
 	});
 
 	it("creates a runtime without a timings array (backwards compatible)", async () => {
@@ -539,7 +587,7 @@ describe("EmDashRuntime.create — cold boot", () => {
 			const pluginStateStatements: string[] = [];
 			const prepare = sqlite.prepare.bind(sqlite);
 			sqlite.prepare = ((statement: string) => {
-				if (statement.includes('"_plugin_state"')) pluginStateStatements.push(statement);
+				if (statement.includes("_plugin_state")) pluginStateStatements.push(statement);
 				return prepare(statement);
 			}) as typeof sqlite.prepare;
 
@@ -571,7 +619,9 @@ describe("EmDashRuntime.create — cold boot", () => {
 			try {
 				expect(download.mock.calls.map(([key]) => key)).toEqual(expect.arrayContaining(manifests));
 				expect(download).toHaveBeenCalledTimes(manifests.length);
-				expect(pluginStateStatements.filter((s) => s.startsWith("select"))).toHaveLength(1);
+				expect(
+					pluginStateStatements.filter((s) => s.trimStart().toLowerCase().startsWith("select")),
+				).toHaveLength(1);
 			} finally {
 				await runtime.stopCron();
 				await setupDb.destroy();

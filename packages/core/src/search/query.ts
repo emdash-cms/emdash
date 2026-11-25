@@ -4,7 +4,7 @@
  * Programmatic API for searching content using FTS5.
  */
 
-import type { Kysely } from "kysely";
+import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
 import { encodeCursor, decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
@@ -87,6 +87,16 @@ function isFts5SyntaxError(error: unknown): boolean {
 	return message.includes("fts5: syntax error") || message.includes("unknown special query");
 }
 
+// All queries must start before awaiting, but collection order determines tie
+// ordering and which error is surfaced when several collections fail.
+async function inCollectionOrder<T>(pending: Promise<T>[]): Promise<T[]> {
+	const settled = await Promise.allSettled(pending);
+	return settled.map((outcome) => {
+		if (outcome.status === "rejected") throw outcome.reason;
+		return outcome.value;
+	});
+}
+
 /**
  * Search across multiple collections
  *
@@ -143,36 +153,40 @@ export async function searchWithDb(
 	// row detects whether a further page exists.
 	const perCollectionLimit = offset + limit + 1;
 
-	// Search each collection and merge results
-	const allResults: SearchResult[] = [];
-	for (const collection of collections) {
-		const collectionMetadata = metadata.get(collection);
-		if (!collectionMetadata) {
-			continue;
-		}
+	const collectionResults = await inCollectionOrder(
+		collections.map(async (collection) => {
+			const collectionMetadata = metadata.get(collection);
+			if (!collectionMetadata) return [];
+			return searchSingleCollection(
+				db,
+				collection,
+				query,
+				{
+					status,
+					locale: options.locale,
+					limit: perCollectionLimit,
+					scope: options.scope,
+				},
+				collectionMetadata,
+				true,
+			);
+		}),
+	);
+	const allResults = collectionResults.flat();
 
-		const collectionResults = await searchSingleCollection(
-			db,
-			collection,
-			query,
-			{
-				status,
-				locale: options.locale,
-				limit: perCollectionLimit,
-				scope: options.scope,
-			},
-			collectionMetadata,
-		);
-
-		allResults.push(...collectionResults);
-	}
-
-	// Sort by score descending
-	allResults.sort((a, b) => b.score - a.score);
+	allResults.sort(
+		(a, b) =>
+			b.titleMatchTier - a.titleMatchTier ||
+			(a.titleMatchTier === 1 ? a.titleLength - b.titleLength : 0) ||
+			b.score - a.score ||
+			b.rawScore - a.rawScore ||
+			a.titleLength - b.titleLength ||
+			compareIds(a.id, b.id),
+	);
 
 	// Page the merged set by offset. A nextCursor is issued only when at least
 	// one result exists past this page.
-	const items = allResults.slice(offset, offset + limit);
+	const items = allResults.slice(offset, offset + limit).map(toSearchResult);
 	const hasMore = allResults.length > offset + limit;
 	const nextCursor = hasMore ? encodeSearchCursor(offset + limit) : undefined;
 
@@ -225,11 +239,30 @@ export async function searchCollection(
 		metadata,
 	);
 
-	const items = fetched.slice(offset, offset + limit);
+	const items = fetched.slice(offset, offset + limit).map(toSearchResult);
 	const hasMore = fetched.length > offset + limit;
 	const nextCursor = hasMore ? encodeSearchCursor(offset + limit) : undefined;
 
 	return { items, nextCursor };
+}
+
+interface RankedSearchResult extends SearchResult {
+	titleMatchTier: number;
+	rawScore: number;
+	titleLength: number;
+}
+
+function toSearchResult({
+	titleMatchTier: _titleMatchTier,
+	rawScore: _rawScore,
+	titleLength: _titleLength,
+	...result
+}: RankedSearchResult): SearchResult {
+	return result;
+}
+
+function compareIds(a: string, b: string): number {
+	return a < b ? -1 : a > b ? 1 : 0;
 }
 
 /**
@@ -241,7 +274,8 @@ async function searchSingleCollection(
 	query: string,
 	options: CollectionSearchOptions,
 	metadata: CollectionSearchMetadata,
-): Promise<SearchResult[]> {
+	rankAcrossCollections = false,
+): Promise<RankedSearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
 
@@ -311,33 +345,68 @@ async function searchSingleCollection(
 	// Using raw SQL because Kysely doesn't have FTS5 support
 	const bm25Expr = bm25Args ? `bm25("${ftsTable}", ${bm25Args})` : `bm25("${ftsTable}")`;
 
-	// Snippet column index is 2 (after id=0, locale=1, first searchable field=2)
-	let results;
-	try {
-		results = await sql<{
-			id: string;
-			slug: string | null;
-			locale: string;
-			title: string | null;
-			snippet: string | null;
-			score: number;
-		}>`
-		SELECT
-			c.id,
-			c.slug,
-			c.locale,
-			${titleExpr} as title,
-			snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) as snippet,
-			${sql.raw(bm25Expr)} as score
-		FROM "${sql.raw(ftsTable)}" f
+	// Materialization keeps bm25() in its FTS cursor context. The best-score
+	// CTE computes the global per-collection maximum from every match, not
+	// just the rows admitted by the title-ranked LIMIT, so normalized scores
+	// stay identical across pages and result-window sizes.
+	const titleColumn = titleField ?? "title";
+	const titleMatchTier =
+		rankAcrossCollections && searchableFields.includes(titleColumn)
+			? buildTitleMatchTier(ftsTable, titleColumn, searchableFields.indexOf(titleColumn) + 2, query)
+			: sql`0`;
+	const titleLengthExpr = searchableFields.includes(titleColumn)
+		? sql`coalesce(length(c.${sql.ref(titleColumn)}), 0)`
+		: sql`0`;
+	type SearchRow = {
+		id: string;
+		slug: string | null;
+		locale: string;
+		title: string | null;
+		snippet: string | null;
+		score: number;
+		title_match_tier: number;
+		raw_score: number;
+		title_length: number;
+	};
+	const fromMatches = sql`FROM "${sql.raw(ftsTable)}" f
 		JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
 		WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery}
 		AND c.status = ${status}
 		AND c.deleted_at IS NULL
-		${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}
-		ORDER BY score
-		LIMIT ${limit}
-	`.execute(db);
+		${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}`;
+	const displayFields = sql`c.id, c.slug, c.locale, ${titleExpr} AS title,
+		snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) AS snippet`;
+	let results;
+	try {
+		// D1 coalesces only statements beginning with SELECT; keep the CTEs
+		// inside a read-only outer SELECT so collection queries can batch.
+		const rankedQuery = rankAcrossCollections
+			? sql<SearchRow>`SELECT * FROM (WITH matches AS MATERIALIZED (
+				SELECT c.id, ${sql.raw(bm25Expr)} AS score, ${titleMatchTier} AS title_match_tier, ${titleLengthExpr} AS title_length
+				${fromMatches}
+			), best AS MATERIALIZED (
+				SELECT nullif(max(abs(score)), 0) AS best_score FROM matches
+			), ranked AS MATERIALIZED (
+				SELECT m.id, m.title_match_tier, m.title_length,
+					abs(m.score) AS raw_score,
+					coalesce(abs(m.score) / nullif(best.best_score, 0), 0) AS score
+				FROM matches m CROSS JOIN best
+				ORDER BY m.title_match_tier DESC,
+					CASE WHEN m.title_match_tier = 1 THEN m.title_length ELSE 0 END ASC,
+					score DESC, raw_score DESC, m.title_length ASC, m.id COLLATE BINARY
+				LIMIT ${limit}
+			)
+			SELECT ${displayFields}, r.score, r.title_match_tier, r.raw_score, r.title_length
+			FROM ranked r
+			JOIN "${sql.raw(contentTable)}" c ON c.id = r.id
+			JOIN "${sql.raw(ftsTable)}" f ON f.id = c.id
+			WHERE "${sql.raw(ftsTable)}" MATCH ${matchQuery})
+			ORDER BY title_match_tier DESC,
+				CASE WHEN title_match_tier = 1 THEN title_length ELSE 0 END ASC,
+				score DESC, raw_score DESC, title_length ASC, id COLLATE BINARY`
+			: sql<SearchRow>`SELECT ${displayFields}, ${sql.raw(bm25Expr)} AS score, 0 AS title_match_tier, abs(${sql.raw(bm25Expr)}) AS raw_score, 0 AS title_length
+				${fromMatches} ORDER BY score, c.id COLLATE BINARY LIMIT ${limit}`;
+		results = await rankedQuery.execute(db);
 	} catch (error) {
 		// FTS5 returns syntax errors for queries with unbalanced quotes,
 		// stray operators, or other malformed input. Treat these as
@@ -365,7 +434,10 @@ async function searchSingleCollection(
 		// throw on `null.replace`. The SearchResult.snippet field is
 		// already optional, so omitting it is the documented contract.
 		snippet: row.snippet === null ? undefined : sanitizeSnippet(row.snippet),
-		score: Math.abs(row.score), // bm25 returns negative scores
+		score: Math.abs(row.score),
+		titleMatchTier: row.title_match_tier,
+		rawScore: row.raw_score,
+		titleLength: row.title_length,
 	}));
 }
 
@@ -404,6 +476,46 @@ function sanitizeSnippet(snippet: string): string {
 		.replaceAll("&lt;/mark&gt;", "</mark>");
 }
 
+const TITLE_OPERATOR_PATTERN = /^(AND|OR|NOT|NEAR)$/;
+
+function buildTitleMatchTier(
+	ftsTable: string,
+	titleColumn: string,
+	titleIndex: number,
+	query: string,
+): RawBuilder<number> {
+	validateIdentifier(titleColumn, "title field");
+	const trimmed = query.trim();
+	const phrase = trimmed.startsWith('"') && trimmed.endsWith('"');
+	const exact = phrase ? trimmed.slice(1, -1).trim() : trimmed;
+	const terms = phrase
+		? trimmed
+		: trimmed
+				.split(WHITESPACE_SPLIT_PATTERN)
+				.filter((term) => !TITLE_OPERATOR_PATTERN.test(term))
+				.join(" ");
+	const titleQuery = escapeQuery(terms, false);
+	if (!titleQuery) return sql`0`;
+	const exactQuery = `${titleColumn} : "${exact.replace(DOUBLE_QUOTE_PATTERN, '""')}"`;
+	const containsQuery = `${titleColumn} : (${titleQuery})`;
+	// FTS tokenization supplies Unicode case folding. A whole-title phrase must
+	// cover the complete title and have the same length, excluding prefix hits.
+	return sql<number>`CASE
+		WHEN c.id IN (
+			SELECT id FROM "${sql.raw(ftsTable)}"
+			WHERE "${sql.raw(ftsTable)}" MATCH ${exactQuery}
+			AND trim(highlight("${sql.raw(ftsTable)}", ${titleIndex}, char(1), char(2))) =
+				char(1) || trim(${sql.ref(titleColumn)}) || char(2)
+			AND length(trim(${sql.ref(titleColumn)})) = length(${exact})
+		) THEN 2
+		WHEN c.id IN (
+			SELECT id FROM "${sql.raw(ftsTable)}"
+			WHERE "${sql.raw(ftsTable)}" MATCH ${containsQuery}
+		) THEN 1
+		ELSE 0
+	END`;
+}
+
 /**
  * Get search suggestions for autocomplete
  *
@@ -427,42 +539,41 @@ export async function getSuggestions(
 	const ftsManager = new FTSManager(db);
 	const metadata = await ftsManager.getSearchMetadata(options.collections);
 	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
-	const suggestions: Suggestion[] = [];
+	const collectionSuggestions = await inCollectionOrder(
+		collections.map(async (collection): Promise<Suggestion[]> => {
+			const collectionMetadata = metadata.get(collection);
+			if (!collectionMetadata) return [];
+			const { config, hasTitle } = collectionMetadata;
 
-	for (const collection of collections) {
-		const collectionMetadata = metadata.get(collection);
-		if (!collectionMetadata) continue;
-		const { config, hasTitle } = collectionMetadata;
+			// Suggestions are title-based (Suggestion.title is required). A configured
+			// titleField supplies it -- a validated existing column -- so it
+			// takes precedence and keeps autocomplete consistent with search results.
+			// Otherwise fall back to the optional `title` field; collections with
+			// neither can't produce a suggestion and are skipped (selecting a missing
+			// column would error).
+			let titleExpr;
+			if (config.titleField) {
+				validateIdentifier(config.titleField, "title field");
+				titleExpr = sql`c.${sql.ref(config.titleField)}`;
+			} else if (hasTitle) {
+				titleExpr = sql`c.title`;
+			} else {
+				return [];
+			}
 
-		// Suggestions are title-based (Suggestion.title is required). A configured
-		// titleField supplies it -- a validated existing column -- so it
-		// takes precedence and keeps autocomplete consistent with search results.
-		// Otherwise fall back to the optional `title` field; collections with
-		// neither can't produce a suggestion and are skipped (selecting a missing
-		// column would error).
-		let titleExpr;
-		if (config.titleField) {
-			validateIdentifier(config.titleField, "title field");
-			titleExpr = sql`c.${sql.ref(config.titleField)}`;
-		} else if (hasTitle) {
-			titleExpr = sql`c.title`;
-		} else {
-			continue;
-		}
+			// Validate before raw SQL interpolation
+			validateIdentifier(collection, "collection slug");
 
-		// Validate before raw SQL interpolation
-		validateIdentifier(collection, "collection slug");
+			const ftsTable = ftsManager.getFtsTableName(collection);
+			const contentTable = ftsManager.getContentTableName(collection);
 
-		const ftsTable = ftsManager.getFtsTableName(collection);
-		const contentTable = ftsManager.getContentTableName(collection);
-
-		let results;
-		try {
-			results = await sql<{
-				id: string;
-				slug: string | null;
-				title: string;
-			}>`
+			let results;
+			try {
+				results = await sql<{
+					id: string;
+					slug: string | null;
+					title: string;
+				}>`
 				SELECT
 					c.id,
 					c.slug,
@@ -477,26 +588,26 @@ export async function getSuggestions(
 				ORDER BY bm25("${sql.raw(ftsTable)}")
 				LIMIT ${limit}
 			`.execute(db);
-		} catch (error) {
-			// Same swallow as searchSingleCollection: malformed prefix
-			// queries should yield no suggestions, not surface DB errors.
-			// Intentionally not logged (anonymous-triggerable, echoes
-			// user input -- see searchSingleCollection for rationale).
-			if (isFts5SyntaxError(error)) {
-				continue;
+			} catch (error) {
+				// Same swallow as searchSingleCollection: malformed prefix
+				// queries should yield no suggestions, not surface DB errors.
+				// Intentionally not logged (anonymous-triggerable, echoes
+				// user input -- see searchSingleCollection for rationale).
+				if (isFts5SyntaxError(error)) {
+					return [];
+				}
+				throw error;
 			}
-			throw error;
-		}
 
-		for (const row of results.rows) {
-			suggestions.push({
+			return results.rows.map((row) => ({
 				collection,
 				id: row.id,
 				slug: row.slug,
 				title: row.title,
-			});
-		}
-	}
+			}));
+		}),
+	);
+	const suggestions = collectionSuggestions.flat();
 
 	return suggestions.slice(0, limit);
 }

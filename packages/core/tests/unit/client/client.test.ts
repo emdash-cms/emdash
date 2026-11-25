@@ -468,6 +468,53 @@ describe("EmDashClient", () => {
 	});
 
 	describe("API error handling", () => {
+		it.each([
+			["upstream timed out", "Internal Server Error", "upstream timed out"],
+			[" \n upstream timed out \n ", "Internal Server Error", "upstream timed out"],
+			["{invalid json", "Internal Server Error", "{invalid json"],
+			["x".repeat(600), "Internal Server Error", "x".repeat(500)],
+			["", "Internal Server Error", "Internal Server Error"],
+			[" \n\t ", "Internal Server Error", "Internal Server Error"],
+			["", "", "HTTP 500"],
+		])("preserves a useful message for non-JSON body %j", async (body, statusText, message) => {
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [async () => new Response(body, { status: 500, statusText })],
+			});
+
+			await expect(client.list("posts")).rejects.toMatchObject({
+				name: "EmDashApiError",
+				status: 500,
+				code: "UNKNOWN_ERROR",
+				message,
+			});
+		});
+
+		it("falls back to status text when the error body cannot be read", async () => {
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				interceptors: [
+					async () =>
+						new Response(
+							new ReadableStream({
+								start(controller) {
+									controller.error(new Error("Connection closed"));
+								},
+							}),
+							{ status: 502, statusText: "Bad Gateway" },
+						),
+				],
+			});
+
+			await expect(client.list("posts")).rejects.toMatchObject({
+				name: "EmDashApiError",
+				status: 502,
+				code: "UNKNOWN_ERROR",
+				message: "Bad Gateway",
+			});
+		});
+
 		it("throws EmDashApiError on 4xx responses", async () => {
 			const backend = createMockBackend([
 				{
