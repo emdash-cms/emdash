@@ -104,6 +104,9 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 
 	const locale = url.searchParams.get("locale") || undefined;
 
+	const roleDenied = requirePerm(user, "content:delete_own");
+	if (roleDenied) return roleDenied;
+
 	// Fetch item to check ownership
 	const existing = await emdash.handleContentGet(collection, id, locale);
 	if (!existing.success) {
