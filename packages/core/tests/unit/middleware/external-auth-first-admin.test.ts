@@ -51,7 +51,7 @@ function signIn(email: string, database: Kysely<Database>) {
 					config: { auth: { type: "cloudflare-access", entrypoint: "test-auth", config: {} } },
 				},
 			},
-			session: { get: vi.fn(), set: vi.fn(), destroy: vi.fn() },
+			session: { get: vi.fn(), set: vi.fn(), destroy: vi.fn(), regenerate: vi.fn(async () => {}) },
 		} as unknown as Parameters<AuthMiddlewareModule["onRequest"]>[0],
 		vi.fn(async () => new Response("ok")),
 	);

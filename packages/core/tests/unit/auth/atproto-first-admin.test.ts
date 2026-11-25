@@ -51,7 +51,7 @@ describe("first admin through AT Protocol during setup", () => {
 				`http://localhost:4321/_emdash/api/auth/atproto/callback?code=${encodeURIComponent(did)}`,
 			),
 			locals: { emdash: { db: database, config: {} } },
-			session: { set: vi.fn() },
+			session: { set: vi.fn(), regenerate: vi.fn(async () => {}) },
 			redirect,
 		} as unknown as Parameters<typeof callback>[0]);
 		return response.headers.get("Location")?.split("&")[0];
