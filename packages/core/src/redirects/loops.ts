@@ -59,6 +59,9 @@ const SPLAT_RE = /\[\.\.\.(\w+)\]/g;
 /** Param pattern: [paramName] */
 const PARAM_RE = /\[(\w+)\]/g;
 
+/** Paths the redirect middleware matches against exact rules only */
+const FILE_EXTENSION = /\.\w{1,10}$/;
+
 /**
  * Extract the literal prefix from a pattern source (everything before the
  * first placeholder), stripped of leading segments shared with a base path.
@@ -134,6 +137,7 @@ function resolveNext(
 
 	if (!path.includes("[")) {
 		// Concrete path — try pattern matching directly
+		if (FILE_EXTENSION.test(path)) return null;
 		for (const pr of patterns) {
 			const params = matchPattern(pr.compiled, path);
 			if (params) {
@@ -146,6 +150,7 @@ function resolveNext(
 		const representatives = generateRepresentatives(path, edges);
 		for (const pr of patterns) {
 			for (const rep of representatives) {
+				if (FILE_EXTENSION.test(rep)) continue;
 				const params = matchPattern(pr.compiled, rep);
 				if (params) {
 					const resolved = interpolateDestination(pr.destination, params);

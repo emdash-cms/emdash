@@ -135,6 +135,11 @@ describe("detectLoops", () => {
 		expect(detectLoops(edges)).toHaveLength(0);
 	});
 
+	it("does not report a pattern whose destination adds a file extension", () => {
+		const edges = [edge("1", "/docs/[slug]", "/docs/[slug].html", true, true)];
+		expect(detectLoops(edges)).toHaveLength(0);
+	});
+
 	it("does not report a pattern that shortens a path until it stops matching", () => {
 		const edges = [
 			edge("1", "/strip/[first]/[...rest]", "/strip/[...rest]", true, true),
