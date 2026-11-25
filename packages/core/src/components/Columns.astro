@@ -5,6 +5,7 @@
  * Renders multi-column layouts from WordPress imports.
  */
 import PortableText from "./PortableText.astro";
+import { cssLength } from "../utils/css-value.js";
 
 export interface Props {
 	node: {
@@ -29,14 +30,14 @@ if (!columns.length) {
 
 <div class="emdash-columns" style={`--column-count: ${columns.length}`}>
 	{
-		columns.map((column) => (
-			<div
-				class="emdash-column"
-				style={column.width ? `flex-basis: ${column.width}` : undefined}
-			>
-				<PortableText value={column.content} />
-			</div>
-		))
+		columns.map((column) => {
+			const width = cssLength(column.width);
+			return (
+				<div class="emdash-column" style={width ? `flex-basis: ${width}` : undefined}>
+					<PortableText value={column.content} />
+				</div>
+			);
+		})
 	}
 </div>
 

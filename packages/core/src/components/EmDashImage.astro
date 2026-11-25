@@ -39,6 +39,7 @@ import {
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 import { focalPointToObjectPosition } from "../media/focal-point.js";
+import { cssColor } from "../utils/css-value.js";
 
 interface Props extends Omit<
 	HTMLAttributes<"img">,
@@ -266,8 +267,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 	// Build placeholder background style. Prefer the first-class MediaValue fields;
 	// fall back to `meta` for snapshots stored before LQIP was promoted off `meta`.
 	const blurhash = img.blurhash ?? (img.meta?.blurhash as string | undefined);
-	const dominantColor =
-		img.dominantColor ?? (img.meta?.dominantColor as string | undefined);
+	const dominantColor = cssColor(img.dominantColor) ?? cssColor(img.meta?.dominantColor);
 
 	let placeholderStyle = "";
 	if (placeholder && blurhash) {

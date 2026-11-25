@@ -95,6 +95,7 @@ async function buildEmdash(exists: boolean, authorId = "u-other") {
 			getManifest: vi.fn(async () => ({ version: "1", hash: "h", collections: {} })),
 			handleContentGet: lookup,
 			handleContentGetIncludingTrashed: lookup,
+			handleContentGetById: lookup,
 			handleRevisionGet: revisionLookup,
 			handleContentUpdate: write,
 			handleContentDelete: write,
