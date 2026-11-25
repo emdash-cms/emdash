@@ -232,6 +232,19 @@ describe("locateQuote", () => {
 		expect(locateQuote(value, "content", "fish")).toEqual({ status: "ambiguous" });
 		expect(locateQuote(value, "content", "whale")).toEqual({ status: "missing" });
 	});
+
+	it("doesn't match half of an emoji", () => {
+		const fishes = [block("b1", "Red 🐟 and blue 🐠")];
+		const high = "🐟".charAt(0);
+		const low = "🐟".charAt(1);
+
+		expect(locateQuote(fishes, "content", `Red ${high}`)).toEqual({ status: "missing" });
+		expect(locateQuote(fishes, "content", `${low} and`)).toEqual({ status: "missing" });
+		expect(locateQuote(fishes, "content", "🐟 and")).toMatchObject({
+			status: "found",
+			anchor: { start: 4, end: 10 },
+		});
+	});
 });
 
 describe("sameAnchor", () => {

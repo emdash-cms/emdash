@@ -177,12 +177,17 @@ function findCandidates(
 	for (const block of blocks) {
 		let index = block.text.indexOf(quote);
 		while (index !== -1) {
+			const end = index + quote.length;
+			if (splitsSurrogatePair(block.text, index) || splitsSurrogatePair(block.text, end)) {
+				index = block.text.indexOf(quote, index + 1);
+				continue;
+			}
 			candidates.push({
 				block,
 				start: index,
 				context:
 					prefixMatchLength(block.text, index, context.prefix) +
-					suffixMatchLength(block.text, index + quote.length, context.suffix),
+					suffixMatchLength(block.text, end, context.suffix),
 				distance: context.start === undefined ? 0 : Math.abs(index - context.start),
 			});
 			index = block.text.indexOf(quote, index + 1);
