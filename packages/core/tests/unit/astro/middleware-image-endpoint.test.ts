@@ -133,7 +133,6 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
-	delete (globalThis as Record<symbol, unknown>)[Symbol.for("emdash:setup-verified")];
 	delete (globalThis as Record<symbol, unknown>)[Symbol.for("emdash:runtime-holder")];
 	CONFIG.storage = LOCAL_STORAGE;
 	CONFIG.imageEndpointRoute = "/_image";
