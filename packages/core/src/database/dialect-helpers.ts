@@ -2,8 +2,8 @@
  * Dialect-specific SQL helpers
  *
  * Every function takes a Kysely `db` instance and detects the dialect from
- * the adapter class. No module-level state, no globals, no heuristics —
- * the adapter is the source of truth.
+ * the adapter class. No module-level state or globals — the adapter is
+ * the source of truth.
  *
  * This is NOT an ORM abstraction — just targeted helpers for the ~15 places
  * that use raw dialect-specific SQL. Most Kysely schema builder code already
@@ -14,6 +14,7 @@ import type {
 	ColumnDataType,
 	Compilable,
 	CompiledQuery,
+	Expression,
 	Kysely,
 	QueryResult,
 	RawBuilder,
@@ -31,7 +32,12 @@ export type { DatabaseDialectType };
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function detectDialect(db: Kysely<any>): DatabaseDialectType {
-	if (db.getExecutor().adapter instanceof PostgresAdapter) return "postgres";
+	const adapter = db.getExecutor().adapter;
+	// instanceof survives minification; the name fallback handles separate
+	// Kysely module copies loaded by Vite's dev SSR dependency optimizer.
+	if (adapter instanceof PostgresAdapter || adapter.constructor.name === "PostgresAdapter") {
+		return "postgres";
+	}
 	return "sqlite";
 }
 
@@ -43,6 +49,15 @@ export function isSqlite(db: Kysely<any>): boolean {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function isPostgres(db: Kysely<any>): boolean {
 	return detectDialect(db) === "postgres";
+}
+
+/** Literal substring position, avoiding D1's 50-byte LIKE pattern limit. */
+export function textPosition<DB>(
+	db: Kysely<DB>,
+	value: Expression<string>,
+	term: Expression<string>,
+): RawBuilder<number> {
+	return isPostgres(db) ? sql`strpos(${value}, ${term})` : sql`instr(${value}, ${term})`;
 }
 
 /**

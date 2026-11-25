@@ -13,6 +13,7 @@ import {
 	loadContentMediaUsageFields,
 	type ContentMediaUsageFieldDiscovery,
 } from "./content-fields.js";
+import { withContentUsageCollectionLock, withContentUsageLock } from "./content-lock.js";
 import {
 	loadContentMediaUsageSnapshots,
 	loadContentMediaUsageSnapshotsBatch,
@@ -30,6 +31,8 @@ import {
 	MEDIA_USAGE_CONTENT_SOURCE_VARIANTS,
 } from "./source-key.js";
 
+export { withContentUsageCollectionLock } from "./content-lock.js";
+
 export {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
@@ -38,8 +41,6 @@ export {
 	markContentMediaUsageCollectionStaleSafely,
 } from "./schema-invalidation.js";
 
-const CONTENT_USAGE_LOCKS_KEY = Symbol.for("emdash.mediaUsage.contentLocks");
-const CONTENT_USAGE_COLLECTION_LOCKS_KEY = Symbol.for("emdash.mediaUsage.collectionLocks");
 const CONTENT_USAGE_REFRESH_MAX_ATTEMPTS = 2;
 
 export const MEDIA_USAGE_PROJECTION_ADMISSION_LIMITS = Object.freeze({
@@ -66,9 +67,6 @@ export type ContentMediaUsageProjectionAdmissionResult =
 	  }
 	| { outcome: "intrinsic_resource_limit" }
 	| { outcome: "claim_budget_deferred" };
-
-// These maps only de-dupe usage work inside the current isolate/process. Cross-worker
-// correctness comes from expected-generation guards on repository writes.
 
 export type ContentMediaUsageRefreshErrorCode =
 	| "CONTENT_NOT_FOUND"
@@ -930,71 +928,4 @@ async function deleteCanonicalContentSourcesIfAbsent(
 		}
 	}
 	return { ...ZERO_RESULT, deletedSourceCount };
-}
-
-async function withContentUsageLock<T>(
-	collectionSlug: string,
-	contentId: string,
-	fn: () => Promise<T>,
-): Promise<T> {
-	const locks = getContentUsageLocks();
-	const lockKey = `${collectionSlug}\0${contentId}`;
-	const previous = locks.get(lockKey) ?? Promise.resolve();
-	let releaseCurrent!: () => void;
-	const current = new Promise<void>((resolve) => {
-		releaseCurrent = resolve;
-	});
-	const next = previous.catch(() => {}).then(() => current);
-	locks.set(lockKey, next);
-
-	try {
-		await previous.catch(() => {});
-		return await fn();
-	} finally {
-		releaseCurrent();
-		if (locks.get(lockKey) === next) locks.delete(lockKey);
-	}
-}
-
-export async function withContentUsageCollectionLock<T>(
-	collectionSlug: string,
-	fn: () => Promise<T>,
-): Promise<T> {
-	// Coarse by design: row refreshes and collection source deletes must not interleave.
-	const locks = getContentUsageCollectionLocks();
-	const previous = locks.get(collectionSlug) ?? Promise.resolve();
-	let releaseCurrent!: () => void;
-	const current = new Promise<void>((resolve) => {
-		releaseCurrent = resolve;
-	});
-	const next = previous.catch(() => {}).then(() => current);
-	locks.set(collectionSlug, next);
-
-	try {
-		await previous.catch(() => {});
-		return await fn();
-	} finally {
-		releaseCurrent();
-		if (locks.get(collectionSlug) === next) locks.delete(collectionSlug);
-	}
-}
-
-function getContentUsageLocks(): Map<string, Promise<void>> {
-	const global = globalThis as typeof globalThis & Record<symbol, unknown>;
-	const existing = global[CONTENT_USAGE_LOCKS_KEY];
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot stores only this map
-	if (existing instanceof Map) return existing as Map<string, Promise<void>>;
-	const locks = new Map<string, Promise<void>>();
-	global[CONTENT_USAGE_LOCKS_KEY] = locks;
-	return locks;
-}
-
-function getContentUsageCollectionLocks(): Map<string, Promise<void>> {
-	const global = globalThis as typeof globalThis & Record<symbol, unknown>;
-	const existing = global[CONTENT_USAGE_COLLECTION_LOCKS_KEY];
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- globalThis symbol slot stores only this map
-	if (existing instanceof Map) return existing as Map<string, Promise<void>>;
-	const locks = new Map<string, Promise<void>>();
-	global[CONTENT_USAGE_COLLECTION_LOCKS_KEY] = locks;
-	return locks;
 }

@@ -5,7 +5,7 @@
  *
  * Request body:
  * {
- *   expiresIn?: string | number;  // Default: "1h"
+ *   expiresIn?: string | number;  // Default: "1h". At most 7 days.
  *   pathPattern?: string;         // Overrides the resolved default (see below)
  * }
  *
@@ -31,8 +31,10 @@ import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { parseOptionalBody, isParseError } from "#api/parse.js";
 import { contentPreviewUrlBody } from "#api/schemas.js";
+import { requireScope } from "#auth/scopes.js";
 import { resolveSecretsCached } from "#config/secrets.js";
-import { buildPreviewUrl, generatePreviewToken, getPreviewUrl } from "#preview/index.js";
+import { buildPreviewUrl, generatePreviewToken } from "#preview/index.js";
+import { resolvePreviewPath } from "#preview/urls.js";
 import { getCollectionInfoWithDb } from "#schema/query.js";
 
 import { getI18nConfig } from "../../../../../../i18n/config.js";
@@ -42,6 +44,10 @@ export const prerender = false;
 
 const DURATION_PATTERN = /^(\d+)([smhdw])$/;
 
+// A preview token names no user and cannot be revoked on its own, so its
+// lifetime is the only bound on the draft access it grants.
+const MAX_EXPIRES_IN_SECONDS = 7 * 24 * 60 * 60;
+
 export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	if (!emdash?.db) {
@@ -49,6 +55,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	}
 	const denied = requirePerm(user, "content:read_drafts");
 	if (denied) return denied;
+	// The middleware asks a token for content:write on any POST, but the signed
+	// link lets whoever opens it read the entry's draft.
+	const scopeDenied = requireScope(locals, "content:read");
+	if (scopeDenied) return scopeDenied;
 	const collection = params.collection!;
 	const id = params.id!;
 
@@ -77,7 +87,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const body = await parseOptionalBody(request, contentPreviewUrlBody, {});
 	if (isParseError(body)) return body;
 
-	const expiresIn = body.expiresIn || "1h";
+	const expiresIn = body.expiresIn ?? "1h";
 	// A project-wide default `pathPattern` (body or env) always wins so callers
 	// can force a specific shape. When neither is set we resolve the
 	// collection's own `url_pattern` below.
@@ -97,9 +107,29 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 	// Calculate expiry timestamp
 	const expiresInSeconds = typeof expiresIn === "number" ? expiresIn : parseExpiresIn(expiresIn);
+	if (
+		expiresInSeconds === null ||
+		!Number.isInteger(expiresInSeconds) ||
+		expiresInSeconds <= 0 ||
+		expiresInSeconds > MAX_EXPIRES_IN_SECONDS
+	) {
+		return apiError(
+			"VALIDATION_ERROR",
+			'expiresIn must be a duration such as "1h" or a whole number of seconds, up to 7 days',
+			400,
+		);
+	}
 	const expiresAt = Math.floor(Date.now() / 1000) + expiresInSeconds;
 
 	try {
+		// Sign for the resolved entry, not the route parameter: the parameter
+		// may be a slug, which a different entry can take later.
+		const token = await generatePreviewToken({
+			contentId: `${collection}:${entryId}`,
+			expiresIn: expiresInSeconds,
+			secret: previewSecret,
+		});
+
 		// No explicit override: reuse the collection's `url_pattern` so the
 		// preview link points at the same route the sitemap and "View
 		// published" links already use (custom permalinks like `/blog/{slug}`).
@@ -129,24 +159,18 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				// configured i18n list; fall back to the un-prefixed path so we
 				// still hand back a usable preview link rather than failing.
 				const localized = await localizePath(path, entryLocale ?? "");
-				const token = await generatePreviewToken({
-					contentId: `${collection}:${entryId}`,
-					expiresIn,
-					secret: previewSecret,
-				});
 				const url = buildPreviewUrl({ path: localized ?? path, token });
 				return apiSuccess({ url, expiresAt });
 			}
 		}
 
-		const url = await getPreviewUrl({
+		const path = resolvePreviewPath({
 			collection,
 			id,
-			secret: previewSecret,
-			expiresIn,
 			pathPattern: explicitPattern || "/{collection}/{id}",
 			locale: localeSegment,
 		});
+		const url = buildPreviewUrl({ path, token });
 
 		return apiSuccess({ url, expiresAt });
 	} catch (error) {
@@ -157,11 +181,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 /**
  * Parse duration string to seconds
  */
-function parseExpiresIn(duration: string): number {
+function parseExpiresIn(duration: string): number | null {
 	const match = duration.match(DURATION_PATTERN);
-	if (!match) {
-		return 3600; // Default 1 hour
-	}
+	if (!match) return null;
 
 	const value = parseInt(match[1], 10);
 	const unit = match[2];

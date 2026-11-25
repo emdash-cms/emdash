@@ -305,6 +305,21 @@ function normalizeRows(
 	return rows;
 }
 
+/**
+ * Content-table columns that describe an entry's staged edit rather than its
+ * published state. A published-only snapshot keeps them in `schema` and
+ * exports them as NULL, since the revisions they point at are left out.
+ */
+const UNPUBLISHED_STATE_COLUMNS = ["draft_revision_id", "scheduled_at"] as const;
+
+function clearUnpublishedState(rows: Record<string, unknown>[]): void {
+	for (const row of rows) {
+		for (const column of UNPUBLISHED_STATE_COLUMNS) {
+			if (column in row) row[column] = null;
+		}
+	}
+}
+
 function createPublishedProjection(): PublishedProjection {
 	return {
 		content: new Map(),
@@ -336,6 +351,10 @@ function recordPublishedContent(
 	projection.content.set(tableName.slice("ec_".length), references);
 }
 
+/**
+ * For columns that hold a translation group or a row id
+ * (`content_taxonomies.entry_id`, `_emdash_menu_items.reference_id`).
+ */
 function isPublishedContentReference(
 	projection: PublishedProjection,
 	collection: unknown,
@@ -346,6 +365,22 @@ function isPublishedContentReference(
 	if (!collectionName || !id) return false;
 	const references = projection.content.get(collectionName);
 	return references?.ids.has(id) === true || references?.translationGroups.has(id) === true;
+}
+
+/**
+ * For columns that hold one content row's own id (`_emdash_seo.content_id`).
+ * A translation group is named after its first row, so matching published
+ * groups here would also match an unpublished original of a live translation.
+ */
+function isPublishedContentRow(
+	projection: PublishedProjection,
+	collection: unknown,
+	rowId: unknown,
+): boolean {
+	const collectionName = readString(collection);
+	const id = readString(rowId);
+	if (!collectionName || !id) return false;
+	return projection.content.get(collectionName)?.ids.has(id) === true;
 }
 
 function collectMediaReferences(value: unknown, projection: PublishedProjection): void {
@@ -438,7 +473,7 @@ function projectPublishedRows(
 	switch (tableName) {
 		case "_emdash_seo":
 			return rows.filter((row) => {
-				const published = isPublishedContentReference(projection, row.collection, row.content_id);
+				const published = isPublishedContentRow(projection, row.collection, row.content_id);
 				if (!published) return false;
 				const image = readString(row.seo_image);
 				if (image) {
@@ -661,6 +696,7 @@ export async function generateSnapshot(
 
 		if (publishedOnly) {
 			if (tableName.startsWith("ec_")) {
+				clearUnpublishedState(rows);
 				recordPublishedContent(publishedProjection, tableName, rows);
 			} else if (
 				isSystemTable(tableName) &&

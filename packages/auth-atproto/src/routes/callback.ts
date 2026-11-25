@@ -29,6 +29,8 @@ import type { AuthProviderDescriptor } from "emdash";
 import { finalizeSetup, getPublicOrigin, OptionsRepository } from "emdash/api/route-utils";
 import type { Kysely } from "kysely";
 
+import { recordLogin } from "../record-login.js";
+
 export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 	const { emdash } = locals;
 
@@ -188,8 +190,11 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 			);
 		}
 
-		// Create Astro session
+		// Create the Astro session under a new id: set() alone keeps the id named
+		// by the request's session cookie, which someone else may already hold.
 		if (session) {
+			await recordLogin(emdash.db, user.id);
+			await session.regenerate();
 			session.set("user", { id: user.id });
 		}
 

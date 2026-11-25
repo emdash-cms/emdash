@@ -80,12 +80,19 @@ describe("getCollectionNavIcon", () => {
 });
 
 describe("getTaxonomyNavIcon", () => {
-	it("uses the tag glyph for the tag taxonomy", () => {
-		expect(getTaxonomyNavIcon("tag")).toBe(Tag);
+	it("uses the tag glyph for flat taxonomies, whatever their name", () => {
+		const tags = { name: "tag", label: "Tags", hierarchical: false };
+		const topics = { name: "topics", label: "Topics", hierarchical: false };
+		expect(getTaxonomyNavIcon(tags)).toBe(Tag);
+		expect(getTaxonomyNavIcon(topics)).toBe(Tag);
 	});
 
-	it("uses folders for categories and custom taxonomies", () => {
-		expect(getTaxonomyNavIcon("category")).toBe(Folders);
-		expect(getTaxonomyNavIcon("topics")).toBe(Folders);
+	it("uses folders for hierarchical taxonomies, whatever their name", () => {
+		const categories = { name: "category", label: "Categories", hierarchical: true };
+		const regions = { name: "regions", label: "Regions", hierarchical: true };
+		const nestedTags = { name: "tag", label: "Tags", hierarchical: true };
+		expect(getTaxonomyNavIcon(categories)).toBe(Folders);
+		expect(getTaxonomyNavIcon(regions)).toBe(Folders);
+		expect(getTaxonomyNavIcon(nestedTags)).toBe(Folders);
 	});
 });

@@ -115,7 +115,7 @@ function buildContext(
 	db: Kysely<Database>,
 	request: Request,
 	cookies: AstroCookies,
-	session?: { set: ReturnType<typeof vi.fn> },
+	session?: { set: ReturnType<typeof vi.fn>; regenerate: ReturnType<typeof vi.fn> },
 ): APIContext {
 	return {
 		params: {},
@@ -179,7 +179,10 @@ describe("POST /setup/admin/verify — success path", () => {
 		//    synthetic credential and the route creates the user.
 		const sessionSet = vi.fn();
 		const verifyRes = await postAdminVerify(
-			buildContext(db, buildVerifyRequest(fakeCredential), cookies, { set: sessionSet }),
+			buildContext(db, buildVerifyRequest(fakeCredential), cookies, {
+				set: sessionSet,
+				regenerate: vi.fn(async () => {}),
+			}),
 		);
 		expect(verifyRes.status).toBe(200);
 
@@ -206,7 +209,10 @@ describe("POST /setup/admin/verify — success path", () => {
 
 		const sessionSet = vi.fn();
 		const verifyRes = await postAdminVerify(
-			buildContext(db, buildVerifyRequest(fakeCredential), cookies, { set: sessionSet }),
+			buildContext(db, buildVerifyRequest(fakeCredential), cookies, {
+				set: sessionSet,
+				regenerate: vi.fn(async () => {}),
+			}),
 		);
 		expect(verifyRes.status).toBe(200);
 
@@ -261,6 +267,7 @@ describe("POST /setup/admin/verify — success path", () => {
 		const operatorVerify = postAdminVerify(
 			buildContext(db, buildVerifyRequest(fakeCredential), operator.cookies, {
 				set: vi.fn(),
+				regenerate: vi.fn(async () => {}),
 			}),
 		);
 		await vi.waitFor(() => expect(entered).toBe(true));
@@ -275,6 +282,7 @@ describe("POST /setup/admin/verify — success path", () => {
 				await postAdminVerify(
 					buildContext(db, buildVerifyRequest(fakeCredential), other.cookies, {
 						set: vi.fn(),
+						regenerate: vi.fn(async () => {}),
 					}),
 				)
 			).status,

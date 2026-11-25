@@ -219,8 +219,8 @@ export function MediaUploadDialog({
 		>
 			<Dialog
 				size="lg"
-				className="flex max-h-[min(88dvh,46rem)] flex-col overflow-hidden p-0"
-				style={{ width: "min(94vw, 42rem)" }}
+				className="flex flex-col overflow-hidden p-0"
+				style={{ width: "min(94vw, 42rem)", maxHeight: "min(88dvh, 46rem)" }}
 			>
 				<div className="flex shrink-0 items-start justify-between gap-4 border-b border-kumo-line px-6 py-5">
 					<div className="min-w-0">

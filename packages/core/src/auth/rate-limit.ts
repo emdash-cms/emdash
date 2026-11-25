@@ -6,8 +6,9 @@
  * whether the request is within the allowed limit.
  *
  * Key format: `{subject}:{endpoint}` — limits are per-subject, per-endpoint.
- * The subject is the client IP (or a salted IP hash) on unauthenticated
- * endpoints, and the user ID on endpoints that require a session.
+ * The subject is the client network (see `clientNetwork`), or a salted hash
+ * of it, on unauthenticated endpoints, and the user ID on endpoints that
+ * require a session.
  * Window format: ISO timestamp truncated to the window size.
  */
 
@@ -17,6 +18,7 @@ import { sql } from "kysely";
 import { after } from "../after.js";
 import { apiError } from "../api/error.js";
 import type { Database } from "../database/types.js";
+import { normalizeIPv6MappedToIPv4, parseIpv6 } from "../security/ssrf.js";
 
 /** Loose validation for IPv4 and IPv6 addresses. */
 const IP_PATTERN = /^[\da-fA-F.:]+$/;
@@ -153,6 +155,30 @@ export function getClientIp(request: Request, trustedHeaders: string[] = []): st
 	}
 
 	return null;
+}
+
+/**
+ * Reduce a client IP to the part that identifies one client.
+ *
+ * An IPv6 client is assigned at least a /64 and can send from any address
+ * in it, so IPv6 addresses are reduced to their /64 network. Addresses that
+ * embed an IPv4 address (such as `::ffff:a.b.c.d`) become that IPv4
+ * address. IPv4 addresses and anything unparseable are returned unchanged.
+ */
+export function clientNetwork(ip: string): string {
+	const groups = parseIpv6(ip);
+	if (groups === null) return ip;
+	const hex = groups.map((group) => group.toString(16));
+	return normalizeIPv6MappedToIPv4(hex.join(":")) ?? `${hex.slice(0, 4).join(":")}::/64`;
+}
+
+/**
+ * Rate limit subject for the client that sent a request: `getClientIp`
+ * reduced by `clientNetwork`, or `null` when no trusted IP is available.
+ */
+export function getClientNetwork(request: Request, trustedHeaders: string[] = []): string | null {
+	const ip = getClientIp(request, trustedHeaders);
+	return ip === null ? null : clientNetwork(ip);
 }
 
 /**

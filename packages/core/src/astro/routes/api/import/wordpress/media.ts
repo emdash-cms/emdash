@@ -70,6 +70,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 	if (!emdash?.db) {
 		return apiError("NO_DB", "Database not initialized", 500);
 	}
+	const { storage } = emdash;
 
 	try {
 		const body = await parseBody(request, wpMediaImportBody);
@@ -92,7 +93,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 					const result = await importMediaWithProgress(
 						attachments,
 						emdash.db,
-						emdash.storage,
+						storage,
 						sendProgress,
 						emdash.config?.imagePlaceholders ?? true,
 					);
@@ -117,7 +118,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		const result = await importMediaWithProgress(
 			attachments,
 			emdash.db,
-			emdash.storage,
+			storage,
 			() => {}, // No-op progress callback
 			emdash.config?.imagePlaceholders ?? true,
 		);

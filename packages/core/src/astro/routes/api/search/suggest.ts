@@ -9,6 +9,7 @@ import type { APIRoute } from "astro";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { searchSuggestQuery } from "#api/schemas.js";
+import { requireSearchSupport } from "#api/search.js";
 import { getSuggestions } from "#search/index.js";
 
 export const prerender = false;
@@ -34,6 +35,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	const collections = query.collections
 		? query.collections.split(",").map((c: string) => c.trim())
 		: undefined;
+
+	const unavailable = requireSearchSupport(emdash.db);
+	if (unavailable) return unavailable;
 
 	try {
 		// Verify FTS indexes are healthy on first use. See search/index.ts.

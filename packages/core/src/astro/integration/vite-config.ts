@@ -11,7 +11,7 @@ import { dirname, isAbsolute, relative, resolve, win32 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
-import type { Plugin } from "vite";
+import type { Plugin, Rollup } from "vite";
 
 import { COMMIT, VERSION } from "../../version.js";
 import { shutdownRuntime } from "../runtime-holder.js";
@@ -87,6 +87,14 @@ export function pathToImportUrl(path: string): string {
 	return pathToFileURL(path, { windows: win32.isAbsolute(path) }).href;
 }
 
+/** The part of `@babel/core` the Lingui macro plugin calls. */
+interface BabelCore {
+	transformAsync(
+		code: string,
+		options: { filename: string; plugins: string[]; parserOpts: { plugins: string[] } },
+	): Promise<{ code?: string | null; map?: Rollup.ExistingRawSourceMap | null } | null>;
+}
+
 /**
  * Vite plugin that compiles Lingui macros in admin source files.
  * Only active in dev mode when the admin package is aliased to source for HMR.
@@ -114,10 +122,8 @@ export function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string
 		},
 		async transform(code, id) {
 			if (!id.startsWith(adminSourceVitePath) || !code.includes("@lingui")) return;
-			const { transformAsync } = (await import(
-				pathToImportUrl(babelCorePath)
-			)) as typeof import("@babel/core");
-			const result = await transformAsync(code, {
+			const babel: BabelCore = await import(pathToImportUrl(babelCorePath));
+			const result = await babel.transformAsync(code, {
 				filename: id,
 				plugins: [linguiMacroPluginPath],
 				parserOpts: { plugins: ["jsx", "typescript"] },
@@ -448,13 +454,13 @@ const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
 const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg"];
 
 /**
- * The room engine and the editor schema it builds documents with. They load only when a room
- * first runs, so on Cloudflare the optimizer would discover them mid-session, and the reloads
- * that follow evaluate `@tiptap/pm/tables` twice ("Duplicate use of selection JSON ID cell").
+ * The editor schema that the inline Portable Text editor and the room engine build documents with.
+ * An editor's first visit to a page renders the inline editor, so on Cloudflare the optimizer
+ * would discover these one by one on that request and reload the worker after each, and the
+ * reloads evaluate `@tiptap/pm/tables` twice ("Duplicate use of selection JSON ID cell").
  */
-const ROOM_ENGINE_DEPS = [
-	"emdash > yjs",
-	"emdash > @tiptap/y-tiptap",
+const EDITOR_SCHEMA_DEPS = [
+	"emdash > marked",
 	"emdash > @tiptap/starter-kit",
 	"emdash > @tiptap/extension-code",
 	"emdash > @tiptap/extension-code-block",
@@ -467,14 +473,20 @@ const ROOM_ENGINE_DEPS = [
 	"emdash > @tiptap/pm/state",
 	"emdash > @tiptap/pm/tables",
 	"emdash > @tiptap/pm/transform",
-	"emdash > @emdash-cms/admin > lib0/decoding",
-	"emdash > @emdash-cms/admin > lib0/encoding",
-	"emdash > @emdash-cms/admin > y-protocols/sync",
-	"emdash > @emdash-cms/admin > @tiptap/extension-collaboration",
 	"emdash > @emdash-cms/admin > @tiptap/extension-table",
 	"emdash > @emdash-cms/admin > @tiptap/extension-table-cell",
 	"emdash > @emdash-cms/admin > @tiptap/extension-table-header",
 	"emdash > @emdash-cms/admin > @tiptap/extension-table-row",
+];
+
+/** The room engine, which loads only when a room first runs. */
+const ROOM_ENGINE_DEPS = [
+	"emdash > yjs",
+	"emdash > @tiptap/y-tiptap",
+	"emdash > @emdash-cms/admin > lib0/decoding",
+	"emdash > @emdash-cms/admin > lib0/encoding",
+	"emdash > @emdash-cms/admin > y-protocols/sync",
+	"emdash > @emdash-cms/admin > @tiptap/extension-collaboration",
 ];
 
 /**
@@ -504,7 +516,7 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
  * imports: any other `cloudflare:` import on a non-Cloudflare adapter should
  * still fail the build instead of failing at runtime.
  */
-const CORE_WORKERS_BUILTINS = new Set(["cloudflare:sockets"]);
+const CORE_WORKERS_BUILTINS = new Set(["cloudflare:sockets", "cloudflare:workers"]);
 
 function createWorkersBuiltinsExternalPlugin(): Plugin {
 	return {
@@ -693,6 +705,7 @@ export function createViteConfig(
 							"emdash > mime/lite",
 							"emdash > modern-tar",
 							"emdash > sanitize-html",
+							"emdash > htmlparser2",
 							"emdash > @tiptap/core",
 							"emdash > ulidx",
 							"emdash > upng-js",
@@ -769,6 +782,7 @@ export function createViteConfig(
 							// Only imported by the /_image route, so the first image
 							// request would otherwise discover it.
 							"@astrojs/cloudflare/image-transform-endpoint",
+							...EDITOR_SCHEMA_DEPS,
 							...(options.resolvedConfig.coEditing ? ROOM_ENGINE_DEPS : []),
 						],
 					},

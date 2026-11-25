@@ -50,6 +50,39 @@ describe("block type contracts", () => {
 		expect(await fingerprintBlockFields(renamed)).toBe(await fingerprintBlockFields(baseFields));
 	});
 
+	it("accepts image repeater MIME validation and detects narrowing", () => {
+		const before = [
+			{
+				slug: "items",
+				label: "Items",
+				type: "repeater" as const,
+				validation: {
+					subFields: [
+						{
+							slug: "logo",
+							label: "Logo",
+							type: "image" as const,
+							validation: { allowedMimeTypes: ["image/svg+xml", "image/png"] },
+						},
+					],
+				},
+			},
+		];
+		validateBlockFields(before);
+		const after = structuredClone(before);
+		after[0]!.validation.subFields[0]!.validation.allowedMimeTypes = ["image/png"];
+		const result = compareBlockFields(before, after);
+		expect(result.compatible).toBe(false);
+		expect(result.differences).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					path: "fields.items.validation.subFields.logo.validation.allowedMimeTypes",
+					compatibility: "breaking",
+				}),
+			]),
+		);
+	});
+
 	it("classifies additive and loosened changes as compatible", () => {
 		const next: BlockFieldDefinition[] = [
 			{

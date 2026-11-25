@@ -4,8 +4,9 @@ import { validateContentEditorPanelInteraction } from "@emdash-cms/blocks/server
 
 import { requirePerm, requireOwnerPerm } from "../api/authorize.js";
 import { apiError, apiSuccess } from "../api/error.js";
+import type { EmDashHandlers } from "../astro/types.js";
 import { requireScope } from "../auth/scopes.js";
-import type { EmDashRuntime, PluginEditorExtensionDispatch } from "../emdash-runtime.js";
+import type { PluginEditorExtensionDispatch } from "../emdash-runtime.js";
 import { roomId } from "../rooms/types.js";
 import {
 	validateEditorDraftPatch,
@@ -14,8 +15,7 @@ import {
 } from "./editor-draft.js";
 import { pluginRouteResponseFromWire, pluginRouteResponseToWire } from "./route-wire.js";
 import { parseDeclaredPluginRouteInput, PluginRouteRequestError } from "./route-wire.js";
-import type { PluginContentCacheInvalidator, RouteMeta } from "./routes.js";
-import type { UserInfo } from "./types.js";
+import type { PluginContentCacheInvalidator, RouteCallerInput, RouteMeta } from "./routes.js";
 
 function editorDraftErrorResponse(error: { code: string; message: string }): Response {
 	const status =
@@ -50,7 +50,7 @@ function isPermission(value: string): value is Permission {
 function authorizePrivatePluginRouteRequest(
 	routeMeta: RouteMeta,
 	request: Request,
-	user?: UserInfo | null,
+	user?: RouteCallerInput | null,
 	tokenScopes?: string[],
 ): Response | null {
 	const permission = routeMeta.permission ?? "plugins:manage";
@@ -80,11 +80,11 @@ function authorizePrivatePluginRouteRequest(
 }
 
 export interface PluginApiRequestContext {
-	runtime: EmDashRuntime;
+	runtime: Pick<EmDashHandlers, "getPluginRouteMeta" | "handlePluginApiRoute">;
 	pluginId: string;
 	path: string;
 	request: Request;
-	user?: UserInfo | null;
+	user?: RouteCallerInput | null;
 	tokenScopes?: string[];
 	invalidateContentCache?: PluginContentCacheInvalidator;
 	editorDispatch?: PluginEditorExtensionDispatch;
@@ -170,14 +170,22 @@ export async function dispatchPluginApiRequest({
 }
 
 export interface PluginEditorExtensionApiRequestContext {
-	runtime: EmDashRuntime;
+	runtime: Pick<
+		EmDashHandlers,
+		| "getPluginRouteMeta"
+		| "handlePluginApiRoute"
+		| "getPluginEditorExtension"
+		| "handleContentGet"
+		| "getPluginEditorDraftSchema"
+		| "rooms"
+	>;
 	pluginId: string;
 	kind: "panel" | "action";
 	extensionId: string;
 	collection: string;
 	entryId: string;
 	request: Request;
-	user?: UserInfo | null;
+	user?: RouteCallerInput | null;
 	tokenScopes?: string[];
 	invalidateContentCache?: PluginContentCacheInvalidator;
 }
@@ -211,6 +219,18 @@ export async function dispatchPluginEditorExtensionApiRequest({
 	const denied = authorizePrivatePluginRouteRequest(routeMeta, request, user, tokenScopes);
 	if (denied) return denied;
 
+	let ownershipUser: { id: string; role: RoleLevel } | null | undefined =
+		user == null ? user : undefined;
+	if (user) {
+		const ownerRole = toRoleLevel(user.role);
+		if (ownerRole === null) {
+			return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
+		}
+		ownershipUser = { id: user.id, role: ownerRole };
+	}
+	const roleDenied = requirePerm(ownershipUser, "content:edit_own");
+	if (roleDenied) return roleDenied;
+
 	const requestedLocale = new URL(request.url).searchParams.get("locale") || undefined;
 	const contentResult = await runtime.handleContentGet(collection, entryId, requestedLocale);
 	if (!contentResult.success) {
@@ -227,15 +247,6 @@ export async function dispatchPluginEditorExtensionApiRequest({
 		return apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
 	}
 	const authorId = "authorId" in item && typeof item.authorId === "string" ? item.authorId : "";
-	let ownershipUser: { id: string; role: RoleLevel } | null | undefined =
-		user == null ? user : undefined;
-	if (user) {
-		const ownerRole = toRoleLevel(user.role);
-		if (ownerRole === null) {
-			return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
-		}
-		ownershipUser = { id: user.id, role: ownerRole };
-	}
 	const ownershipDenied = requireOwnerPerm(
 		ownershipUser,
 		authorId,

@@ -62,7 +62,8 @@ let portableTextMountCount = 0;
 type EditorReadyCall = { mockId: number | null };
 let onEditorReadyCalls: EditorReadyCall[] = [];
 const portableTextProps: { current: Record<string, unknown> | null } = { current: null };
-vi.mock("../../src/components/PortableTextEditor", () => ({
+vi.mock("../../src/components/PortableTextEditor", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/components/PortableTextEditor")>()),
 	PortableTextEditor: (props: Record<string, any>) => {
 		const { value, placeholder, onEditorReady } = props;
 		portableTextProps.current = props;
@@ -2462,6 +2463,40 @@ describe("ContentEditor", () => {
 				return { open, close };
 			}
 
+			it("keeps a settings link pending when its control cannot take focus", async () => {
+				localStorage.setItem(STORAGE_KEY, "hidden");
+				const onFieldFocused = vi.fn();
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem(),
+					readOnly: true,
+					focusField: "slug",
+					onFieldFocused,
+				});
+				const panel = getPanel(screen).element();
+				await expect.poll(() => panel.getBoundingClientRect().width).toBeCloseTo(368);
+				await new Promise(requestAnimationFrame);
+				await new Promise(requestAnimationFrame);
+				await expect.element(screen.getByLabelText("Slug")).toBeDisabled();
+				expect(document.activeElement).not.toBe(screen.getByLabelText("Slug").element());
+				expect(onFieldFocused).not.toHaveBeenCalled();
+				await screen.rerender(
+					<ContentEditor
+						collection="posts"
+						collectionLabel="Post"
+						fields={defaultFields}
+						isNew={false}
+						item={makeItem()}
+						focusField="slug"
+						onFieldFocused={onFieldFocused}
+					/>,
+				);
+				await new Promise(requestAnimationFrame);
+				await new Promise(requestAnimationFrame);
+				expect(document.activeElement).not.toBe(screen.getByLabelText("Slug").element());
+				expect(onFieldFocused).not.toHaveBeenCalled();
+			});
+
 			it("hides and shows the panel without unmounting it", async () => {
 				const screen = await renderEditor({ isNew: false, item: makeItem() });
 				const slug = screen.getByLabelText("Slug");
@@ -3156,6 +3191,11 @@ describe("ContentEditor", () => {
 				exact: true,
 			});
 			await unpublishBtn.click();
+			const confirm = screen
+				.getByRole("dialog", { name: "Unpublish Post?" })
+				.getByRole("button", { name: "Unpublish", exact: true });
+			await expect.element(confirm).toBeVisible();
+			confirm.element().click();
 			expect(onUnpublish).toHaveBeenCalled();
 		});
 
@@ -3179,6 +3219,11 @@ describe("ContentEditor", () => {
 					.element();
 
 				unpublish.click();
+				const confirm = screen
+					.getByRole("dialog", { name: "Unpublish Post?" })
+					.getByRole("button", { name: "Unpublish", exact: true });
+				await expect.element(confirm).toBeVisible();
+				confirm.element().click();
 				await vi.waitFor(() => expect(onUnpublish).toHaveBeenCalledOnce());
 				await expect.element(unpublish).toBeDisabled();
 				if (settlement === "resolve") pending.resolve();
