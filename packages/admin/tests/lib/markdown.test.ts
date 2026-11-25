@@ -69,6 +69,13 @@ describe("renderMarkdown", () => {
 		},
 	);
 
+	it("renders inline formatting and links inside a loose list", () => {
+		const html = renderMarkdown("- **bold** and [link](https://example.com)\n\n- second");
+		expect(html).toContain("<strong>bold</strong>");
+		expect(html).toContain('<a href="https://example.com"');
+		expect(html).not.toContain("&lt;");
+	});
+
 	it("keeps character references in text as written", () => {
 		expect(renderMarkdown("a &amp; b &copy; <kbd>c &lt; d")).toContain("a &amp; b © c &lt; d");
 	});
