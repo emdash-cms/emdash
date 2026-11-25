@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
+import { basename } from "node:path";
 import { describe, it } from "node:test";
 
 const workflow = readFileSync(new URL("../workflows/approval.yml", import.meta.url), "utf8");
@@ -10,6 +11,11 @@ const script = workflow
 	.join("\n");
 const AsyncFunction = Object.getPrototypeOf(async () => null).constructor;
 const execute = new AsyncFunction("github", "context", "core", script);
+const rules = await new AsyncFunction(
+	"context",
+	`${script.split("\nlet governanceFile;")[0]}\nreturn { readOnlyWorkflows, readOnlyScripts, privilegedEvents };`,
+)({ repo: {} });
+const workflowsDir = new URL("../workflows/", import.meta.url);
 const checkName = "Human Maintainer approval";
 
 function review(login, state = "APPROVED", commit = "head", type = "User") {
@@ -167,6 +173,21 @@ function assertStatus(test, conclusion, label) {
 	assert.ok(test.state.writes.every((write) => write.status === "completed"));
 }
 
+function workflowEdit(filename, line) {
+	return {
+		filename,
+		status: "modified",
+		patch: `@@ -40,2 +40,3 @@ jobs:\n       - run: pnpm build\n${line}`,
+	};
+}
+
+async function assertNeedsTwo(files) {
+	const test = fixture({ reviews: [review("maintainer-one")], files });
+	await test.run();
+	assertStatus(test, "neutral", "review/needs-review");
+	assert.ok(test.state.checks[0].output.summary.includes("❌ 2 human Maintainer approvals"));
+}
+
 describe("Maintainer review status", () => {
 	it("finishes neutrally when no human Maintainer has approved", async () => {
 		const test = fixture({ reviews: [review("emdashbot[bot]", "APPROVED", "head", "Bot")] });
@@ -194,6 +215,79 @@ describe("Maintainer review status", () => {
 		assertStatus(test, "success", "review/approved");
 		assert.equal(test.state.checks.length, 1);
 	});
+
+	it("needs one approval for edits to read-only workflows and their scripts", async () => {
+		const test = fixture({
+			reviews: [review("maintainer-one")],
+			files: [
+				workflowEdit(".github/workflows/ci.yml", "+      - run: pnpm test"),
+				workflowEdit(".github/workflows/visual.yml", "-      - run: pnpm test:e2e"),
+				workflowEdit(".github/workflows/query-counts.yml", "+    name: Measure queries"),
+				{ filename: ".github/scripts/test-plan.mjs", status: "modified" },
+			],
+		});
+		await test.run();
+		assertStatus(test, "success", "review/approved");
+	});
+
+	for (const [change, line] of [
+		["adds a write permission", "+  contents: write"],
+		["requests an OIDC token", "+      id-token: write"],
+		["uses a secret", "+          TOKEN: ${{ secrets.APP_PRIVATE_KEY }}"],
+		["uses a secret in capitals", "+          TOKEN: ${{ SECRETS.APP_PRIVATE_KEY }}"],
+		["spells a secret with a YAML escape", '+          TOKEN: "${{ \\x73ecrets.APP_ID }}"'],
+		["removes its permissions", "-permissions:"],
+		["adds a pull_request_target trigger", "+  pull_request_target:"],
+		["adds a workflow_run trigger", "+  workflow_run:"],
+		["adds an issue_comment trigger", "+  issue_comment:"],
+		["renames the workflow", "+name: Format"],
+		["renames the workflow with a quoted key", '+"name": Format'],
+		["removes its name", "-name: CI"],
+	]) {
+		it(`keeps two approvals when an edit to a read-only workflow ${change}`, async () => {
+			await assertNeedsTwo([workflowEdit(".github/workflows/ci.yml", line)]);
+		});
+	}
+
+	for (const { change, files } of [
+		{
+			change: "adds a workflow under a read-only workflow's name",
+			files: [{ filename: ".github/workflows/ci.yml", status: "added", patch: "+name: CI" }],
+		},
+		{
+			change: "renames a workflow to a read-only workflow's name",
+			files: [
+				{
+					...workflowEdit(".github/workflows/ci.yml", "+      - run: pnpm test"),
+					previous_filename: ".github/workflows/release.yml",
+					status: "renamed",
+				},
+			],
+		},
+		{
+			change: "deletes the test-plan script",
+			files: [{ filename: ".github/scripts/test-plan.mjs", status: "removed" }],
+		},
+		{
+			change: "removes a permission scope from a read-only workflow",
+			files: [workflowEdit(".github/workflows/env-types.yml", "-  contents: read")],
+		},
+		{
+			change: "also edits a privileged workflow",
+			files: [
+				workflowEdit(".github/workflows/ci.yml", "+      - run: pnpm test"),
+				workflowEdit(".github/workflows/release.yml", "+      - run: pnpm test"),
+			],
+		},
+		{
+			change: "edits a read-only workflow so much that GitHub sends no patch",
+			files: [{ filename: ".github/workflows/ci.yml", status: "modified" }],
+		},
+	]) {
+		it(`keeps two approvals when a change ${change}`, async () => {
+			await assertNeedsTwo(files);
+		});
+	}
 
 	it("reports change requests neutrally rather than leaving a running check", async () => {
 		const test = fixture({ reviews: [review("maintainer-one", "CHANGES_REQUESTED")] });
@@ -243,6 +337,36 @@ describe("Maintainer review status", () => {
 		await test.run();
 		assertStatus(test, "neutral", null);
 		assert.ok(test.state.checks[0].output.title.includes("Draft"));
+	});
+});
+
+describe("Read-only workflow list", () => {
+	it("lists only workflows without a write permission, a secret or a privileged trigger", () => {
+		const privilege = new RegExp(
+			`secrets|\\bwrite\\b|\\b(?:${rules.privilegedEvents.join("|")})\\b`,
+			"i",
+		);
+		for (const path of rules.readOnlyWorkflows) {
+			const lines = readFileSync(new URL(`../../${path}`, import.meta.url), "utf8")
+				.split("\n")
+				.filter((line) => !line.trimStart().startsWith("#"));
+			assert.ok(
+				lines.some((line) => line.startsWith("permissions:")),
+				`${path} sets no top-level permissions`,
+			);
+			for (const line of lines) assert.doesNotMatch(line, privilege, path);
+		}
+	});
+
+	it("lists only scripts that no other workflow runs", () => {
+		for (const name of readdirSync(workflowsDir)) {
+			const path = `.github/workflows/${name}`;
+			if (name === "approval.yml" || rules.readOnlyWorkflows.has(path)) continue;
+			const text = readFileSync(new URL(name, workflowsDir), "utf8");
+			for (const listed of rules.readOnlyScripts) {
+				assert.ok(!text.includes(basename(listed)), `${path} runs ${listed}`);
+			}
+		}
 	});
 });
 

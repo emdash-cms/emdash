@@ -195,7 +195,7 @@ describe("labeler admin application", () => {
 		expect((await screen.findAllByText("EmDash to Buffer")).length).toBeGreaterThan(0);
 		expect(screen.getByText("By Justin Thompson · @justin.example")).toBeTruthy();
 		expect(screen.getByText("Queue newly published EmDash posts to Buffer channels.")).toBeTruthy();
-		expect(screen.getByText("No model findings")).toBeTruthy();
+		expect(screen.getByText("No findings")).toBeTruthy();
 		expect(screen.getByText(/Review required ·/)).toBeTruthy();
 		expect(screen.queryByText(item.subject_uri)).toBeNull();
 
@@ -206,6 +206,50 @@ describe("labeler admin application", () => {
 		expect(confirm.hasAttribute("disabled")).toBe(false);
 		fireEvent.click(confirm);
 		await waitFor(() => expect(api.assessmentAction).toHaveBeenCalledWith(item, "approve", ""));
+	});
+});
+
+describe("recent assessments", () => {
+	it("opens a passed assessment from the overview", async () => {
+		const passed = {
+			...assessment("passed-release", "passed"),
+			subject_kind: "release",
+			subject_uri: "at://did:plc:test/com.emdashcms.experimental.package.release/gallery:1.2.3",
+			code_coverage: "complete",
+			code_review_count: 2,
+		};
+		api.getAssessments.mockImplementation((state: string) =>
+			Promise.resolve({ items: state === "all" || state === "passed" ? [passed] : [] }),
+		);
+		api.getAssessment.mockResolvedValue({
+			assessment: {
+				...passed,
+				canonicalInput: { input: { slug: "gallery", version: "1.2.3" } },
+				summary: { reasonCodes: ["automatic-pass"] },
+				coverage: { text: "complete", links: "complete", media: "not-present", code: "complete" },
+			},
+			findings: [],
+			manualDecision: null,
+			publisherHandle: null,
+		});
+
+		render(
+			<I18nProvider i18n={i18n}>
+				<Toasty>
+					<App />
+				</Toasty>
+			</I18nProvider>,
+		);
+
+		expect(await screen.findByText("Code reviewed by 2 models")).toBeTruthy();
+		fireEvent.click(screen.getByRole("button", { name: /Gallery/ }));
+
+		expect(await screen.findByRole("heading", { name: "Review queue" })).toBeTruthy();
+		await waitFor(() => expect(api.getAssessment).toHaveBeenCalledWith("passed-release"));
+		expect(await screen.findByText(/code: complete/)).toBeTruthy();
+		expect(screen.queryByText("Operator decision required")).toBeNull();
+		expect(screen.queryByText("No assessments")).toBeNull();
+		expect(window.location.search).toBe("?state=passed");
 	});
 });
 
@@ -403,7 +447,7 @@ describe("assessment findings", () => {
 	});
 });
 
-function assessment(runKey: string, state: "review" | "error") {
+function assessment(runKey: string, state: "review" | "error" | "passed") {
 	return {
 		run_key: runKey,
 		subject_uri: `at://did:plc:test/profile/${runKey}`,
