@@ -250,9 +250,13 @@ function assertSafeUrlFields(
 const MEDIA_URL_KEYS = ["src", "url", "previewUrl"] as const;
 
 // Reads parse a stored string that looks like JSON, so a media value written as a JSON string
-// comes back as an object and must be checked as one. Any other string is the URL itself.
+// comes back as an object and must be checked as one, and one that starts with `[` comes back
+// as an array rather than a URL. Any other string is the URL itself.
 function assertSafeMedia(path: string, value: unknown, allowDarkVariant = true): void {
 	let media = value;
+	if (typeof media === "string" && media.trimStart().startsWith("[")) {
+		throw unsafeMediaUrlError(path);
+	}
 	if (typeof media === "string" && media.startsWith("{")) {
 		try {
 			media = JSON.parse(media);
@@ -270,12 +274,15 @@ function assertSafeMedia(path: string, value: unknown, allowDarkVariant = true):
 }
 
 function assertSafeMediaUrl(path: string, value: unknown): void {
-	if (typeof value === "string" && !isSafeMediaUrl(value)) {
-		throw new EmDashValidationError(
-			`Field "${path}" must use http or https, or be a relative path`,
-			{ path },
-		);
-	}
+	if (value === undefined || value === null) return;
+	if (typeof value !== "string" || !isSafeMediaUrl(value)) throw unsafeMediaUrlError(path);
+}
+
+function unsafeMediaUrlError(path: string): EmDashValidationError {
+	return new EmDashValidationError(
+		`Field "${path}" must be text that uses http or https, or a relative path`,
+		{ path },
+	);
 }
 
 function assertSafeMediaFields(

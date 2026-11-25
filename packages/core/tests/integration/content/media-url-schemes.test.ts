@@ -210,6 +210,35 @@ describeEachDialect("media value URL scheme restriction", (dialect) => {
 			);
 		});
 
+		it.each([
+			{
+				place: "a file src",
+				data: { document: { id: "", provider: "external", src: [unsafeUrl] } },
+			},
+			{ place: "an image src", data: { hero: { id: "", provider: "external", src: [unsafeUrl] } } },
+			{
+				place: "a dark variant src",
+				data: {
+					hero: {
+						id: "",
+						provider: "external",
+						src: "https://cdn.example/light.png",
+						darkVariant: { id: "", provider: "external", src: [unsafeUrl] },
+					},
+				},
+			},
+			{
+				place: "a repeater image sub-field src",
+				data: { gallery: [{ image: { id: "", provider: "external", src: [unsafeUrl] } }] },
+			},
+			{
+				place: "a media value sent as JSON array text",
+				data: { hero: JSON.stringify([unsafeUrl]) },
+			},
+		])("create rejects a URL that is not text in $place", async ({ data }) => {
+			await expect(repo.create({ type: "posts", data })).rejects.toThrow(EmDashValidationError);
+		});
+
 		it("create rejects a repeater sent as a JSON string", async () => {
 			const gallery = JSON.stringify([{ image: { id: "", src: unsafeUrl } }]);
 			await expect(repo.create({ type: "posts", data: { gallery } })).rejects.toThrow(

@@ -395,7 +395,7 @@ get the file URL.
 
 ### URLs in image and file values
 
-The `src`, `url`, and `previewUrl` of an image or file value, including a `darkVariant`, must each be an `http:` or `https:` URL or a path without a scheme, such as `/_emdash/api/media/file/report.pdf`. The content API rejects a value with any other scheme, such as `javascript:` or `data:`, and a value that contains control characters. Seeds and plugin content writes are checked the same way.
+The `src`, `url`, and `previewUrl` of an image or file value, including a `darkVariant`, must each be an `http:` or `https:` URL or a path without a scheme, such as `/_emdash/api/media/file/report.pdf`. The content API rejects a value with any other scheme, such as `javascript:` or `data:`, and a value that contains control characters. Seeds and plugin content writes are checked the same way, except for values inside a `blocks` field.
 
 Entries saved by earlier EmDash releases can hold a media URL with an unsafe scheme. Those values stay stored and queries return them unchanged. A write that sends the value again is rejected until the value is corrected. To render such values safely, pass the URL through [`sanitizeHref()`](/reference/api/#sanitizehref-and-issafehref) before putting it in an `href`.
 
