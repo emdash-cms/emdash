@@ -33,7 +33,12 @@ export interface FirstAdmin {
  */
 export async function createFirstAdmin(
 	db: Kysely<Database>,
-	input: { email: string; name: string | null },
+	input: {
+		email: string;
+		name: string | null;
+		avatarUrl?: string | null;
+		emailVerified?: boolean;
+	},
 ): Promise<FirstAdmin | null> {
 	const admin: FirstAdmin = {
 		id: ulid(),
@@ -44,8 +49,9 @@ export async function createFirstAdmin(
 	const now = new Date().toISOString();
 	const insert = async (executor: Kysely<Database>) =>
 		sql<{ id: string }>`
-			INSERT INTO users (id, email, name, role, email_verified, created_at, updated_at)
-			SELECT ${admin.id}, ${admin.email}, ${admin.name}, CAST(${admin.role} AS integer), 0, ${now}, ${now}
+			INSERT INTO users (id, email, name, avatar_url, role, email_verified, created_at, updated_at)
+			SELECT ${admin.id}, ${admin.email}, ${admin.name}, ${input.avatarUrl ?? null},
+				CAST(${admin.role} AS integer), CAST(${input.emailVerified ? 1 : 0} AS integer), ${now}, ${now}
 			WHERE NOT EXISTS (SELECT 1 FROM users)
 			RETURNING id
 		`.execute(executor);

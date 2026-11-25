@@ -19,7 +19,7 @@ import {
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
 import { getPublicOrigin } from "#api/public-url.js";
-import { finalizeSetup } from "#api/setup-complete.js";
+import { createFirstAdmin, finalizeSetup } from "#api/setup-complete.js";
 import { getOAuthEnv } from "#auth/oauth-env.js";
 import { createOAuthStateStore } from "#auth/oauth-state-store.js";
 import { startUserSession } from "#auth/start-user-session.js";
@@ -194,13 +194,25 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 			baseUrl: `${getPublicOrigin(url, emdash?.config)}/_emdash`,
 			providers,
 			canSelfSignup: async (email: string) => {
-				// During setup: first user becomes admin.
-				// Check setup_complete flag instead of countUsers() to avoid
-				// a TOCTOU race where concurrent callbacks both see 0 users.
+				// During setup the first user becomes admin. setup_complete is
+				// written only after that user exists, so concurrent callbacks can
+				// all read it as unset; the conditional insert picks one of them.
 				const options = new OptionsRepository(emdash.db);
 				const setupComplete = await options.get("emdash:setup_complete");
 				if (setupComplete !== true && setupComplete !== "true") {
-					return { allowed: true, role: Role.ADMIN };
+					return {
+						allowed: true,
+						role: Role.ADMIN,
+						createUser: async (newUser) => {
+							const admin = await createFirstAdmin(emdash.db, {
+								email: newUser.email,
+								name: newUser.name ?? null,
+								avatarUrl: newUser.avatarUrl,
+								emailVerified: newUser.emailVerified,
+							});
+							return admin ? adapter.getUserById(admin.id) : null;
+						},
+					};
 				}
 
 				// Extract domain from email
@@ -246,7 +258,7 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 		const user = await handleOAuthCallback(config, adapter, provider, code, state, stateStore);
 		const isFirstUser = setupCompleteBefore !== true && setupCompleteBefore !== "true";
 
-		// Finalize setup outside the transaction (idempotent, safe if two callbacks race).
+		// finalizeSetup is idempotent.
 		if (isFirstUser) {
 			await finalizeSetup(emdash.db);
 			console.log(`[oauth] Setup complete: created admin user via ${provider} (${user.email})`);
