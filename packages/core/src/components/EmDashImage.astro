@@ -39,6 +39,7 @@ import {
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 import { focalPointToObjectPosition } from "../media/focal-point.js";
+import { IMAGE_PLACEHOLDER_ATTRIBUTE } from "./image-placeholder.js";
 
 interface Props extends Omit<
 	HTMLAttributes<"img">,
@@ -145,6 +146,11 @@ interface ResolvedImage {
 	width?: number;
 	height?: number;
 	generatedStyle: string;
+	/**
+	 * Whether the rendered element carries a loading placeholder. A caller
+	 * `style` replaces `generatedStyle`, placeholder included.
+	 */
+	hasPlaceholder: boolean;
 	/** Per-format `<source>` data when this render needs a `<picture>`. */
 	sources: { type: string; srcset: string; sizes?: string }[];
 }
@@ -271,8 +277,8 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 
 	let placeholderStyle = "";
 	if (placeholder && blurhash) {
-		const { blurhashToImageCssString } = await import("@unpic/placeholder");
-		placeholderStyle = blurhashToImageCssString(blurhash);
+		const { blurhashToDataUri } = await import("@unpic/placeholder");
+		placeholderStyle = `background-image: url("${blurhashToDataUri(blurhash)}"); background-size: cover;`;
 	} else if (placeholder && dominantColor) {
 		placeholderStyle = `background-color: ${dominantColor};`;
 	}
@@ -299,6 +305,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 		width: finalWidth,
 		height: finalHeight,
 		generatedStyle,
+		hasPlaceholder: Boolean(placeholderStyle) && attrs.style === undefined,
 		sources,
 	};
 }
@@ -329,6 +336,7 @@ function imgProps(
 		fetchpriority: priority ? "high" : undefined,
 		decoding: "async",
 		style: r.generatedStyle || undefined,
+		[IMAGE_PLACEHOLDER_ATTRIBUTE]: r.hasPlaceholder ? "" : undefined,
 		class: ["emdash-image-media", variantClass, className].filter(Boolean).join(" "),
 		...attrs,
 	};
@@ -362,6 +370,7 @@ const astroClass = (variantClass: string | undefined) =>
 				decoding="async"
 				class={astroClass(lightClass)}
 				style={resolved.generatedStyle || undefined}
+				data-emdash-placeholder={resolved.hasPlaceholder ? "" : undefined}
 				{...attrs}
 			/>
 		) : (
@@ -379,6 +388,7 @@ const astroClass = (variantClass: string | undefined) =>
 				decoding="async"
 				class={astroClass(lightClass)}
 				style={resolved.generatedStyle || undefined}
+				data-emdash-placeholder={resolved.hasPlaceholder ? "" : undefined}
 				{...attrs}
 			/>
 		)
@@ -415,6 +425,7 @@ const astroClass = (variantClass: string | undefined) =>
 				decoding="async"
 				class={astroClass("emdash-image--dark")}
 				style={resolvedDark.generatedStyle || undefined}
+				data-emdash-placeholder={resolvedDark.hasPlaceholder ? "" : undefined}
 				{...attrs}
 			/>
 		) : (
@@ -432,6 +443,7 @@ const astroClass = (variantClass: string | undefined) =>
 				decoding="async"
 				class={astroClass("emdash-image--dark")}
 				style={resolvedDark.generatedStyle || undefined}
+				data-emdash-placeholder={resolvedDark.hasPlaceholder ? "" : undefined}
 				{...attrs}
 			/>
 		)
@@ -448,6 +460,14 @@ const astroClass = (variantClass: string | undefined) =>
 		)
 	) : null
 }
+
+<script>
+	import { clearImagePlaceholders } from "./image-placeholder.js";
+
+	clearImagePlaceholders();
+	// Sites with Astro's client router swap pages without reloading this module.
+	document.addEventListener("astro:page-load", () => clearImagePlaceholders());
+</script>
 
 <style>
 	.emdash-image-media {
