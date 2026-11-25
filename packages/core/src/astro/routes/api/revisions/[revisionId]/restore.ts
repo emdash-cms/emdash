@@ -8,7 +8,7 @@
 
 import type { APIRoute } from "astro";
 
-import { requireOwnerPerm } from "#api/authorize.js";
+import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
@@ -25,6 +25,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	if (!emdash?.handleRevisionRestore || !emdash?.handleRevisionGet || !emdash?.handleContentGet) {
 		return apiError("NOT_CONFIGURED", "EmDash not configured", 500);
 	}
+
+	const roleDenied = requirePerm(user, "content:edit_own");
+	if (roleDenied) return roleDenied;
 
 	// Fetch the revision to discover which content entry it belongs to
 	const revision = await emdash.handleRevisionGet(revisionId);
