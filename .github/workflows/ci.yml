@@ -479,12 +479,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run --filter "@emdash-cms/admin..." build
+      - name: Name the Playwright browser cache
+        id: playwright-key
+        run: echo "key=playwright-shell-$ImageOS-$(pnpm exec playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm exec playwright install --with-deps chromium
+          key: ${{ steps.playwright-key.outputs.key }}
+      - run: pnpm exec playwright install --only-shell chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
       - name: Test admin UI (2/2)
         run: pnpm run --filter @emdash-cms/admin test --shard=2/2
@@ -506,12 +509,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm run --filter "@emdash-cms/playground^..." build
+      - name: Name the Playwright browser cache
+        id: playwright-key
+        run: echo "key=playwright-shell-$ImageOS-$(pnpm exec playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         id: playwright-cache
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ hashFiles('pnpm-lock.yaml') }}
-      - run: pnpm exec playwright install --with-deps chromium
+          key: ${{ steps.playwright-key.outputs.key }}
+      - run: pnpm exec playwright install --only-shell chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
       - run: pnpm run test:e2e:playground
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
