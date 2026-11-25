@@ -19,16 +19,15 @@ import type { ApiResult } from "../types.js";
 // Public: Entry visibility
 // ---------------------------------------------------------------------------
 
-/**
- * SQL condition that holds while the entry is published and not in the
- * trash. Public comment reads and comment submission must apply the same
- * rule, and public reads must not add a query to check it.
- */
+/** SQL condition on an `ec_*` row: the entry is published and not in the trash. */
+export const publicEntryCondition = sql<boolean>`status = 'published' AND deleted_at IS NULL`;
+
+/** `publicEntryCondition` for one entry, as an `EXISTS` to fold into a comment query. */
 export function publishedEntryExists(collection: string, contentId: string): RawBuilder<boolean> {
 	validateIdentifier(collection, "collection");
 	return sql<boolean>`EXISTS (
 		SELECT 1 FROM ${sql.ref(`ec_${collection}`)}
-		WHERE id = ${contentId} AND status = 'published' AND deleted_at IS NULL
+		WHERE id = ${contentId} AND ${publicEntryCondition}
 	)`;
 }
 

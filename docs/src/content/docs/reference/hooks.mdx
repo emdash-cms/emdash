@@ -692,7 +692,7 @@ interface CommentBeforeCreateEvent {
 }
 ```
 
-`ipHash` is a salted hash of the commenter's client IP, or `null` when no trusted client IP is available. For an IPv6 client it identifies the client's /64 network rather than the single address. Comments stored before an upgrade to a release with this rule keep per-address hashes for IPv6 clients, so a plugin that matches comments on `ipHash` will not link those comments to the same visitor's newer ones.
+`ipHash` is a salted hash of the commenter's client IP. For a comment submitted through the public comment endpoint without a trusted client IP, it is the string `"unknown"`, which every such visitor shares. It is `null` for comments created with no IP information, such as imported comments. For an IPv6 client it identifies the client's /64 network rather than the single address. Comments stored before an upgrade to a release with this rule keep per-address hashes for IPv6 clients, so a plugin that matches comments on `ipHash` will not link those comments to the same visitor's newer ones.
 
 #### Return value
 
