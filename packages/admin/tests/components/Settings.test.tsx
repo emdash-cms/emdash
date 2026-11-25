@@ -3,6 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import "../../dist/styles.css";
 import type { AdminManifest } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
@@ -205,14 +206,27 @@ describe("Settings", () => {
 		await expect.element(trigger).toHaveTextContent("Español (Latinoamérica)");
 
 		const triggerEl = trigger.element() as HTMLElement;
-		const labelEl = triggerEl.querySelector("span") as HTMLElement;
-		const textNode = labelEl.firstChild;
+		const walker = document.createTreeWalker(triggerEl, NodeFilter.SHOW_TEXT);
+		let textNode: Text | null = null;
+		for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+			if (node.textContent?.includes("Español (Latinoamérica)")) {
+				textNode = node as Text;
+				break;
+			}
+		}
 		expect(textNode).not.toBeNull();
 
 		const range = document.createRange();
 		range.selectNodeContents(textNode!);
-		expect(range.getClientRects().length).toBe(1);
-		expect(labelEl.scrollWidth).toBeLessThanOrEqual(labelEl.clientWidth + 1);
+		const textRects = range.getClientRects();
+		const triggerRect = triggerEl.getBoundingClientRect();
+		const textContainer = textNode!.parentElement as HTMLElement;
+
+		// With compiled Tailwind/Kumo styles loaded (`h-9` + `min-w-48`), the label
+		// must render on one line without horizontal clipping or vertical overflow.
+		expect(textRects.length).toBe(1);
+		expect(textRects[0]!.height).toBeLessThanOrEqual(triggerRect.height);
+		expect(textContainer.scrollWidth).toBeLessThanOrEqual(textContainer.clientWidth + 1);
 		expect(triggerEl.scrollHeight).toBeLessThanOrEqual(triggerEl.clientHeight + 1);
 	});
 
