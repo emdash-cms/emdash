@@ -1,6 +1,11 @@
-import handler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
+import handler, {
+	createScheduledHandler,
+	EmDashRoom,
+	EmDashRoomSite,
+	PluginBridge,
+} from "@emdash-cms/cloudflare/worker";
 
-export { PluginBridge };
+export { EmDashRoom, EmDashRoomSite, PluginBridge };
 
 export default {
 	...handler,

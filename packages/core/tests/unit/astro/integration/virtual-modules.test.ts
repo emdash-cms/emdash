@@ -11,6 +11,7 @@ import {
 	generateConfigModule,
 	generateDialectModule,
 	generateEnvModule,
+	generateRoomsModule,
 	generateSchedulerModule,
 	generateSeedModule,
 	RESOLVED_VIRTUAL_BUILD_ID,
@@ -96,6 +97,41 @@ describe("generateDialectModule", () => {
 		});
 		expect(out).toContain(`export const dialectType = "postgres"`);
 	});
+});
+
+describe("generateRoomsModule", () => {
+	it("loads the in-process room host on @astrojs/node with co-editing on", () => {
+		expect(generateRoomsModule("@astrojs/node", true, false)).toContain(
+			'export { createRoomHost } from "emdash/internal/co-editing/node"',
+		);
+	});
+
+	it("loads the Durable Object room host on @astrojs/cloudflare with co-editing on", () => {
+		expect(generateRoomsModule("@astrojs/cloudflare", true, true)).toContain(
+			'export { createRoomHost } from "@emdash-cms/cloudflare/internal/rooms"',
+		);
+	});
+
+	it("gives a Cloudflare site that can't resolve @emdash-cms/cloudflare/internal/rooms no room host", () => {
+		const out = generateRoomsModule("@astrojs/cloudflare", true, false);
+		expect(out).toContain("export const createRoomHost = null");
+		expect(out).not.toContain("@emdash-cms/cloudflare");
+	});
+
+	it.each([
+		["@astrojs/node", false, false],
+		["@astrojs/cloudflare", false, true],
+		["@astrojs/netlify", true, true],
+		[undefined, true, true],
+	])(
+		"gives %s with co-editing %s and Cloudflare rooms resolvable %s no room host",
+		(adapter, coEditing, cloudflareRoomsResolves) => {
+			const out = generateRoomsModule(adapter, coEditing, cloudflareRoomsResolves);
+			expect(out).toContain("export const createRoomHost = null");
+			expect(out).not.toContain("co-editing/node");
+			expect(out).not.toContain("@emdash-cms/cloudflare");
+		},
+	);
 });
 
 describe("generateSchedulerModule", () => {
@@ -284,6 +320,9 @@ describe("generateSeedModule", () => {
 		const out = generateSeedModule(projectRoot);
 		expect(out).toContain(`"name":"dot-emdash"`);
 		expect(out).toContain("export const seed = userSeed;");
+		expect(out).toContain(
+			`export const mediaBasePath = ${JSON.stringify(join(projectRoot, ".emdash"))};`,
+		);
 	});
 
 	it("uses package.json#emdash.seed when .emdash/seed.json is absent", () => {
@@ -296,6 +335,9 @@ describe("generateSeedModule", () => {
 
 		const out = generateSeedModule(projectRoot);
 		expect(out).toContain(`"name":"via-pkg"`);
+		expect(out).toContain(
+			`export const mediaBasePath = ${JSON.stringify(join(projectRoot, "seed"))};`,
+		);
 	});
 
 	it("falls back to seed/seed.json when no pointer is configured", () => {
@@ -309,6 +351,9 @@ describe("generateSeedModule", () => {
 		const out = generateSeedModule(projectRoot);
 		expect(out).toContain(`"name":"conventional-fallback"`);
 		expect(out).toContain("export const seed = userSeed;");
+		expect(out).toContain(
+			`export const mediaBasePath = ${JSON.stringify(join(projectRoot, "seed"))};`,
+		);
 	});
 
 	it("falls through to the default seed when no user seed is found", () => {
@@ -317,5 +362,6 @@ describe("generateSeedModule", () => {
 		const out = generateSeedModule(projectRoot);
 		expect(out).toContain("export const userSeed = null;");
 		expect(out).toContain("export const seed = ");
+		expect(out).toContain("export const mediaBasePath = undefined;");
 	});
 });

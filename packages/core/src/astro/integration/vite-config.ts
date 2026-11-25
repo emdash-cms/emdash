@@ -11,7 +11,7 @@ import { dirname, isAbsolute, relative, resolve, win32 } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import type { AstroConfig } from "astro";
-import type { Plugin } from "vite";
+import type { Plugin, Rollup } from "vite";
 
 import { COMMIT, VERSION } from "../../version.js";
 import { shutdownRuntime } from "../runtime-holder.js";
@@ -52,9 +52,15 @@ import {
 	RESOLVED_VIRTUAL_ENV_ID,
 	VIRTUAL_BUILD_ID,
 	RESOLVED_VIRTUAL_BUILD_ID,
+	VIRTUAL_ROOMS_ID,
+	RESOLVED_VIRTUAL_ROOMS_ID,
+	VIRTUAL_ROOM_ENGINE_ID,
+	RESOLVED_VIRTUAL_ROOM_ENGINE_ID,
 	generateSeedModule,
 	generateWaitUntilModule,
 	generateSchedulerModule,
+	generateRoomsModule,
+	generateRoomEngineModule,
 	generateEnvModule,
 	generateBuildModule,
 	generateConfigModule,
@@ -71,10 +77,22 @@ import {
 	generateBlockComponentsModule,
 } from "./virtual-modules.js";
 
+const VIRTUAL_ADMIN_LOADER_ID = "virtual:emdash/admin-loader";
+const RESOLVED_ADMIN_LOADER_ID = "\0" + VIRTUAL_ADMIN_LOADER_ID;
+const RESOLVED_ADMIN_ENTRY_ID = "\0virtual:emdash/admin-entry";
+
 const LOCALE_MESSAGES_RE = /[/\\]([a-z]{2}(?:-[A-Z]{2})?)[/\\]messages\.mjs$/;
 
 export function pathToImportUrl(path: string): string {
 	return pathToFileURL(path, { windows: win32.isAbsolute(path) }).href;
+}
+
+/** The part of `@babel/core` the Lingui macro plugin calls. */
+interface BabelCore {
+	transformAsync(
+		code: string,
+		options: { filename: string; plugins: string[]; parserOpts: { plugins: string[] } },
+	): Promise<{ code?: string | null; map?: Rollup.ExistingRawSourceMap | null } | null>;
 }
 
 /**
@@ -104,10 +122,8 @@ export function linguiMacroPlugin(adminSourcePath: string, adminDistPath: string
 		},
 		async transform(code, id) {
 			if (!id.startsWith(adminSourceVitePath) || !code.includes("@lingui")) return;
-			const { transformAsync } = (await import(
-				pathToImportUrl(babelCorePath)
-			)) as typeof import("@babel/core");
-			const result = await transformAsync(code, {
+			const babel: BabelCore = await import(pathToImportUrl(babelCorePath));
+			const result = await babel.transformAsync(code, {
 				filename: id,
 				plugins: [linguiMacroPluginPath],
 				parserOpts: { plugins: ["jsx", "typescript"] },
@@ -188,6 +204,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 	const { serializableConfig, resolvedConfig, pluginDescriptors, astroConfig } = options;
 
 	let viteCommand: "build" | "serve" | undefined;
+	let adminEntryReference: string | undefined;
 
 	// Captured once per plugin instance rather than inside load(): Vite may load
 	// the module more than once (client and server passes, dev reloads), and a
@@ -196,10 +213,34 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 
 	return {
 		name: "emdash-virtual-modules",
+		buildStart() {
+			adminEntryReference = undefined;
+		},
+		generateBundle(_options, bundle) {
+			if (!adminEntryReference) return;
+			const visited = new Set<string>();
+			const retainStyles = (file: string) => {
+				if (visited.has(file)) return;
+				visited.add(file);
+				const chunk = bundle[file];
+				if (chunk?.type !== "chunk") return;
+				// Astro removes CSS that belongs to no page unless a chunk also
+				// references it as an asset. Vite's preload helper loads these files.
+				for (const css of chunk.viteMetadata?.importedCss ?? []) {
+					chunk.viteMetadata?.importedAssets.add(css);
+				}
+				for (const dependency of [...chunk.imports, ...chunk.dynamicImports]) {
+					retainStyles(dependency);
+				}
+			};
+			retainStyles(this.getFileName(adminEntryReference));
+		},
 		configResolved(config) {
 			viteCommand = config.command;
 		},
 		resolveId(id: string) {
+			if (id === VIRTUAL_ADMIN_LOADER_ID) return RESOLVED_ADMIN_LOADER_ID;
+			if (id === RESOLVED_ADMIN_ENTRY_ID) return id;
 			if (id === VIRTUAL_CONFIG_ID) {
 				return RESOLVED_VIRTUAL_CONFIG_ID;
 			}
@@ -251,8 +292,41 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === VIRTUAL_BUILD_ID) {
 				return RESOLVED_VIRTUAL_BUILD_ID;
 			}
+			if (id === VIRTUAL_ROOMS_ID) {
+				return RESOLVED_VIRTUAL_ROOMS_ID;
+			}
+			if (id === VIRTUAL_ROOM_ENGINE_ID) {
+				return RESOLVED_VIRTUAL_ROOM_ENGINE_ID;
+			}
 		},
 		load(id: string) {
+			if (id === RESOLVED_ADMIN_ENTRY_ID) {
+				return `export const load = () => import("${VIRTUAL_ADMIN_REGISTRY_ID}");`;
+			}
+			if (id === RESOLVED_ADMIN_LOADER_ID) {
+				const hasAdminEntries = [...pluginDescriptors, ...(resolvedConfig.sandboxed ?? [])].some(
+					(descriptor) => descriptor.adminEntry,
+				);
+				if (!hasAdminEntries) {
+					return `export const loadPluginAdmins = async () => ({ pluginAdmins: {} });`;
+				}
+				if (viteCommand !== "build") {
+					return `export const loadPluginAdmins = () => import("${VIRTUAL_ADMIN_REGISTRY_ID}");`;
+				}
+				// An emitted entry has no module-graph edge back to the island. Astro
+				// must not propagate plugin CSS through its shared server page graph.
+				// The entry's dynamic import lets Vite load CSS before resolving it.
+				const entry = this.emitFile({
+					type: "chunk",
+					id: RESOLVED_ADMIN_ENTRY_ID,
+					name: "emdash-admin",
+				});
+				adminEntryReference = entry;
+				return `export async function loadPluginAdmins() {
+					const { load } = await import(/* @vite-ignore */ import.meta.ROLLUP_FILE_URL_${entry});
+					return load();
+				}`;
+			}
 			if (id === RESOLVED_VIRTUAL_CONFIG_ID) {
 				return generateConfigModule(serializableConfig);
 			}
@@ -348,6 +422,21 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 			if (id === RESOLVED_VIRTUAL_BUILD_ID) {
 				return generateBuildModule(buildTime);
 			}
+			if (id === RESOLVED_VIRTUAL_ROOMS_ID) {
+				const adapterName = astroConfig.adapter?.name;
+				const coEditing = resolvedConfig.coEditing === true;
+				const cloudflareRoomsResolves =
+					coEditing &&
+					adapterName === "@astrojs/cloudflare" &&
+					canResolveProjectDependency(
+						fileURLToPath(astroConfig.root),
+						"@emdash-cms/cloudflare/internal/rooms",
+					);
+				return generateRoomsModule(adapterName, coEditing, cloudflareRoomsResolves);
+			}
+			if (id === RESOLVED_VIRTUAL_ROOM_ENGINE_ID) {
+				return generateRoomEngineModule(resolvedConfig.coEditing === true);
+			}
 		},
 	};
 }
@@ -365,6 +454,55 @@ const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
 const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg"];
 
 /**
+ * The editor schema that the inline Portable Text editor and the room engine build documents with.
+ * An editor's first visit to a page renders the inline editor, so on Cloudflare the optimizer
+ * would discover these one by one on that request and reload the worker after each, and the
+ * reloads evaluate `@tiptap/pm/tables` twice ("Duplicate use of selection JSON ID cell").
+ */
+const EDITOR_SCHEMA_DEPS = [
+	"emdash > marked",
+	"emdash > @tiptap/starter-kit",
+	"emdash > @tiptap/extension-code",
+	"emdash > @tiptap/extension-code-block",
+	"emdash > @tiptap/extension-list",
+	"emdash > @tiptap/extension-subscript",
+	"emdash > @tiptap/extension-superscript",
+	"emdash > @tiptap/extension-text-align",
+	"emdash > @tiptap/pm/history",
+	"emdash > @tiptap/pm/model",
+	"emdash > @tiptap/pm/state",
+	"emdash > @tiptap/pm/tables",
+	"emdash > @tiptap/pm/transform",
+	"emdash > @emdash-cms/admin > @tiptap/extension-table",
+	"emdash > @emdash-cms/admin > @tiptap/extension-table-cell",
+	"emdash > @emdash-cms/admin > @tiptap/extension-table-header",
+	"emdash > @emdash-cms/admin > @tiptap/extension-table-row",
+];
+
+/** The room engine, which loads only when a room first runs. */
+const ROOM_ENGINE_DEPS = [
+	"emdash > yjs",
+	"emdash > @tiptap/y-tiptap",
+	"emdash > @emdash-cms/admin > lib0/decoding",
+	"emdash > @emdash-cms/admin > lib0/encoding",
+	"emdash > @emdash-cms/admin > y-protocols/sync",
+	"emdash > @emdash-cms/admin > @tiptap/extension-collaboration",
+];
+
+/**
+ * What the admin's co-editing chunk imports beyond the editor. It loads on the first room join,
+ * and discovering these then would re-optimize and reload the admin.
+ */
+const ROOM_CLIENT_DEPS = [
+	"emdash > @emdash-cms/admin > @tiptap/extension-collaboration",
+	"emdash > @emdash-cms/admin > yjs",
+	"emdash > @emdash-cms/admin > y-protocols/awareness",
+	"emdash > @emdash-cms/admin > y-protocols/sync",
+	"emdash > @emdash-cms/admin > lib0/decoding",
+	"emdash > @emdash-cms/admin > lib0/encoding",
+];
+
+/**
  * Detect whether the Cloudflare adapter is being used.
  */
 function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
@@ -378,7 +516,7 @@ function isCloudflareAdapter(astroConfig: AstroConfig): boolean {
  * imports: any other `cloudflare:` import on a non-Cloudflare adapter should
  * still fail the build instead of failing at runtime.
  */
-const CORE_WORKERS_BUILTINS = new Set(["cloudflare:sockets"]);
+const CORE_WORKERS_BUILTINS = new Set(["cloudflare:sockets", "cloudflare:workers"]);
 
 function createWorkersBuiltinsExternalPlugin(): Plugin {
 	return {
@@ -567,6 +705,7 @@ export function createViteConfig(
 							"emdash > mime/lite",
 							"emdash > modern-tar",
 							"emdash > sanitize-html",
+							"emdash > htmlparser2",
 							"emdash > @tiptap/core",
 							"emdash > ulidx",
 							"emdash > upng-js",
@@ -643,6 +782,8 @@ export function createViteConfig(
 							// Only imported by the /_image route, so the first image
 							// request would otherwise discover it.
 							"@astrojs/cloudflare/image-transform-endpoint",
+							...EDITOR_SCHEMA_DEPS,
+							...(options.resolvedConfig.coEditing ? ROOM_ENGINE_DEPS : []),
 						],
 					},
 				}
@@ -675,6 +816,7 @@ export function createViteConfig(
 						"emdash > @emdash-cms/admin > @lezer/highlight",
 						// Each admin language loads its date locale on first use.
 						"emdash > @emdash-cms/admin > react-day-picker/locale/*",
+						...(options.resolvedConfig.coEditing ? ROOM_CLIENT_DEPS : []),
 					]
 				: [
 						"@emdash-cms/admin",

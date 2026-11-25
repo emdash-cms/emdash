@@ -78,6 +78,14 @@ function createDeps(storage: Storage): RuntimeDependencies {
 							return ctx.media!.upload!("from-route.png", "image/png", bytes);
 						},
 					},
+					"upload-then-delete": {
+						handler: async (ctx) => {
+							const bytes = new Uint8Array([1, 2, 3, 4]).buffer;
+							const uploaded = await ctx.media!.upload!("doomed.png", "image/png", bytes);
+							await ctx.media!.delete!(uploaded.mediaId);
+							return uploaded;
+						},
+					},
 				},
 			}),
 		],
@@ -110,6 +118,35 @@ describe("EmDashRuntime.handlePluginApiRoute — media:write", () => {
 			expect(data.mediaId).toBeTruthy();
 			expect(data.storageKey).toMatch(/\.png$/);
 			expect(uploads.has(data.storageKey)).toBe(true);
+		} finally {
+			await runtime.stopCron();
+		}
+	});
+});
+
+describe("EmDashRuntime.handlePluginApiRoute: media delete", () => {
+	it("purges the deleted file through the request's route cache", async () => {
+		const { storage, uploads } = createFakeStorage();
+		const runtime = await EmDashRuntime.create(createDeps(storage));
+		const invalidateContentCache = vi.fn(async () => {});
+
+		try {
+			const result = await runtime.handlePluginApiRoute(
+				"media-uploader",
+				"POST",
+				"/upload-then-delete",
+				new Request("http://test.local/_emdash/api/plugin/media-uploader/upload-then-delete", {
+					method: "POST",
+				}),
+				null,
+				invalidateContentCache,
+			);
+
+			expect(result.success).toBe(true);
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing the route result for the assertion
+			const { storageKey } = result.data as { storageKey: string };
+			expect(uploads.has(storageKey)).toBe(false);
+			expect(invalidateContentCache).toHaveBeenCalledWith([`emdash:media:${storageKey}`]);
 		} finally {
 			await runtime.stopCron();
 		}

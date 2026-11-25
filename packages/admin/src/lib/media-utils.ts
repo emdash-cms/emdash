@@ -135,6 +135,7 @@ export function providerItemToMediaItem(
 		filename: item.filename,
 		mimeType: item.mimeType,
 		url: item.previewUrl || "",
+		playerUrl: item.playerUrl,
 		// Providers may report size as a first-class field or stash it in `meta`
 		// (Cloudflare Stream uses `meta.size`); 0 means "unknown".
 		size: item.size ?? metaNumber(item.meta, "size") ?? 0,
@@ -196,6 +197,10 @@ export function localMediaFileUrl(key: string): string {
 		return `${INTERNAL_MEDIA_PREFIX}${encodeURIComponent(key)}`;
 	}
 	return `${INTERNAL_MEDIA_PREFIX}${segments.map(encodeURIComponent).join("/")}`;
+}
+
+export function isLocalMediaFileUrl(url: string): boolean {
+	return url.startsWith(INTERNAL_MEDIA_PREFIX);
 }
 
 export function getMediaPreviewUrl(originalUrl: string, contentHash?: string | null): string {

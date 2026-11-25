@@ -373,13 +373,10 @@ function CalendarMorePopover({
 /** Each day's entry states, read by the picker's day buttons. */
 const DayStatesContext = React.createContext<ReadonlyMap<string, CalendarState[]>>(new Map());
 
-/** Round day buttons sized for touch, with today in the grid's red. */
+/** Day buttons sized for touch, in columns that share the picker's width. */
 const PICKER_STYLE = {
-	"--rdp-day-height": "2.75rem",
-	"--rdp-day_button-height": "2.5rem",
-	"--rdp-day_button-width": "2.5rem",
-	"--rdp-day_button-border-radius": "9999px",
-	"--rdp-today-color": "var(--color-kumo-danger)",
+	"--cell-size": "2.5rem",
+	"--cell-width": "calc(100% / 7)",
 } as React.CSSProperties;
 
 function pad(value: number): string {
@@ -414,9 +411,10 @@ function CalendarDayButton({ day, modifiers, children, className, ...props }: Da
 			{...props}
 			className={cn(
 				className,
-				// Kumo's unlayered picker styles leave the button at the start of the wider column.
-				"!mx-auto",
-				// Kumo's red badge keeps white text in both themes; the inverse text tokens turn dark.
+				"rounded-full",
+				// Today is in the grid's red. Kumo's red badge keeps white text in both themes; the
+				// inverse text tokens turn dark.
+				modifiers.today && !modifiers.selected && "!text-kumo-danger",
 				modifiers.today && modifiers.selected && "!bg-kumo-badge-red !text-white",
 			)}
 			aria-label={states.length > 0 ? t`${dayLabel}, ${entries}` : dayLabel || undefined}
@@ -503,13 +501,8 @@ function CalendarMonthPicker({
 					dir={getLocaleDir(i18n.locale)}
 					components={{ DayButton: CalendarDayButton }}
 					style={PICKER_STYLE}
-					className="w-full rounded-lg border border-kumo-line p-2"
-					classNames={{
-						month_caption: "sr-only",
-						month: "rdp-month !w-full",
-						month_grid: "rdp-month_grid !w-full table-fixed",
-						months: "rdp-months !w-full !max-w-none",
-					}}
+					className="w-full rounded-lg border border-kumo-line p-2 [&_.rdp-month]:w-full [&_table]:w-full"
+					classNames={{ month_caption: "sr-only" }}
 				/>
 			</DayStatesContext.Provider>
 			<section aria-labelledby={headingId} className="grid gap-1">

@@ -32,7 +32,7 @@ import { isSafeRedirect } from "#api/redirect.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 import { repairContentMediaUsageCollection } from "#media/usage/content-repair.js";
 import { applySeed } from "#seed/apply.js";
-import { loadSeed } from "#seed/load.js";
+import { loadSeed, loadSeedMediaBasePath } from "#seed/load.js";
 import { validateSeed } from "#seed/validate.js";
 
 // RBAC role levels (matching @emdash-cms/auth)
@@ -61,11 +61,13 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 		const contentParam = url.searchParams.get("content");
 		const includeContent = contentParam !== "0" && contentParam !== "false";
 		const seed = await loadSeed();
+		const mediaBasePath = await loadSeedMediaBasePath();
 		const validation = validateSeed(seed);
 		if (validation.valid) {
 			const seedResult = await applySeed(emdash.db, seed, {
 				includeContent,
 				onConflict: "skip",
+				mediaBasePath,
 				storage: emdash.storage ?? undefined,
 			});
 			console.log(

@@ -134,6 +134,8 @@ test.describe("Editor image panel", () => {
 		try {
 			await page.waitForURL((url) => url.pathname.endsWith(`/posts/${id}`));
 			await page.reload();
+			await admin.waitForShell();
+			await admin.waitForLoading();
 			await expect(updatedImage).toBeVisible();
 			expect(
 				await updatedImage.evaluate(

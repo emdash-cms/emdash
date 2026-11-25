@@ -41,7 +41,8 @@ vi.mock("../../src/lib/api/client.js", async () => ({
 	}),
 }));
 
-vi.mock("../../src/lib/api/current-user.js", () => ({
+vi.mock("../../src/lib/api/current-user.js", async (importOriginal) => ({
+	...(await importOriginal<typeof import("../../src/lib/api/current-user.js")>()),
 	useCurrentUser: () => ({ data: { id: "editor", email: "editor@example.com", role: 40 } }),
 }));
 

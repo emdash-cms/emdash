@@ -24,19 +24,23 @@
  */
 
 import { setupI18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import {
 	Plug,
 	Gear,
 	Trophy,
 	ClockCounterClockwise,
+	Folders,
 	IdentificationCard,
 	SquaresFour,
+	Tag,
 } from "@phosphor-icons/react";
 import * as React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, it, expect, vi } from "vitest";
 
 import {
+	buildNavGroups,
 	BYLINE_SCHEMA_NAV_ITEM,
 	declaredLabelTranslator,
 	filterNavItemsByRole,
@@ -50,7 +54,10 @@ import {
 	resolvePluginWidgetTitle,
 	toPhosphorIconName,
 	visibleCollectionEntries,
+	type NavBuildInput,
+	type NavGroup,
 } from "../../src/components/Sidebar";
+import { getRoleConfig } from "../../src/components/users/roleDefinitions";
 import { render } from "../utils/render.tsx";
 
 // Mirror @emdash-cms/auth Role levels. Kept inline (matching Sidebar.tsx)
@@ -362,5 +369,177 @@ describe("resolvePluginWidgetTitle", () => {
 		} finally {
 			warn.mockRestore();
 		}
+	});
+});
+
+describe("buildNavGroups", () => {
+	const i18n = setupI18n({ locale: "en", messages: { en: {} } });
+	type Manifest = NavBuildInput["manifest"];
+
+	function build({
+		manifest,
+		...input
+	}: Partial<Omit<NavBuildInput, "manifest">> & { manifest?: Partial<Manifest> }) {
+		return buildNavGroups({
+			manifest: { collections: {}, plugins: {}, taxonomies: [], ...manifest },
+			pluginAdmins: {},
+			role: ROLE_ADMIN,
+			i18n,
+			translate: i18n._.bind(i18n),
+			...input,
+		});
+	}
+
+	function group(groups: NavGroup[], key: NavGroup["key"]) {
+		return groups.find((candidate) => candidate.key === key);
+	}
+
+	function itemIds(navGroup: NavGroup | undefined) {
+		return navGroup?.entries.flatMap((entry) =>
+			entry.kind === "item" ? [entry.item.id] : entry.items.map((item) => item.id),
+		);
+	}
+
+	const posts = { posts: { label: "Posts" } };
+
+	it("translates the Admin heading separately from the Admin role", () => {
+		const catalan = setupI18n({
+			locale: "ca",
+			messages: {
+				ca: {
+					[msg`Admin`.id]: "Administrador",
+					[msg({ message: "Admin", context: "navigation group" }).id]: "Administració",
+				},
+			},
+		});
+		const groups = build({ i18n: catalan, translate: catalan._.bind(catalan) });
+		expect(group(groups, "admin")?.label).toBe("Administració");
+		expect(catalan._(getRoleConfig(ROLE_ADMIN).label)).toBe("Administrador");
+	});
+
+	it("gives a taxonomy link that carries the route locale an ID without it", () => {
+		const groups = build({
+			manifest: { collections: posts, taxonomies: [{ name: "genre", label: "Genres" }] },
+			routeLocale: "de",
+		});
+		const genre = group(groups, "manage")?.entries.find(
+			(entry) => entry.kind === "item" && entry.item.label === "Genres",
+		);
+		expect(genre?.kind === "item" && resolveItemPath(genre.item)).toBe(
+			"/taxonomies/genre?locale=de",
+		);
+		expect(genre?.kind === "item" && genre.item.id).toBe("/taxonomies/genre");
+	});
+
+	it("picks each taxonomy's icon from whether it is hierarchical, not from its name", () => {
+		const groups = build({
+			manifest: {
+				collections: posts,
+				taxonomies: [
+					{ name: "topics", label: "Topics", hierarchical: false },
+					{ name: "regions", label: "Regions", hierarchical: true },
+					{ name: "tag", label: "Tags", hierarchical: true },
+				],
+			},
+		});
+		const icons = new Map(
+			group(groups, "manage")?.entries.flatMap((entry) =>
+				entry.kind === "item" ? [[entry.item.label, entry.item.icon] as const] : [],
+			),
+		);
+		expect(icons.get("Topics")).toBe(Tag);
+		expect(icons.get("Regions")).toBe(Folders);
+		expect(icons.get("Tags")).toBe(Folders);
+	});
+
+	it("gives a root plugin page an ID without the trailing slash", () => {
+		const groups = build({
+			manifest: {
+				plugins: { forms: { adminMode: "blocks", adminPages: [{ path: "/", label: "Forms" }] } },
+			},
+		});
+		expect(itemIds(group(groups, "plugins"))).toEqual(["/plugins/forms"]);
+	});
+
+	it("forms content folders with members in collection, taxonomy, plugin page order", () => {
+		const groups = build({
+			manifest: {
+				collections: { posts: { label: "Posts", group: "Blog" }, pages: { label: "Pages" } },
+				taxonomies: [{ name: "tag", label: "Tags", collections: ["posts"] }],
+				plugins: {
+					digest: {
+						adminMode: "blocks",
+						adminPages: [{ path: "/digest", label: "Digest", group: "Blog" }],
+					},
+				},
+			},
+		});
+		const content = group(groups, "content");
+		expect(content?.entries.map((entry) => entry.kind)).toEqual(["folder", "item", "item"]);
+		const folder = content?.entries[0];
+		expect(folder?.kind === "folder" && folder.label).toBe("Blog");
+		expect(folder?.kind === "folder" && folder.items.map((item) => item.id)).toEqual([
+			"/content/posts",
+			"/taxonomies/tag",
+			"/plugins/digest/digest",
+		]);
+		expect(itemIds(content)).toEqual([
+			"/content/posts",
+			"/taxonomies/tag",
+			"/plugins/digest/digest",
+			"/content/pages",
+			"/media",
+		]);
+	});
+
+	it("puts Dashboard and Calendar in the top group, Calendar behind its role and hiddenNavItems", () => {
+		expect(itemIds(group(build({ role: ROLE_SUBSCRIBER }), "top"))).toEqual(["/"]);
+		expect(itemIds(group(build({ role: ROLE_CONTRIBUTOR }), "top"))).toEqual(["/", "/calendar"]);
+		expect(
+			itemIds(group(build({ manifest: { admin: { hiddenNavItems: ["calendar"] } } }), "top")),
+		).toEqual(["/"]);
+	});
+
+	it("has no content group, Media included, without a visible collection", () => {
+		const hiddenOnly = build({
+			manifest: { collections: { notes: { label: "Notes", hidden: true } } },
+		});
+		expect(hiddenOnly.map((navGroup) => navGroup.key)).toEqual(["top", "manage", "admin"]);
+		expect(hiddenOnly.flatMap(itemIds)).not.toContain("/media");
+
+		const withPosts = build({ manifest: { collections: posts } });
+		expect(withPosts.map((navGroup) => navGroup.key)).toEqual([
+			"top",
+			"content",
+			"manage",
+			"admin",
+		]);
+		expect(group(withPosts, "content")?.label).toBe("Content");
+		expect(group(withPosts, "top")?.label).toBeNull();
+	});
+
+	it("keeps only the first of two entries that share an ID", () => {
+		const groups = build({
+			manifest: {
+				registry: { aggregatorUrl: "https://registry.example" },
+				plugins: {
+					registry: { adminMode: "blocks", adminPages: [{ path: "/", label: "Shadow" }] },
+					shop: {
+						adminMode: "blocks",
+						adminPages: [
+							{ path: "/orders", label: "Orders" },
+							{ path: "/orders/", label: "Orders again" },
+						],
+					},
+				},
+			},
+		});
+		const labels = groups.flatMap((navGroup) =>
+			navGroup.entries.flatMap((entry) => (entry.kind === "item" ? [entry.item.label] : [])),
+		);
+		expect(labels).toContain("Registry");
+		expect(labels).not.toContain("Shadow");
+		expect(itemIds(group(groups, "plugins"))).toEqual(["/plugins/shop/orders"]);
+		expect(labels).not.toContain("Orders again");
 	});
 });

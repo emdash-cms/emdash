@@ -17,7 +17,8 @@ export type MediaUsageReferenceType =
 	| "image_field"
 	| "file_field"
 	| "portable_text_image"
-	| "portable_text_video";
+	| "portable_text_video"
+	| "link";
 
 export interface MediaUsageExtractionSubField {
 	slug: string;
@@ -39,6 +40,7 @@ export interface MediaUsageExtractionField {
 export interface ExtractMediaUsageOccurrencesInput {
 	fields: readonly MediaUsageExtractionField[];
 	data: Record<string, unknown>;
+	siteOrigin?: string;
 }
 
 export interface ExtractedMediaUsageOccurrence {

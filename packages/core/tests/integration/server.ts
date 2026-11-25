@@ -50,6 +50,8 @@ export interface TestServerOptions {
 	seed?: boolean;
 	/** Additional environment variables to pass to the dev server */
 	env?: Record<string, string>;
+	/** Receives all of the dev server's output, as it arrives */
+	onOutput?: (chunk: string) => void;
 }
 
 export interface TestServerContext {
@@ -193,6 +195,7 @@ export async function createTestServer(options: TestServerOptions): Promise<Test
 	let serverOutput = "";
 	const MAX_OUTPUT = 5000;
 	function appendOutput(chunk: string): void {
+		options.onOutput?.(chunk);
 		if (process.env.DEBUG) process.stderr.write(`[integration:${port}] ${chunk}`);
 		serverOutput += chunk;
 		if (serverOutput.length > MAX_OUTPUT * 2) {

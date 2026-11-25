@@ -1,5 +1,5 @@
 import type { EmailMessage } from "@emdash-cms/auth";
-import { Role, sendMagicLink } from "@emdash-cms/auth";
+import { createMagicLinkUrl, Role, sendMagicLink } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -85,9 +85,24 @@ describe("magic link verify route", () => {
 		expect(session.set).toHaveBeenCalledWith("user", { id: userId });
 	});
 
-	it("confirming uses the token once", async () => {
+	it("records a magic-link login for users without passkeys in the list and detail", async () => {
+		const adapter = createKyselyAdapter(db);
+		expect((await adapter.getUserWithDetails(userId))?.lastLogin).toBeNull();
+		const before = Date.now();
+		expect((await confirm(linkUrl.searchParams.get("token")!)).status).toBe(200);
+		const details = await adapter.getUserWithDetails(userId);
+		expect(details?.credentials).toHaveLength(0);
+		expect(details?.lastLogin?.getTime()).toBeGreaterThanOrEqual(before);
+		expect(details?.lastLogin?.getTime()).toBeLessThanOrEqual(Date.now());
+		const list = await adapter.getUsers();
+		expect(list.items.find((user) => user.id === userId)?.lastLogin).toEqual(details?.lastLogin);
+	});
+
+	it("confirming uses the token once without updating login again on replay", async () => {
 		const token = linkUrl.searchParams.get("token")!;
 		expect((await confirm(token)).status).toBe(200);
+		const firstLogin = (await createKyselyAdapter(db).getUserWithDetails(userId))?.lastLogin;
+		expect(firstLogin).not.toBeNull();
 
 		const session = { set: vi.fn() };
 		const replay = await confirm(token, session);
@@ -97,6 +112,21 @@ describe("magic link verify route", () => {
 			error: { code: "INVALID_TOKEN" },
 		});
 		expect(session.set).not.toHaveBeenCalled();
+		expect((await createKyselyAdapter(db).getUserWithDetails(userId))?.lastLogin).toEqual(
+			firstLogin,
+		);
+	});
+
+	it("does not record an expired login token", async () => {
+		const adapter = createKyselyAdapter(db);
+		const expired = await createMagicLinkUrl(
+			adapter,
+			{ id: userId, email: "author@example.com" },
+			"https://example.com",
+			{ expiresInMs: -1 },
+		);
+		expect((await confirm(new URL(expired).searchParams.get("token")!)).status).toBe(410);
+		expect((await adapter.getUserWithDetails(userId))?.lastLogin).toBeNull();
 	});
 
 	it("fails without an Astro session and leaves the token usable", async () => {
@@ -116,6 +146,7 @@ describe("magic link verify route", () => {
 			success: false,
 			error: { code: "SESSION_UNAVAILABLE" },
 		});
+		expect((await createKyselyAdapter(db).getUserWithDetails(userId))?.lastLogin).toBeNull();
 		expect((await confirm(token)).status).toBe(200);
 	});
 });

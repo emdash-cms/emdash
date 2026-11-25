@@ -52,6 +52,7 @@ export const wxrImportConfig = z.object({
 	importSections: z.boolean().optional(),
 	authorMappings: z.record(z.string(), z.string().min(1).nullable()).optional(),
 	locale: z.string().min(1).optional(),
+	importMenus: z.boolean().optional(),
 });
 
 export const wxrChunkCursor = z.object({
