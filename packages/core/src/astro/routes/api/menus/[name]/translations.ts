@@ -41,7 +41,11 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 
 	try {
 		// Look up any menu row matching the name so we can get its translation_group.
-		const anchor = await handleMenuGet(emdash.db, name, { locale: localeQ.locale });
+		// Its items are not returned, so `includeDrafts` only skips their target lookup.
+		const anchor = await handleMenuGet(emdash.db, name, {
+			locale: localeQ.locale,
+			includeDrafts: true,
+		});
 		if (!anchor.success) return unwrapResult(anchor);
 		const result = await handleMenuTranslations(emdash.db, anchor.data.id);
 		return unwrapResult(result);
@@ -70,7 +74,10 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 
 		// Resolve the source menu (either by explicit locale in query, or the
 		// first matching row). Its id becomes the `translationOf` for the new row.
-		const source = await handleMenuGet(emdash.db, name, { locale: localeQ.locale });
+		const source = await handleMenuGet(emdash.db, name, {
+			locale: localeQ.locale,
+			includeDrafts: true,
+		});
 		if (!source.success) return unwrapResult(source);
 
 		const result = await handleMenuCreate(emdash.db, {

@@ -7,7 +7,7 @@
 
 import type { APIRoute } from "astro";
 
-import { requireOwnerPerm } from "#api/authorize.js";
+import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { parseBody, isParseError } from "#api/parse.js";
@@ -48,6 +48,9 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 	}
 
 	const locale = url.searchParams.get("locale") || undefined;
+
+	const roleDenied = requirePerm(user, "content:publish_own");
+	if (roleDenied) return roleDenied;
 
 	// Fetch item to check ownership
 	const existing = await emdash.handleContentGetForWrite(collection, id, locale);
@@ -100,6 +103,9 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 	}
 
 	const locale = url.searchParams.get("locale") || undefined;
+
+	const roleDenied = requirePerm(user, "content:publish_own");
+	if (roleDenied) return roleDenied;
 
 	// Fetch item to check ownership
 	const existing = await emdash.handleContentGetForWrite(collection, id, locale);

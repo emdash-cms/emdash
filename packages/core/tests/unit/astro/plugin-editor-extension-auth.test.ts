@@ -180,6 +180,13 @@ describe("saved-entry plugin extension authorization", () => {
 		expect(inheritedPermission.handlePluginApiRoute).not.toHaveBeenCalled();
 	});
 
+	it("denies roles that can never edit entries before loading content", async () => {
+		const locals = createLocals(Role.SUBSCRIBER, "subscriber", false, "content:read");
+		expect((await invoke(locals)).status).toBe(403);
+		expect(locals.handleContentGet).not.toHaveBeenCalled();
+		expect(locals.handlePluginApiRoute).not.toHaveBeenCalled();
+	});
+
 	it("bounds the decoded interaction body before sandbox invocation", async () => {
 		const locals = createLocals(Role.AUTHOR);
 		const response = await invoke(locals, { type: "panel_load" }, { contentLength: "300000" });

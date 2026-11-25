@@ -98,7 +98,6 @@ export function atproto(config?: AtprotoAuthConfig): AuthProviderDescriptor {
 		publicRoutes: ["/_emdash/api/auth/atproto/"],
 		storage: {
 			states: { indexes: [] },
-			sessions: { indexes: [] },
 		},
 	};
 }

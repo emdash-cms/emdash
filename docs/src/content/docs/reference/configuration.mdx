@@ -304,7 +304,7 @@ emdash({
 });
 ```
 
-Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. The following example uses the object form:
+Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. In either form, use the service's final URL. The server does not follow redirects from the registry service, so plugin verification, installs, updates, update checks, and registry images fail when the URL redirects. The following example uses the object form:
 
 ```js title="astro.config.mjs"
 import { sandbox } from "@emdash-cms/cloudflare";
@@ -324,7 +324,7 @@ emdash({
 
 | Option                            | Type                   | Description                                                                                   |
 | --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
-| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production.                                    |
+| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production, and a URL that does not redirect.  |
 | `acceptLabelers`                  | `string`               | Optional comma-separated decentralized identifiers (DIDs) for moderation services accepted by the request. A DID is a stable Atmosphere account identifier. This setting cannot override the registry service's policy. |
 | `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
 | `policy.minimumReleaseAgeExclude` | `string[]`             | Publisher DIDs, or `<did>/<plugin-slug>` pairs, exempt from the holdback.                     |
@@ -407,6 +407,7 @@ Options for `access()`:
 | `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
 | `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to make names editable in the admin |
 | `roleMapping`    | `object`  | —                      | Map IdP group names or GitHub `org/team` names to EmDash role levels; [first match wins](/guides/authentication/#role-mapping)                                  |
+| `matchGroupsBy`  | `"name"` \| `"id"` | `"name"`         | Compare `roleMapping` keys with group display names or group IDs. Use `"id"` when directory members can create groups. See [Matching groups by ID](/guides/authentication/#matching-groups-by-id) |
 
 <Aside>
 	When an auth adapter is configured it becomes the only auth method: passkeys are disabled.
@@ -607,6 +608,8 @@ export default defineConfig({
 **Optional.** Headers to trust for client-IP resolution when running behind a reverse proxy you control. Used by auth rate limits (magic-link, signup, passkey, OAuth device flow, OAuth client registration) and the public comment endpoint.
 
 On Cloudflare the `cf` object attached to the request is used automatically — you normally do **not** need to set this. On self-hosted deployments behind nginx, Caddy, Traefik, Fly, Railway, or similar, set this to the header your proxy writes so rate limits can count requests per real client IP.
+
+Rate limits and comment reactions count an IPv6 client by its /64 network, because one client can send from any address in that network. IPv4 clients are counted by address.
 
 The following example trusts the `x-real-ip` header set by nginx, Caddy, or Traefik:
 
@@ -1040,7 +1043,7 @@ emdash({
 });
 ```
 
-`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, `syncName`, and `roleMapping`. The [`auth`](#auth) option documents their defaults, role behavior, and name sync.
+`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, `syncName`, `roleMapping`, and `matchGroupsBy`. The [`auth`](#auth) option documents their defaults, role behavior, and name sync.
 
 ### `sandbox()`
 

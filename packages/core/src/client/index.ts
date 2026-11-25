@@ -126,7 +126,8 @@ export interface ContentItem {
 	publishedAt: string | null;
 	scheduledAt: string | null;
 	liveRevisionId: string | null;
-	draftRevisionId: string | null;
+	/** Omitted for callers without `content:read_drafts`. */
+	draftRevisionId?: string | null;
 	locale: string | null;
 	translationGroup: string | null;
 	_rev?: string;

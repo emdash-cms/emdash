@@ -89,7 +89,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		await finalizePluginUpdate({
 			pluginId: id,
 			syncRuntime: () => emdash.syncRegistryPlugins(),
-			runLifecycle: () => emdash.runPluginActivateLifecycle(id),
+			runLifecycle: () =>
+				previousState.status === "active"
+					? emdash.runPluginActivateLifecycle(id)
+					: Promise.resolve(),
 			rollback: () =>
 				rollbackPluginUpdate(
 					emdash.db,

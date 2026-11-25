@@ -354,7 +354,10 @@ export interface EmDashHandlers {
 		},
 	) => Promise<HandlerResponse>;
 
-	handleContentAuthors: (collection: string) => Promise<HandlerResponse>;
+	handleContentAuthors: (
+		collection: string,
+		options?: { includeEmail?: boolean },
+	) => Promise<HandlerResponse>;
 
 	handleContentGet: (
 		collection: string,

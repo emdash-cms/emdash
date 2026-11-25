@@ -9,7 +9,7 @@
 import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
-import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
+import { requireOwnerPerm, requirePerm, toPublishedView } from "#api/authorize.js";
 import { saveContent } from "#api/content-save.js";
 import { apiError, apiSuccess, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
@@ -37,16 +37,14 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	// Hide non-published items from users without content:read_drafts. Return
 	// 404 (not 403) so subscribers can't enumerate draft IDs by status code.
 	if (result.success && !hasPermission(user, "content:read_drafts")) {
-		const { liveData, draftRevisionId: _draftRevisionId, ...item } = result.data.item;
-		if (item.status !== "published") {
+		if (result.data.item.status !== "published") {
 			return apiError("NOT_FOUND", `Content item not found: ${id}`, 404);
 		}
 
-		// Strip draft hydration data from response for users without read_drafts.
 		// handleContentGet overlays draft revision data onto item.data and exposes
-		// the published values in item.liveData. Without this, subscribers see
-		// unpublished edits in the data field.
-		return apiSuccess({ ...result.data, item: { ...item, data: liveData ?? item.data } });
+		// the published values in item.liveData.
+		const { _rev: _unusedRev, ...data } = result.data;
+		return apiSuccess({ ...data, item: toPublishedView(result.data.item) });
 	}
 
 	return unwrapResult(result);
@@ -103,6 +101,9 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 	}
 
 	const locale = url.searchParams.get("locale") || undefined;
+
+	const roleDenied = requirePerm(user, "content:delete_own");
+	if (roleDenied) return roleDenied;
 
 	// Fetch item to check ownership
 	const existing = await emdash.handleContentGetForWrite(collection, id, locale);

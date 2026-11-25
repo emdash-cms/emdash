@@ -23,7 +23,10 @@ import { createRedirectBody, updateRedirectBody } from "../api/schemas/redirects
 import { CommentRepository, type Comment } from "../database/repositories/comment.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { EntryLockRepository } from "../database/repositories/entry-locks.js";
-import { MediaRepository } from "../database/repositories/media.js";
+import {
+	MediaRepository,
+	SIGNED_UPLOAD_URL_EXPIRES_IN_SECONDS,
+} from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
 import {
@@ -1047,7 +1050,7 @@ export function createMediaAccessWithWrite(
 				const signed = await storage.getSignedUploadUrl({
 					key: storageKey,
 					contentType: mimeType,
-					expiresIn: 3600,
+					expiresIn: SIGNED_UPLOAD_URL_EXPIRES_IN_SECONDS,
 				});
 
 				return { uploadUrl: signed.url, mediaId: media.id };

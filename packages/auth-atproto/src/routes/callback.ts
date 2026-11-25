@@ -190,9 +190,11 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 			);
 		}
 
-		// Create Astro session
+		// Create the Astro session under a new id: set() alone keeps the id named
+		// by the request's session cookie, which someone else may already hold.
 		if (session) {
 			await recordLogin(emdash.db, user.id);
+			await session.regenerate();
 			session.set("user", { id: user.id });
 		}
 

@@ -6,7 +6,7 @@
 
 import type { APIRoute } from "astro";
 
-import { requireOwnerPerm } from "#api/authorize.js";
+import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
 
@@ -20,6 +20,9 @@ export const POST: APIRoute = async ({ params, locals, cache, url }) => {
 	if (!emdash?.handleContentRestore || !emdash?.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
+
+	const roleDenied = requirePerm(user, "content:edit_own");
+	if (roleDenied) return roleDenied;
 
 	// Fetch item including trashed items to check ownership
 	const locale = url.searchParams.get("locale") || undefined;
