@@ -30,7 +30,7 @@ export async function publishContent(
 	const collection = params.collection!;
 	const id = params.id!;
 
-	if (!emdash?.handleContentPublish || !emdash?.handleContentGet) {
+	if (!emdash?.handleContentPublish || !emdash?.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
@@ -45,7 +45,7 @@ export async function publishContent(
 	if (roleDenied) return roleDenied;
 
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id, locale);
+	const existing = await emdash.handleContentGetForWrite(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",

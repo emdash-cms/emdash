@@ -25,7 +25,11 @@ import type { contentUpdateBody } from "./schemas/index.js";
 /** The handlers a save needs: the runtime, or the `emdash` handlers in Astro locals. */
 export interface ContentSaveSite {
 	db: Kysely<Database>;
-	handleContentGet: (collection: string, id: string, locale?: string) => Promise<HandlerResponse>;
+	handleContentGetForWrite: (
+		collection: string,
+		id: string,
+		locale?: string,
+	) => Promise<HandlerResponse>;
 	handleContentUpdate: EmDashHandlers["handleContentUpdate"];
 }
 
@@ -173,7 +177,7 @@ async function checkEditAccess(
 	if (!hasPermission(user, "content:edit_own") && !hasPermission(user, "content:edit_own_drafts")) {
 		return { code: "FORBIDDEN", message: "Insufficient permissions" };
 	}
-	const existing = await site.handleContentGet(collection, id, locale);
+	const existing = await site.handleContentGetForWrite(collection, id, locale);
 	if (!existing.success) {
 		return {
 			code: existing.error?.code ?? "UNKNOWN_ERROR",

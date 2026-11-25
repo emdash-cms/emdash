@@ -92,6 +92,10 @@ const REV_MISSING_ERROR =
  * see the tool schema, and re-reading never clears ENTRY_LOCKED, so when to
  * override is stated here.
  */
+const SLUG_LOCALE_PARAM_DESCRIPTION =
+	"Locale to scope slug lookup (e.g. 'fr'). Required when the slug exists in more " +
+	"than one locale. IDs are globally unique.";
+
 const OVERRIDE_LOCK_PARAM_DESCRIPTION =
 	"Write even though someone else has this item open in the admin. Without it, " +
 	"the call fails with ENTRY_LOCKED and the error names who is editing; calling " +
@@ -1430,7 +1434,7 @@ export function createMcpServer(
 			const actor = { id: userId, role: userRole };
 
 			// Fetch item to check ownership
-			const existing = await emdash.handleContentGet(args.collection, args.id, args.locale);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1595,6 +1599,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
@@ -1605,7 +1610,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1639,6 +1644,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1647,7 +1653,9 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 
 			// Fetch trashed item to check ownership
-			const existing = await ec.handleContentGetIncludingTrashed(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale, {
+				includeTrashed: true,
+			});
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1677,6 +1685,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1684,10 +1693,15 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale, {
+				includeTrashed: true,
+			});
+			if (!existing.success) return unwrap(existing);
+			const resolvedId = extractContentId(existing.data) ?? args.id;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentPermanentDelete(args.collection, args.id),
-				[args.collection, args.id],
+				await ec.handleContentPermanentDelete(args.collection, resolvedId),
+				[args.collection, resolvedId],
 			);
 		},
 	);
@@ -1707,6 +1721,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				publishedAt: contentDateTimeInputSchema
 					.optional()
@@ -1722,7 +1737,7 @@ export function createMcpServer(
 			const { emdash, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await emdash.handleContentGet(args.collection, args.id);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1768,6 +1783,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
@@ -1778,7 +1794,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1815,6 +1831,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				scheduledAt: contentDateTimeInputSchema.describe(
 					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
@@ -1828,7 +1845,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1865,6 +1882,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
@@ -1873,7 +1891,7 @@ export function createMcpServer(
 			requireRole(extra, Role.AUTHOR);
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1929,6 +1947,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
@@ -1940,7 +1959,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -2009,7 +2028,7 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId } = getExtra(extra);
-			const existing = await emdash.handleContentGet(args.collection, args.id);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id);
 			if (!existing.success) return unwrap(existing);
 			requireOwnership(
 				extra,

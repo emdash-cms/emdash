@@ -1180,6 +1180,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					handleContentPermanentDelete: runtime.handleContentPermanentDelete.bind(runtime),
 					handleContentCountTrashed: runtime.handleContentCountTrashed.bind(runtime),
 					handleContentGetIncludingTrashed: runtime.handleContentGetIncludingTrashed.bind(runtime),
+					handleContentGetForWrite: runtime.handleContentGetForWrite.bind(runtime),
 					handleContentGetById: runtime.handleContentGetById.bind(runtime),
 
 					// Duplicate handler

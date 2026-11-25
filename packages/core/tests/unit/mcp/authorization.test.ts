@@ -73,7 +73,7 @@ function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 		size: 1024,
 	};
 
-	return {
+	const handlers = {
 		db,
 		invalidateUrlPatternCache: vi.fn(),
 		handleContentGet: vi.fn().mockResolvedValue({
@@ -181,6 +181,13 @@ function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 			data: { item: contentItem },
 		}),
 	} as unknown as EmDashHandlers;
+	handlers.handleContentGetForWrite = vi.fn(
+		(collection: string, id: string, locale?: string, options?: { includeTrashed?: boolean }) =>
+			options?.includeTrashed
+				? handlers.handleContentGetIncludingTrashed(collection, id)
+				: handlers.handleContentGet(collection, id, locale),
+	) as EmDashHandlers["handleContentGetForWrite"];
+	return handlers;
 }
 
 // ---------------------------------------------------------------------------

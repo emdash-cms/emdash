@@ -27,6 +27,7 @@ import { validateIdentifier } from "./database/validate.js";
 import { getI18nConfig, getLocaleCandidates, type I18nConfig } from "./i18n/config.js";
 import {
 	canonicalLocaleColumn,
+	defaultLocaleFirst,
 	storedLocaleOrder,
 	localeMatches,
 	localeOrder,
@@ -2229,6 +2230,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND ((c.slug = ${id} ${slugVisibility}) OR c.id = ${id})
+							ORDER BY CASE WHEN c.id = ${id} THEN 0 ELSE 1 END, ${defaultLocaleFirst("c.locale")}, c.locale, c.id
 							LIMIT 1
 						`.execute(db);
 

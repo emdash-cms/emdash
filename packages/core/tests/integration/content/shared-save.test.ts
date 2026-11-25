@@ -371,8 +371,8 @@ describeEachDialect("shared content save", (dialect) => {
 			const site: ContentSaveSite = {
 				db: ctx.db,
 				handleContentUpdate: handlers.handleContentUpdate,
-				handleContentGet: async (...args) => {
-					const result = await handlers.handleContentGet(...args);
+				handleContentGetForWrite: async (...args) => {
+					const result = await handlers.handleContentGetForWrite(...args);
 					const published = await runtime.handleContentPublish("note", id, {});
 					if (!published.success) throw new Error(published.error.message);
 					return result;

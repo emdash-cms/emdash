@@ -16,14 +16,14 @@ export const POST: APIRoute = async ({ params, locals }) => {
 	const collection = params.collection!;
 	const id = params.id!;
 
-	if (!emdash?.handleContentDuplicate || !emdash?.handleContentGet) {
+	if (!emdash?.handleContentDuplicate || !emdash?.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 	const denied = requirePerm(user, "content:create");
 	if (denied) return denied;
 
 	// Fetch item to check ownership — duplicating requires read access to the source
-	const existing = await emdash.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGetForWrite(collection, id);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",
