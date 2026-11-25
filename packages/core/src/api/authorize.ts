@@ -25,6 +25,18 @@ export function canReadMediaUsageCount(
 }
 
 /**
+ * Whether a response may carry account email addresses. They are account
+ * data, so the caller needs `users:read`, and a token needs the `admin` scope
+ * that `/admin/users` requires.
+ */
+export function canReadUserEmails(
+	user: UserLike | null | undefined,
+	tokenScopes: string[] | undefined,
+): boolean {
+	return hasPermission(user, "users:read") && (!tokenScopes || hasScope(tokenScopes, "admin"));
+}
+
+/**
  * Check if user has a permission. Returns a 401/403 Response if not, or null if authorized.
  *
  * Usage:

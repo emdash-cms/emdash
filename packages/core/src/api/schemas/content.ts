@@ -476,7 +476,8 @@ export const contentAuthorSchema = z
 	.object({
 		id: z.string(),
 		name: z.string().nullable(),
-		email: z.string(),
+		/** Omitted for callers without `users:read`. */
+		email: z.string().optional(),
 		avatarUrl: z.string().nullable(),
 	})
 	.meta({ id: "ContentAuthor" });
