@@ -811,6 +811,11 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return this.#workloadPolicies.get(packageSlug);
 	}
 
+	isWorkloadPolicyDerived(publisherDid: string, packageSlug: string): boolean {
+		this.#assertPublisherDid(publisherDid);
+		return this.#workloadPolicies.isDerivedFromRepositoryConnection(packageSlug);
+	}
+
 	getWorkloadPolicyIfInitialized(
 		publisherDid: string,
 		packageSlug: string,
