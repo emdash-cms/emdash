@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { HTML_BLOCK_FRAME_MESSAGE, buildHtmlBlockFrame } from "../../src/html-block";
 
@@ -235,6 +235,30 @@ describe("HTML block frame", () => {
 		frame.contentWindow?.postMessage("ping", "*");
 
 		expect(await answer).toBe("pong");
+	});
+
+	it("doesn't load the block when a CSP rejects the frame's base", async () => {
+		const page = location.href;
+		history.replaceState(null, "", "/posts/draft?_preview=secret#token=secret");
+		try {
+			const csp = `<meta http-equiv="Content-Security-Policy" content="base-uri 'none'">`;
+			const frame = document.createElement("iframe");
+			// Same-origin access lets the test look inside the shell.
+			frame.setAttribute("sandbox", "allow-scripts allow-same-origin");
+			frame.srcdoc = buildHtmlBlockFrame({
+				html: "<p>Hello</p>",
+				js: 'parent.postMessage({ base: document.baseURI }, "*");',
+			}).replace("<head>", `<head>${csp}`);
+			document.body.append(frame);
+			await vi.waitFor(() => {
+				expect(frame.contentDocument?.URL).toBe("about:srcdoc");
+				expect(frame.contentDocument?.readyState).not.toBe("loading");
+			});
+
+			expect(frame.contentDocument!.querySelector("iframe")).toBeNull();
+		} finally {
+			history.replaceState(null, "", page);
+		}
 	});
 
 	it("fills the frame without margins or a border when a CSP blocks its inline styles", async () => {

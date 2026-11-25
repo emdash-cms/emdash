@@ -152,9 +152,12 @@ const BASE = '<base href="/" target="_top">';
 const SHELL_STYLE =
 	"html,body{height:100%;margin:0}iframe{display:block;width:100%;height:100%;border:0}";
 
-// The page can only reach the shell's window, so the shell passes messages
-// between the page and the author's frame in both directions.
-const SHELL_SCRIPT = `addEventListener("message", (event) => {
+// A policy such as `base-uri 'none'` rejects the base, and the shell would then
+// fall back to the page's full URL, so the shell stops before it parses the
+// author's frame. The page can only reach the shell's window, so the shell
+// passes messages between the page and the author's frame in both directions.
+const SHELL_SCRIPT = `if (document.baseURI !== new URL("/", document.baseURI).href) stop();
+addEventListener("message", (event) => {
 	const inner = frames[0];
 	if (event.source === inner) parent.postMessage(event.data, "*", [...event.ports]);
 	else if (event.source === parent) inner?.postMessage(event.data, "*", [...event.ports]);
