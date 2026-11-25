@@ -86,6 +86,33 @@ describe("editorial thread writes on D1", () => {
 		expect((await threads.findComment(commentId))?.deletedAt).toBeNull();
 	});
 
+	it("keeps no reply when reopening its resolved thread fails", async () => {
+		const { threadId } = await createThread();
+		await threads.setStatus({ threadId, status: "resolved", userId: ADA, now: NOW });
+		await sql`
+			CREATE TRIGGER fail_editorial_thread_reopen
+			BEFORE UPDATE ON _emdash_editorial_threads
+			WHEN NEW.status = 'open'
+			BEGIN SELECT RAISE(ABORT, 'thread reopen rejected'); END
+		`.execute(db);
+
+		await expect(
+			threads.addComment({ threadId, authorId: ADA, body: "Here.", now: LATER }),
+		).rejects.toThrow("thread reopen rejected");
+		expect((await threads.getThread(threadId))?.comments).toHaveLength(1);
+		expect((await threads.findThread(threadId))?.status).toBe("resolved");
+	});
+
+	it("reopens a resolved thread with a reply", async () => {
+		const { threadId } = await createThread();
+		await threads.setStatus({ threadId, status: "resolved", userId: ADA, now: NOW });
+
+		expect(
+			await threads.addComment({ threadId, authorId: ADA, body: "Here.", now: LATER }),
+		).toEqual(expect.any(String));
+		expect((await threads.findThread(threadId))?.status).toBe("open");
+	});
+
 	it("deletes the thread with its last live comment", async () => {
 		const { threadId, commentId } = await createThread();
 

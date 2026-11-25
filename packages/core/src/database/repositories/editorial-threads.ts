@@ -348,7 +348,8 @@ export class EditorialThreadRepository {
 
 	/**
 	 * Adds a reply, reopening the thread if it was resolved. Call it inside
-	 * `withTransaction`, so the reply and the reopening commit together.
+	 * `withTransaction`, so the reply and the reopening commit together where
+	 * the database has transactions. On D1 they go in one batch.
 	 * Returns the reply's ID, or `null` when the thread no longer exists.
 	 */
 	async addComment(input: {
@@ -358,9 +359,8 @@ export class EditorialThreadRepository {
 		now: string;
 	}): Promise<string | null> {
 		const id = ulid();
-		if (!(await this.lockThread(input.threadId))) return null;
-		// Selecting from the thread keeps a thread deleted since the lock, as on D1, from failing the foreign key.
-		const inserted = await this.db
+		// Selecting from the thread keeps a thread deleted meanwhile, as on D1, from failing the foreign key.
+		const insert = this.db
 			.insertInto("_emdash_editorial_comments")
 			.columns(["id", "thread_id", "author_id", "body", "created_at", "edited_at", "deleted_at"])
 			.expression((eb) =>
@@ -377,14 +377,21 @@ export class EditorialThreadRepository {
 					])
 					.where("id", "=", input.threadId),
 			)
-			.returning("id")
-			.execute();
-		if (inserted.length === 0) return null;
-		await this.db
+			.returning("id");
+		const reopen = this.db
 			.updateTable("_emdash_editorial_threads")
 			.set({ status: "open", resolved_by: null, resolved_at: null, updated_at: input.now })
 			.where("id", "=", input.threadId)
-			.execute();
+			.where(({ exists, selectFrom }) =>
+				exists(selectFrom("_emdash_editorial_comments").select("id").where("id", "=", id)),
+			);
+
+		const batched = await executeAtomicBatchIfSupported(this.db, [insert, reopen]);
+		if (batched) return batched[0]?.rows.length === 1 ? id : null;
+
+		if (!(await this.lockThread(input.threadId))) return null;
+		if ((await insert.execute()).length === 0) return null;
+		await reopen.execute();
 		return id;
 	}
 
