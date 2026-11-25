@@ -5,7 +5,7 @@
  */
 
 import { Role, type RoleLevel } from "@emdash-cms/auth";
-import type { Kysely } from "kysely";
+import { sql, type Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PUT as updateContent } from "../../../src/astro/routes/api/content/[collection]/[id].js";
@@ -165,6 +165,27 @@ describe("PUT /content/:collection/:id with status: draft", () => {
 		});
 		await vi.waitFor(() => expect(afterUnpublish).toHaveBeenCalledTimes(1));
 		expect(invalidate).toHaveBeenCalledWith({ tags: ["post", id] });
+	});
+
+	it("clears the live revision and schedule of a draft that still has them", async () => {
+		const id = await seed("published");
+		const scheduled = await runtime.handleContentSchedule("post", id, "2099-01-01T00:00:00.000Z");
+		if (!scheduled.success) throw new Error(scheduled.error.message);
+		await sql`UPDATE ec_post SET status = 'draft' WHERE id = ${id}`.execute(db);
+		const before = await stored(id);
+		expect(before).toMatchObject({ status: "draft", scheduledAt: "2099-01-01T00:00:00.000Z" });
+		expect(before?.liveRevisionId).toEqual(expect.any(String));
+
+		const response = await put(id, editor);
+
+		expect(response.status, await response.clone().text()).toBe(200);
+		expect(beforeUnpublish).toHaveBeenCalledTimes(1);
+		expect(await stored(id)).toMatchObject({
+			status: "draft",
+			liveRevisionId: null,
+			scheduledAt: null,
+		});
+		await vi.waitFor(() => expect(afterUnpublish).toHaveBeenCalledTimes(1));
 	});
 
 	it("saves the rest of the body before unpublishing under the caller's _rev", async () => {

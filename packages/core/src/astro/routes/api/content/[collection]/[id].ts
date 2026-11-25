@@ -74,7 +74,11 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 		const existing = await emdash.handleContentGet(collection, id, locale);
 		if (!existing.success) return unwrapResult(existing);
 		const existingItem = existing.data.item;
-		if (existingItem.status !== "draft") {
+		if (
+			existingItem.status !== "draft" ||
+			existingItem.liveRevisionId ||
+			existingItem.scheduledAt
+		) {
 			const denied = requireOwnerPerm(
 				user,
 				existingItem.authorId ?? "",
