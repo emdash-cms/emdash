@@ -24,6 +24,7 @@ import virtualConfig from "virtual:emdash/config";
 import { resolveSecretsCached } from "#config/secrets.js";
 
 import type { Database } from "../../database/types.js";
+import { matchInternalMediaKey } from "../../media/image-endpoint.js";
 import { verifyPreviewToken, parseContentId } from "../../preview/tokens.js";
 import { getRequestContext, runWithContext } from "../../request-context.js";
 import { generateVisualEditingActionToken } from "../../visual-editing/action-token.js";
@@ -81,22 +82,39 @@ async function verifyPreview(
 }
 
 /**
- * Preview responses must not be cached -- draft content could leak past token
- * expiry. `Cache-Control` only governs browsers/downstream proxies; the shared
- * edge cache follows the route-cache options, so opt out of those too --
- * otherwise the draft response is stored in the shared cache and served on
- * cache hits without token verification until TTL/purge. Opt out for any
- * request carrying a `_preview` param (valid or not): those URLs are
- * per-token, so cached copies are useless at best and drafts at worst.
+ * Whether the request asks the image endpoint EmDash installs for a stored
+ * media file. That response is built from the file's bytes alone and is the
+ * same for every viewer. Any other source is fetched with the request's
+ * cookies, so it can be a route that renders draft content.
  */
-function keepPreviewUncached(
+function isStoredMediaImageRequest(context: APIContext): boolean {
+	const route = virtualConfig?.imageEndpointRoute;
+	return (
+		typeof route === "string" &&
+		context.routePattern === route &&
+		matchInternalMediaKey(context.url.searchParams.get("href")) !== null
+	);
+}
+
+/**
+ * Preview and edit-mode responses must not be cached, whatever their content
+ * type -- a feed or JSON route reads the same drafts as a page, and a cached
+ * copy could reach anonymous visitors or outlive the preview token.
+ * `Cache-Control` only governs browsers/downstream proxies; the shared edge
+ * cache follows the route-cache options, so opt out of those too -- otherwise
+ * the draft response is stored in the shared cache and served on cache hits
+ * until TTL/purge. Opt out for any request carrying a `_preview` param (valid
+ * or not): those URLs are per-token, so cached copies are useless at best and
+ * drafts at worst.
+ */
+function keepDraftsUncached(
 	response: Response,
-	opts: { hasPreviewToken: boolean; isPreview: boolean; routeCache: RouteCache },
+	opts: { hasPreviewToken: boolean; servesDrafts: boolean; routeCache: RouteCache },
 ): Response {
-	if (opts.hasPreviewToken) {
+	if (opts.hasPreviewToken || opts.servesDrafts) {
 		optOutOfRouteCache(opts.routeCache);
 	}
-	if (!opts.isPreview) return response;
+	if (!opts.servesDrafts) return response;
 	// Clone before modifying headers -- the original may be immutable.
 	const uncached = new Response(response.body, response);
 	uncached.headers.set("Cache-Control", "private, no-store");
@@ -248,9 +266,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		return runWithContext(
 			{ editMode: hasEditCookie, preview, db: playgroundDb, dbIsIsolated: true },
 			async () => {
-				const response = keepPreviewUncached(await next(), {
+				const response = keepDraftsUncached(await next(), {
 					hasPreviewToken,
-					isPreview: !!preview,
+					servesDrafts: !!preview || (hasEditCookie && !isStoredMediaImageRequest(context)),
 					routeCache: context.cache,
 				});
 				if (!hasEditCookie || toolbarMode === false) return response;
@@ -344,9 +362,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// loaders would fall back to the singleton non-session dialect.
 		const parent = getRequestContext();
 		return runWithContext({ ...parent, editMode, preview, locale }, async () => {
-			const response = keepPreviewUncached(await next(), {
+			const response = keepDraftsUncached(await next(), {
 				hasPreviewToken,
-				isPreview: !!preview,
+				servesDrafts: !!preview || (editMode && !isStoredMediaImageRequest(context)),
 				routeCache,
 			});
 

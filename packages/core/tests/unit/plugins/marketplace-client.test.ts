@@ -469,6 +469,75 @@ describe("MarketplaceClient", () => {
 		});
 	});
 
+	describe("redirects", () => {
+		function redirect(location: string): Response {
+			return new Response(null, { status: 302, headers: { Location: location } });
+		}
+
+		const jsonRequests: Array<[string, (c: MarketplaceClient) => Promise<unknown>]> = [
+			["search", (c) => c.search("seo")],
+			["getPlugin", (c) => c.getPlugin("test-seo")],
+			["getVersions", (c) => c.getVersions("test-seo")],
+			["searchThemes", (c) => c.searchThemes("blog")],
+			["getTheme", (c) => c.getTheme("test-theme")],
+		];
+
+		it.each(jsonRequests)(
+			"%s refuses a redirect to another origin without fetching it",
+			async (_name, request) => {
+				fetchSpy.mockResolvedValueOnce(redirect("http://127.0.0.1:8933/other"));
+
+				const error: unknown = await request(client).catch((err: unknown) => err);
+
+				expect(error).toBeInstanceOf(MarketplaceError);
+				expect(error).not.toBeInstanceOf(MarketplaceUnavailableError);
+				expect((error as MarketplaceError).code).toBe("MARKETPLACE_REDIRECT_UNTRUSTED");
+				expect(fetchSpy).toHaveBeenCalledTimes(1);
+				expect(fetchSpy).toHaveBeenCalledWith(
+					expect.any(String),
+					expect.objectContaining({ redirect: "manual" }),
+				);
+			},
+		);
+
+		it.each(jsonRequests)(
+			"%s follows a redirect that stays on the marketplace origin",
+			async (_name, request) => {
+				fetchSpy
+					.mockResolvedValueOnce(redirect("/api/v2/moved"))
+					.mockResolvedValueOnce(new Response(JSON.stringify({ items: [] }), { status: 200 }));
+
+				await request(client);
+
+				expect(fetchSpy).toHaveBeenCalledTimes(2);
+				expect(fetchSpy).toHaveBeenLastCalledWith(`${BASE_URL}/api/v2/moved`, {
+					headers: { Accept: "application/json" },
+					redirect: "manual",
+				});
+			},
+		);
+
+		it("stops a same-origin redirect loop", async () => {
+			fetchSpy.mockImplementation(async () => redirect("/loop"));
+
+			await expect(client.getPlugin("test-seo")).rejects.toMatchObject({
+				code: "MARKETPLACE_TOO_MANY_REDIRECTS",
+			});
+		});
+
+		it("reportInstall does not follow redirects", async () => {
+			fetchSpy.mockResolvedValueOnce(redirect("http://127.0.0.1:8933/internal"));
+
+			await client.reportInstall("test-seo", "1.0.0");
+
+			expect(fetchSpy).toHaveBeenCalledTimes(1);
+			expect(fetchSpy).toHaveBeenCalledWith(
+				`${BASE_URL}/api/v1/plugins/test-seo/installs`,
+				expect.objectContaining({ method: "POST", redirect: "manual" }),
+			);
+		});
+	});
+
 	describe("trailing slash handling", () => {
 		it("strips trailing slashes from base URL", async () => {
 			const clientWithSlash = createMarketplaceClient("https://example.com/");
@@ -510,6 +579,38 @@ describe("tar parser", () => {
 		const bundle = await client.downloadBundle("test", "1.0.0");
 
 		expect(bundle.manifest.id).toBe("test");
+		vi.restoreAllMocks();
+	});
+
+	it.each([
+		["the same path twice", "./backend.js"],
+		["a package/ twin", "package/backend.js"],
+		["a ./package/ twin", "./package/backend.js"],
+	])("rejects a bundle that holds %s", async (_label, twin) => {
+		const manifest = {
+			id: "test",
+			version: "1.0.0",
+			capabilities: [],
+			allowedHosts: [],
+			storage: {},
+			hooks: [],
+			routes: [],
+			admin: {},
+		};
+		const tarData = createTar({
+			"manifest.json": JSON.stringify(manifest),
+			"backend.js": "export default { first: true };",
+			[twin]: "export default {};",
+		});
+		const gzipped = await gzip(tarData);
+
+		const fetchSpy = vi.fn().mockResolvedValueOnce(new Response(gzipped, { status: 200 }));
+		vi.stubGlobal("fetch", fetchSpy);
+
+		const client = createMarketplaceClient("https://example.com");
+		await expect(client.downloadBundle("test", "1.0.0")).rejects.toThrow(
+			"duplicate or ambiguous path backend.js",
+		);
 		vi.restoreAllMocks();
 	});
 

@@ -8,8 +8,8 @@
 import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
-import { requirePerm, requireOwnerPerm } from "#api/authorize.js";
-import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
+import { requirePerm, requireOwnerPerm, toPublishedListView } from "#api/authorize.js";
+import { apiError, apiSuccess, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { parseBody, parseQuery, isParseError } from "#api/parse.js";
 import { contentListQuery, contentCreateBody } from "#api/schemas.js";
 
@@ -29,18 +29,21 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 	// Subscribers must only see published content; force the status filter
 	// regardless of caller-supplied value. Any user with content:read_drafts
 	// (CONTRIBUTOR+) keeps the requested filter.
-	const params_ = hasPermission(user, "content:read_drafts")
-		? query
-		: { ...query, status: "published" };
-
-	const result = await emdash.handleContentList(collection, params_);
-
+	const readDrafts = hasPermission(user, "content:read_drafts");
+	const result = await emdash.handleContentList(
+		collection,
+		readDrafts ? query : { ...query, status: "published" },
+	);
+	if (result.success && !readDrafts) {
+		// A published entry can still carry a pending draft.
+		return apiSuccess(toPublishedListView(result.data));
+	}
 	return unwrapResult(result);
 };
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
-	if (!emdash?.handleContentCreate || !emdash?.handleContentGet) {
+	if (!emdash?.handleContentCreate || !emdash?.handleContentGetById) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 	const denied = requirePerm(user, "content:create");
@@ -51,7 +54,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 	// Creating a translation requires edit permission on the source item
 	if (body.translationOf) {
-		const source = await emdash.handleContentGet(collection, body.translationOf);
+		const source = await emdash.handleContentGetById(collection, body.translationOf);
 		if (!source.success) {
 			return apiError(
 				source.error?.code ?? "NOT_FOUND",

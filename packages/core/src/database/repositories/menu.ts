@@ -394,6 +394,20 @@ export class MenuRepository {
 		return rows.map(rowToMenuItem);
 	}
 
+	/** Batch variant of {@link findItems}: the items of several menus, unordered. */
+	async findItemsForMenus(menuIds: string[]): Promise<MenuItem[]> {
+		const items: MenuItem[] = [];
+		for (const batch of chunks(menuIds, SQL_BATCH_SIZE)) {
+			const rows = await this.db
+				.selectFrom("_emdash_menu_items")
+				.selectAll()
+				.where("menu_id", "in", batch)
+				.execute();
+			for (const row of rows) items.push(rowToMenuItem(row));
+		}
+		return items;
+	}
+
 	/**
 	 * Returns true when a menu already exists for the given `(name, locale)`.
 	 * Used by the handler to surface a CONFLICT before attempting the insert.

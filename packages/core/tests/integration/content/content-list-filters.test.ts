@@ -257,6 +257,20 @@ describeEachDialect("content list filters (#1288)", (dialect) => {
 		expect(result.data.items.map((a) => a.id).toSorted()).toEqual([aliceId, bobId].toSorted());
 	});
 
+	it("returns author email addresses only when asked to", async () => {
+		const withheld = await handleContentAuthors(ctx.db, "posts");
+		if (!withheld.success) throw new Error("authors failed");
+		expect(withheld.data.items).toHaveLength(2);
+		expect(withheld.data.items.every((a) => !("email" in a))).toBe(true);
+
+		const included = await handleContentAuthors(ctx.db, "posts", { includeEmail: true });
+		if (!included.success) throw new Error("authors failed");
+		expect(included.data.items.map((a) => a.email)).toEqual([
+			"alice@example.com",
+			"bob@example.com",
+		]);
+	});
+
 	it("excludes authors with no live content", async () => {
 		// Carol exists as a user but has authored nothing.
 		const users = new UserRepository(ctx.db);

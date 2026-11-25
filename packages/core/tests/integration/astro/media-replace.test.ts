@@ -26,7 +26,10 @@ function memoryStorage() {
 			return { key: options.key, url: `/media/${options.key}`, size: options.body.byteLength };
 		},
 	);
-	return { objects, upload };
+	const remove = vi.fn(async (key: string) => {
+		objects.delete(key);
+	});
+	return { objects, upload, delete: remove };
 }
 
 function routeCache() {
@@ -326,6 +329,90 @@ describe("PUT /media/:id/replace", () => {
 			original.storageKey,
 		]);
 		expect((await new MediaRepository(db).findMany()).items).toHaveLength(1);
+		expect(storage.delete).not.toHaveBeenCalled();
+	});
+
+	it("does not write an item deleted while the request body was still arriving", async () => {
+		const original = await createImage();
+		const storage = memoryStorage();
+		const whole = replaceRequest();
+		const body = new Uint8Array(await whole.arrayBuffer());
+		const held = new TransformStream<Uint8Array, Uint8Array>();
+		const writer = held.writable.getWriter();
+		const request = new Request(whole.url, {
+			method: "PUT",
+			headers: whole.headers,
+			body: held.readable,
+			duplex: "half",
+		} as RequestInit);
+
+		const pending = putReplace(buildContext({ db, request, storage }));
+		void writer.write(body.subarray(0, body.byteLength - 1));
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		await new MediaRepository(db).delete(original.id);
+		void writer.write(body.subarray(body.byteLength - 1));
+		void writer.close();
+
+		expect((await pending).status).toBe(404);
+		expect(storage.upload).not.toHaveBeenCalled();
+		expect(storage.objects.has(original.storageKey)).toBe(false);
+	});
+
+	it("refuses another author's image before reading the request body", async () => {
+		await createImage({ authorId: "author-2" });
+		const storage = memoryStorage();
+		const whole = replaceRequest();
+		const held = new TransformStream<Uint8Array, Uint8Array>();
+		const request = new Request(whole.url, {
+			method: "PUT",
+			headers: whole.headers,
+			body: held.readable,
+			duplex: "half",
+		} as RequestInit);
+
+		const response = await putReplace(buildContext({ db, request, storage }));
+
+		expect(response.status).toBe(403);
+		expect(storage.upload).not.toHaveBeenCalled();
+	});
+
+	it("removes the stored bytes when the item is deleted during the storage write", async () => {
+		const original = await createImage();
+		const repo = new MediaRepository(db);
+		const storage = memoryStorage();
+		const store = storage.upload.getMockImplementation()!;
+		storage.upload.mockImplementationOnce(async (options) => {
+			await repo.delete(original.id);
+			return store(options);
+		});
+
+		const response = await putReplace(buildContext({ db, request: replaceRequest(), storage }));
+
+		expect(response.status).toBe(500);
+		expect(await response.json()).toMatchObject({
+			error: { code: "MEDIA_REPLACE_METADATA_ERROR" },
+		});
+		expect(storage.upload).toHaveBeenCalledTimes(1);
+		expect(storage.objects.has(original.storageKey)).toBe(false);
+		expect(await repo.hasUploadAttempt(original.storageKey)).toBe(false);
+	});
+
+	it("queues the stored bytes for cleanup when removing them fails", async () => {
+		const original = await createImage();
+		const repo = new MediaRepository(db);
+		const storage = memoryStorage();
+		const store = storage.upload.getMockImplementation()!;
+		storage.upload.mockImplementationOnce(async (options) => {
+			await repo.delete(original.id);
+			return store(options);
+		});
+		storage.delete.mockRejectedValueOnce(new Error("storage unavailable"));
+		vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+		const response = await putReplace(buildContext({ db, request: replaceRequest(), storage }));
+
+		expect(response.status).toBe(500);
+		expect(await repo.findUploadAttemptsForCleanup()).toEqual([original.storageKey]);
 	});
 
 	it.each([

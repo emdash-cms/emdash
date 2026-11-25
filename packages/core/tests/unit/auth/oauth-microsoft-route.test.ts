@@ -67,11 +67,18 @@ describe("Microsoft login through the OAuth routes", () => {
 	): Promise<string> {
 		const { start, callback } = await loadRoutes(ENV);
 		const locals = { emdash: { db, config: { authProviders: [microsoft(options)] } } };
+		const jar = new Map<string, string>();
+		const cookies = {
+			get: (name: string) => (jar.has(name) ? { value: jar.get(name) } : undefined),
+			set: (name: string, value: string) => jar.set(name, value),
+			delete: (name: string) => jar.delete(name),
+		};
 
 		const started = await start({
 			params: { provider: "microsoft" },
 			request: new Request("http://localhost:4321/_emdash/api/auth/oauth/microsoft"),
 			locals,
+			cookies,
 			redirect,
 		} as unknown as Parameters<typeof start>[0]);
 		const authorizeUrl = new URL(started.headers.get("Location") ?? "");
@@ -107,7 +114,8 @@ describe("Microsoft login through the OAuth routes", () => {
 				`http://localhost:4321/_emdash/api/auth/oauth/microsoft/callback?code=auth-code&state=${state}`,
 			),
 			locals,
-			session: { set: vi.fn() },
+			cookies,
+			session: { set: vi.fn(), regenerate: vi.fn(async () => {}) },
 			redirect,
 		} as unknown as Parameters<typeof callback>[0]);
 		return finished.headers.get("Location") ?? "";

@@ -383,6 +383,49 @@ describe("Zod Generator", () => {
 			expect(schema.safeParse({ id: "img-light", darkVariant: "img-dark" }).success).toBe(false);
 		});
 
+		describe("URLs in image and file values", () => {
+			const base = {
+				id: "f1",
+				collectionId: "c1",
+				columnType: "TEXT",
+				required: true,
+				unique: false,
+				sortOrder: 0,
+				createdAt: new Date().toISOString(),
+			} as const;
+			const image = generateFieldSchema({ ...base, slug: "hero", label: "Hero", type: "image" });
+			const file = generateFieldSchema({ ...base, slug: "doc", label: "Doc", type: "file" });
+
+			it.each([
+				"javascript:alert(1)",
+				"JAVASCRIPT:alert(1)",
+				"data:text/html,<script>alert(1)</script>",
+				"vbscript:msgbox(1)",
+			])("rejects %j", (url) => {
+				const external = { id: "", provider: "external", src: url };
+				expect(image.safeParse(external).success).toBe(false);
+				expect(image.safeParse({ id: "p1", provider: "photos", previewUrl: url }).success).toBe(
+					false,
+				);
+				expect(image.safeParse({ id: "img1", darkVariant: external }).success).toBe(false);
+				expect(file.safeParse(external).success).toBe(false);
+				expect(file.safeParse({ id: "", provider: "external", url }).success).toBe(false);
+			});
+
+			it.each(["https://cdn.example/a.pdf", "/_emdash/api/media/file/a.pdf", "files/a.pdf"])(
+				"accepts %j",
+				(url) => {
+					const external = { id: "", provider: "external", src: url };
+					expect(image.parse({ ...external, previewUrl: url, darkVariant: external })).toEqual({
+						...external,
+						previewUrl: url,
+						darkVariant: external,
+					});
+					expect(file.parse({ ...external, url })).toEqual({ ...external, url });
+				},
+			);
+		});
+
 		it("should make field optional when required is false", () => {
 			const field: Field = {
 				id: "f1",

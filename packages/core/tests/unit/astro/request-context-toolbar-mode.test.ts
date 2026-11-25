@@ -340,7 +340,7 @@ describe("toolbar: false", () => {
 		const res = await onRequest(context, async () => htmlResponse());
 
 		expect(await res.text()).not.toContain("emdash-toolbar");
-		expect(res.headers.get("Cache-Control")).toBeNull();
+		expect(res.headers.get("Cache-Control")).toBe("private, no-store");
 	});
 });
 

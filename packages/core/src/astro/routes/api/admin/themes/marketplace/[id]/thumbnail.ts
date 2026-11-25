@@ -11,7 +11,7 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError } from "#api/error.js";
-import { fetchWithinOrigin, MarketplaceError } from "#plugins/marketplace.js";
+import { fetchWithinOrigin, MarketplaceError, proxiedImageResponse } from "#plugins/marketplace.js";
 
 export const prerender = false;
 
@@ -37,25 +37,13 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 
 	try {
 		const resp = await fetchWithinOrigin(target.href, "Thumbnail fetch", "PROXY");
-		if (!resp.ok) {
-			// Allowlist: only forward Content-Type from upstream.
-			// Never copy all upstream headers (denylist approach leaks
-			// headers we haven't anticipated).
-			return new Response(resp.body, {
-				status: resp.status,
-				headers: {
-					"Content-Type": resp.headers.get("Content-Type") ?? "application/octet-stream",
-					"Cache-Control": "private, no-store",
-				},
-			});
-		}
+		const image = await proxiedImageResponse(resp);
+		if (image) return image;
 
-		return new Response(resp.body, {
-			headers: {
-				"Content-Type": resp.headers.get("Content-Type") ?? "image/png",
-				"Cache-Control": "private, no-store",
-			},
-		});
+		if (resp.status === 404) {
+			return apiError("NOT_FOUND", "Thumbnail not found", 404);
+		}
+		return apiError("PROXY_ERROR", "Marketplace did not return an image", 502);
 	} catch (error) {
 		if (error instanceof MarketplaceError && error.code) {
 			return apiError(error.code, "Thumbnail redirect was not followed", 502);

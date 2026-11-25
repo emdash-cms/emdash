@@ -20,6 +20,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST as signupRequest } from "../../../src/astro/routes/api/auth/signup/request.js";
 import type { Database } from "../../../src/database/types.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
+import { runWithContext } from "../../../src/request-context.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 // Simulate a Cloudflare request so getClientIp returns a value. Without the
@@ -87,7 +89,42 @@ describe("POST /auth/signup/request rate limiting", () => {
 		const email = buildEmail();
 		const res = await signupRequest(ctx({ db, email, body: { email: "a@allowed.com" } }));
 		expect(res.status).toBe(200);
+		await waitForDeferredTasks();
 		expect(email.send).toHaveBeenCalledTimes(1);
+	});
+
+	it("answers before storing the token or sending the email when the host can run work after the response", async () => {
+		const email = buildEmail();
+
+		// An allowed, unregistered address is the only case that stores a
+		// token and sends an email, so the response must not wait for either.
+		const res = await runWithContext({ editMode: false, hostWaitUntil: () => vi.fn() }, () =>
+			signupRequest(ctx({ db, email, body: { email: "a@allowed.com" } })),
+		);
+		expect(res.status).toBe(200);
+		expect(email.send).not.toHaveBeenCalled();
+		expect(await db.selectFrom("auth_tokens").select("hash").execute()).toHaveLength(0);
+
+		await waitForDeferredTasks();
+		expect(await db.selectFrom("auth_tokens").select("hash").execute()).toHaveLength(1);
+		expect(email.send).toHaveBeenCalledTimes(1);
+	});
+
+	it("sends before answering when the host may stop after the response", async () => {
+		const email = buildEmail();
+		const res = await signupRequest(ctx({ db, email, body: { email: "a@allowed.com" } }));
+		expect(res.status).toBe(200);
+		expect(email.send).toHaveBeenCalledTimes(1);
+		expect(await db.selectFrom("auth_tokens").select("hash").execute()).toHaveLength(1);
+	});
+
+	it("pauses before answering a domain that is not allowed when sending inline", async () => {
+		const email = buildEmail();
+		const started = performance.now();
+		const res = await signupRequest(ctx({ db, email, body: { email: "a@other.com" } }));
+		expect(res.status).toBe(200);
+		expect(performance.now() - started).toBeGreaterThanOrEqual(95);
+		expect(email.send).not.toHaveBeenCalled();
 	});
 
 	it("stops sending emails after the per-IP limit is exceeded", async () => {
@@ -100,6 +137,7 @@ describe("POST /auth/signup/request rate limiting", () => {
 		}
 
 		// Matches magic-link/send: 3 requests per 5 minutes per IP.
+		await waitForDeferredTasks();
 		expect(email.send).toHaveBeenCalledTimes(3);
 	});
 
@@ -148,10 +186,36 @@ describe("POST /auth/signup/request rate limiting", () => {
 		for (const local of ["a", "b", "c", "d"]) {
 			await signupRequest(makeCtx(req("198.51.100.7", `${local}@allowed.com`)));
 		}
+		await waitForDeferredTasks();
 		expect(email.send).toHaveBeenCalledTimes(3);
 
 		// IP B still gets through
 		await signupRequest(makeCtx(req("198.51.100.8", "x@allowed.com")));
+		await waitForDeferredTasks();
+		expect(email.send).toHaveBeenCalledTimes(4);
+	});
+
+	it("counts every address of one IPv6 /64 as one client", async () => {
+		const email = buildEmail();
+
+		function makeCtx(ip: string, addr: string): APIContext {
+			const request = cfRequest("http://localhost/_emdash/api/auth/signup/request", {
+				email: addr,
+			});
+			request.headers.set("cf-connecting-ip", ip);
+			return {
+				request,
+				locals: { emdash: { db, email } },
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub
+			} as unknown as APIContext;
+		}
+
+		for (const host of ["1", "2", "3", "4"]) {
+			await signupRequest(makeCtx(`2001:db8:bad:1::${host}`, `${host}@allowed.com`));
+		}
+		expect(email.send).toHaveBeenCalledTimes(3);
+
+		await signupRequest(makeCtx("2001:db8:bad:2::1", "x@allowed.com"));
 		expect(email.send).toHaveBeenCalledTimes(4);
 	});
 });
