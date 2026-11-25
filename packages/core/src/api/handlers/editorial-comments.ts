@@ -337,12 +337,13 @@ export function handleEditorialCommentCreate(
 			const refused = await checkWritable(trx, entry);
 			if (refused) return refused;
 
-			await new EditorialThreadRepository(trx).addComment({
+			const added = await new EditorialThreadRepository(trx).addComment({
 				threadId,
 				authorId: actor.id,
 				body: input.body,
 				now: now(),
 			});
+			if (!added) return threadNotFound();
 			return threadView(trx, actor, entry, threadId);
 		}),
 	);
@@ -382,12 +383,13 @@ export function handleEditorialCommentUpdate(
 			const refused = await checkWritable(trx, entry);
 			if (refused) return refused;
 
-			await new EditorialThreadRepository(trx).editComment({
+			const edited = await new EditorialThreadRepository(trx).editComment({
 				commentId,
 				threadId,
 				body: input.body,
 				now: now(),
 			});
+			if (!edited) return fail(ErrorCode.NOT_FOUND, "Comment not found");
 			return threadView(trx, actor, entry, threadId);
 		}),
 	);
