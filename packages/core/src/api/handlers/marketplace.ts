@@ -474,6 +474,18 @@ export async function handleMarketplaceInstall(
 			};
 		}
 
+		// Plugin KV, storage, and settings are scoped by plugin ID alone, so a
+		// row from another source must not be taken over by this bundle.
+		if (existing) {
+			return {
+				success: false,
+				error: {
+					code: "PLUGIN_ID_CONFLICT",
+					message: `Cannot install marketplace plugin "${pluginId}" — a ${existing.source} plugin with the same ID already exists`,
+				},
+			};
+		}
+
 		// Fetch plugin detail from marketplace
 		const pluginDetail = await client.getPlugin(pluginId);
 		const version = opts?.version ?? pluginDetail.latestVersion?.version;
