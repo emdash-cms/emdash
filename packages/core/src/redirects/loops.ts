@@ -174,6 +174,15 @@ function buildGraph(edges: RedirectEdge[]): Map<string, { destination: string; i
 	return graph;
 }
 
+/**
+ * Most hops a walk resolves through pattern matching. Exact hops only move
+ * between stored sources, but a pattern can rewrite a path into a new one that
+ * a pattern matches again (`/[...path]` → `/moved/[...path]`), so such a chain
+ * may never repeat a path or end. Browsers give up after 20 redirects, so a
+ * longer chain fails for visitors the way a loop does.
+ */
+const MAX_PATTERN_HOPS = 20;
+
 /** Compare paths in the form the runtime matches them in. */
 function normalizeEdges(edges: RedirectEdge[]): RedirectEdge[] {
 	return edges.map((edge) => ({
@@ -186,6 +195,7 @@ function normalizeEdges(edges: RedirectEdge[]): RedirectEdge[] {
 /**
  * Detect all redirect IDs that participate in cycles.
  * Walks every node in the graph once, collecting IDs from any cycles found.
+ * A chain that patterns extend past `MAX_PATTERN_HOPS` counts as a cycle.
  *
  * @returns Array of redirect IDs that are part of a loop
  */
@@ -195,6 +205,7 @@ export function detectLoops(rawEdges: RedirectEdge[]): string[] {
 	const patterns = compilePatterns(edges);
 	const visited = new Set<string>();
 	const loopRedirectIds = new Set<string>();
+	const endlessRedirectIds = new Set<string>();
 
 	for (const [startSource] of graph) {
 		if (visited.has(startSource)) continue;
@@ -202,6 +213,7 @@ export function detectLoops(rawEdges: RedirectEdge[]): string[] {
 		const path: string[] = [];
 		const pathSet = new Set<string>();
 		const pathIds: string[] = [];
+		let patternHops = 0;
 		let current: string | undefined = startSource;
 
 		while (current) {
@@ -219,13 +231,31 @@ export function detectLoops(rawEdges: RedirectEdge[]): string[] {
 			const next = resolveNext(current, graph, patterns, edges);
 			if (!next) break;
 
+			if (!graph.has(current)) {
+				// An endless chain is followed once, not again from each path leading into it
+				if (endlessRedirectIds.has(next.id)) break;
+
+				if (++patternHops > MAX_PATTERN_HOPS) {
+					// Only the latest hops are reported; earlier ones may just lead into the chain
+					for (const id of pathIds.slice(-MAX_PATTERN_HOPS / 2)) {
+						loopRedirectIds.add(id);
+						endlessRedirectIds.add(id);
+					}
+					break;
+				}
+			}
+
 			path.push(current);
 			pathSet.add(current);
 			pathIds.push(next.id);
 			current = next.destination;
 		}
 
-		for (const node of path) visited.add(node);
+		// Only the graph's own nodes are remembered: the paths patterns compute
+		// are unbounded in number and length
+		for (const node of path) {
+			if (graph.has(node)) visited.add(node);
+		}
 	}
 
 	return [...loopRedirectIds];
@@ -303,6 +333,7 @@ export function wouldCreateLoop(
 		const path = [source, destination];
 		let current = start;
 		const seen = new Set<string>([source, destination, start]);
+		let patternHops = 0;
 
 		// Walk the chain until it ends or we revisit a node
 		// eslint-disable-next-line no-constant-condition -- terminates via return/break when chain ends or cycle found
@@ -322,6 +353,8 @@ export function wouldCreateLoop(
 				path.push(displayPath);
 				return path; // cycle found
 			}
+
+			if (!graph.has(current) && ++patternHops > MAX_PATTERN_HOPS) return path;
 
 			// If the resolved path contains dummy segments, try to find the
 			// original pattern template that produced it for cleaner display

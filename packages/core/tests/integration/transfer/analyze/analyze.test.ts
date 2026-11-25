@@ -295,6 +295,25 @@ describeEachDialect("site import analysis", (dialect) => {
 				ids: [`${ids.oldBlogRedirect}a`, `${ids.oldBlogRedirect}b`],
 			});
 		});
+
+		it("disables a pattern redirect whose destination its own source matches", async () => {
+			const plan = await planFor({
+				mutate: (records) => {
+					records.redirect.push({
+						...records.redirect[0]!,
+						id: `${ids.oldBlogRedirect}a`,
+						source: "/[...path]",
+						destination: "/moved/[...path]",
+					});
+				},
+			});
+			expect(plan.blockers).toEqual([]);
+			expect(plan.transformations).toContainEqual({
+				code: "redirect_loop_disabled",
+				kind: "redirect",
+				ids: [`${ids.oldBlogRedirect}a`],
+			});
+		});
 	});
 
 	describe("the standalone validator", () => {

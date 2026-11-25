@@ -273,6 +273,25 @@ describe("redirect handlers — loop detection", () => {
 				expect(result.data.loopRedirectIds).toBeUndefined();
 			}
 		});
+
+		it("lists a stored pattern redirect whose destination its own source matches", async () => {
+			const endless = await new RedirectRepository(db).create({
+				source: "/[...path]",
+				destination: "/moved/[...path]",
+				isPattern: true,
+			});
+			await new RedirectRepository(db).create({ source: "/old", destination: "/new" });
+
+			const result = await handleRedirectList(db, {});
+
+			expect(result).toMatchObject({
+				success: true,
+				data: { loopRedirectIds: [endless.id] },
+			});
+			await expect(
+				handleRedirectCreate(db, { source: "/a", destination: "/b" }),
+			).resolves.toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+		});
 	});
 
 	describe("redirect cache invalidation", () => {

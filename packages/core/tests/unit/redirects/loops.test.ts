@@ -97,6 +97,51 @@ describe("detectLoops", () => {
 
 		expect(detectLoops(edges)).toEqual(expect.arrayContaining(["1", "2"]));
 	});
+
+	it("reports a pattern redirect whose destination its own source matches", () => {
+		// /x → /moved/x → /moved/moved/x → … never repeats a path and never ends
+		const edges = [edge("1", "/[...path]", "/moved/[...path]", true, true)];
+		expect(detectLoops(edges)).toEqual(["1"]);
+	});
+
+	it("reports pattern redirects that lengthen a path between them", () => {
+		const edges = [
+			edge("1", "/a/[...path]", "/b/extra/[...path]", true, true),
+			edge("2", "/b/[...path]", "/a/[...path]", true, true),
+		];
+		expect(detectLoops(edges).toSorted()).toEqual(["1", "2"]);
+	});
+
+	it("does not report redirects that only lead into an endless chain", () => {
+		const edges = [
+			edge("entry", "/start", "/legacy/post"),
+			edge("pattern", "/legacy/[slug]", "/archive/[slug]", true, true),
+			edge("exact", "/old", "/new"),
+			edge("endless", "/[...path]", "/moved/[...path]", true, true),
+		];
+		expect(detectLoops(edges)).toEqual(["endless"]);
+	});
+
+	it("finishes when many redirects lead into an endless chain with a long destination", () => {
+		const edges = Array.from({ length: 20_000 }, (_, i) => edge(`e${i}`, `/old/${i}`, `/new/${i}`));
+		edges.push(edge("endless", "/[...path]", `/${"moved".repeat(400)}/[...path]`, true, true));
+		expect(detectLoops(edges)).toEqual(["endless"]);
+	});
+
+	it("does not report a long chain of exact redirects", () => {
+		const edges = Array.from({ length: 100 }, (_, i) =>
+			edge(`${i}`, `/step-${i}`, `/step-${i + 1}`),
+		);
+		expect(detectLoops(edges)).toHaveLength(0);
+	});
+
+	it("does not report a pattern that shortens a path until it stops matching", () => {
+		const edges = [
+			edge("1", "/strip/[first]/[...rest]", "/strip/[...rest]", true, true),
+			edge("2", "/deep", "/strip/a/b/c/d/e/f"),
+		];
+		expect(detectLoops(edges)).toHaveLength(0);
+	});
 });
 
 describe("wouldCreateLoop", () => {
@@ -200,6 +245,18 @@ describe("wouldCreateLoop", () => {
 		];
 		const result = wouldCreateLoop("/news/[slug]", "/blog/[slug]", edges);
 		expect(result).not.toBeNull();
+	});
+
+	it("rejects a redirect whose destination leads into an endless chain", () => {
+		const edges = [edge("1", "/[...path]", "/moved/[...path]", true, true)];
+		const result = wouldCreateLoop("/a", "/b", edges);
+		expect(result).not.toBeNull();
+		expect(result!.slice(0, 4)).toEqual(["/a", "/b", "/moved/b", "/moved/moved/b"]);
+	});
+
+	it("allows a redirect into a pattern that shortens a path until it stops matching", () => {
+		const edges = [edge("1", "/strip/[first]/[...rest]", "/strip/[...rest]", true, true)];
+		expect(wouldCreateLoop("/deep", "/strip/a/b/c/d/e/f", edges)).toBeNull();
 	});
 
 	it("does not compile an ambiguous destination template", () => {
