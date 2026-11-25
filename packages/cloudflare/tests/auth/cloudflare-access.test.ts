@@ -50,6 +50,34 @@ describe("resolveRoleFromGroups", () => {
 		).toBe(40);
 	});
 
+	it("matches groups by id when matchGroupsBy is id", () => {
+		const byId: AccessConfig = {
+			teamDomain: config.teamDomain,
+			roleMapping: { "id-admins": 50 },
+			matchGroupsBy: "id",
+		};
+		expect(resolveRoleFromGroups([{ id: "id-admins", name: "Admins" }], byId)).toBe(50);
+	});
+
+	it("does not match a group whose name equals an id key when matchGroupsBy is id", () => {
+		expect(
+			resolveRoleFromGroups([{ id: "id-other", name: "id-admins" }], {
+				teamDomain: config.teamDomain,
+				roleMapping: { "id-admins": 50 },
+				matchGroupsBy: "id",
+			}),
+		).toBe(30);
+	});
+
+	it("does not match group names when matchGroupsBy is id", () => {
+		expect(
+			resolveRoleFromGroups([{ id: "id-other", name: "Admins" }], {
+				...config,
+				matchGroupsBy: "id",
+			}),
+		).toBe(30);
+	});
+
 	it("uses the default role when no role mapping is configured", () => {
 		expect(
 			resolveRoleFromGroups(undefined, {
@@ -99,6 +127,7 @@ describe("authenticate", () => {
 		name: string;
 		identity: Record<string, unknown>;
 		mapping: Record<string, number> | undefined;
+		matchGroupsBy?: AccessConfig["matchGroupsBy"];
 		expected: number;
 	}>([
 		{
@@ -208,12 +237,39 @@ describe("authenticate", () => {
 			mapping: { "Web Admins": 50 },
 			expected: 20,
 		},
-	])("$name", async ({ identity, mapping, expected }) => {
+		{
+			name: "matches a group by id when matchGroupsBy is id",
+			identity: githubIdentity({ groups: [{ id: "group-1", name: "Admins" }] }),
+			mapping: { "group-1": 50 },
+			matchGroupsBy: "id",
+			expected: 50,
+		},
+		{
+			name: "ignores a same-named group with another id when matchGroupsBy is id",
+			identity: githubIdentity({
+				groups: [
+					{ id: "group-2", name: "Admins" },
+					{ id: "group-3", name: "group-1" },
+				],
+			}),
+			mapping: { "group-1": 50, Admins: 50 },
+			matchGroupsBy: "id",
+			expected: 20,
+		},
+		{
+			name: "still matches GitHub teams when matchGroupsBy is id",
+			identity: githubIdentity({ teams: [{ name: "Web Admins", org_id: 1 }] }),
+			mapping: { "my-org/Web Admins": 50 },
+			matchGroupsBy: "id",
+			expected: 50,
+		},
+	])("$name", async ({ identity, mapping, matchGroupsBy, expected }) => {
 		const result = await authenticateWithIdentity(identity, {
 			teamDomain: "example.cloudflareaccess.com",
 			audience: "test-audience",
 			defaultRole: 20,
 			roleMapping: mapping,
+			matchGroupsBy,
 		});
 
 		expect(result.role).toBe(expected);
