@@ -60,7 +60,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	const body = await parseBody(request, contentUpdateBody);
 	if (isParseError(body)) return body;
 
-	if (!emdash?.handleContentUpdate || !emdash?.handleContentGet) {
+	if (!emdash?.handleContentUpdate || !emdash?.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
@@ -98,14 +98,14 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 	const collection = params.collection!;
 	const id = params.id!;
 
-	if (!emdash?.handleContentDelete || !emdash?.handleContentGet) {
+	if (!emdash?.handleContentDelete || !emdash?.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
 	const locale = url.searchParams.get("locale") || undefined;
 
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id, locale);
+	const existing = await emdash.handleContentGetForWrite(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",

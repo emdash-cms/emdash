@@ -442,13 +442,14 @@ const restoreCommand = defineCommand({
 			description: "Content item ID or slug",
 			required: true,
 		},
+		locale: { type: "string", description: "Locale for slug resolution" },
 		...connectionArgs,
 	},
 	async run({ args }) {
 		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
-			await client.restore(args.collection, args.id);
+			await client.restore(args.collection, args.id, { locale: args.locale });
 			output({ success: true }, args);
 			consola.success(`Restored ${args.collection}/${args.id}`);
 		} catch (error) {

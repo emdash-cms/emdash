@@ -267,7 +267,7 @@ describe("content_translations + locale", () => {
 		expect(frTitle).toBe("FR");
 	});
 
-	it("write tools resolve a slug in the default locale or the given locale", async () => {
+	it("write tools refuse a slug shared by several locales unless a locale is given", async () => {
 		const create = async (title: string, locale: string) =>
 			extractJson<{ item: { id: string } }>(
 				await harness.client.callTool({
@@ -277,28 +277,43 @@ describe("content_translations + locale", () => {
 			).item.id;
 		const deId = await create("DE", "de");
 		const enId = await create("EN", "en");
-		const frId = await create("FR", "fr");
 		const repo = new ContentRepository(db);
 
-		const publish = async (expectedId: string, locale?: string) => {
-			const result = await harness.client.callTool({
-				name: "content_publish",
-				arguments: {
-					collection: "post",
-					id: "shared",
-					_rev: await currentRev(harness.client, "post", expectedId),
-					...(locale ? { locale } : {}),
-				},
-			});
-			expect(result.isError, extractText(result)).toBeFalsy();
-		};
+		const read = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id: "shared" },
+		});
+		expect(extractJson<{ item: { id: string } }>(read).item.id).toBe(enId);
 
-		await publish(enId);
-		expect((await repo.findById("post", enId))?.status).toBe("published");
-		expect((await repo.findById("post", deId))?.status).toBe("draft");
+		const ambiguous = await harness.client.callTool({
+			name: "content_publish",
+			arguments: {
+				collection: "post",
+				id: "shared",
+				_rev: await currentRev(harness.client, "post", enId),
+			},
+		});
+		expect(ambiguous.isError).toBe(true);
+		expect(extractText(ambiguous)).toContain("AMBIGUOUS_LOCALE");
+		expect((await repo.findById("post", enId))?.status).toBe("draft");
 
-		await publish(frId, "fr");
-		expect((await repo.findById("post", frId))?.status).toBe("published");
+		const scoped = await harness.client.callTool({
+			name: "content_publish",
+			arguments: {
+				collection: "post",
+				id: "shared",
+				locale: "de",
+				_rev: await currentRev(harness.client, "post", deId),
+			},
+		});
+		expect(scoped.isError, extractText(scoped)).toBeFalsy();
+		expect((await repo.findById("post", deId))?.status).toBe("published");
+
+		const refusedDelete = await harness.client.callTool({
+			name: "content_delete",
+			arguments: { collection: "post", id: "shared" },
+		});
+		expect(refusedDelete.isError).toBe(true);
 
 		const deleted = await harness.client.callTool({
 			name: "content_delete",
@@ -307,6 +322,13 @@ describe("content_translations + locale", () => {
 		expect(deleted.isError, extractText(deleted)).toBeFalsy();
 		expect(await repo.findById("post", deId)).toBeNull();
 		expect(await repo.findById("post", enId)).not.toBeNull();
+
+		const restored = await harness.client.callTool({
+			name: "content_restore",
+			arguments: { collection: "post", id: "shared" },
+		});
+		expect(restored.isError, extractText(restored)).toBeFalsy();
+		expect(await repo.findById("post", deId)).not.toBeNull();
 	});
 
 	it("content_update with locale param resolves slug per-locale", async () => {

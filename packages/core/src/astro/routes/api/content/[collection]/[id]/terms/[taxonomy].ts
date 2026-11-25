@@ -10,7 +10,7 @@ import type { APIRoute } from "astro";
 import { sql } from "kysely";
 
 import { requireAnyPerm, requireEntryEditPerm, requirePerm } from "#api/authorize.js";
-import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { apiError, apiSuccess, handleError, mapErrorStatus } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
 import { taxonomyTag } from "#cache/chrome-tags.js";
@@ -124,17 +124,17 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const denied = requireAnyPerm(user, ["content:edit_own", "content:edit_own_drafts"]);
 	if (denied) return denied;
 
-	if (!emdash.handleContentGet) {
+	if (!emdash.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
 	// Verify the content exists before modifying its terms
-	const existing = await emdash.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGetForWrite(collection, id);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "NOT_FOUND",
 			existing.error?.message ?? "Content not found",
-			existing.error?.code === "NOT_FOUND" ? 404 : 500,
+			mapErrorStatus(existing.error?.code),
 		);
 	}
 

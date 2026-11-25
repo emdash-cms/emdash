@@ -442,6 +442,13 @@ export interface EmDashHandlers {
 
 	handleContentGetIncludingTrashed: (collection: string, id: string) => Promise<HandlerResponse>;
 
+	handleContentGetForWrite: (
+		collection: string,
+		id: string,
+		locale?: string,
+		options?: { includeTrashed?: boolean },
+	) => Promise<HandlerResponse<ContentResponse & { item: Record<string, unknown> }>>;
+
 	handleContentDuplicate: (
 		collection: string,
 		id: string,

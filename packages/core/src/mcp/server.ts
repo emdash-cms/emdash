@@ -97,8 +97,8 @@ const REV_MISSING_ERROR =
  * override is stated here.
  */
 const SLUG_LOCALE_PARAM_DESCRIPTION =
-	"Locale to scope slug lookup (e.g. 'fr'). Without it, a slug in several locales " +
-	"resolves to the site's default locale. IDs are globally unique.";
+	"Locale to scope slug lookup (e.g. 'fr'). Required when the slug exists in more " +
+	"than one locale. IDs are globally unique.";
 
 const OVERRIDE_LOCK_PARAM_DESCRIPTION =
 	"Write even though someone else has this item open in the admin. Without it, " +
@@ -1277,7 +1277,7 @@ export function createMcpServer(
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
-				const source = await emdash.handleContentGet(args.collection, args.translationOf);
+				const source = await emdash.handleContentGetForWrite(args.collection, args.translationOf);
 				if (!source.success) return unwrap(source);
 				requireOwnership(
 					extra,
@@ -1432,7 +1432,7 @@ export function createMcpServer(
 			const actor = { id: userId, role: userRole };
 
 			// Fetch item to check ownership
-			const existing = await emdash.handleContentGet(args.collection, args.id, args.locale);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1608,7 +1608,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id, args.locale);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1642,6 +1642,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1650,7 +1651,9 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 
 			// Fetch trashed item to check ownership
-			const existing = await ec.handleContentGetIncludingTrashed(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale, {
+				includeTrashed: true,
+			});
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1726,7 +1729,7 @@ export function createMcpServer(
 			const { emdash, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await emdash.handleContentGet(args.collection, args.id, args.locale);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1783,7 +1786,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id, args.locale);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1834,7 +1837,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id, args.locale);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1880,7 +1883,7 @@ export function createMcpServer(
 			requireRole(extra, Role.AUTHOR);
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
-			const existing = await ec.handleContentGet(args.collection, args.id, args.locale);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1948,7 +1951,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id, args.locale);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -2017,7 +2020,7 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId } = getExtra(extra);
-			const existing = await emdash.handleContentGet(args.collection, args.id);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id);
 			if (!existing.success) return unwrap(existing);
 			requireOwnership(
 				extra,

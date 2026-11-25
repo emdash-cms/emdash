@@ -66,11 +66,11 @@ function pageQuery(options?: { limit?: number; cursor?: string }): string {
 	return qs ? `?${qs}` : "";
 }
 
-/** Encode a site package path (`records/post/000000.ndjson`) segment by segment */
 function localeQuery(locale: string | undefined): string {
 	return locale ? `?${new URLSearchParams({ locale })}` : "";
 }
 
+/** Encode a site package path (`records/post/000000.ndjson`) segment by segment */
 function encodePackagePath(path: string): string {
 	return path.split("/").map(encodeURIComponent).join("/");
 }
@@ -1022,10 +1022,10 @@ export class EmDashClient {
 	}
 
 	/** Restore a trashed content item */
-	async restore(collection: string, id: string): Promise<void> {
+	async restore(collection: string, id: string, options: { locale?: string } = {}): Promise<void> {
 		await this.request<unknown>(
 			"POST",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/restore`,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/restore${localeQuery(options.locale)}`,
 		);
 	}
 

@@ -4260,6 +4260,26 @@ export class EmDashRuntime {
 	}
 
 	/**
+	 * Resolve the entry a write targets. A slug shared by more than one locale
+	 * fails with AMBIGUOUS_LOCALE unless `locale` is given.
+	 */
+	async handleContentGetForWrite(
+		collection: string,
+		id: string,
+		locale?: string,
+		options: { includeTrashed?: boolean } = {},
+	) {
+		const result = options.includeTrashed
+			? await handleContentGetIncludingTrashed(this.db, collection, id, locale, {
+					refuseAmbiguousSlug: true,
+				})
+			: await handleContentGet(this.db, collection, id, locale, undefined, {
+					refuseAmbiguousSlug: true,
+				});
+		return this.hydrateDraftData(result);
+	}
+
+	/**
 	 * If the response item has a `draftRevisionId`, replace `item.data` with
 	 * the draft revision's data and expose the original published values as
 	 * `liveData`. This makes the content_get / content_update round-trip

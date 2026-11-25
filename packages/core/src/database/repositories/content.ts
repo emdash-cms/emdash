@@ -942,9 +942,23 @@ export class ContentRepository {
 		return this.mapRow(type, row);
 	}
 
+	/** Locales of every row with `slug`, and whether each row is trashed. */
+	async findSlugLocales(
+		type: string,
+		slug: string,
+	): Promise<Array<{ locale: string; trashed: boolean }>> {
+		const tableName = getTableName(type);
+		const result = await sql<{ locale: string; deleted_at: string | null }>`
+			SELECT locale, deleted_at FROM ${sql.ref(tableName)}
+			WHERE slug = ${slug}
+		`.execute(this.db);
+		return result.rows.map((row) => ({ locale: row.locale, trashed: row.deleted_at !== null }));
+	}
+
 	/**
 	 * Find content by slug, including trashed (soft-deleted) items.
-	 * Used by restore/permanent-delete endpoints.
+	 * Used by restore/permanent-delete endpoints, so without a locale a trashed
+	 * row is preferred over a live one.
 	 */
 	async findBySlugIncludingTrashed(
 		type: string,
@@ -963,7 +977,8 @@ export class ContentRepository {
 			: await sql<Record<string, unknown>>`
 					SELECT * FROM ${sql.ref(tableName)}
 					WHERE slug = ${slug}
-					ORDER BY ${defaultLocaleFirst("locale")}, locale ASC, id ASC
+					ORDER BY CASE WHEN deleted_at IS NULL THEN 1 ELSE 0 END,
+						${defaultLocaleFirst("locale")}, locale ASC, id ASC
 					LIMIT 1
 				`.execute(this.db);
 

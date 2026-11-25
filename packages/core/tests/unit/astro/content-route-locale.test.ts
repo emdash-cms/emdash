@@ -2,7 +2,7 @@
  * Content route locale forwarding.
  *
  * When a ?locale query param is present, single-item write routes must
- * forward it to handleContentGet so slug-based lookups resolve to the
+ * forward it to handleContentGetForWrite so slug-based lookups resolve to the
  * correct i18n variant instead of returning the first matching row.
  */
 
@@ -45,30 +45,32 @@ afterAll(async () => {
 });
 
 function buildEmdash() {
-	const handleContentGet = vi.fn(async (_collection: string, _id: string, _locale?: string) => ({
-		success: true as const,
-		data: {
-			item: {
-				id: "resolved-id",
-				type: "post",
-				slug: "hello",
-				status: "published",
-				data: {},
-				authorId: "u-edit",
-				primaryBylineId: null,
-				createdAt: "2026-01-01T00:00:00Z",
-				updatedAt: "2026-01-01T00:00:00Z",
-				publishedAt: "2026-01-01T00:00:00Z",
-				scheduledAt: null,
-				liveRevisionId: null,
-				draftRevisionId: null,
-				version: 1,
-				locale: "en",
-				translationGroup: "tg-1",
+	const handleContentGetForWrite = vi.fn(
+		async (_collection: string, _id: string, _locale?: string) => ({
+			success: true as const,
+			data: {
+				item: {
+					id: "resolved-id",
+					type: "post",
+					slug: "hello",
+					status: "published",
+					data: {},
+					authorId: "u-edit",
+					primaryBylineId: null,
+					createdAt: "2026-01-01T00:00:00Z",
+					updatedAt: "2026-01-01T00:00:00Z",
+					publishedAt: "2026-01-01T00:00:00Z",
+					scheduledAt: null,
+					liveRevisionId: null,
+					draftRevisionId: null,
+					version: 1,
+					locale: "en",
+					translationGroup: "tg-1",
+				},
+				_rev: "rev1",
 			},
-			_rev: "rev1",
-		},
-	}));
+		}),
+	);
 
 	const handleContentUpdate = vi.fn(async () => ({
 		success: true as const,
@@ -107,7 +109,7 @@ function buildEmdash() {
 
 	return {
 		db,
-		handleContentGet,
+		handleContentGetForWrite,
 		handleContentUpdate,
 		handleContentDelete,
 		handleContentPublish,
@@ -161,7 +163,7 @@ function visualCtx(
 	});
 }
 
-describe("PUT /content/:collection/:id forwards locale to handleContentGet", () => {
+describe("PUT /content/:collection/:id forwards locale to handleContentGetForWrite", () => {
 	it("passes locale=en when query param is present", async () => {
 		const emdash = buildEmdash();
 		const res = await putItem(
@@ -174,11 +176,11 @@ describe("PUT /content/:collection/:id forwards locale to handleContentGet", () 
 			}),
 		);
 		expect(res.status).toBe(200);
-		expect(emdash.handleContentGet).toHaveBeenCalledWith("post", "hello", "en");
+		expect(emdash.handleContentGetForWrite).toHaveBeenCalledWith("post", "hello", "en");
 	});
 });
 
-describe("DELETE /content/:collection/:id forwards locale to handleContentGet", () => {
+describe("DELETE /content/:collection/:id forwards locale to handleContentGetForWrite", () => {
 	it("passes locale=en when query param is present", async () => {
 		const emdash = buildEmdash();
 		const res = await deleteItem(
@@ -190,11 +192,11 @@ describe("DELETE /content/:collection/:id forwards locale to handleContentGet", 
 			}),
 		);
 		expect(res.status).toBe(200);
-		expect(emdash.handleContentGet).toHaveBeenCalledWith("post", "hello", "en");
+		expect(emdash.handleContentGetForWrite).toHaveBeenCalledWith("post", "hello", "en");
 	});
 });
 
-describe("POST /content/:collection/:id/publish forwards locale to handleContentGet", () => {
+describe("POST /content/:collection/:id/publish forwards locale to handleContentGetForWrite", () => {
 	it("passes locale=en when query param is present", async () => {
 		const emdash = buildEmdash();
 		const res = await postPublish(
@@ -206,7 +208,7 @@ describe("POST /content/:collection/:id/publish forwards locale to handleContent
 			}),
 		);
 		expect(res.status).toBe(200);
-		expect(emdash.handleContentGet).toHaveBeenCalledWith("post", "hello", "en");
+		expect(emdash.handleContentGetForWrite).toHaveBeenCalledWith("post", "hello", "en");
 		expect(emdash.handleContentPublish).toHaveBeenCalledWith(
 			"post",
 			"resolved-id",
@@ -331,7 +333,7 @@ describe("POST /content/:collection/:id/publish forwards locale to handleContent
 	});
 });
 
-describe("POST /content/:collection/:id/unpublish forwards locale to handleContentGet", () => {
+describe("POST /content/:collection/:id/unpublish forwards locale to handleContentGetForWrite", () => {
 	it("passes locale=en when query param is present", async () => {
 		const emdash = buildEmdash();
 		const res = await postUnpublish(
@@ -343,11 +345,11 @@ describe("POST /content/:collection/:id/unpublish forwards locale to handleConte
 			}),
 		);
 		expect(res.status).toBe(200);
-		expect(emdash.handleContentGet).toHaveBeenCalledWith("post", "hello", "en");
+		expect(emdash.handleContentGetForWrite).toHaveBeenCalledWith("post", "hello", "en");
 	});
 });
 
-describe("POST /content/:collection/:id/discard-draft forwards locale to handleContentGet", () => {
+describe("POST /content/:collection/:id/discard-draft forwards locale to handleContentGetForWrite", () => {
 	it("passes locale=en when query param is present", async () => {
 		const emdash = buildEmdash();
 		const res = await postDiscard(
@@ -359,11 +361,11 @@ describe("POST /content/:collection/:id/discard-draft forwards locale to handleC
 			}),
 		);
 		expect(res.status).toBe(200);
-		expect(emdash.handleContentGet).toHaveBeenCalledWith("post", "hello", "en");
+		expect(emdash.handleContentGetForWrite).toHaveBeenCalledWith("post", "hello", "en");
 	});
 });
 
-describe("POST /content/:collection/:id/schedule forwards locale to handleContentGet", () => {
+describe("POST /content/:collection/:id/schedule forwards locale to handleContentGetForWrite", () => {
 	it("passes locale=en when query param is present", async () => {
 		const emdash = buildEmdash();
 		const res = await postSchedule(
@@ -376,11 +378,11 @@ describe("POST /content/:collection/:id/schedule forwards locale to handleConten
 			}),
 		);
 		expect(res.status).toBe(200);
-		expect(emdash.handleContentGet).toHaveBeenCalledWith("post", "hello", "en");
+		expect(emdash.handleContentGetForWrite).toHaveBeenCalledWith("post", "hello", "en");
 	});
 });
 
-describe("DELETE /content/:collection/:id/schedule forwards locale to handleContentGet", () => {
+describe("DELETE /content/:collection/:id/schedule forwards locale to handleContentGetForWrite", () => {
 	it("passes locale=en when query param is present", async () => {
 		const emdash = buildEmdash();
 		const res = await deleteSchedule(
@@ -392,6 +394,6 @@ describe("DELETE /content/:collection/:id/schedule forwards locale to handleCont
 			}),
 		);
 		expect(res.status).toBe(200);
-		expect(emdash.handleContentGet).toHaveBeenCalledWith("post", "hello", "en");
+		expect(emdash.handleContentGetForWrite).toHaveBeenCalledWith("post", "hello", "en");
 	});
 });

@@ -154,8 +154,8 @@ function buildPostContext(
 		locals: {
 			emdash: {
 				db,
-				handleContentGet: (collection: string, id: string, locale?: string) =>
-					handleContentGet(db, collection, id, locale),
+				handleContentGetForWrite: (collection: string, id: string, locale?: string) =>
+					handleContentGet(db, collection, id, locale, undefined, { refuseAmbiguousSlug: true }),
 			},
 			user: adminUser,
 		},

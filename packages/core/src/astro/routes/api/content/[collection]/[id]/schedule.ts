@@ -43,14 +43,14 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 	const body = await parseBody(request, contentScheduleBody);
 	if (isParseError(body)) return body;
 
-	if (!emdash?.handleContentSchedule || !emdash?.handleContentGet) {
+	if (!emdash?.handleContentSchedule || !emdash?.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
 	const locale = url.searchParams.get("locale") || undefined;
 
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id, locale);
+	const existing = await emdash.handleContentGetForWrite(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",
@@ -95,14 +95,14 @@ export const DELETE: APIRoute = async ({ params, locals, url, cache }) => {
 	const collection = params.collection!;
 	const id = params.id!;
 
-	if (!emdash?.handleContentUnschedule || !emdash?.handleContentGet) {
+	if (!emdash?.handleContentUnschedule || !emdash?.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
 	const locale = url.searchParams.get("locale") || undefined;
 
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id, locale);
+	const existing = await emdash.handleContentGetForWrite(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",

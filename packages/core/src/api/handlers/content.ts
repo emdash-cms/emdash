@@ -1175,6 +1175,41 @@ export async function handleContentAuthors(
 	}
 }
 
+/** Options for resolving the target of a write. */
+export interface ContentGetOptions {
+	/**
+	 * Fail with AMBIGUOUS_LOCALE when no locale is given and the identifier is a
+	 * slug that rows in more than one locale share.
+	 */
+	refuseAmbiguousSlug?: boolean;
+}
+
+async function ambiguousSlugError(
+	repo: ContentRepository,
+	collection: string,
+	identifier: string,
+	item: ContentItem,
+	includeTrashed: boolean,
+): Promise<{ success: false; error: { code: "AMBIGUOUS_LOCALE"; message: string } } | null> {
+	if (item.id === identifier || item.slug !== identifier) return null;
+	const rows = await repo.findSlugLocales(collection, identifier);
+	const candidates =
+		includeTrashed && rows.some((row) => row.trashed)
+			? rows.filter((row) => row.trashed)
+			: rows.filter((row) => !row.trashed);
+	const locales = [
+		...new Set(candidates.map((row) => resolveConfiguredLocale(row.locale))),
+	].toSorted();
+	if (locales.length < 2) return null;
+	return {
+		success: false,
+		error: {
+			code: "AMBIGUOUS_LOCALE",
+			message: `Content '${identifier}' exists in multiple locales (${locales.join(", ")}); pass 'locale' or use the entry's ID.`,
+		},
+	};
+}
+
 /**
  * Get single content item
  */
@@ -1184,6 +1219,7 @@ export async function handleContentGet(
 	id: string,
 	locale?: string,
 	referenceOptions?: { includeDrafts: boolean },
+	options: ContentGetOptions = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
@@ -1201,6 +1237,11 @@ export async function handleContentGet(
 					message: `Content item not found: ${id}`,
 				},
 			};
+		}
+
+		if (options.refuseAmbiguousSlug && !locale) {
+			const ambiguous = await ambiguousSlugError(repo, collection, id, item, false);
+			if (ambiguous) return ambiguous;
 		}
 
 		// Hydrate SEO data if the collection has SEO enabled
@@ -1239,6 +1280,7 @@ export async function handleContentGetIncludingTrashed(
 	collection: string,
 	id: string,
 	locale?: string,
+	options: ContentGetOptions = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
@@ -1256,6 +1298,11 @@ export async function handleContentGetIncludingTrashed(
 					message: `Content item not found: ${id}`,
 				},
 			};
+		}
+
+		if (options.refuseAmbiguousSlug && !locale) {
+			const ambiguous = await ambiguousSlugError(repo, collection, id, item, true);
+			if (ambiguous) return ambiguous;
 		}
 
 		// Hydrate SEO data if the collection has SEO enabled

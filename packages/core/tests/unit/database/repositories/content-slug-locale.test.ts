@@ -78,6 +78,14 @@ describeEachDialect("ContentRepository slug lookup without a locale", (dialect) 
 		expect((await repo.findBySlug("post", "notice"))?.id).toBe(en.id);
 	});
 
+	it("prefers a trashed row when trashed rows are included", async () => {
+		const { en, de } = await createPair();
+		await repo.delete("post", de.id);
+
+		expect((await repo.findBySlugIncludingTrashed("post", "press-release"))?.id).toBe(de.id);
+		expect((await repo.findBySlug("post", "press-release"))?.id).toBe(en.id);
+	});
+
 	it("still finds a slug that exists only in another locale", async () => {
 		const fr = await repo.create({
 			type: "post",
