@@ -587,7 +587,7 @@ describe("sandbox hooks", () => {
 				expect.objectContaining({
 					atUri: "at://did:example/site.standard.document/doc-1",
 					status: "error",
-					errorMessage: "Could not remove the published records",
+					errorMessage: expect.stringContaining("Could not remove the published records"),
 					retryCount: 1,
 				}),
 			);

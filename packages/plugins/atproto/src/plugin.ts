@@ -340,7 +340,7 @@ async function deleteSyndicatedRecords(
 			...existing,
 			status: "error",
 			lastSyncedAt: new Date().toISOString(),
-			errorMessage: "Could not remove the published records",
+			errorMessage: `Could not remove the published records: ${error instanceof Error ? error.message : String(error)}`,
 			retryCount: (existing.retryCount || 0) + 1,
 		});
 	}
