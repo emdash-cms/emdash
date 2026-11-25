@@ -11,13 +11,21 @@ function createLocals(
 	permission = "content:edit_own",
 ) {
 	const handlePluginApiRoute = vi.fn(async () => ({ success: true, data: { blocks: [] } }));
-	const handleContentGet = vi.fn(async () => ({
+	const loadEntry = async () => ({
 		success: true,
 		data: {
 			item: { id: "entry-1", authorId: "owner", locale: "en", version: 7 },
 			_rev: "rev-7",
 		},
-	}));
+	});
+	const handleContentGet = vi.fn(loadEntry);
+	const handleContentGetForWrite =
+		vi.fn<
+			() => Promise<
+				| Awaited<ReturnType<typeof handleContentGet>>
+				| { success: false; error: { code: string; message: string } }
+			>
+		>(loadEntry);
 	const cacheInvalidate = vi.fn(async () => undefined);
 	return {
 		user: role === null ? null : { id: userId, role },
@@ -53,9 +61,11 @@ function createLocals(
 			})),
 			getPluginRouteMeta: () => ({ public: routePublic, permission }),
 			handleContentGet,
+			handleContentGetForWrite,
 			handlePluginApiRoute,
 		},
 		handleContentGet,
+		handleContentGetForWrite,
 		handlePluginApiRoute,
 		cacheInvalidate,
 	};
@@ -119,6 +129,19 @@ describe("saved-entry plugin extension authorization", () => {
 		expect(locals.cacheInvalidate).toHaveBeenCalledWith({ tags: ["content:posts:entry-1"] });
 		const pluginRequest = locals.handlePluginApiRoute.mock.calls[0]?.[3];
 		await expect(pluginRequest?.json()).resolves.toEqual({ type: "panel_load" });
+	});
+
+	it("refuses an action on a slug shared by several locales before plugin invocation", async () => {
+		const locals = createLocals(Role.AUTHOR);
+		locals.handleContentGetForWrite.mockResolvedValueOnce({
+			success: false,
+			error: { code: "AMBIGUOUS_LOCALE", message: "Content 'entry-1' exists in multiple locales" },
+		});
+		const response = await invoke(locals, { type: "action_run" }, { kind: "action" });
+		expect(response.status).toBe(400);
+		expect(locals.handleContentGetForWrite).toHaveBeenCalledWith("posts", "entry-1", "en");
+		expect(locals.handleContentGet).not.toHaveBeenCalled();
+		expect(locals.handlePluginApiRoute).not.toHaveBeenCalled();
 	});
 
 	it("denies another author before plugin invocation", async () => {

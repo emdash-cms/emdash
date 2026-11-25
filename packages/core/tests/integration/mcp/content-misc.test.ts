@@ -158,6 +158,40 @@ describe("content_permanent_delete", () => {
 		expect(result.isError).toBe(true);
 	});
 
+	it("refuses a slug trashed in several locales unless a locale is given", async () => {
+		const repo = new ContentRepository(db);
+		const ids: Record<string, string> = {};
+		for (const locale of ["fr", "de"]) {
+			const item = await repo.create({
+				type: "post",
+				data: { title: locale },
+				slug: "shared",
+				locale,
+				authorId: ADMIN_ID,
+			});
+			await repo.delete("post", item.id);
+			ids[locale] = item.id;
+		}
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+
+		const ambiguous = await harness.client.callTool({
+			name: "content_permanent_delete",
+			arguments: { collection: "post", id: "shared" },
+		});
+		expect(ambiguous.isError).toBe(true);
+		expect(extractText(ambiguous)).toContain("AMBIGUOUS_LOCALE");
+		expect(await repo.findByIdIncludingTrashed("post", ids.fr!)).not.toBeNull();
+		expect(await repo.findByIdIncludingTrashed("post", ids.de!)).not.toBeNull();
+
+		const scoped = await harness.client.callTool({
+			name: "content_permanent_delete",
+			arguments: { collection: "post", id: "shared", locale: "de" },
+		});
+		expect(scoped.isError, extractText(scoped)).toBeFalsy();
+		expect(await repo.findByIdIncludingTrashed("post", ids.de!)).toBeNull();
+		expect(await repo.findByIdIncludingTrashed("post", ids.fr!)).not.toBeNull();
+	});
+
 	it("returns NOT_FOUND for missing id", async () => {
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		const result = await harness.client.callTool({

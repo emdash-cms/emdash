@@ -176,6 +176,7 @@ export interface PluginEditorExtensionApiRequestContext {
 		| "handlePluginApiRoute"
 		| "getPluginEditorExtension"
 		| "handleContentGet"
+		| "handleContentGetForWrite"
 		| "getPluginEditorDraftSchema"
 		| "rooms"
 	>;
@@ -220,11 +221,18 @@ export async function dispatchPluginEditorExtensionApiRequest({
 	if (denied) return denied;
 
 	const requestedLocale = new URL(request.url).searchParams.get("locale") || undefined;
-	const contentResult = await runtime.handleContentGet(collection, entryId, requestedLocale);
+	const contentResult =
+		kind === "action"
+			? await runtime.handleContentGetForWrite(collection, entryId, requestedLocale)
+			: await runtime.handleContentGet(collection, entryId, requestedLocale);
 	if (!contentResult.success) {
-		return contentResult.error?.code === "NOT_FOUND"
-			? apiError("NOT_FOUND", "Content item not found", 404)
-			: apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
+		if (contentResult.error?.code === "NOT_FOUND") {
+			return apiError("NOT_FOUND", "Content item not found", 404);
+		}
+		if (contentResult.error?.code === "AMBIGUOUS_LOCALE") {
+			return apiError("AMBIGUOUS_LOCALE", contentResult.error.message, 400);
+		}
+		return apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
 	}
 	const contentData = contentResult.data;
 	const item =

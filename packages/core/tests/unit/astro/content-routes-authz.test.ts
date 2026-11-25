@@ -143,6 +143,10 @@ function buildEmdash(
 		data: { deleted: true as const },
 	}));
 
+	const handleContentGetForWrite = vi.fn(async (_collection: string, id: string) => ({
+		success: true as const,
+		data: { item: { id: id === "hello" ? "resolved-id" : id }, _rev: "rev1" },
+	}));
 	return {
 		// Routes treat a missing db as "runtime not initialized" (500 before any
 		// permission check), so the mock carries one to exercise the authz path.
@@ -154,6 +158,7 @@ function buildEmdash(
 		handleRevisionList,
 		handleContentCompare,
 		handleContentPermanentDelete,
+		handleContentGetForWrite,
 	};
 }
 
@@ -482,6 +487,25 @@ describe("DELETE /content/:collection/:id/permanent", () => {
 		const res = await deletePermanent(permanentCtx(admin, emdash));
 		expect(res.status).toBe(200);
 		expect(emdash.handleContentPermanentDelete).toHaveBeenCalledWith("post", "p1");
+	});
+
+	it("resolves a slug in the requested locale and deletes the resolved entry", async () => {
+		const emdash = buildEmdash();
+		const url = "http://localhost/?locale=de";
+		const res = await deletePermanent(
+			ctx({
+				user: admin,
+				emdash,
+				params: { collection: "post", id: "hello" },
+				url,
+				request: new Request(url, { method: "DELETE" }),
+			}),
+		);
+		expect(res.status).toBe(200);
+		expect(emdash.handleContentGetForWrite).toHaveBeenCalledWith("post", "hello", "de", {
+			includeTrashed: true,
+		});
+		expect(emdash.handleContentPermanentDelete).toHaveBeenCalledWith("post", "resolved-id");
 	});
 
 	it("denies EDITOR (handler must not be called)", async () => {

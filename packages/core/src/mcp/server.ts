@@ -1683,6 +1683,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1690,10 +1691,15 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale, {
+				includeTrashed: true,
+			});
+			if (!existing.success) return unwrap(existing);
+			const resolvedId = extractContentId(existing.data) ?? args.id;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentPermanentDelete(args.collection, args.id),
-				[args.collection, args.id],
+				await ec.handleContentPermanentDelete(args.collection, resolvedId),
+				[args.collection, resolvedId],
 			);
 		},
 	);
