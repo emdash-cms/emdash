@@ -134,7 +134,7 @@ export async function sendEditorialCommentNotifications(
 	if (recipients.length === 0) return 0;
 
 	const names = new Map<string, string>();
-	for (const user of users.values()) names.set(user.id, user.name || "a teammate");
+	for (const user of users.values()) names.set(user.id, user.name?.trim() || "a teammate");
 	const authorName = names.get(authorId) ?? "Someone";
 	const title = await entryTitle(db, thread.collection, thread.entryId);
 	const link = `${input.adminBaseUrl}/admin/content/${encodeURIComponent(thread.collection)}/${encodeURIComponent(thread.entryId)}?thread=${encodeURIComponent(thread.id)}`;

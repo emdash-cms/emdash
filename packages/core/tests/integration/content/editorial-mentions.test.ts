@@ -299,6 +299,16 @@ describeEachDialect("editorial mentions and notifications", (dialect) => {
 		expect(sent[0]!.subject).toBe('Ada Lovelace mentioned you on "Relaunch post"');
 	});
 
+	it("names someone whose name is only spaces as a teammate", async () => {
+		await db.updateTable("users").set({ name: "   " }).where("id", "=", ADA.id).execute();
+		const { email, sent } = fakeEmail();
+		const { created } = await startThread(ADA, `<@${GRACE.id}> is this claim sourced?`);
+
+		await sendEditorialCommentNotifications(db, email, { ...created, adminBaseUrl: ADMIN_BASE });
+
+		expect(sent[0]!.subject).toBe('a teammate mentioned you on "Launch post"');
+	});
+
 	it("skips participants who can no longer comment", async () => {
 		const { email, sent } = fakeEmail();
 		const { thread } = await startThread(ADA, "Needs a source.");
