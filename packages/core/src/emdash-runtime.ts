@@ -4239,8 +4239,8 @@ export class EmDashRuntime {
 		return handleContentList(this.db, collection, params);
 	}
 
-	async handleContentAuthors(collection: string) {
-		return handleContentAuthors(this.db, collection);
+	async handleContentAuthors(collection: string, options?: { includeEmail?: boolean }) {
+		return handleContentAuthors(this.db, collection, options);
 	}
 
 	async handleContentGet(
