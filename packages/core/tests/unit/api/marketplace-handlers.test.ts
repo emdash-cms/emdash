@@ -885,6 +885,49 @@ describe("Marketplace handlers", () => {
 			expect(result.error?.details?.capabilityChanges).toBeDefined();
 		});
 
+		it("keeps a disabled plugin disabled", async () => {
+			const repo = new PluginStateRepository(db);
+			await repo.upsert("test-seo", "1.0.0", "active", {
+				source: "marketplace",
+				marketplaceVersion: "1.0.0",
+			});
+			await repo.disable("test-seo", "1.0.0");
+
+			// Store old bundle
+			const encoder = new TextEncoder();
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/manifest.json",
+				body: encoder.encode(JSON.stringify(mockManifest("test-seo", "1.0.0"))),
+				contentType: "application/json",
+			});
+			await storage.upload({
+				key: "marketplace/test-seo/1.0.0/backend.js",
+				body: encoder.encode("export default {};"),
+				contentType: "application/javascript",
+			});
+
+			const bundleBytes = await createMockBundle(mockManifest("test-seo", "2.0.0"));
+			const detail = mockPluginDetail("test-seo", "2.0.0");
+			detail.latestVersion!.checksum = "";
+			fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+			fetchSpy.mockResolvedValueOnce(new Response(bundleBytes, { status: 200 }));
+
+			const result = await handleMarketplaceUpdate(
+				db,
+				storage,
+				sandboxRunner,
+				MARKETPLACE_URL,
+				"test-seo",
+			);
+
+			expect(result).toMatchObject({ success: true, data: { newVersion: "2.0.0" } });
+			expect(await repo.get("test-seo")).toMatchObject({
+				version: "2.0.0",
+				marketplaceVersion: "2.0.0",
+				status: "inactive",
+			});
+		});
+
 		it("succeeds with confirmCapabilityChanges flag", async () => {
 			const repo = new PluginStateRepository(db);
 			await repo.upsert("test-seo", "1.0.0", "active", {

@@ -1670,7 +1670,7 @@ export async function handleRegistryUpdate(
 
 		// Keep unreviewed profile text out of the installed listing metadata.
 		const displayProfile = packageView.cid === records.profile.cid ? profile : packageView.profile;
-		await stateRepo.upsert(pluginId, newVersion, "active", {
+		await stateRepo.upsert(pluginId, newVersion, existing.status, {
 			source: "registry",
 			registryPublisherDid: publisherDid,
 			registrySlug: slug,
