@@ -23,6 +23,9 @@ describe("cssColor", () => {
 			"hsl(210deg 50% 40%)",
 			"oklch(60% 0.15 250)",
 			"color(display-p3 0.2 0.4 0.6)",
+			"var(--overlay, black)",
+			"var(--overlay, var(--fallback, rgb(0 0 0 / 50%)))",
+			"rgb(var(--channels))",
 		]) {
 			expect(cssColor(color)).toBe(color);
 		}
@@ -37,11 +40,17 @@ describe("cssColor", () => {
 		expect(cssColor("vivid-red;outline:1px solid red")).toBeUndefined();
 	});
 
-	it("drops functions other than a single var() reference", () => {
-		expect(cssColor("var(--accent, red)")).toBeUndefined();
+	it("drops var() references whose fallback is not a color", () => {
 		expect(cssColor("var(--accent);outline:1px solid red")).toBeUndefined();
+		expect(cssColor("var(--accent, red);outline:1px solid red")).toBeUndefined();
+		expect(cssColor("var(--accent, red) ; outline: 0; --x: var(--y)")).toBeUndefined();
+		expect(cssColor("var(--accent, url(https://example.com/a.png))")).toBeUndefined();
+	});
+
+	it("drops other functions", () => {
 		expect(cssColor("url(https://example.com/a.png)")).toBeUndefined();
-		expect(cssColor("rgb(var(--r), 0, 0)")).toBeUndefined();
+		expect(cssColor("rgb(calc(1), 0, 0)")).toBeUndefined();
+		expect(cssColor("rgb(0,0,0));outline:0;x:(")).toBeUndefined();
 	});
 
 	it("drops values that are not colors", () => {
@@ -62,7 +71,16 @@ describe("cssLength", () => {
 			"12.5rem",
 			"33.33%",
 			"80dvh",
+			".5rem",
+			"1e2px",
+			"auto",
+			"fit-content",
+			"calc(100vh - 4rem)",
+			"calc(50% - 1rem)",
+			"min(50vh, 400px)",
+			"clamp(200px, 40vh, 600px)",
 			"var(--hero-height)",
+			"var(--hero-height, calc(100vh - 4rem))",
 		]) {
 			expect(cssLength(length)).toBe(length);
 		}
@@ -72,14 +90,16 @@ describe("cssLength", () => {
 		expect(cssLength("300px;outline:1px solid red")).toBeUndefined();
 		expect(cssLength("50%;outline:1px solid red")).toBeUndefined();
 		expect(cssLength("300px !important")).toBeUndefined();
+		expect(cssLength("calc(100% - 1px);outline:0")).toBeUndefined();
+		expect(cssLength("calc(100% - 1px));outline:0;x:(")).toBeUndefined();
+		expect(cssLength("var(--h, 300px);outline:0")).toBeUndefined();
 	});
 
 	it("drops values that are not a single length", () => {
 		expect(cssLength("")).toBeUndefined();
-		expect(cssLength("px")).toBeUndefined();
 		expect(cssLength("300")).toBeUndefined();
-		expect(cssLength("-10px")).toBeUndefined();
-		expect(cssLength("calc(100% - 1px)")).toBeUndefined();
+		expect(cssLength("calc(url(a.png))")).toBeUndefined();
+		expect(cssLength("var(--h, red green)")).toBeUndefined();
 		expect(cssLength(300)).toBeUndefined();
 		expect(cssLength(undefined)).toBeUndefined();
 	});
@@ -91,12 +111,17 @@ describe("cssOpacity", () => {
 		expect(cssOpacity("0.3")).toBe(0.3);
 		expect(cssOpacity(".5")).toBe(0.5);
 		expect(cssOpacity("1")).toBe(1);
+		expect(cssOpacity("+0.3")).toBe(0.3);
+		expect(cssOpacity("1e-1")).toBe(0.1);
+		expect(cssOpacity("30%")).toBe(0.3);
 	});
 
 	it("clamps values outside 0 to 1", () => {
 		expect(cssOpacity(1.5)).toBe(1);
 		expect(cssOpacity(-1)).toBe(0);
 		expect(cssOpacity("2")).toBe(1);
+		expect(cssOpacity("-1")).toBe(0);
+		expect(cssOpacity("-0.1")).toBe(0);
 	});
 
 	it("drops values that are not a single number", () => {

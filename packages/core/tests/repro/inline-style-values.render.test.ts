@@ -74,6 +74,37 @@ describe("stored values in inline styles", () => {
 		}
 	});
 
+	it("falls back to the asset's dominant color when the block's is not a color", async () => {
+		const html = await render(Image, {
+			node: {
+				_type: "image",
+				_key: "i",
+				asset: {
+					_ref: "",
+					url: "/_emdash/api/media/file/photo.png",
+					meta: { dominantColor: "rgb(51,102,153)" },
+				},
+				dominantColor: `transparent${EXTRA_DECLARATION}`,
+			},
+		});
+
+		expect(styles(html)).toEqual(["background-color: rgb(51,102,153);"]);
+	});
+
+	it("falls back to an image field's meta dominant color when its own is not a color", async () => {
+		const html = await render(EmDashImage, {
+			image: {
+				provider: "external",
+				id: "x",
+				src: "https://example.com/photo.jpg",
+				dominantColor: `transparent${EXTRA_DECLARATION}`,
+				meta: { dominantColor: "#336699" },
+			},
+		});
+
+		expect(styles(html)).toEqual(["background-color: #336699;"]);
+	});
+
 	it("drops an image field's dominant color that is not a color", async () => {
 		const image = { provider: "external", id: "x", src: "https://example.com/photo.jpg" };
 
@@ -184,5 +215,39 @@ describe("stored values in inline styles", () => {
 		});
 
 		expect(styles(html)).toEqual(["--column-count: 2", "flex-basis: 33.33%"]);
+	});
+
+	it("keeps single-value expressions in cover and column sizes and colors", async () => {
+		const cover = await render(Cover, {
+			node: {
+				_type: "cover",
+				_key: "c",
+				backgroundImage: "https://example.com/hall.jpg",
+				overlayColor: "var(--overlay, black)",
+				overlayOpacity: "-0.1",
+				minHeight: "calc(100vh - 4rem)",
+				content: [paragraph],
+			},
+		});
+		expect(styles(cover)).toEqual([
+			"min-height: calc(100vh - 4rem);",
+			"background-color: var(--overlay, black); opacity: 0;",
+		]);
+
+		const columns = await render(Columns, {
+			node: {
+				_type: "columns",
+				_key: "c",
+				columns: [
+					{ _type: "column", _key: "a", width: "calc(50% - 1rem)", content: [paragraph] },
+					{ _type: "column", _key: "b", width: ".5rem", content: [paragraph] },
+				],
+			},
+		});
+		expect(styles(columns)).toEqual([
+			"--column-count: 2",
+			"flex-basis: calc(50% - 1rem)",
+			"flex-basis: .5rem",
+		]);
 	});
 });

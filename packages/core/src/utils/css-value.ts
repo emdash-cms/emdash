@@ -5,16 +5,46 @@
  * else could set properties beyond the one it is written for.
  */
 
+const NUMBER = String.raw`[+-]?(?:\d+(?:\.\d+)?|\.\d+)(?:e[+-]?\d+)?`;
 const HEX_COLOR_PATTERN = /^#(?:[0-9a-f]{3,4}|[0-9a-f]{6}|[0-9a-f]{8})$/i;
 // Hyphens and digits are allowed so imported preset names such as `vivid-red` or `accent-1`
 // keep rendering as before.
 const KEYWORD_PATTERN = /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/i;
-const CUSTOM_PROPERTY_PATTERN = /^var\(--[a-z0-9_-]+\)$/i;
-// The arguments exclude parentheses, so `var()`, `url()` and `calc()` cannot nest.
+// Function arguments never contain parentheses other than a bare `var(--name)`, so a value
+// cannot close its function early or nest `url()`.
 const COLOR_FUNCTION_PATTERN =
-	/^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([a-z0-9 .,%/+-]+\)$/i;
-const LENGTH_PATTERN = /^(?:0|\d+(?:\.\d+)?(?:[a-z]{1,5}|%))$/i;
-const NUMBER_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
+	/^(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\((?:[a-z0-9 .,%/+-]|var\(--[a-z0-9_-]+\))+\)$/i;
+const MATH_FUNCTION_PATTERN = /^(?:calc|min|max|clamp)\([a-z0-9 .,%*/+-]+\)$/i;
+const LENGTH_PATTERN = new RegExp(String.raw`^(?:0|${NUMBER}(?:[a-z]{1,5}|%))$`, "i");
+const NUMBER_PATTERN = new RegExp(`^${NUMBER}$`, "i");
+const PERCENTAGE_PATTERN = new RegExp(`^${NUMBER}%$`, "i");
+const CUSTOM_PROPERTY_PATTERN = /^var\(\s*--[a-z0-9_-]+\s*(?:,\s*(.+?)\s*)?\)$/i;
+
+/** Accepts `var(--name)`, or `var(--name, fallback)` when the fallback itself passes `check`. */
+function isCustomProperty(value: string, check: (fallback: string) => boolean): boolean {
+	const match = CUSTOM_PROPERTY_PATTERN.exec(value);
+	if (!match) return false;
+	const fallback = match[1];
+	return fallback === undefined || check(fallback);
+}
+
+function isColor(value: string): boolean {
+	return (
+		HEX_COLOR_PATTERN.test(value) ||
+		KEYWORD_PATTERN.test(value) ||
+		COLOR_FUNCTION_PATTERN.test(value) ||
+		isCustomProperty(value, isColor)
+	);
+}
+
+function isLength(value: string): boolean {
+	return (
+		LENGTH_PATTERN.test(value) ||
+		KEYWORD_PATTERN.test(value) ||
+		MATH_FUNCTION_PATTERN.test(value) ||
+		isCustomProperty(value, isLength)
+	);
+}
 
 /**
  * Returns the value when it is a single CSS color (hex, a keyword such as
@@ -22,37 +52,31 @@ const NUMBER_PATTERN = /^(?:\d+(?:\.\d+)?|\.\d+)$/;
  * otherwise `undefined`.
  */
 export function cssColor(value: unknown): string | undefined {
-	if (typeof value !== "string") return undefined;
-	return HEX_COLOR_PATTERN.test(value) ||
-		KEYWORD_PATTERN.test(value) ||
-		COLOR_FUNCTION_PATTERN.test(value) ||
-		CUSTOM_PROPERTY_PATTERN.test(value)
-		? value
-		: undefined;
+	return typeof value === "string" && isColor(value) ? value : undefined;
 }
 
 /**
- * Returns the value when it is a single non-negative CSS length or percentage
- * such as `300px`, `50vh` or `33.33%`, or a `var()` reference, otherwise
+ * Returns the value when it is a single CSS size: a length or percentage such
+ * as `300px` or `33.33%`, a keyword such as `auto`, a `calc()`, `min()`,
+ * `max()` or `clamp()` of numbers and units, or a `var()` reference. Otherwise
  * `undefined`.
  */
 export function cssLength(value: unknown): string | undefined {
-	return typeof value === "string" &&
-		(LENGTH_PATTERN.test(value) || CUSTOM_PROPERTY_PATTERN.test(value))
-		? value
-		: undefined;
+	return typeof value === "string" && isLength(value) ? value : undefined;
 }
 
 /**
- * Returns an opacity between 0 and 1 from a number or a numeric string,
- * clamped as CSS would clamp it, otherwise `undefined`.
+ * Returns an opacity between 0 and 1 from a number, a numeric string or a
+ * percentage string, clamped as CSS would clamp it, otherwise `undefined`.
  */
 export function cssOpacity(value: unknown): number | undefined {
-	const number =
-		typeof value === "number"
-			? value
-			: typeof value === "string" && NUMBER_PATTERN.test(value)
-				? Number(value)
-				: Number.NaN;
+	let number = Number.NaN;
+	if (typeof value === "number") {
+		number = value;
+	} else if (typeof value === "string") {
+		const trimmed = value.trim();
+		if (NUMBER_PATTERN.test(trimmed)) number = Number(trimmed);
+		else if (PERCENTAGE_PATTERN.test(trimmed)) number = Number(trimmed.slice(0, -1)) / 100;
+	}
 	return Number.isFinite(number) ? Math.min(1, Math.max(0, number)) : undefined;
 }

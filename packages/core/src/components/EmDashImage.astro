@@ -267,7 +267,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 	// Build placeholder background style. Prefer the first-class MediaValue fields;
 	// fall back to `meta` for snapshots stored before LQIP was promoted off `meta`.
 	const blurhash = img.blurhash ?? (img.meta?.blurhash as string | undefined);
-	const dominantColor = cssColor(img.dominantColor ?? img.meta?.dominantColor);
+	const dominantColor = cssColor(img.dominantColor) ?? cssColor(img.meta?.dominantColor);
 
 	let placeholderStyle = "";
 	if (placeholder && blurhash) {

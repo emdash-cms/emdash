@@ -192,7 +192,7 @@ if (!src) {
 const blurhash = (node.blurhash ?? (node.asset.meta?.blurhash as string | undefined)) as
 	| string
 	| undefined;
-const dominantColor = cssColor(node.dominantColor ?? node.asset.meta?.dominantColor);
+const dominantColor = cssColor(node.dominantColor) ?? cssColor(node.asset.meta?.dominantColor);
 
 let placeholderStyle = "";
 if (placeholder && blurhash) {
