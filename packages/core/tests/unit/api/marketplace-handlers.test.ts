@@ -572,6 +572,37 @@ describe("Marketplace handlers", () => {
 			expect(result.error?.code).toBe("ALREADY_INSTALLED");
 		});
 
+		it.each(["config", "registry"] as const)(
+			"rejects install when a %s plugin already holds the ID",
+			async (source) => {
+				const repo = new PluginStateRepository(db);
+				await repo.upsert("test-seo", "1.0.0", "active", { source });
+
+				const detail = mockPluginDetail("test-seo", "2.0.0");
+				detail.latestVersion!.checksum = "";
+				fetchSpy.mockResolvedValueOnce(new Response(JSON.stringify(detail), { status: 200 }));
+				fetchSpy.mockResolvedValueOnce(
+					new Response(await createMockBundle(mockManifest("test-seo", "2.0.0")), { status: 200 }),
+				);
+				fetchSpy.mockResolvedValueOnce(new Response("OK", { status: 200 }));
+
+				const result = await handleMarketplaceInstall(
+					db,
+					storage,
+					sandboxRunner,
+					MARKETPLACE_URL,
+					"test-seo",
+				);
+
+				expect(result.success).toBe(false);
+				expect(result.error?.code).toBe("PLUGIN_ID_CONFLICT");
+				const state = await repo.get("test-seo");
+				expect(state?.source).toBe(source);
+				expect(state?.version).toBe("1.0.0");
+				expect(await loadBundleFromR2(storage, "test-seo", "2.0.0")).toBeNull();
+			},
+		);
+
 		it("rejects when manifest ID doesn't match requested plugin", async () => {
 			const manifest = mockManifest("wrong-id", "1.0.0");
 			const bundleBytes = await createMockBundle(manifest);
