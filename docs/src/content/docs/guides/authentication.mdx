@@ -120,6 +120,8 @@ export default defineConfig({
 
 Order matters for the login page: providers render in the order you list them, with compact button-only providers first and providers that need a custom form (like Atmosphere, which asks for a handle) shown after.
 
+If you set a site URL (`siteUrl`, `EMDASH_SITE_URL`, or `SITE_URL`), start GitHub, Google, and Microsoft sign-in from that host name. The provider returns the browser to the site URL, and a sign-in started on another host name, such as `www.` instead of the bare domain or a `workers.dev` address instead of your custom domain, fails with "OAuth session expired or invalid".
+
 ### GitHub
 
 The following example enables the GitHub provider:
@@ -453,6 +455,7 @@ The application audience identifies which Access application issued the JWT. EmD
 | `syncRoles`     | `boolean` | `false`  | Update role on each login based on IdP groups or GitHub teams                 |
 | `syncName`      | `boolean` | `true`   | Update the user's name from the IdP on every authenticated request |
 | `roleMapping`   | `object`  | —        | Map IdP group names or GitHub `org/team` names to role levels                            |
+| `matchGroupsBy` | `"name"` \| `"id"` | `"name"` | Group field that `roleMapping` keys are compared with. See [Matching groups by ID](#matching-groups-by-id). |
 | `audienceEnvVar`| `string`  | `"CF_ACCESS_AUDIENCE"` | Environment variable containing the audience tag. Used when `audience` is omitted. |
 
 Provide either `audience` or an environment value under `audienceEnvVar`.
@@ -479,6 +482,30 @@ emdash({
 For the GitHub identity provider, use `"organization-name/team-name"` as the `roleMapping` key, such as `"my-org/Web Admins": 50`. Use the organization and team names returned by Access. Bare team names and organization names are not matched: users can create identically named teams in other GitHub organizations. Update mappings when a GitHub organization is renamed, because another organization can claim its old name.
 
 The first match wins in the order returned by Access, checking groups before GitHub teams. The **first user** to access the site always becomes Admin, regardless of groups.
+
+#### Matching groups by ID
+
+By default, `roleMapping` keys are compared with group display names. Some identity providers allow several groups with the same display name and let members create their own groups. Microsoft Entra ID, for example, lets ordinary users create groups by default and does not require display names to be unique. In that case, anyone who can create a group named like a mapped key, such as `Admins`, receives that key's role when their account is provisioned, or on their next request with `syncRoles: true`.
+
+If members of your directory can create or rename groups, set `matchGroupsBy: "id"` and key `roleMapping` by group ID:
+
+```js title="astro.config.mjs"
+emdash({
+	auth: access({
+		teamDomain: "myteam.cloudflareaccess.com",
+		audienceEnvVar: "CF_ACCESS_AUDIENCE",
+		matchGroupsBy: "id",
+		roleMapping: {
+			"0b5c8e2a-3f1d-4c7e-9a61-2d4f8b7c1e90": 50, // Admins
+			"7e1a4d3c-9b2f-4e8a-b5c6-1f0d2a3e4b57": 40, // Content Editors
+		},
+	}),
+});
+```
+
+Use the `id` values that Access reports for each group. EmDash logs them in the `[cf-access] Identity from Access` message on each sign-in, and you can also read them from `https://<teamDomain>/cdn-cgi/access/get-identity` while signed in through Access. GitHub team keys stay in `"organization-name/team-name"` form with either setting.
+
+Matching by ID only helps when the `id` that Access reports differs from the group's name. The log line prints both for each group. Some generic SAML and OIDC providers send the group name as its `id`, so the two are the same. In that case `matchGroupsBy: "id"` makes no difference: restrict who can create and rename groups in your identity provider instead.
 
 ### Role sync behavior
 

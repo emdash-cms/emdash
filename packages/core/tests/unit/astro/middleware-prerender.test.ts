@@ -73,6 +73,7 @@ const {
 			handleContentPermanentDelete: ok,
 			handleContentCountTrashed: ok,
 			handleContentGetIncludingTrashed: ok,
+			handleContentGetById: ok,
 			handleContentDuplicate: ok,
 			handleContentPublish: ok,
 			handleContentUnpublish: ok,

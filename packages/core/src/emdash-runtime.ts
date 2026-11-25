@@ -228,6 +228,7 @@ import {
 	handleContentAuthors,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
+	handleContentGetById,
 	handleContentCreate,
 	handleContentUpdate,
 	handleContentDelete,
@@ -4239,8 +4240,8 @@ export class EmDashRuntime {
 		return handleContentList(this.db, collection, params);
 	}
 
-	async handleContentAuthors(collection: string) {
-		return handleContentAuthors(this.db, collection);
+	async handleContentAuthors(collection: string, options?: { includeEmail?: boolean }) {
+		return handleContentAuthors(this.db, collection, options);
 	}
 
 	async handleContentGet(
@@ -4252,6 +4253,10 @@ export class EmDashRuntime {
 	) {
 		const result = await handleContentGet(this.db, collection, id, locale, referenceOptions);
 		return this.hydrateDraftData(result, draftOptions);
+	}
+
+	async handleContentGetById(collection: string, id: string) {
+		return handleContentGetById(this.db, collection, id);
 	}
 
 	async handleContentGetIncludingTrashed(collection: string, id: string, locale?: string) {
@@ -5210,6 +5215,12 @@ export class EmDashRuntime {
 			action === "restore"
 				? await repo.findByIdOrSlugIncludingTrashed(collection, id)
 				: await repo.findByIdOrSlug(collection, id);
+		// Must run before the re-entrancy guard, whose error would also tell a live entry from a missing one.
+		if (action === "restore" && !(item && (await repo.isTrashed(collection, item.id)))) {
+			throw Object.assign(new Error(`Trashed content item not found: ${id}`), {
+				code: "NOT_FOUND",
+			});
+		}
 		const resolvedId = item?.id ?? id;
 		const key = this.pluginContentActionKey(collection, resolvedId);
 		if ((this.activePluginContentActions.get(key) ?? 0) > 0) {

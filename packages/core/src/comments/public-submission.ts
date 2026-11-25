@@ -3,7 +3,7 @@ import { sql, type Kysely } from "kysely";
 
 import { after } from "../after.js";
 import { apiError, apiSuccess, handleError } from "../api/error.js";
-import { hashIp } from "../api/handlers/comments.js";
+import { hashIp, publicEntryCondition } from "../api/handlers/comments.js";
 import { isParseError, parseBody } from "../api/parse.js";
 import { createCommentBody } from "../api/schemas/comments.js";
 import { getSiteBaseUrl } from "../api/site-url.js";
@@ -83,8 +83,7 @@ export async function submitPublicComment(
 			SELECT id, slug, author_id, published_at
 			FROM ${sql.ref(`ec_${collection}`)}
 			WHERE id = ${contentId}
-			AND status = 'published'
-			AND deleted_at IS NULL
+			AND ${publicEntryCondition}
 		`.execute(runtime.db);
 		const contentRow = contentResult.rows[0];
 

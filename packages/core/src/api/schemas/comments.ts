@@ -7,7 +7,7 @@ import { z } from "zod";
 export const createCommentBody = z
 	.object({
 		authorName: z.string().min(1).max(100),
-		authorEmail: z.email(),
+		authorEmail: z.email().max(254),
 		body: z.string().min(1).max(5000),
 		parentId: z.string().optional(),
 		/** Honeypot field — hidden in the form, filled only by bots */

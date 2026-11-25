@@ -84,6 +84,10 @@ function createMockHandlers(ownerId: string = AUTHOR_USER_ID): EmDashHandlers {
 			success: true,
 			data: { item: { ...contentItem, status: "trashed" } },
 		}),
+		handleContentGetById: vi.fn().mockResolvedValue({
+			success: true,
+			data: { item: contentItem },
+		}),
 		handleContentList: vi.fn().mockResolvedValue({
 			success: true,
 			data: { items: [contentItem] },

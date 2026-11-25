@@ -63,7 +63,7 @@ describe("editor toolbar by response content type", () => {
 				async () => new Response("payload", { headers: { "content-type": contentType } }),
 			);
 			expect(await response.text()).toBe("payload");
-			expect(response.headers.get("Cache-Control")).toBeNull();
+			expect(response.headers.get("Cache-Control")).toBe(editCookie ? "private, no-store" : null);
 		}
 		expect(queries).toEqual([]);
 	});

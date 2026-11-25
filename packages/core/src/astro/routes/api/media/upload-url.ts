@@ -17,7 +17,7 @@ import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { GLOBAL_UPLOAD_ALLOWLIST, resolveFieldAllowlist } from "#api/handlers/media-allowlist.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { DEFAULT_MAX_UPLOAD_SIZE, mediaUploadUrlBody } from "#api/schemas.js";
-import { MediaRepository } from "#db/repositories/media.js";
+import { MediaRepository, SIGNED_UPLOAD_URL_EXPIRES_IN_SECONDS } from "#db/repositories/media.js";
 import { matchesMimeAllowlist, normalizeMime, resolveUploadMimeType } from "#media/mime.js";
 
 export const prerender = false;
@@ -145,7 +145,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
 				key: storageKey,
 				contentType: mimeType,
 				size: body.size,
-				expiresIn: 3600,
+				expiresIn: SIGNED_UPLOAD_URL_EXPIRES_IN_SECONDS,
 			});
 		} catch (error) {
 			if (!isUnsupportedSignedUpload(error)) throw error;

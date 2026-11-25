@@ -325,7 +325,13 @@ class RegistryArtifactFetchError extends Error {
 	}
 }
 
-/** Build a fetch function that enforces a per-request and per-budget timeout. */
+/**
+ * Build a fetch function that enforces a per-request and per-budget timeout.
+ *
+ * Redirects are not followed, because only the configured aggregator URL has
+ * passed `validateAggregatorUrl`. A 3xx reaches the client as a non-2xx
+ * response. The mode is "manual" because Workers reject "error".
+ */
 function timedFetch(totalDeadline: number): typeof fetch {
 	return (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
 		const now = Date.now();
@@ -341,7 +347,7 @@ function timedFetch(totalDeadline: number): typeof fetch {
 			if (callerSignal.aborted) controller.abort(callerSignal.reason);
 			else callerSignal.addEventListener("abort", () => controller.abort(callerSignal.reason));
 		}
-		return fetch(input, { ...init, signal: controller.signal }).finally(() => {
+		return fetch(input, { ...init, redirect: "manual", signal: controller.signal }).finally(() => {
 			clearTimeout(timer);
 		});
 	};
@@ -1670,7 +1676,7 @@ export async function handleRegistryUpdate(
 
 		// Keep unreviewed profile text out of the installed listing metadata.
 		const displayProfile = packageView.cid === records.profile.cid ? profile : packageView.profile;
-		await stateRepo.upsert(pluginId, newVersion, "active", {
+		await stateRepo.upsert(pluginId, newVersion, existing.status, {
 			source: "registry",
 			registryPublisherDid: publisherDid,
 			registrySlug: slug,

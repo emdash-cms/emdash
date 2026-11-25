@@ -63,7 +63,7 @@ function postContext(url: string, db: Db, body: unknown): APIContext {
 		request,
 		url: new URL(url),
 		locals: { emdash: { db, config: {} } },
-		session: { set: vi.fn() },
+		session: { set: vi.fn(), regenerate: vi.fn(async () => {}) },
 	} as unknown as APIContext;
 }
 

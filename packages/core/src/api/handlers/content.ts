@@ -1123,7 +1123,8 @@ export async function handleContentList(
 export interface ContentAuthor {
 	id: string;
 	name: string | null;
-	email: string;
+	/** Omitted for callers without `users:read`. */
+	email?: string;
 	avatarUrl: string | null;
 }
 
@@ -1131,13 +1132,17 @@ export interface ContentAuthor {
  * List the distinct authors of a collection's live content.
  *
  * Backs the admin content-list author filter. Unlike `/admin/users` (ADMIN
- * only), this is gated on `content:read`, so any editor can filter by author.
- * Returns only users who have authored at least one non-trashed entry, sorted
- * by display name then email for a stable dropdown order.
+ * only), this is gated on `content:read_drafts`, so any editor can filter by
+ * author. Returns only users who have authored at least one non-trashed entry,
+ * sorted by display name for a stable dropdown order.
+ *
+ * Email addresses are account data: pass `includeEmail` only for a caller who
+ * holds `users:read`. Without it they are neither returned nor sorted on.
  */
 export async function handleContentAuthors(
 	db: Kysely<Database>,
 	collection: string,
+	options: { includeEmail?: boolean } = {},
 ): Promise<ApiResult<{ items: ContentAuthor[] }>> {
 	try {
 		const repo = new ContentRepository(db);
@@ -1150,8 +1155,13 @@ export async function handleContentAuthors(
 		const users = await userRepo.findByIds(authorIds);
 
 		const items: ContentAuthor[] = users
-			.map((u) => ({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatarUrl }))
-			.toSorted((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email));
+			.map((u) => ({
+				id: u.id,
+				name: u.name,
+				...(options.includeEmail ? { email: u.email } : {}),
+				avatarUrl: u.avatarUrl,
+			}))
+			.toSorted((a, b) => (a.name ?? a.email ?? a.id).localeCompare(b.name ?? b.email ?? b.id));
 
 		return { success: true, data: { items } };
 	} catch (error) {
@@ -1228,6 +1238,33 @@ export async function handleContentGet(
 			},
 		};
 	}
+}
+
+/**
+ * Get a content item by id only, never by slug. Use for permission checks on
+ * an entry that the caller then acts on by id.
+ */
+export async function handleContentGetById(
+	db: Kysely<Database>,
+	collection: string,
+	id: string,
+): Promise<ApiResult<{ item: ContentItem }>> {
+	try {
+		const item = await new ContentRepository(db).findById(collection, id);
+		if (item) return { success: true, data: { item } };
+	} catch (error) {
+		if (!isMissingTableError(error)) {
+			console.error("Content get error:", error);
+			return {
+				success: false,
+				error: { code: "CONTENT_GET_ERROR", message: "Failed to get content" },
+			};
+		}
+	}
+	return {
+		success: false,
+		error: { code: "NOT_FOUND", message: `Content item not found: ${id}` },
+	};
 }
 
 /**
