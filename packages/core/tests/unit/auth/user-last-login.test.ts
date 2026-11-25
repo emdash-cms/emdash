@@ -42,7 +42,7 @@ describeEachDialect("user last login", (dialect) => {
 		vi.useFakeTimers({ toFake: ["Date"] });
 		const adapter = createKyselyAdapter(db);
 		const user = await adapter.createUser({ email: "login@example.com", role: Role.ADMIN });
-		const session = { set: vi.fn() };
+		const session = { set: vi.fn(), regenerate: vi.fn() };
 		const first = new Date("2025-01-01T00:00:00.000Z");
 		vi.setSystemTime(first);
 
@@ -126,7 +126,7 @@ describeEachDialect("user last login", (dialect) => {
 			.orderBy("id")
 			.execute();
 
-		await startUserSession(db, { set: vi.fn() }, user.id);
+		await startUserSession(db, { set: vi.fn(), regenerate: vi.fn() }, user.id);
 
 		const after = await db
 			.selectFrom("users")
@@ -174,11 +174,31 @@ describeEachDialect("user last login", (dialect) => {
 		expect((await adapter.getUserWithDetails(user.id))?.lastLogin).toEqual(credential.lastUsedAt);
 	});
 
+	it("stores the user under a new session id rather than the one the request arrived with", async () => {
+		const adapter = createKyselyAdapter(db);
+		const user = await adapter.createUser({ email: "fresh@example.com" });
+		const store = new Map<string, unknown>([["existing-id", { user: { id: "someone-else" } }]]);
+		let id = "existing-id";
+		const session = {
+			regenerate: async () => {
+				store.delete(id);
+				id = "new-id";
+			},
+			set: (key: "user", value: { id: string }) => {
+				store.set(id, { [key]: value });
+			},
+		};
+
+		await startUserSession(db, session, user.id);
+
+		expect([...store]).toEqual([["new-id", { user: { id: user.id } }]]);
+	});
+
 	it("does not establish a session if recording the login fails", async () => {
 		const adapter = createKyselyAdapter(db);
 		const user = await adapter.createUser({ email: "failure@example.com" });
 		await db.schema.alterTable("users").dropColumn("last_login_at").execute();
-		const session = { set: vi.fn() };
+		const session = { set: vi.fn(), regenerate: vi.fn() };
 		await expect(startUserSession(db, session, user.id)).rejects.toThrow();
 		expect(session.set).not.toHaveBeenCalled();
 	});
