@@ -6,9 +6,20 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 
-import { assignShards, fileWeights, recordTimes } from "./vitest-shard.mjs";
+import {
+	assignShards,
+	fileWeights,
+	recordTimes,
+	ShardTimesReporter,
+	timedShardSequencer,
+} from "./vitest-shard.mjs";
 
 const script = fileURLToPath(new URL("./vitest-shard.mjs", import.meta.url));
+
+function BaseSequencerStub(ctx) {
+	this.ctx = ctx;
+}
+BaseSequencerStub.prototype.sort = async (specs) => specs.toReversed();
 
 describe("vitest shards", () => {
 	it("puts every test file in exactly one shard", () => {
@@ -75,13 +86,97 @@ describe("vitest shards", () => {
 		});
 	});
 
+	it("deals the specs out by recorded time and keeps a file's projects in one shard", async () => {
+		const root = mkdtempSync(path.join(tmpdir(), "vitest-shard-"));
+		const timesFile = path.join(root, "shard-times.json");
+		writeFileSync(
+			timesFile,
+			JSON.stringify({
+				"tests/a.test.ts": 1,
+				"tests/b.test.ts": 1,
+				"tests/both.test.ts": 9,
+				"tests/c.test.ts": 4,
+			}),
+		);
+		const spec = (name, project) => ({
+			moduleId: path.join(root, name),
+			project: { name: project },
+		});
+		const specs = [
+			spec("tests/a.test.ts", "desktop"),
+			spec("tests/both.test.ts", "desktop"),
+			spec("tests/b.test.ts", "desktop"),
+			spec("tests/both.test.ts", "touch"),
+			spec("tests/c.test.ts", "touch"),
+		];
+		const Sequencer = timedShardSequencer(BaseSequencerStub, timesFile);
+		const shard = (index) =>
+			new Sequencer({ config: { root, shard: { index, count: 2 } } }).shard(specs);
+
+		const [first, second] = await Promise.all([shard(1), shard(2)]);
+
+		assert.deepEqual(first, [specs[1], specs[3]]);
+		assert.deepEqual(second, [specs[0], specs[2], specs[4]]);
+	});
+
+	it("runs each project's longest files first under --shard, Vitest's order otherwise", async () => {
+		const root = mkdtempSync(path.join(tmpdir(), "vitest-shard-"));
+		const timesFile = path.join(root, "shard-times.json");
+		writeFileSync(
+			timesFile,
+			JSON.stringify({
+				"tests/fuzz.test.ts": 180,
+				"tests/mid.test.ts": 20,
+				"tests/quick.test.ts": 1,
+			}),
+		);
+		const desktop = { name: "chromium", config: { sequence: { groupOrder: 0 } } };
+		const touch = { ...desktop, name: "chromium-touch" };
+		const spec = (name, specProject) => ({ moduleId: path.join(root, name), project: specProject });
+		const specs = [
+			spec("tests/quick.test.ts", desktop),
+			spec("tests/new.test.ts", touch),
+			spec("tests/mid.test.ts", desktop),
+			spec("tests/fuzz.test.ts", desktop),
+		];
+		const Sequencer = timedShardSequencer(BaseSequencerStub, timesFile);
+		const sort = (shard) => new Sequencer({ config: { root, shard } }).sort(specs);
+
+		assert.deepEqual(await sort({ index: 1, count: 2 }), [specs[3], specs[2], specs[0], specs[1]]);
+		assert.deepEqual(await sort(undefined), specs.toReversed());
+	});
+
+	it("reports each file's import, setup and run seconds, summed over its projects", () => {
+		const root = mkdtempSync(path.join(tmpdir(), "vitest-shard-"));
+		const testModule = (name, collectDuration, setupDuration, duration) => ({
+			moduleId: path.join(root, name),
+			diagnostic: () => ({ collectDuration, setupDuration, duration }),
+		});
+		const reporter = new ShardTimesReporter();
+		reporter.onInit({ config: { root } });
+
+		reporter.onTestRunEnd([
+			testModule("tests/once.test.ts", 500, 250, 1250),
+			testModule("tests/twice.test.tsx", 100, 0, 900),
+			testModule("tests/twice.test.tsx", 200, 0, 1800),
+		]);
+
+		assert.deepEqual(
+			JSON.parse(readFileSync(path.join(root, "vitest-timings", "shard-times.json"), "utf8")),
+			{ "tests/once.test.ts": 2, "tests/twice.test.tsx": 3 },
+		);
+	});
+
 	it("records times from the report files under a directory", () => {
 		const dir = mkdtempSync(path.join(tmpdir(), "vitest-shard-"));
 		const timesFile = path.join(dir, "times.json");
 		writeFileSync(timesFile, JSON.stringify({ "tests/old.test.ts": 1 }));
-		const reports = path.join(dir, "reports", "vitest-timings-3");
+		const reports = path.join(dir, "reports", "vitest-timings-admin-2");
 		mkdirSync(reports, { recursive: true });
-		writeFileSync(path.join(reports, "unit.json"), JSON.stringify({ "tests/auth.test.ts": 2.4 }));
+		writeFileSync(
+			path.join(reports, "shard-times.json"),
+			JSON.stringify({ "tests/auth.test.ts": 2.4 }),
+		);
 
 		execFileSync(process.execPath, [
 			script,

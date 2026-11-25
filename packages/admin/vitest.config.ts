@@ -1,6 +1,9 @@
 import react from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults, defineConfig } from "vitest/config";
+import { BaseSequencer } from "vitest/node";
+
+import { ShardTimesReporter, timedShardSequencer } from "../../.github/scripts/vitest-shard.mjs";
 
 // Pin a non-UTC timezone so timestamp-parsing tests catch local-vs-UTC bugs.
 const contextOptions = { timezoneId: "America/New_York" };
@@ -48,6 +51,17 @@ export default defineConfig({
 	],
 	test: {
 		globals: true,
+		sequence: {
+			sequencer: timedShardSequencer(
+				BaseSequencer,
+				new URL("./tests/shard-times.json", import.meta.url),
+			),
+		},
+		// Naming any reporter replaces Vitest's own choice: `agent` under a coding
+		// agent, `default` plus `github-actions` in CI.
+		...(process.env.GITHUB_ACTIONS === "true"
+			? { reporters: ["default", "github-actions", new ShardTimesReporter()] }
+			: {}),
 		include: ["tests/**/*.test.{ts,tsx}"],
 		setupFiles: ["./tests/setup.ts"],
 		env: schemaSafetyEnv,
