@@ -12,7 +12,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
-import { applyCommentBeforeCreateResult } from "../comments/service.js";
+import { applyCommentBeforeCreateResult } from "../comments/before-create.js";
 import type { BylineSummary } from "../database/repositories/types.js";
 import { toBylineInfo } from "./byline-access.js";
 import { inspectContentPolicyDecision } from "./content-policy.js";
