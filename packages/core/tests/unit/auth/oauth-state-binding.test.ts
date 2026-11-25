@@ -185,7 +185,12 @@ describe("OAuth sign-in completes only in the browser that started it", () => {
 	it("keeps the state cookie away from scripts and sends it over https only on an https site", async () => {
 		const plain = browser();
 		await startSignIn(plain);
-		expect(stateCookieOptions(plain)).toMatchObject({ httpOnly: true, secure: false });
+		expect(stateCookieOptions(plain)).toMatchObject({
+			httpOnly: true,
+			secure: false,
+			sameSite: "lax",
+			path: "/_emdash/api/auth/oauth/",
+		});
 
 		const tls = browser();
 		await startSignIn(tls, "https://cms.example.com");
