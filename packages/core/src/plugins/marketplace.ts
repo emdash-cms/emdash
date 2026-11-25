@@ -15,6 +15,7 @@ import type { PluginManifest } from "./types.js";
 
 const TRAILING_SLASHES = /\/+$/;
 const LEADING_DOT_SLASH = /^\.\//;
+const LEADING_PACKAGE = /^package\//;
 
 // ── Types ──────────────────────────────────────────────────────────
 
@@ -206,15 +207,17 @@ const MAX_REDIRECTS = 5;
  * Fetches a marketplace URL, following redirects only while they stay on
  * that URL's origin. Throws a `MarketplaceError` coded
  * `${codePrefix}_REDIRECT_UNTRUSTED` or `${codePrefix}_TOO_MANY_REDIRECTS`.
+ * `init` is sent with every hop.
  */
 export async function fetchWithinOrigin(
 	url: string,
 	label: string,
 	codePrefix: string,
+	init?: RequestInit,
 ): Promise<Response> {
 	const origin = new URL(url).origin;
 	let currentUrl = url;
-	let response = await fetch(currentUrl, { redirect: "manual" });
+	let response = await fetch(currentUrl, { ...init, redirect: "manual" });
 
 	for (let i = 0; i < MAX_REDIRECTS; i++) {
 		if (response.status < 300 || response.status >= 400) break;
@@ -231,7 +234,7 @@ export async function fetchWithinOrigin(
 			);
 		}
 		currentUrl = target.href;
-		response = await fetch(currentUrl, { redirect: "manual" });
+		response = await fetch(currentUrl, { ...init, redirect: "manual" });
 	}
 
 	if (response.status >= 300 && response.status < 400) {
@@ -242,6 +245,35 @@ export async function fetchWithinOrigin(
 		);
 	}
 	return response;
+}
+
+/**
+ * Image types the marketplace image proxies relay. SVG is excluded because it
+ * is a document format that can carry scripts, not a plain raster image.
+ */
+const PROXIED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+
+/**
+ * Builds the response that relays a marketplace image to the browser, or
+ * returns `null` when the marketplace did not answer with an allowed image.
+ */
+export async function proxiedImageResponse(upstream: Response): Promise<Response | null> {
+	const rawType = upstream.headers.get("Content-Type") ?? "";
+	const contentType = rawType.split(";", 1)[0].trim().toLowerCase();
+	if (!upstream.ok || !PROXIED_IMAGE_TYPES.has(contentType)) {
+		await upstream.body?.cancel();
+		return null;
+	}
+
+	return new Response(upstream.body, {
+		headers: {
+			"Content-Type": contentType,
+			"Cache-Control": "private, no-store",
+			"X-Content-Type-Options": "nosniff",
+			"Content-Disposition": "attachment",
+			"Content-Security-Policy": "default-src 'none'; sandbox",
+		},
+	});
 }
 
 // ── Implementation ─────────────────────────────────────────────────
@@ -324,6 +356,8 @@ class MarketplaceClientImpl implements MarketplaceClient {
 				method: "POST",
 				headers: { "Content-Type": "application/json" },
 				body: JSON.stringify({ siteHash, version }),
+				// workerd rejects `redirect: "error"`, which the catch below would swallow.
+				redirect: "manual",
 			});
 		} catch {
 			// Fire-and-forget — never throw
@@ -354,10 +388,11 @@ class MarketplaceClientImpl implements MarketplaceClient {
 	private async fetchJson<T>(url: string): Promise<T> {
 		let response: Response;
 		try {
-			response = await fetch(url, {
+			response = await fetchWithinOrigin(url, "Marketplace request", "MARKETPLACE", {
 				headers: { Accept: "application/json" },
 			});
 		} catch (err) {
+			if (err instanceof MarketplaceError) throw err;
 			throw new MarketplaceUnavailableError(err);
 		}
 
@@ -474,10 +509,23 @@ export async function extractBundle(tarballBytes: Uint8Array): Promise<PluginBun
 
 	const decoder = new TextDecoder();
 	const files = new Map<string, string>();
+	const seenPaths = new Set<string>();
 	for (const entry of entries) {
 		if (entry.data && entry.header.type === "file") {
 			// Strip leading ./ prefix that tar tools commonly add
 			const name = entry.header.name.replace(LEADING_DOT_SLASH, "");
+			// Other bundle readers strip a leading `package/` (the npm pack
+			// layout), so `package/backend.js` would be read as `backend.js`
+			// there and a different file would be loaded here.
+			const normalizedName = name.replace(LEADING_PACKAGE, "");
+			if (seenPaths.has(normalizedName)) {
+				throw new MarketplaceError(
+					`Invalid bundle: duplicate or ambiguous path ${normalizedName}`,
+					undefined,
+					"INVALID_BUNDLE",
+				);
+			}
+			seenPaths.add(normalizedName);
 			files.set(name, decoder.decode(entry.data));
 		}
 	}

@@ -219,6 +219,18 @@ export async function dispatchPluginEditorExtensionApiRequest({
 	const denied = authorizePrivatePluginRouteRequest(routeMeta, request, user, tokenScopes);
 	if (denied) return denied;
 
+	let ownershipUser: { id: string; role: RoleLevel } | null | undefined =
+		user == null ? user : undefined;
+	if (user) {
+		const ownerRole = toRoleLevel(user.role);
+		if (ownerRole === null) {
+			return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
+		}
+		ownershipUser = { id: user.id, role: ownerRole };
+	}
+	const roleDenied = requirePerm(ownershipUser, "content:edit_own");
+	if (roleDenied) return roleDenied;
+
 	const requestedLocale = new URL(request.url).searchParams.get("locale") || undefined;
 	const contentResult = await runtime.handleContentGet(collection, entryId, requestedLocale);
 	if (!contentResult.success) {
@@ -235,15 +247,6 @@ export async function dispatchPluginEditorExtensionApiRequest({
 		return apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
 	}
 	const authorId = "authorId" in item && typeof item.authorId === "string" ? item.authorId : "";
-	let ownershipUser: { id: string; role: RoleLevel } | null | undefined =
-		user == null ? user : undefined;
-	if (user) {
-		const ownerRole = toRoleLevel(user.role);
-		if (ownerRole === null) {
-			return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
-		}
-		ownershipUser = { id: user.id, role: ownerRole };
-	}
 	const ownershipDenied = requireOwnerPerm(
 		ownershipUser,
 		authorId,

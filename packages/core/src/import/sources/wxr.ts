@@ -87,8 +87,9 @@ export const wxrSource: ImportSource = {
 				continue;
 			}
 
-			// Skip drafts if not requested
-			if (!options.includeDrafts && post.status !== "publish") {
+			// Skip drafts if not requested. A password-protected post has the
+			// status "publish" but is not public, so it is skipped with them.
+			if (!options.includeDrafts && (post.status !== "publish" || post.postPassword)) {
 				continue;
 			}
 
@@ -309,7 +310,9 @@ function wxrPostToNormalizedItem(
 	return {
 		sourceId: post.id || 0,
 		postType: post.postType || "post",
-		status: mapWpStatus(post.status),
+		// WordPress keeps a password-protected post at "publish" or "future" and
+		// marks it only with a post password.
+		status: post.postPassword ? "private" : mapWpStatus(post.status),
 		slug: post.postName || slugify(post.title || `post-${post.id || Date.now()}`),
 		title: post.title || "Untitled",
 		content,

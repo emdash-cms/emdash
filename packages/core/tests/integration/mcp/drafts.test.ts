@@ -854,4 +854,58 @@ describe("MCP drafts — liveData hydration (F13)", () => {
 			await subscriber.cleanup();
 		}
 	});
+
+	it("a Subscriber's reads don't change when a draft is saved", async () => {
+		const created = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { title: "published title" } },
+		});
+		const id = extractJson<{ item: { id: string } }>(created).item.id;
+		await harness.client.callTool({
+			name: "content_publish",
+			arguments: { collection: "post", id, _rev: await currentRev(harness.client, "post", id) },
+		});
+
+		const subscriber = await connectMcpHarness({
+			db,
+			userId: "user_subscriber",
+			userRole: Role.SUBSCRIBER,
+		});
+		try {
+			const read = async () => ({
+				got: extractJson<{ item: Record<string, unknown>; _rev?: string }>(
+					await subscriber.client.callTool({
+						name: "content_get",
+						arguments: { collection: "post", id },
+					}),
+				),
+				listed: extractJson<{ items: Array<Record<string, unknown>> }>(
+					await subscriber.client.callTool({
+						name: "content_list",
+						arguments: { collection: "post" },
+					}),
+				),
+			});
+
+			const before = await read();
+			const staffRev = await currentRev(harness.client, "post", id);
+			await harness.client.callTool({
+				name: "content_update",
+				arguments: { collection: "post", id, data: { title: "draft title" }, _rev: staffRev },
+			});
+			expect(await currentRev(harness.client, "post", id)).not.toBe(staffRev);
+			const after = await read();
+
+			expect(after).toEqual(before);
+			expect(after.got.item.data).toMatchObject({ title: "published title" });
+			expect(after.got).not.toHaveProperty("_rev");
+			expect(after.got.item).not.toHaveProperty("version");
+			const listed = after.listed.items.find((item) => item.id === id);
+			expect(listed).toMatchObject({ status: "published" });
+			expect(listed).not.toHaveProperty("draftRevisionId");
+			expect(listed).not.toHaveProperty("version");
+		} finally {
+			await subscriber.cleanup();
+		}
+	});
 });

@@ -268,7 +268,8 @@ export interface AccessConfig {
 	syncName?: boolean;
 
 	/**
-	 * Map IdP group names or GitHub org/team names to EmDash role levels
+	 * Map IdP group names (or group IDs, see `matchGroupsBy`) or GitHub
+	 * org/team names to EmDash role levels
 	 * First match wins, checking groups before teams in identity response order
 	 *
 	 * @example
@@ -281,6 +282,16 @@ export interface AccessConfig {
 	 * ```
 	 */
 	roleMapping?: Record<string, number>;
+
+	/**
+	 * Which IdP group field `roleMapping` keys are compared with.
+	 * Group names are not unique in every directory, and some directories let
+	 * members create groups, so a group named like a mapped key receives its
+	 * role. Use `"id"` to match the group's stable ID instead.
+	 * GitHub teams are always matched by `org/team` name.
+	 * @default "name"
+	 */
+	matchGroupsBy?: "name" | "id";
 }
 
 /**

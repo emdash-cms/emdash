@@ -16,7 +16,12 @@ import {
 
 import { getPublicOrigin } from "#api/public-url.js";
 import { getOAuthEnv } from "#auth/oauth-env.js";
-import { createOAuthStateStore } from "#auth/oauth-state-store.js";
+import {
+	createOAuthStateStore,
+	OAUTH_STATE_COOKIE_PATH,
+	OAUTH_STATE_TTL_MS,
+	oauthStateCookieName,
+} from "#auth/oauth-state-store.js";
 
 type ProviderName = "github" | "google" | "microsoft";
 
@@ -100,7 +105,7 @@ function getOAuthConfig(env: Record<string, unknown>): OAuthConsumerConfig["prov
 	return providers;
 }
 
-export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
+export const GET: APIRoute = async ({ params, request, locals, cookies, redirect }) => {
 	const { emdash } = locals;
 	const provider = params.provider;
 
@@ -143,8 +148,9 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 			);
 		}
 
+		const publicOrigin = getPublicOrigin(url, emdash?.config);
 		const config: OAuthConsumerConfig = {
-			baseUrl: `${getPublicOrigin(url, emdash?.config)}/_emdash`,
+			baseUrl: `${publicOrigin}/_emdash`,
 			providers,
 		};
 
@@ -157,8 +163,21 @@ export const GET: APIRoute = async ({ params, request, locals, redirect }) => {
 		const rawInvite = url.searchParams.get("invite");
 		const inviteToken = rawInvite && INVITE_TOKEN_REGEX.test(rawInvite) ? rawInvite : undefined;
 
-		const { url: authUrl } = await createAuthorizationUrl(config, provider, stateStore, {
+		const { url: authUrl, state } = await createAuthorizationUrl(config, provider, stateStore, {
 			inviteToken,
+		});
+
+		// Lax, not Strict: the provider's redirect back is a cross-site navigation.
+		// `secure` follows the public origin because the request URL can be
+		// `http:` behind a TLS-terminating proxy.
+		const cookieName = oauthStateCookieName(state);
+		if (!cookieName) throw new Error("Unexpected OAuth state format");
+		cookies.set(cookieName, state, {
+			path: OAUTH_STATE_COOKIE_PATH,
+			httpOnly: true,
+			sameSite: "lax",
+			secure: new URL(publicOrigin).protocol === "https:",
+			maxAge: OAUTH_STATE_TTL_MS / 1000,
 		});
 
 		return redirect(authUrl);

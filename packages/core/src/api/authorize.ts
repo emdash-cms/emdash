@@ -8,11 +8,34 @@
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
 import { hasPermission, canActOnOwn, hasScope } from "@emdash-cms/auth";
 
+import { isRecord } from "../plugin-utils.js";
 import { apiError } from "./error.js";
 
 interface UserLike {
 	id: string;
 	role: RoleLevel;
+}
+
+/**
+ * A content item as a caller without `content:read_drafts` may see it: the
+ * published values, without the fields that change when a draft is saved or
+ * discarded. Single-entry responses must also drop `_rev`, which encodes
+ * `version`.
+ */
+export function toPublishedView<
+	T extends { data?: unknown; liveData?: unknown; draftRevisionId?: unknown; version?: unknown },
+>(item: T) {
+	const { liveData, draftRevisionId: _draftRevisionId, version: _version, ...published } = item;
+	return { ...published, data: liveData ?? item.data };
+}
+
+/** {@link toPublishedView} for every item of a content list response. */
+export function toPublishedListView(data: unknown): unknown {
+	if (!isRecord(data) || !Array.isArray(data.items)) return data;
+	return {
+		...data,
+		items: data.items.map((item: unknown) => (isRecord(item) ? toPublishedView(item) : item)),
+	};
 }
 
 export function canReadMediaUsageCount(
@@ -22,6 +45,18 @@ export function canReadMediaUsageCount(
 	return (
 		hasPermission(user, "content:read_drafts") && (!tokenScopes || hasScope(tokenScopes, "admin"))
 	);
+}
+
+/**
+ * Whether a response may carry account email addresses. They are account
+ * data, so the caller needs `users:read`, and a token needs the `admin` scope
+ * that `/admin/users` requires.
+ */
+export function canReadUserEmails(
+	user: UserLike | null | undefined,
+	tokenScopes: string[] | undefined,
+): boolean {
+	return hasPermission(user, "users:read") && (!tokenScopes || hasScope(tokenScopes, "admin"));
 }
 
 /**

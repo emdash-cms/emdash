@@ -10,7 +10,24 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../database/types.js";
 
-const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+export const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Holds the `state` of a sign-in this browser started. A stored state only
+ * shows that some browser started a sign-in, so the callback also requires
+ * this cookie to match. Each sign-in gets its own cookie, named after the
+ * start of its state, so sign-ins started in several tabs can all finish.
+ */
+const OAUTH_STATE_COOKIE_PREFIX = "emdash_oauth_state_";
+const STATE_NAME_LENGTH = 16;
+const STATE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
+export const OAUTH_STATE_COOKIE_PATH = "/_emdash/api/auth/oauth/";
+
+/** Cookie name for `state`, or null when `state` is not a state EmDash issues. */
+export function oauthStateCookieName(state: string): string | null {
+	if (!STATE_PATTERN.test(state)) return null;
+	return OAUTH_STATE_COOKIE_PREFIX + state.slice(0, STATE_NAME_LENGTH);
+}
 
 export function createOAuthStateStore(db: Kysely<Database>): StateStore {
 	return {
