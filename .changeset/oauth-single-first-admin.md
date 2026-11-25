@@ -1,8 +1,16 @@
 ---
 "emdash": patch
-"@emdash-cms/auth": patch
+"@emdash-cms/auth": minor
+"@emdash-cms/auth-atproto": patch
 ---
 
-Fixes GitHub, Google, and Microsoft sign-in during setup so only one account becomes the first admin when two people finish signing in at the same moment. The later sign-in is now refused with `signup_not_allowed`, and no second account is created.
+Fixes first-admin creation so only one person becomes admin when several first sign-ins happen at the same moment.
 
-`canSelfSignup` results in `@emdash-cms/auth` can now include an optional `createUser` function, which `findOrCreateOAuthUser()` uses in place of `adapter.createUser()`. It refuses the signup by returning `null`.
+- **GitHub, Google, Microsoft, and AT Protocol sign-in during setup:** the first sign-in becomes admin. A sign-in that finishes at the same time is now refused with `signup_not_allowed` instead of creating a second admin. With AT Protocol, only the account that becomes admin receives the email entered in the setup wizard, so another account can no longer be linked to the admin by that email.
+- **Cloudflare Access:** when several people sign in to a new site at once, one becomes admin and the others get the role from their Access groups. The first admin's email is now stored in lowercase.
+
+While setup is still open, a sign-in from a new identity is refused once any user exists, matching the passkey setup step.
+
+`@emdash-cms/auth` adds an optional `createUser` function to `canSelfSignup` results. When present, `findOrCreateOAuthUser()` calls it instead of `adapter.createUser()`, and refuses the sign-in with `signup_not_allowed` if it returns `null`.
+
+`@emdash-cms/auth-atproto` now requires `emdash` 1.7.0 or later.

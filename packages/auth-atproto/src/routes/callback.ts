@@ -8,8 +8,8 @@
  * User lookup uses oauth_accounts (provider="atproto", provider_account_id=DID)
  * rather than email, since AT Protocol doesn't guarantee email access.
  *
- * For the first user (setup flow), the real email from the setup wizard is used.
- * For subsequent users, a synthetic email is generated from the DID.
+ * The first user (setup flow) is stored with the email from the setup wizard.
+ * Other users get a synthetic email generated from the DID.
  */
 
 import type { APIRoute } from "astro";
@@ -26,7 +26,12 @@ import {
 } from "@emdash-cms/auth";
 import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
 import type { AuthProviderDescriptor } from "emdash";
-import { finalizeSetup, getPublicOrigin, OptionsRepository } from "emdash/api/route-utils";
+import {
+	createFirstAdmin,
+	finalizeSetup,
+	getPublicOrigin,
+	OptionsRepository,
+} from "emdash/api/route-utils";
 import type { Kysely } from "kysely";
 
 import { recordLogin } from "../record-login.js";
@@ -128,9 +133,6 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 			);
 		}
 
-		// Check setup_complete as the authoritative first-user gate.
-		// Using an option flag instead of countUsers() avoids a TOCTOU race
-		// where two concurrent callbacks both see 0 users and both create admins.
 		// Cast needed: Database extends AuthTables but uses Generated<> wrappers
 		// that confuse structural checks. The adapter casts internally anyway.
 		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Database uses Generated<> wrappers incompatible with AuthTables structurally; safe at runtime
@@ -139,23 +141,16 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		const setupComplete = await options.get("emdash:setup_complete");
 		const isFirstUser = setupComplete !== true && setupComplete !== "true";
 
-		// Build synthetic email — AT Protocol doesn't guarantee email access.
-		// For the first user, read the real email from the setup wizard state.
-		let email: string;
-		if (isFirstUser) {
-			const setupState = await options.get<Record<string, unknown>>("emdash:setup_state");
-			// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- setup_state is a Record<string, unknown> with optional email string
-			email = (setupState?.email as string) || `${did.replaceAll(":", "-")}@atproto.invalid`;
-		} else {
-			email = `${did.replaceAll(":", "-")}@atproto.invalid`;
-		}
-
+		// AT Protocol doesn't guarantee email access, so the profile always
+		// carries a synthetic address. The wizard's email is applied only by
+		// the request whose first-admin insert succeeds; otherwise concurrent
+		// setup callbacks could auto-link to the owner's account by email.
 		const profile: OAuthProfile = {
 			id: did,
-			email,
+			email: `${did.replaceAll(":", "-")}@atproto.invalid`,
 			name: displayName || handle,
 			avatarUrl: null,
-			emailVerified: isFirstUser,
+			emailVerified: false,
 		};
 
 		// Use shared find-or-create with canSelfSignup policy.
@@ -163,7 +158,20 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		// initial admin (first user during setup) is allowed through.
 		const user = await findOrCreateOAuthUser(adapter, "atproto", profile, async () => {
 			if (isFirstUser) {
-				return { allowed: true, role: Role.ADMIN };
+				return {
+					allowed: true,
+					role: Role.ADMIN,
+					createUser: async (newUser) => {
+						const setupState = await options.get<Record<string, unknown>>("emdash:setup_state");
+						const setupEmail = typeof setupState?.email === "string" ? setupState.email : "";
+						const admin = await createFirstAdmin(emdash.db, {
+							email: setupEmail || newUser.email,
+							name: newUser.name ?? null,
+							emailVerified: setupEmail !== "",
+						});
+						return admin ? adapter.getUserById(admin.id) : null;
+					},
+				};
 			}
 			if (!hasAllowedDIDs && !hasAllowedHandles) {
 				return null;
@@ -172,7 +180,6 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		});
 
 		if (isFirstUser) {
-			// finalizeSetup is idempotent — safe if two callbacks race past the check
 			await finalizeSetup(emdash.db);
 			console.log(`[atproto-auth] Setup complete: created admin user via atproto (${did})`);
 		}

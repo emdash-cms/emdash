@@ -1,24 +1,12 @@
 import { Role } from "@emdash-cms/auth";
-import type { Kysely, KyselyPlugin } from "kysely";
+import type { Kysely } from "kysely";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET as start } from "../../../src/astro/routes/api/auth/oauth/[provider].js";
 import { GET as callback } from "../../../src/astro/routes/api/auth/oauth/[provider]/callback.js";
 import type { Database } from "../../../src/database/types.js";
+import { answersOverIo } from "../../utils/answers-over-io.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
-
-/**
- * The built-in SQLite driver answers synchronously, so one request's queries
- * never interleave with another's. D1, PostgreSQL and remote libSQL answer
- * over I/O; yielding to the event loop after every query models that.
- */
-const answersOverIo: KyselyPlugin = {
-	transformQuery: (args) => args.node,
-	transformResult: async (args) => {
-		await new Promise((resolve) => setImmediate(resolve));
-		return args.result;
-	},
-};
 
 const GITHUB_IDS: Record<string, number> = { owner: 1, second: 2 };
 

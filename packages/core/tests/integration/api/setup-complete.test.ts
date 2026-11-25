@@ -32,6 +32,21 @@ describeEachDialect("createFirstAdmin", (dialect) => {
 		expect(await users()).toEqual([{ email: "owner@example.com", role: 50 }]);
 	});
 
+	it("stores the avatar and verified email of an admin who signed in with a provider", async () => {
+		await createFirstAdmin(ctx.db, {
+			email: "owner@example.com",
+			name: null,
+			avatarUrl: "https://example.com/owner.png",
+			emailVerified: true,
+		});
+
+		const owner = await ctx.db
+			.selectFrom("users")
+			.select(["avatar_url", "email_verified"])
+			.executeTakeFirstOrThrow();
+		expect(owner).toEqual({ avatar_url: "https://example.com/owner.png", email_verified: 1 });
+	});
+
 	it.runIf(dialect === "postgres")(
 		"waits for a concurrent admin creation and then refuses",
 		async () => {
