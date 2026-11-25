@@ -234,8 +234,8 @@ export function WordPressImport() {
 		const error = params.get("error");
 
 		if (error === "auth_rejected") {
-			setImportError(t`WordPress authorization was rejected`);
-			setStep("probe-result");
+			setImportError(t`WordPress did not approve the connection, or the approval expired.`);
+			setStep("choose");
 			// Clean up URL
 			window.history.replaceState({}, "", window.location.pathname);
 			return;
@@ -496,6 +496,7 @@ export function WordPressImport() {
 		// A pasted migration key skips probing entirely -- it carries the
 		// site URL and credentials.
 		if (handleMigrationKey(input)) return;
+		setImportError(null);
 		setStep("probing");
 		probeMutation.mutate(input);
 	};
@@ -812,6 +813,15 @@ export function WordPressImport() {
 			</div>
 
 			{/* Choose step - URL input or file upload */}
+			{step === "choose" && importError && (
+				<div
+					role="alert"
+					className="mb-6 flex gap-3 rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-4"
+				>
+					<WarningCircle className="h-5 w-5 shrink-0 text-kumo-danger" aria-hidden="true" />
+					<p className="text-sm text-kumo-danger">{importError}</p>
+				</div>
+			)}
 			{step === "choose" && (
 				<ChooseStep
 					urlInput={urlInput}
