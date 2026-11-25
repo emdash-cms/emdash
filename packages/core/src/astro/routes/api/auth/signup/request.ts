@@ -23,6 +23,8 @@ import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
+import { after } from "../../../../../after.js";
+
 // Generic response body used for both the real success path and the
 // rate-limited / domain-disallowed paths. Keeping them identical prevents
 // the caller from distinguishing between them.
@@ -72,17 +74,28 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Use the configured site URL (stored option as fallback) to prevent Host header spoofing in signup emails
 		const baseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
 
-		// Request signup - this handles all checks internally and fails silently
-		// if domain not allowed or user exists (to prevent enumeration)
-		await requestSignup(
-			{
-				baseUrl,
-				siteName,
-				email: (message) => emdash.email!.send(message, "system"),
-			},
-			adapter,
-			body.email.toLowerCase().trim(),
-		);
+		// Handles the existing-user and allowed-domain checks internally and
+		// does nothing when either fails. Runs after the response so its
+		// duration doesn't depend on the outcome of those checks.
+		const email = body.email.toLowerCase().trim();
+		after(async () => {
+			try {
+				// Yield a macrotask: a synchronous driver (SQLite) would otherwise
+				// run the lookup before the response is written.
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				await requestSignup(
+					{
+						baseUrl,
+						siteName,
+						email: (message) => emdash.email!.send(message, "system"),
+					},
+					adapter,
+					email,
+				);
+			} catch (error) {
+				console.error("Signup request error:", error);
+			}
+		});
 
 		// Always return success to prevent email enumeration
 		return apiSuccess(GENERIC_SUCCESS);

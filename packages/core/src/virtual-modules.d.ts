@@ -63,12 +63,17 @@ declare module "virtual:emdash/dialect" {
 	 */
 	export interface RequestScopedDbOpts {
 		config: unknown;
+		/**
+		 * Request-start state, for choosing a connection: a session user, or an
+		 * `Authorization: Bearer` header that nothing has verified yet.
+		 */
 		isAuthenticated: boolean;
 		/**
 		 * Evaluated at commit() time: whether the request ended authenticated.
 		 * Login/signup/invite requests start unauthenticated and establish a
 		 * session mid-request; `isAuthenticated` captures only the request-start
-		 * state.
+		 * state. Counts verified callers only, so when provided it decides
+		 * whether `commit()` hands per-request state back to the client.
 		 */
 		endedAuthenticated?: () => boolean;
 		isWrite: boolean;

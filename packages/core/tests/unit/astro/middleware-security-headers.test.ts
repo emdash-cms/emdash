@@ -9,7 +9,7 @@
  * The fix applies the baseline headers set-if-absent, matching the existing CSP
  * pattern, so a host that sets a stricter value on its own public routes wins.
  */
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
@@ -195,5 +195,74 @@ describe("astro middleware baseline security headers (issue #1393)", () => {
 		expect(response.headers.get("Permissions-Policy")).toBe(
 			"camera=(), microphone=(), geolocation=(), payment=()",
 		);
+	});
+});
+
+/**
+ * Server-Timing carries per-request query counts and durations, which differ
+ * between API requests that otherwise get the same answer.
+ */
+describe("astro middleware Server-Timing exposure", () => {
+	const apiUrl = "https://example.com/_emdash/api/auth/magic-link/send";
+
+	function apiContext() {
+		return {
+			...anonymousPublicPageContext(),
+			request: new Request(apiUrl, { method: "POST" }),
+			url: new URL(apiUrl),
+		};
+	}
+
+	beforeEach(() => {
+		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
+	});
+
+	afterEach(() => {
+		vi.unstubAllEnvs();
+	});
+
+	it("omits Server-Timing on API responses in production", async () => {
+		vi.stubEnv("DEV", false);
+
+		const response = await onRequest(
+			apiContext() as Parameters<typeof onRequest>[0],
+			async () => new Response("{}"),
+		);
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Server-Timing")).toBeNull();
+		expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+	});
+
+	it("keeps Server-Timing on API responses in dev", async () => {
+		vi.stubEnv("DEV", true);
+
+		const response = await onRequest(
+			apiContext() as Parameters<typeof onRequest>[0],
+			async () => new Response("{}"),
+		);
+
+		expect(response.headers.get("Server-Timing")).toContain("render");
+	});
+
+	it("keeps Server-Timing on admin and public pages in production", async () => {
+		vi.stubEnv("DEV", false);
+		const adminUrl = "https://example.com/_emdash/admin";
+
+		const admin = await onRequest(
+			{
+				...anonymousPublicPageContext(),
+				request: new Request(adminUrl),
+				url: new URL(adminUrl),
+			} as Parameters<typeof onRequest>[0],
+			async () => new Response("ok"),
+		);
+		const page = await onRequest(
+			anonymousPublicPageContext() as Parameters<typeof onRequest>[0],
+			async () => new Response("ok"),
+		);
+
+		expect(admin.headers.get("Server-Timing")).toContain("render");
+		expect(page.headers.get("Server-Timing")).toContain("render");
 	});
 });

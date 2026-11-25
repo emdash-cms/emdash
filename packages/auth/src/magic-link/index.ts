@@ -44,18 +44,13 @@ export interface MagicLinkConfig {
 }
 
 /**
- * Add artificial delay with jitter to prevent timing attacks.
- * Range approximates the time for token creation + email send.
- */
-async function timingDelay(): Promise<void> {
-	const delay = 100 + Math.random() * 150; // 100-250ms
-	await new Promise((resolve) => setTimeout(resolve, delay));
-}
-
-/**
  * Send a magic link to a user's email.
  *
  * Requires `config.email` to be set. Throws if no email sender is configured.
+ *
+ * Resolves without sending when no user has that email, so how long the call
+ * takes depends on whether the account exists. Callers whose response should
+ * not depend on that should run this after responding instead of awaiting it.
  */
 export async function sendMagicLink(
 	config: MagicLinkConfig,
@@ -70,8 +65,6 @@ export async function sendMagicLink(
 	// Find user
 	const user = await adapter.getUserByEmail(email);
 	if (!user) {
-		// Don't reveal whether user exists - add delay to match successful path timing
-		await timingDelay();
 		return;
 	}
 

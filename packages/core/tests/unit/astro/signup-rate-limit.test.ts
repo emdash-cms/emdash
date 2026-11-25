@@ -20,6 +20,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { POST as signupRequest } from "../../../src/astro/routes/api/auth/signup/request.js";
 import type { Database } from "../../../src/database/types.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 // Simulate a Cloudflare request so getClientIp returns a value. Without the
@@ -87,6 +88,22 @@ describe("POST /auth/signup/request rate limiting", () => {
 		const email = buildEmail();
 		const res = await signupRequest(ctx({ db, email, body: { email: "a@allowed.com" } }));
 		expect(res.status).toBe(200);
+		await waitForDeferredTasks();
+		expect(email.send).toHaveBeenCalledTimes(1);
+	});
+
+	it("answers before storing the token or sending the email", async () => {
+		const email = buildEmail();
+
+		// An allowed, unregistered address is the only case that stores a
+		// token and sends an email, so the response must not wait for either.
+		const res = await signupRequest(ctx({ db, email, body: { email: "a@allowed.com" } }));
+		expect(res.status).toBe(200);
+		expect(email.send).not.toHaveBeenCalled();
+		expect(await db.selectFrom("auth_tokens").select("hash").execute()).toHaveLength(0);
+
+		await waitForDeferredTasks();
+		expect(await db.selectFrom("auth_tokens").select("hash").execute()).toHaveLength(1);
 		expect(email.send).toHaveBeenCalledTimes(1);
 	});
 
@@ -100,6 +117,7 @@ describe("POST /auth/signup/request rate limiting", () => {
 		}
 
 		// Matches magic-link/send: 3 requests per 5 minutes per IP.
+		await waitForDeferredTasks();
 		expect(email.send).toHaveBeenCalledTimes(3);
 	});
 
@@ -148,10 +166,12 @@ describe("POST /auth/signup/request rate limiting", () => {
 		for (const local of ["a", "b", "c", "d"]) {
 			await signupRequest(makeCtx(req("198.51.100.7", `${local}@allowed.com`)));
 		}
+		await waitForDeferredTasks();
 		expect(email.send).toHaveBeenCalledTimes(3);
 
 		// IP B still gets through
 		await signupRequest(makeCtx(req("198.51.100.8", "x@allowed.com")));
+		await waitForDeferredTasks();
 		expect(email.send).toHaveBeenCalledTimes(4);
 	});
 });

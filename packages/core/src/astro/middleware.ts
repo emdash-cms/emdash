@@ -898,7 +898,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			(request.headers.get("authorization") ?? "").toLowerCase().startsWith("bearer ");
 		const isWrite = request.method !== "GET" && request.method !== "HEAD";
 		const isAuthenticated = !!sessionUser || hasBearerAuth;
-		const endedAuthenticated = () => requestEndedAuthenticated(isAuthenticated, cookies);
+		// The Bearer header is unverified here and only steers connection
+		// routing. Per-request state that commit() returns to the client is
+		// only for callers the auth middleware resolved into `locals.user`.
+		const endedAuthenticated = () =>
+			requestEndedAuthenticated(!!sessionUser || !!locals.user, cookies);
 		const canUseCachedBinding =
 			!isAuthenticated &&
 			!isWrite &&
@@ -1325,10 +1329,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
 				pushMetricsTimings(timings, metrics);
+				// Some API routes give the same answer whether or not a record
+				// exists; query counts and durations would differ, so API
+				// responses only carry timings in dev.
+				const isApiRoute = url.pathname.startsWith("/_emdash/api");
+				const exposedTimings = import.meta.env.DEV || !isApiRoute ? timings : undefined;
 				// Server-Timing only sees pre-stream queries; the stream-end
 				// wrapper (instrumentation-gated, no-op otherwise) emits the
 				// final counters once the body finishes streaming.
-				return wrapBodyForStreamMetrics(finalizeResponse(response, timings));
+				return wrapBodyForStreamMetrics(finalizeResponse(response, exposedTimings));
 			};
 
 			if (scoped) {

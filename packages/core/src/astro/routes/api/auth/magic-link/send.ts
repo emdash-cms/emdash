@@ -25,6 +25,8 @@ import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
+import { after } from "../../../../../after.js";
+
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash } = locals;
 
@@ -83,9 +85,20 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			emailLocale,
 		};
 
-		// Send magic link (silently fails if user doesn't exist)
+		// Runs after the response so its duration doesn't depend on whether
+		// the email has an account (only then are a token and email created).
 		const adapter = createKyselyAdapter(emdash.db);
-		await sendMagicLink(config, adapter, body.email.toLowerCase());
+		const email = body.email.toLowerCase();
+		after(async () => {
+			try {
+				// Yield a macrotask: a synchronous driver (SQLite) would otherwise
+				// run the lookup before the response is written.
+				await new Promise((resolve) => setTimeout(resolve, 0));
+				await sendMagicLink(config, adapter, email);
+			} catch (error) {
+				console.error("Magic link send error:", error);
+			}
+		});
 
 		// Always return success to avoid revealing if email exists
 		return apiSuccess({
