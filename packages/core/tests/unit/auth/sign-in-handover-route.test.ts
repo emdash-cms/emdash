@@ -47,7 +47,7 @@ describe("sign-in handover route", () => {
 		return new URL(body.data.url);
 	}
 
-	function confirm(token: string, session = { set: vi.fn() }) {
+	function confirm(token: string, session = { set: vi.fn(), regenerate: vi.fn(async () => {}) }) {
 		return confirmLink({
 			request: new Request("https://new.example/_emdash/api/auth/magic-link/verify", {
 				method: "POST",
@@ -75,7 +75,7 @@ describe("sign-in handover route", () => {
 	it("signs the same user in once", async () => {
 		const token = (await linkFrom("old.workers.dev")).searchParams.get("token")!;
 
-		const session = { set: vi.fn() };
+		const session = { set: vi.fn(), regenerate: vi.fn(async () => {}) };
 		expect((await confirm(token, session)).status).toBe(200);
 		expect(session.set).toHaveBeenCalledWith("user", { id: user.id });
 

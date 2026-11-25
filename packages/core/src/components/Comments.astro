@@ -16,6 +16,7 @@
 import type { PublicComment } from "../database/repositories/comment.js";
 import { getComments } from "../comments/query.js";
 import { getCollectionInfo } from "../schema/query.js";
+import { getSiteSettings } from "../settings/index.js";
 
 interface Props {
 	collection: string;
@@ -67,7 +68,23 @@ function resolveDateLocale(value: string | undefined): string {
 	}
 }
 
+function resolveDateTimezone(value: string | undefined): string {
+	if (!value) return "UTC";
+	try {
+		return new Intl.DateTimeFormat("en-US", { timeZone: value }).resolvedOptions().timeZone;
+	} catch {
+		return "UTC";
+	}
+}
+
+const collectionInfo = await getCollectionInfo(collection);
+const enabled = collectionInfo?.commentsEnabled ?? false;
+const { items, total } = enabled
+	? await getComments({ collection, contentId, threaded, reactions, sort })
+	: { items: [], total: 0 };
+const settings = items.length > 0 ? await getSiteSettings() : {};
 const dateFormat = new Intl.DateTimeFormat(resolveDateLocale(locale), {
+	timeZone: resolveDateTimezone(settings.timezone),
 	year: "numeric",
 	month: "long",
 	day: "numeric",
@@ -79,12 +96,6 @@ function formatDate(value: string): string {
 	const date = new Date(value);
 	return Number.isNaN(date.getTime()) ? value : dateFormat.format(date);
 }
-
-const collectionInfo = await getCollectionInfo(collection);
-const enabled = collectionInfo?.commentsEnabled ?? false;
-const { items, total } = enabled
-	? await getComments({ collection, contentId, threaded, reactions, sort })
-	: { items: [], total: 0 };
 
 const URL_RE = /https?:\/\/[^\s<>"')\]]+/g;
 const AMP_RE = /&/g;

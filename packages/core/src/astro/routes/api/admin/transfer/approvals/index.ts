@@ -8,7 +8,7 @@
 import type { APIRoute } from "astro";
 
 import { requireAnyPerm } from "#api/authorize.js";
-import { apiError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, unwrapResult } from "#api/error.js";
 import { handleApprovalList } from "#api/handlers/transfer.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { transferApprovalListQuery } from "#api/schemas/transfer.js";
@@ -17,8 +17,9 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ url, locals }) => {
 	const { emdash, user } = locals;
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requireAnyPerm(user, ["transfer:export", "transfer:import"]);
 	if (denied) return denied;

@@ -229,7 +229,9 @@ The operation ID is stable within the generated contract and is commonly used as
 
 ### Search
 
-SQLite full-text search requires FTS5. Search, suggestions, and enabling search return `503` with error code `SEARCH_UNAVAILABLE` when the SQLite build lacks FTS5. Rebuilding an already enabled index reports the same error; rebuilding a collection whose search setup never succeeded returns `400 SEARCH_NOT_ENABLED`. See the [Node.js deployment prerequisites](/deployment/nodejs/#prerequisites) for a capability check and recovery steps. A successful response with an empty `items` list means there are no matches or no enabled collections, not that FTS5 is missing.
+Built-in full-text search is available on SQLite, D1, and libSQL databases when FTS5 is available. On PostgreSQL, including PostgreSQL accessed through Hyperdrive, all five search endpoints below return `503` with error code `SEARCH_UNAVAILABLE`, including enable or disable, rebuild, and stats. Requests must still pass validation and any required authorization checks.
+
+On a SQLite-family database whose build lacks FTS5, search, suggestions, and enabling search return the same error. Rebuilding an already enabled index reports the same error; rebuilding a collection whose search setup never succeeded returns `400 SEARCH_NOT_ENABLED`. See the [Node.js deployment prerequisites](/deployment/nodejs/#prerequisites) for a capability check and recovery steps. A successful response with an empty `items` list means there are no matches or no enabled collections, not that search is unavailable.
 
 | Method | Path | Operation | Summary |
 | --- | --- | --- | --- |
@@ -448,7 +450,20 @@ Media operations cover listing, upload, metadata updates, image replacement, fol
 
 ### List and inspect media
 
-`GET /media` supports cursor or numbered-page pagination, MIME-type and filename filters, folders, and optional usage summaries. Omit `folderId` to include every folder, or pass `folderId=unfiled` to return only the Main library. Set `includeUsage=1` on a list or single-item read to include usage information; any other value is invalid.
+`GET /media` supports cursor or numbered-page pagination, MIME-type and search filters, folders, and optional usage summaries. Omit `folderId` to include every folder, or pass `folderId=unfiled` to return only the Main library. Set `includeUsage=1` on a list or single-item read to include usage information; any other value is invalid.
+
+Pass `q` for a case-insensitive literal substring search across filenames, storage keys, and media IDs. A result can match a key or ID even when its filename does not contain the term. `%`, `_`, and backslash are literal characters, not wildcards. The term is trimmed and must contain between 1 and 200 characters.
+
+For a `q` containing `/`, search removes the query string and fragment, then uses the last path segment. Relative and full media file URLs are accepted. A path ending in `/` leaves no term and applies no search filter; omit `q` when no search is needed. Other filters still apply.
+
+The following request searches for the storage key in a copied media URL. `--data-urlencode` keeps the pasted URL's query string and fragment inside `q`:
+
+```bash
+curl --get \
+	--header "Authorization: Bearer $EMDASH_TOKEN" \
+	--data-urlencode 'q=https://example.com/_emdash/api/media/file/01M66PYKARAMWV7H63E8S28HYA.01M66PYM1K0Y37FSW9F9XXMP3F.jpg?download=1#preview' \
+	https://example.com/_emdash/api/media
+```
 
 `usage.count` counts distinct active content rows or locales whose current indexed source references the media item, plus each site setting that selects it (`logo`, `favicon`, `seo.defaultOgImage`). Repeated references in one entry count once, and trashed entries do not count. The number is visible only to callers who may read drafts; other authorized media readers receive `count: null` because the count could reveal draft content.
 
@@ -484,6 +499,8 @@ curl --request POST \
 The multipart body can also include `alt` text and a `caption` for the new media item, image `width` and `height`, a `fieldId` whose MIME-type allowlist should be applied, and a downscaled `thumbnail` used to create a low-quality image placeholder. The admin and visual-editing toolbar create a small browser thumbnail for every image. An omitted or empty `alt` or `caption` field is stored as `null`. A new file returns `201 Created` and is ready immediately. Identical bytes return the existing media item with `200 OK` and `deduplicated: true`; the `alt` and `caption` sent with the upload are not applied to it.
 
 For an image or file field inside a block, send `fieldId` as `<outerFieldId>:<blockKey>:<fieldSlug>`, where `outerFieldId` is the database ID of the collection's blocks field. Also send `blockType` (the block type slug) and `blockVersion` (the block's retained version number). Use a string for `blockVersion` in multipart requests and a number in upload-target JSON requests. EmDash applies the nested field's `allowedMimeTypes` only when the block type is allowed or retired on the outer field and the version contains that image or file field. Missing or unresolvable context falls back to the default upload allowlist.
+
+For an image sub-field in a repeater, use `<repeaterFieldId>.<subFieldSlug>` as `fieldId`. For a repeater inside a block, use `<outerFieldId>:<blockKey>:<repeaterSlug>.<subFieldSlug>` and include the same `blockType` and `blockVersion` context. These forms apply to both multipart uploads and upload-target requests. The allowlist comes from the stored sub-field definition, not from the request.
 
 ### Upload target flow
 
@@ -596,6 +613,24 @@ While an import is executing, and after it fails or is cancelled until it is aba
 List operations describe their pagination parameters in OpenAPI. Most cursor-paginated operations accept an opaque `cursor` and a `limit` from 1 to 100, defaulting to 50. Return the previous response's `nextCursor` unchanged; do not inspect or construct it. Some specialized lists use different limits, so generated clients should follow each operation's schema.
 
 `GET /media`, `GET /content/{collection}`, and `GET /content/{collection}/trash` also accept a 1-based `page` instead of `cursor`. A numbered page has no `nextCursor` and reports how many items match: `totalCount` for media, `total` for content. Sending both `page` and `cursor` returns a `400` validation error.
+
+## Search index recovery
+
+Search and autocomplete check for missing or empty indexes on first use in each runtime. They repair those indexes automatically when live content exists. These checks do not compare full row counts, so a non-empty index that contains only some of a collection's content requires an explicit rebuild.
+
+To repair a partial index, rebuild the search-enabled collection with `POST /_emdash/api/search/rebuild`. This operation requires the Admin-only `search:manage` permission; an Editor session receives `403`. Bearer tokens also need the `admin` scope. For session-cookie authentication, include `X-EmDash-Request: 1`.
+
+The following request rebuilds the `articles` index using an Admin's Bearer token with the `admin` scope. Replace the site URL and collection slug with your own values:
+
+```sh
+curl --fail-with-body 'https://example.com/_emdash/api/search/rebuild' \
+  --header "Authorization: Bearer $EMDASH_TOKEN" \
+  --header 'X-EmDash-Request: 1' \
+  --header 'Content-Type: application/json' \
+  --data '{"collection":"articles"}'
+```
+
+A successful response includes `data.collection` and `data.indexed`, the number of indexed rows. After rebuilding, repeat the search that was missing results to verify recovery.
 
 ## Search tokenizers
 

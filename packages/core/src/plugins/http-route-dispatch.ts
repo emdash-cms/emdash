@@ -4,8 +4,9 @@ import { validateContentEditorPanelInteraction } from "@emdash-cms/blocks/server
 
 import { requirePerm, requireOwnerPerm } from "../api/authorize.js";
 import { apiError, apiSuccess } from "../api/error.js";
+import type { EmDashHandlers } from "../astro/types.js";
 import { requireScope } from "../auth/scopes.js";
-import type { EmDashRuntime, PluginEditorExtensionDispatch } from "../emdash-runtime.js";
+import type { PluginEditorExtensionDispatch } from "../emdash-runtime.js";
 import { roomId } from "../rooms/types.js";
 import {
 	validateEditorDraftPatch,
@@ -14,8 +15,7 @@ import {
 } from "./editor-draft.js";
 import { pluginRouteResponseFromWire, pluginRouteResponseToWire } from "./route-wire.js";
 import { parseDeclaredPluginRouteInput, PluginRouteRequestError } from "./route-wire.js";
-import type { PluginContentCacheInvalidator, RouteMeta } from "./routes.js";
-import type { UserInfo } from "./types.js";
+import type { PluginContentCacheInvalidator, RouteCallerInput, RouteMeta } from "./routes.js";
 
 function editorDraftErrorResponse(error: { code: string; message: string }): Response {
 	const status =
@@ -50,7 +50,7 @@ function isPermission(value: string): value is Permission {
 function authorizePrivatePluginRouteRequest(
 	routeMeta: RouteMeta,
 	request: Request,
-	user?: UserInfo | null,
+	user?: RouteCallerInput | null,
 	tokenScopes?: string[],
 ): Response | null {
 	const permission = routeMeta.permission ?? "plugins:manage";
@@ -80,11 +80,11 @@ function authorizePrivatePluginRouteRequest(
 }
 
 export interface PluginApiRequestContext {
-	runtime: EmDashRuntime;
+	runtime: Pick<EmDashHandlers, "getPluginRouteMeta" | "handlePluginApiRoute">;
 	pluginId: string;
 	path: string;
 	request: Request;
-	user?: UserInfo | null;
+	user?: RouteCallerInput | null;
 	tokenScopes?: string[];
 	invalidateContentCache?: PluginContentCacheInvalidator;
 	editorDispatch?: PluginEditorExtensionDispatch;
@@ -170,14 +170,22 @@ export async function dispatchPluginApiRequest({
 }
 
 export interface PluginEditorExtensionApiRequestContext {
-	runtime: EmDashRuntime;
+	runtime: Pick<
+		EmDashHandlers,
+		| "getPluginRouteMeta"
+		| "handlePluginApiRoute"
+		| "getPluginEditorExtension"
+		| "handleContentGet"
+		| "getPluginEditorDraftSchema"
+		| "rooms"
+	>;
 	pluginId: string;
 	kind: "panel" | "action";
 	extensionId: string;
 	collection: string;
 	entryId: string;
 	request: Request;
-	user?: UserInfo | null;
+	user?: RouteCallerInput | null;
 	tokenScopes?: string[];
 	invalidateContentCache?: PluginContentCacheInvalidator;
 }

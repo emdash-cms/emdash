@@ -121,6 +121,7 @@ test.describe("Sandboxed plugin editor extensions", () => {
 		expect(extensionRequests).toHaveLength(2);
 		await preview.getByRole("button", { name: "تطبيق التغييرات" }).click();
 		await expect(title).toHaveValue("Unsaved title translated");
+		await expect(body).toHaveText("Unsaved body translated");
 		await expect(admin.page.locator('form button[type="submit"]').first()).toBeEnabled();
 	});
 

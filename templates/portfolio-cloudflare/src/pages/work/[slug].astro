@@ -23,6 +23,7 @@ const {
 
 if (error) return new Response("Could not load the project", { status: 500 });
 if (!project) {
+	if (Astro.cache?.enabled) Astro.cache.set(projectCacheHint);
 	return Astro.rewrite("/404");
 }
 

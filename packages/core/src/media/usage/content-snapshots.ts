@@ -1,11 +1,14 @@
 import { sql, type Kysely } from "kysely";
 
+import { getConfiguredOrigin, type SiteUrlConfig } from "../../api/public-url.js";
+import { resolveSiteOrigin } from "../../api/site-url.js";
 import { jsonTextValues } from "../../database/json-recordset.js";
 import type {
 	MediaUsageOccurrenceInput,
 	MediaUsageSourceInput,
 } from "../../database/repositories/media-usage.js";
 import { MediaRepository } from "../../database/repositories/media.js";
+import { OptionsRepository } from "../../database/repositories/options.js";
 import type { Database } from "../../database/types.js";
 import { validateIdentifier } from "../../database/validate.js";
 import {
@@ -23,6 +26,24 @@ import { CONTENT_SOURCE_SCHEMA_VERSION, type ExtractedMediaUsageOccurrence } fro
 
 export { CONTENT_SOURCE_SCHEMA_VERSION } from "./types.js";
 const CONTENT_COLLECTION_ID_RESULT = "__emdash_media_usage_collection_id";
+const SITE_ORIGIN_OPTION_NAMES = ["site:url", "emdash:site_url"] as const;
+
+async function resolveContentMediaUsageOrigin(db: Kysely<Database>): Promise<string | undefined> {
+	let config: SiteUrlConfig | undefined;
+	try {
+		const module = (await import("virtual:emdash/config")) as {
+			default?: SiteUrlConfig;
+		};
+		config = module.default;
+	} catch {
+		// Core callers outside Astro do not have the virtual config module.
+	}
+
+	const configuredOrigin = getConfiguredOrigin(config);
+	if (configuredOrigin) return configuredOrigin;
+	const values = await new OptionsRepository(db).getMany([...SITE_ORIGIN_OPTION_NAMES]);
+	return resolveSiteOrigin(config, values.get("site:url"), values.get("emdash:site_url"));
+}
 
 const CONTENT_SYSTEM_COLUMNS = [
 	"id",
@@ -100,6 +121,7 @@ export async function loadContentMediaUsageSnapshotsBatch(
 	if (options.identityVersion !== undefined && !options.collectionId) {
 		throw new Error("Canonical media usage snapshots require a collection identity");
 	}
+	const siteOrigin = await resolveContentMediaUsageOrigin(db);
 	const discovery = fieldDiscovery ?? (await loadContentMediaUsageFields(db, collectionSlug));
 	const rows = await loadContentRows(
 		db,
@@ -127,6 +149,7 @@ export async function loadContentMediaUsageSnapshotsBatch(
 					discovery,
 					options,
 					revisions,
+					siteOrigin,
 				),
 			});
 		} catch (error) {
@@ -198,6 +221,7 @@ function prepareContentMediaUsageSnapshots(
 		string,
 		{ success: true; revision: RevisionSnapshotRow } | { success: false }
 	>,
+	siteOrigin: string | undefined,
 ): PreparedSnapshotsResult {
 	const collectionId = readString(row[CONTENT_COLLECTION_ID_RESULT]);
 	if (!collectionId) {
@@ -212,6 +236,7 @@ function prepareContentMediaUsageSnapshots(
 	const occurrences = extractMediaUsageOccurrences({
 		fields: discovery.extractionFields,
 		data: columnsData,
+		siteOrigin,
 	});
 	const columnsRevisionId = readNullableString(row.live_revision_id);
 	const columnsSource = buildContentSource({
@@ -274,6 +299,7 @@ function prepareContentMediaUsageSnapshots(
 		const draftOccurrences = extractMediaUsageOccurrences({
 			fields: discovery.extractionFields,
 			data: draftOverlayData,
+			siteOrigin,
 		});
 		const draftSource = buildContentSource({
 			collectionId: options.collectionId,

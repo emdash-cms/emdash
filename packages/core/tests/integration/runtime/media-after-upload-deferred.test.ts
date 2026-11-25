@@ -1,13 +1,13 @@
 /**
- * media:afterUpload hooks for multipart registration and MCP creation must be
- * deferred through `after()`.
+ * media:afterUpload hooks for multipart registration, MCP creation, and file
+ * replacement must be deferred through `after()`.
  *
  * `handleMediaRegisterUpload` (REST multipart upload confirm/register) and
  * `handleMediaCreate` (MCP media_create) historically ran the hook as a bare
  * fire-and-forget promise. On Cloudflare Workers that promise is canceled once
  * the HTTP response is returned, so real I/O in the hook never completes.
  *
- * These tests pin the contract: both handlers schedule the hook work via
+ * These tests pin the contract: the handlers schedule the hook work via
  * `after()` so the host's `waitUntil` can keep the invocation alive.
  */
 
@@ -161,6 +161,63 @@ describe("runtime defers media:afterUpload hooks through after()", () => {
 		await flushDeferred();
 		expect(afterUploadHandler).toHaveBeenCalledTimes(1);
 	});
+
+	it("schedules media:afterUpload with the replaced item's metadata through after()", async () => {
+		const original = await mediaRepo.create({
+			filename: "replaced.png",
+			mimeType: "image/png",
+			size: 4,
+			storageKey: "replaced-key",
+		});
+
+		const result = await runtime.handleMediaReplaceMetadata(original.id, original.storageKey, {
+			size: 8,
+			width: 2,
+			height: 1,
+			contentHash: "replacement-hash",
+		});
+		expect(result.success).toBe(true);
+
+		await drainMicrotasks();
+		expect(afterUploadHandler).not.toHaveBeenCalled();
+		expect(deferred.length).toBeGreaterThan(0);
+
+		await flushDeferred();
+		expect(afterUploadHandler).toHaveBeenCalledTimes(1);
+		expect(afterUploadHandler.mock.calls[0][0].media).toEqual({
+			id: original.id,
+			filename: original.filename,
+			mimeType: original.mimeType,
+			size: 8,
+			url: `/media/${original.id}/${original.filename}`,
+			createdAt: original.createdAt,
+		});
+	});
+
+	it.each(["missing", "stale-key", "pending"])(
+		"does not dispatch media:afterUpload for a failed %s replacement",
+		async (failure) => {
+			const original = await mediaRepo.create({
+				filename: "unchanged.png",
+				mimeType: "image/png",
+				size: 4,
+				storageKey: "unchanged-key",
+				status: failure === "pending" ? "pending" : "ready",
+			});
+
+			const result = await runtime.handleMediaReplaceMetadata(
+				failure === "missing" ? "missing-id" : original.id,
+				failure === "stale-key" ? "stale-key" : original.storageKey,
+				{ size: 8, width: 2, height: 1, contentHash: "replacement-hash" },
+			);
+			expect(result.success).toBe(false);
+
+			await drainMicrotasks();
+			await flushDeferred();
+			expect(afterUploadHandler).not.toHaveBeenCalled();
+			expect((await mediaRepo.findById(original.id))?.size).toBe(4);
+		},
+	);
 
 	it("schedules the media:afterUpload hook via after() on handleMediaRegisterUpload", async () => {
 		const storageKey = "registered-key";

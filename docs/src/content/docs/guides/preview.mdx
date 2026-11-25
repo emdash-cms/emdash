@@ -145,7 +145,7 @@ await getPreviewUrl({
 // Returns: /hello?_preview=...
 ```
 
-The admin's **Preview** button goes through `POST /_emdash/api/content/{collection}/{id}/preview-url`. The endpoint builds the link's path from the first of these that applies:
+The admin's **Preview** button goes through `POST /_emdash/api/content/{collection}/{id}/preview-url`. The link's token is signed for the entry's database ID even when the request addresses the entry by slug, so the link never opens a different entry that takes the slug later. An API token needs both `content:read` and `content:write` to call the endpoint. The endpoint builds the link's path from the first of these that applies:
 
 1. A `pathPattern` in the request body.
 2. The `EMDASH_PREVIEW_PATH_PATTERN` environment variable.
@@ -186,6 +186,8 @@ await getPreviewUrl({ ...preview, expiresIn: 3600 });
 ```
 
 Supported units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days), `w` (weeks).
+
+The preview URL endpoint accepts the same `expiresIn` formats in its request body, from one second up to seven days (`"7d"`, `"1w"`, or `604800`). It responds with a `400` validation error for a longer, zero, negative, or unrecognized value. A preview link cannot be revoked on its own and stays valid until it expires, even if the account that requested it is later disabled. `getPreviewUrl()` and `generatePreviewToken()` apply no maximum.
 
 ## Verify tokens in a custom flow
 

@@ -166,12 +166,17 @@ export const CLEF_IMAGE_QUESTIONS: ImageCategoryQuestions = {
 
 export interface ClefAssessmentSettings {
 	threshold: number;
+	/** Thresholds that replace `threshold` for particular categories. */
+	categoryThresholds?: Readonly<Partial<Record<ModerationFindingCategory, number>>>;
 	/** Send each category in its own request so one question's wording cannot shift another's answer. */
 	separateQuestions: boolean;
 }
 
+// Clef cannot see where a link leads, and its link scores cluster just above
+// 0.45 on ordinary GitHub, author and documentation links.
 export const CLEF_TEXT_ASSESSMENT_SETTINGS: ClefAssessmentSettings = Object.freeze({
 	threshold: 0.45,
+	categoryThresholds: Object.freeze({ "malicious-or-deceptive-link": 0.6 }),
 	separateQuestions: false,
 });
 export const CLEF_IMAGE_ASSESSMENT_SETTINGS: ClefAssessmentSettings = Object.freeze({
@@ -214,13 +219,19 @@ export const CLEF_TEXT_PROMPT_HASH = await clefTextPromptHash(CLEF_TEXT_ASSESSME
 export const CLEF_IMAGE_PROMPT_HASH = await clefImagePromptHash(CLEF_IMAGE_ASSESSMENT_SETTINGS);
 
 function clefPromptHash(settings: ClefAssessmentSettings, lane: object): Promise<string> {
-	if (!Number.isFinite(settings.threshold) || settings.threshold <= 0 || settings.threshold >= 1) {
-		throw new TypeError("Clef threshold must be strictly between zero and one");
+	for (const threshold of [
+		settings.threshold,
+		...Object.values(settings.categoryThresholds ?? {}),
+	]) {
+		if (!Number.isFinite(threshold) || threshold <= 0 || threshold >= 1) {
+			throw new TypeError("Clef threshold must be strictly between zero and one");
+		}
 	}
 	return sha256Hex(
 		JSON.stringify({
 			...lane,
 			threshold: settings.threshold,
+			...(settings.categoryThresholds ? { categoryThresholds: settings.categoryThresholds } : {}),
 			separateQuestions: settings.separateQuestions,
 		}),
 	);
@@ -350,6 +361,9 @@ function clefIdentity(config: ClefAdapterConfig, promptVersion: string): Moderat
 		promptHash: config.promptHash,
 		parameters: {
 			threshold: config.threshold,
+			...(config.categoryThresholds
+				? { categoryThresholds: JSON.stringify(config.categoryThresholds) }
+				: {}),
 			timeoutMs: config.timeoutMs ?? 20_000,
 			separateQuestions: config.separateQuestions,
 		},
@@ -577,7 +591,7 @@ function clefResult(
 	for (const chunk of chunks) {
 		for (const { category, probability } of chunk.probabilities) {
 			highest.set(category, Math.max(highest.get(category) ?? 0, probability));
-			if (probability >= config.threshold) {
+			if (probability >= (config.categoryThresholds?.[category] ?? config.threshold)) {
 				const cited = refs.get(category) ?? new Set<string>();
 				for (const ref of chunk.refs) cited.add(ref);
 				refs.set(category, cited);
@@ -598,7 +612,7 @@ function clefResult(
 					category,
 					recommendation: "review",
 					confidence: probability,
-					summary: `Clef estimated ${category} at p=${probability.toFixed(3)}.`,
+					summary: `Clef scored ${category} at ${probability.toFixed(3)}, above its threshold of ${config.categoryThresholds?.[category] ?? config.threshold}.`,
 					evidenceRefs: [...cited].slice(0, MAX_FINDING_EVIDENCE_REFS),
 				},
 			];

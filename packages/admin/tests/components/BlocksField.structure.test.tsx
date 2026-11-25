@@ -188,18 +188,33 @@ const scripted = () =>
 const settled = () => expect.poll(() => running().length).toBe(0);
 const announced = () => field().querySelector('[aria-live="polite"]')?.textContent ?? "";
 
-/** Calls `read` on every frame for `ms`, and returns what it read with the time of each frame. */
-async function sample<T>(read: () => T, ms: number): Promise<Array<{ t: number; value: T }>> {
+/**
+ * Calls `read` on every frame from just before `trigger` until `ms` after it resolves, and returns
+ * what it read with the time of each frame. The window starts when the trigger lands, however long
+ * the browser takes to deliver it.
+ */
+async function sample<T>(
+	read: () => T,
+	trigger: () => Promise<unknown>,
+	ms: number,
+): Promise<Array<{ t: number; value: T }>> {
 	const frames: Array<{ t: number; value: T }> = [];
 	const start = performance.now();
-	await new Promise<void>((resolve) => {
+	let end = Infinity;
+	const sampled = new Promise<void>((resolve) => {
 		const tick = (now: number) => {
 			frames.push({ t: now - start, value: read() });
-			if (now - start < ms) requestAnimationFrame(tick);
+			if (now < end) requestAnimationFrame(tick);
 			else resolve();
 		};
 		requestAnimationFrame(tick);
 	});
+	try {
+		await trigger();
+	} finally {
+		end = performance.now() + ms;
+	}
+	await sampled;
 	return frames;
 }
 
@@ -350,13 +365,16 @@ describe("Blocks field popups", () => {
 
 		await settled();
 		// A closed select keeps its popup mounted, hidden.
-		const closing = sample(() => {
-			const element = popup();
-			const shown = element?.checkVisibility({ opacityProperty: true, visibilityProperty: true });
-			return shown ? Number(getComputedStyle(element!).opacity) : 0;
-		}, 600);
-		await page.getByRole("option", { name: "Leaf" }).click();
-		const opacities = (await closing).map((each) => each.value);
+		const closing = await sample(
+			() => {
+				const element = popup();
+				const shown = element?.checkVisibility({ opacityProperty: true, visibilityProperty: true });
+				return shown ? Number(getComputedStyle(element!).opacity) : 0;
+			},
+			() => page.getByRole("option", { name: "Leaf" }).click(),
+			600,
+		);
+		const opacities = closing.map((each) => each.value);
 		const firstBelowFull = opacities.findIndex((opacity) => opacity < 0.99);
 		expect(firstBelowFull).toBeGreaterThanOrEqual(0);
 		expect(opacities[firstBelowFull]).toBeLessThanOrEqual(0.01);
@@ -385,15 +403,15 @@ describe("Blocks field popups", () => {
 		await addBlock().click();
 		await expect.element(page.getByRole("dialog", { name: "Add block" })).toBeVisible();
 		await settled();
-		const pick = sample(
+		const pick = await sample(
 			() => ({
 				rows: rowKeys().length,
 				picker: picker()?.isConnected ? Number(getComputedStyle(picker()!).opacity) : 0,
 			}),
+			() => page.getByRole("option", { name: /Short/ }).click(),
 			300,
 		);
-		await page.getByRole("option", { name: /Short/ }).click();
-		const frames = (await pick).map((each) => each.value);
+		const frames = pick.map((each) => each.value);
 		const added = frames.findIndex((each) => each.rows === 2);
 		expect(added).toBeGreaterThanOrEqual(0);
 		for (const each of frames.slice(added + 1)) expect(each.picker).toBeLessThanOrEqual(0.01);
@@ -401,12 +419,12 @@ describe("Blocks field popups", () => {
 		await addBlock().click();
 		await expect.element(page.getByRole("dialog", { name: "Add block" })).toBeVisible();
 		await settled();
-		const dismiss = sample(
+		const dismiss = await sample(
 			() => (picker()?.isConnected ? Number(getComputedStyle(picker()!).opacity) : 0),
+			() => userEvent.keyboard("{Escape}"),
 			250,
 		);
-		await userEvent.keyboard("{Escape}");
-		const opacities = (await dismiss).map((each) => each.value);
+		const opacities = dismiss.map((each) => each.value);
 		const leaving = opacities.findIndex((opacity) => opacity < 0.99);
 		expect(leaving).toBeGreaterThanOrEqual(0);
 		expect(opacities[leaving]).toBeLessThanOrEqual(0.01);
