@@ -195,6 +195,14 @@ describe("test plan", () => {
 		assert.ok(plan.unit_packages.includes("@emdash-cms/registry-verification"));
 		assert.ok(plan.unit_packages.includes("@emdash-cms/plugin-forms"));
 		assert.ok(plan.unit_packages.includes("@emdash-cms/release-service"));
+		assert.ok(plan.unit_packages.includes("@emdash-cms/sandbox-workerd"));
+	});
+
+	it("runs the workerd sandbox package tests when the sandbox changes", () => {
+		const plan = createTestPlan(["packages/workerd/src/sandbox/runner.ts"]);
+
+		assert.equal(plan.unit, true);
+		assert.ok(plan.unit_packages.includes("@emdash-cms/sandbox-workerd"));
 	});
 
 	it("runs the tests of each package under packages/ and apps/ when a file in it changes, or names why not", () => {
