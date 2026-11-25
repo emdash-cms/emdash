@@ -54,8 +54,9 @@ export async function removeUploadAttempt(
  * attempt key and return that key.
  *
  * A signed upload URL keeps accepting uploads to its key until it expires, so
- * a ready item must not keep that key or its file could still change. Callers verify the copy, publish it with `publishPendingStorageKey`
- * and then call `retireSignedUploadKey`. A copy that is never published is
+ * a ready item must not keep that key or its file could still change. Callers
+ * verify the copy, publish it with `publishPendingStorageKey` and then call
+ * `retireSignedUploadKey`. A copy that is never published is
  * removed by the upload attempt cleanup.
  */
 export async function copySignedUpload(
@@ -88,8 +89,8 @@ export async function copySignedUpload(
  *
  * The URL can still write the key until it expires, so the key stays on record
  * as an upload attempt: the cleanup sweep deletes whatever is stored under it
- * once the attempt is older than the cleanup age, which must not be shorter
- * than the lifetime signed upload URLs are issued with.
+ * once the attempt is older than the cleanup age, which is derived from
+ * `SIGNED_UPLOAD_URL_EXPIRES_IN_SECONDS`.
  */
 export async function retireSignedUploadKey(
 	storage: Storage,

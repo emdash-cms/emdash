@@ -30,21 +30,7 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	}
 	if (!emdash.storage) return apiError("NO_STORAGE", "Storage not configured", 500);
 
-	const rawMax = emdash.config.maxUploadSize ?? DEFAULT_MAX_UPLOAD_SIZE;
-	if (!Number.isFinite(rawMax) || rawMax <= 0) {
-		return apiError("CONFIGURATION_ERROR", "Invalid maxUploadSize configuration", 500);
-	}
-	const maxUploadSize = rawMax;
-	const contentLength = request.headers.get("Content-Length");
-	if (contentLength && parseInt(contentLength, 10) > maxUploadSize) {
-		return apiError("PAYLOAD_TOO_LARGE", "Upload too large", 413);
-	}
-
-	try {
-		// The client paces the body, so look the item up only once it has
-		// arrived: it can be deleted, with its stored file, in the meantime.
-		const formData = await request.formData();
-
+	const loadTarget = async () => {
 		const getResult = await emdash.handleMediaGet(id);
 		if (!getResult.success) return unwrapResult(getResult);
 		const media = getResult.data.item;
@@ -58,11 +44,34 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 		if (media.status !== "ready") {
 			return apiError("INVALID_STATE", "Only ready media can be replaced", 400);
 		}
-
 		const sourceMime = normalizeMime(media.mimeType);
 		if (!REPLACEABLE_IMAGE_TYPES.has(sourceMime)) {
 			return apiError("INVALID_TYPE", "Media type cannot be replaced", 400);
 		}
+		return { media, sourceMime };
+	};
+
+	const early = await loadTarget();
+	if (early instanceof Response) return early;
+
+	const rawMax = emdash.config.maxUploadSize ?? DEFAULT_MAX_UPLOAD_SIZE;
+	if (!Number.isFinite(rawMax) || rawMax <= 0) {
+		return apiError("CONFIGURATION_ERROR", "Invalid maxUploadSize configuration", 500);
+	}
+	const maxUploadSize = rawMax;
+	const contentLength = request.headers.get("Content-Length");
+	if (contentLength && parseInt(contentLength, 10) > maxUploadSize) {
+		return apiError("PAYLOAD_TOO_LARGE", "Upload too large", 413);
+	}
+
+	try {
+		// The client paces the body, so check the item again once it has
+		// arrived: it can be deleted, with its stored file, in the meantime.
+		const formData = await request.formData();
+
+		const target = await loadTarget();
+		if (target instanceof Response) return target;
+		const { media, sourceMime } = target;
 
 		const fileEntry = formData.get("file");
 		const file = fileEntry instanceof File ? fileEntry : null;

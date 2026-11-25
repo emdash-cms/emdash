@@ -358,6 +358,24 @@ describe("PUT /media/:id/replace", () => {
 		expect(storage.objects.has(original.storageKey)).toBe(false);
 	});
 
+	it("refuses another author's image before reading the request body", async () => {
+		await createImage({ authorId: "author-2" });
+		const storage = memoryStorage();
+		const whole = replaceRequest();
+		const held = new TransformStream<Uint8Array, Uint8Array>();
+		const request = new Request(whole.url, {
+			method: "PUT",
+			headers: whole.headers,
+			body: held.readable,
+			duplex: "half",
+		} as RequestInit);
+
+		const response = await putReplace(buildContext({ db, request, storage }));
+
+		expect(response.status).toBe(403);
+		expect(storage.upload).not.toHaveBeenCalled();
+	});
+
 	it("removes the stored bytes when the item is deleted during the storage write", async () => {
 		const original = await createImage();
 		const repo = new MediaRepository(db);
