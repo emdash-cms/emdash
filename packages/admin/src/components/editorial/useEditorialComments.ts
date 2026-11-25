@@ -404,7 +404,8 @@ export function useEditorialComments({
 		};
 		store().then(
 			() => {
-				// The stored anchors now describe the highlights as they are, so the refetch keeps them.
+				// The stored anchors now describe the highlights as they are. The cached threads take
+				// them in the same step, so a highlight placed before the refetch lands is kept.
 				for (const update of updates) {
 					if (update.anchorState !== "attached" || !isEditorAnchor(update.anchor)) continue;
 					const editor = editors.get(update.anchor.field);
@@ -413,6 +414,15 @@ export function useEditorialComments({
 						placed.set(update.threadId, anchorSignature(update.anchor));
 					}
 				}
+				const stored = new Map(updates.map((update) => [update.threadId, update]));
+				queryClient.setQueryData<EditorialThread[]>(editorialThreadsQueryKey(entry), (current) =>
+					current?.map((thread) => {
+						const update = stored.get(thread.id);
+						return update
+							? { ...thread, anchor: update.anchor, anchorState: update.anchorState }
+							: thread;
+					}),
+				);
 				return invalidate(entry);
 			},
 			(error: unknown) => {

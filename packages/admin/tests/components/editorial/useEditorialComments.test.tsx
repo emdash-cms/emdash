@@ -255,6 +255,20 @@ describe("useEditorialComments anchor sync", () => {
 		expect(highlightedText()).toEqual(["bareown"]);
 	});
 
+	it("keeps a highlight whose anchor was stored when a thread opens before the threads reload", async () => {
+		const { result, save } = await renderLoaded(true, brownThread);
+		vi.mocked(fetchEditorialThreads).mockReturnValue(new Promise(() => undefined));
+		await save((ed) => ed.commands.insertContentAt(13, "e"));
+		await vi.waitFor(() => expect(vi.mocked(fetchEditorialThreads)).toHaveBeenCalledTimes(2));
+
+		await act(async () => result.current.setActiveThreadId("thread-2"));
+
+		expect(highlightedText()).toEqual(["breown"]);
+		expect(result.current.attachedIds.has("thread-2")).toBe(true);
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(vi.mocked(updateEditorialAnchors)).toHaveBeenCalledTimes(1);
+	});
+
 	it("keeps a thread attached when its text is deleted and the deletion undone", async () => {
 		const { save } = await renderLoaded(true, brownThread);
 
