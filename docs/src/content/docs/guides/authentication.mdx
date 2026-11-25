@@ -483,7 +483,7 @@ The first match wins in the order returned by Access, checking groups before Git
 
 #### Matching groups by ID
 
-By default, `roleMapping` keys are compared with group display names. Some identity providers, such as Microsoft Entra ID, allow several groups with the same display name and let members create their own groups. In that case, anyone who can create a group named like a mapped key, such as `Admins`, receives that key's role when their account is provisioned, or on their next request with `syncRoles: true`.
+By default, `roleMapping` keys are compared with group display names. Some identity providers allow several groups with the same display name and let members create their own groups. Microsoft Entra ID, for example, lets ordinary users create groups by default and does not require display names to be unique. In that case, anyone who can create a group named like a mapped key, such as `Admins`, receives that key's role when their account is provisioned, or on their next request with `syncRoles: true`.
 
 If members of your directory can create or rename groups, set `matchGroupsBy: "id"` and key `roleMapping` by group ID:
 
@@ -502,6 +502,8 @@ emdash({
 ```
 
 Use the `id` values that Access reports for each group. EmDash logs them in the `[cf-access] Identity from Access` message on each sign-in, and you can also read them from `https://<teamDomain>/cdn-cgi/access/get-identity` while signed in through Access. GitHub team keys stay in `"organization-name/team-name"` form with either setting.
+
+Matching by ID only helps when the `id` that Access reports differs from the group's name. The log line prints both for each group. Some generic SAML and OIDC providers send the group name as its `id`, so the two are the same. In that case `matchGroupsBy: "id"` makes no difference: restrict who can create and rename groups in your identity provider instead.
 
 ### Role sync behavior
 
