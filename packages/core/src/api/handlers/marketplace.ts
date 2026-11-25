@@ -811,7 +811,7 @@ export async function handleMarketplaceUpdate(
 		await storeBundleInR2(storage, pluginId, newVersion, bundle);
 
 		// Update state
-		await stateRepo.upsert(pluginId, newVersion, "active", {
+		await stateRepo.upsert(pluginId, newVersion, existing.status, {
 			source: "marketplace",
 			marketplaceVersion: newVersion,
 			displayName: pluginDetail.name,
