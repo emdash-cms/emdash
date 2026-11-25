@@ -77,6 +77,24 @@ describe("EditorDraftPatchPreview", () => {
 		expect(shown.after).not.toBe(shown.before);
 	});
 
+	it("shows rich-text formatting changes", async () => {
+		const bold = {
+			...paragraph,
+			children: [{ ...paragraph.children[0], marks: ["strong"] }],
+		};
+		const changes = [
+			{ ...paragraph, style: "h1" },
+			bold,
+			{ ...paragraph, listItem: "bullet", level: 1 },
+		];
+
+		for (const changed of changes) {
+			const shown = await review([paragraph], [changed]);
+			expect(shown.before).toBe("Figures follow.");
+			expect(shown.after).toBe(JSON.stringify(changed));
+		}
+	});
+
 	it("shows long values to their end", async () => {
 		const text = `${"Figures follow. ".repeat(40)}The last word.`;
 		const image = { id: "media-1", alt: "A chart. ".repeat(40), src: "https://example.com/a.png" };

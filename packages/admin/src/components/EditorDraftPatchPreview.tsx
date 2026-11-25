@@ -19,47 +19,47 @@ interface EditorDraftPatchPreviewProps {
 	onClose: () => void;
 }
 
-function annotates(child: unknown, markDefs: unknown[]): boolean {
-	if (typeof child !== "object" || child === null) return false;
-	if (!("marks" in child) || !Array.isArray(child.marks)) return false;
-	const marks: unknown[] = child.marks;
-	return markDefs.some(
-		(markDef) =>
-			typeof markDef === "object" &&
-			markDef !== null &&
-			"_key" in markDef &&
-			marks.includes(markDef._key),
-	);
+const PLAIN_BLOCK_KEYS = new Set(["_type", "_key", "style", "markDefs", "children"]);
+const PLAIN_SPAN_KEYS = new Set(["_type", "_key", "text", "marks"]);
+
+function hasOnlyKeys(value: object, keys: Set<string>): boolean {
+	return Object.keys(value).every((key) => keys.has(key));
 }
 
-function spanText(child: unknown): string | null {
+/** The text of a plain span: one with no marks and nothing besides its text. */
+function plainSpanText(child: unknown): string | null {
 	if (typeof child !== "object" || child === null) return null;
+	if (!hasOnlyKeys(child, PLAIN_SPAN_KEYS)) return null;
 	if (!("_type" in child) || child._type !== "span") return null;
+	if ("marks" in child && !(Array.isArray(child.marks) && child.marks.length === 0)) return null;
 	return "text" in child && typeof child.text === "string" ? child.text : null;
 }
 
+/** The text of a normal paragraph made only of plain spans, or null for any other block. */
+function plainBlockText(block: unknown): string | null {
+	if (typeof block !== "object" || block === null) return null;
+	if (!hasOnlyKeys(block, PLAIN_BLOCK_KEYS)) return null;
+	if (!("_type" in block) || block._type !== "block") return null;
+	if ("style" in block && block.style !== "normal") return null;
+	if ("markDefs" in block && !(Array.isArray(block.markDefs) && block.markDefs.length === 0)) {
+		return null;
+	}
+	if (!("children" in block) || !Array.isArray(block.children)) return null;
+	let text = "";
+	for (const child of block.children) {
+		const span = plainSpanText(child);
+		if (span === null) return null;
+		text += span;
+	}
+	return text;
+}
+
 /**
- * One rich-text block on one line. A text block reads as its text followed by the JSON of what
- * the text doesn't show: inline objects and mark definitions. A block whose spans carry a mark
- * definition, such as a link, is its JSON, since the text alone doesn't show which span it covers.
- * Any other block is its JSON.
+ * One rich-text block on one line: a plain paragraph as its text, and any other block as its
+ * JSON, so that styles, lists, marks and links all show.
  */
 function describeBlock(block: unknown): string {
-	if (typeof block !== "object" || block === null) return JSON.stringify(block);
-	if (!("_type" in block) || block._type !== "block") return JSON.stringify(block);
-	if (!("children" in block) || !Array.isArray(block.children)) return JSON.stringify(block);
-	const markDefs: unknown = "markDefs" in block ? block.markDefs : [];
-	if (!Array.isArray(markDefs)) return JSON.stringify(block);
-	if (block.children.some((child) => annotates(child, markDefs))) return JSON.stringify(block);
-	let text = "";
-	const rest: unknown[] = [];
-	for (const child of block.children) {
-		const span = spanText(child);
-		if (span === null) rest.push(child);
-		else text += span;
-	}
-	rest.push(...markDefs);
-	return [text, ...rest.map((part) => JSON.stringify(part))].join(" ");
+	return plainBlockText(block) ?? JSON.stringify(block);
 }
 
 /**
