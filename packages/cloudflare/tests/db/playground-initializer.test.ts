@@ -238,4 +238,19 @@ describe("initializePlayground", () => {
 		expect(await db.selectFrom("_emdash_editorial_threads").select("id").execute()).toEqual([]);
 		expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBe(true);
 	});
+	it("adds no example reviewer when the example post isn't in the seed", async () => {
+		const db = createDatabase();
+		databases.push(db);
+		const seed = loadPlaygroundSeed();
+		seed.content!.posts = seed.content!.posts!.filter(
+			(entry) => entry.slug !== "building-for-the-long-term",
+		);
+
+		await initializePlayground(db, seed);
+
+		expect(await db.selectFrom("_emdash_editorial_threads").select("id").execute()).toEqual([]);
+		expect(
+			await db.selectFrom("users").select("id").where("id", "=", "playground-reviewer").execute(),
+		).toEqual([]);
+	});
 });

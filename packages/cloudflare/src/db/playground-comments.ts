@@ -54,6 +54,13 @@ export async function seedPlaygroundComments(
 	const hasExcerpt = fields.has("excerpt");
 	if (!hasContent && !hasExcerpt) return;
 
+	const post = await sql<{ id: string; content?: string | null }>`
+		SELECT id${hasContent ? sql`, content` : sql``} FROM ec_posts
+		WHERE slug = ${POST_SLUG} AND locale = ${"en"} AND deleted_at IS NULL
+	`.execute(db);
+	const row = post.rows[0];
+	if (!row) return;
+
 	await db
 		.insertInto("users")
 		.values({
@@ -68,12 +75,6 @@ export async function seedPlaygroundComments(
 		.onConflict((conflict) => conflict.column("id").doNothing())
 		.execute();
 
-	const post = await sql<{ id: string; content?: string | null }>`
-		SELECT id${hasContent ? sql`, content` : sql``} FROM ec_posts
-		WHERE slug = ${POST_SLUG} AND locale = ${"en"} AND deleted_at IS NULL
-	`.execute(db);
-	const row = post.rows[0];
-	if (!row) return;
 	const entry = { collection: "posts", id: row.id };
 
 	const existing = await db
