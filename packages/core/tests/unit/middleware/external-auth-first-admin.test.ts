@@ -82,4 +82,33 @@ describe("external auth first admin", () => {
 			{ email: "owner@example.com", role: 50 },
 		]);
 	});
+
+	it("stores one account when simultaneous first sign-ins share a mixed-case email", async () => {
+		const slowDb = db.withPlugin(answersOverIo);
+
+		const responses = await Promise.all([
+			signIn("Owner@Example.com", slowDb),
+			signIn("Owner@Example.com", slowDb),
+		]);
+
+		expect(await db.selectFrom("users").select(["email", "role"]).execute()).toEqual([
+			{ email: "owner@example.com", role: 50 },
+		]);
+		expect(responses.some((r) => r.status === 200)).toBe(true);
+	});
+
+	it("provisions a later user whose email has capitals", async () => {
+		await signIn("owner@example.com", db);
+
+		const response = await signIn("Author@Example.com", db);
+
+		expect(response.status).toBe(200);
+		expect(
+			await db
+				.selectFrom("users")
+				.select("role")
+				.where("email", "=", "author@example.com")
+				.execute(),
+		).toEqual([{ role: 30 }]);
+	});
 });

@@ -596,7 +596,7 @@ async function handleExternalAuth(
 					.insertInto("users")
 					.values({
 						id: ulid(),
-						email: authResult.email,
+						email: authResult.email.toLowerCase(),
 						name: authResult.name,
 						role,
 						email_verified: 1,
