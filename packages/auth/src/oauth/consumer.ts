@@ -343,12 +343,16 @@ export type CanSelfSignup = (email: string) => Promise<{
 	allowed: boolean;
 	role: RoleLevel;
 	/**
-	 * Creates the user in place of `adapter.createUser`. Return `null` to
-	 * refuse the signup when the decision no longer holds at insert time,
-	 * such as a role reserved for the first user after another request has
-	 * created one.
+	 * Creates the user in place of `adapter.createUser`, before `account` is
+	 * linked to it. It may also return an existing user for `account` to be
+	 * linked to. Return `null` to refuse the signup when the decision no
+	 * longer holds at insert time, such as a role reserved for the first user
+	 * after another request has created one.
 	 */
-	createUser?: (user: NewUser) => Promise<User | null>;
+	createUser?: (
+		user: NewUser,
+		account: { provider: string; providerAccountId: string },
+	) => Promise<User | null>;
 } | null>;
 
 /**
@@ -416,7 +420,10 @@ export async function findOrCreateOAuthUser(
 				emailVerified: profile.emailVerified,
 			};
 			const user = signup.createUser
-				? await signup.createUser(newUser)
+				? await signup.createUser(newUser, {
+						provider: providerName,
+						providerAccountId: profile.id,
+					})
 				: await adapter.createUser(newUser);
 			if (!user) {
 				throw new OAuthError("signup_not_allowed", "Self-signup is no longer allowed");

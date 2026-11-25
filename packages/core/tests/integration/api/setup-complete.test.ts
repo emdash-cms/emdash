@@ -1,7 +1,12 @@
 import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { createFirstAdmin, FIRST_ADMIN_LOCK_KEY } from "../../../src/api/setup-complete.js";
+import {
+	clearFirstAdminClaim,
+	createFirstAdmin,
+	findClaimedFirstAdmin,
+	FIRST_ADMIN_LOCK_KEY,
+} from "../../../src/api/setup-complete.js";
 import {
 	describeEachDialect,
 	setupForDialect,
@@ -45,6 +50,22 @@ describeEachDialect("createFirstAdmin", (dialect) => {
 			.select(["avatar_url", "email_verified"])
 			.executeTakeFirstOrThrow();
 		expect(owner).toEqual({ avatar_url: "https://example.com/owner.png", email_verified: 1 });
+	});
+
+	it("finds the first admin only by the sign-in account that created it, until cleared", async () => {
+		const claim = { provider: "github", providerAccountId: "1" };
+		const admin = await createFirstAdmin(ctx.db, { email: "owner@example.com", name: null, claim });
+
+		expect(await findClaimedFirstAdmin(ctx.db, claim)).toBe(admin?.id);
+		expect(
+			await findClaimedFirstAdmin(ctx.db, { provider: "github", providerAccountId: "2" }),
+		).toBeNull();
+		expect(
+			await findClaimedFirstAdmin(ctx.db, { provider: "google", providerAccountId: "1" }),
+		).toBeNull();
+
+		await clearFirstAdminClaim(ctx.db, admin!.id);
+		expect(await findClaimedFirstAdmin(ctx.db, claim)).toBeNull();
 	});
 
 	it.runIf(dialect === "postgres")(

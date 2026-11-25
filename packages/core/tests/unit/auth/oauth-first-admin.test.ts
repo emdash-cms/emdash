@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as start } from "../../../src/astro/routes/api/auth/oauth/[provider].js";
 import { GET as callback } from "../../../src/astro/routes/api/auth/oauth/[provider]/callback.js";
 import type { Database } from "../../../src/database/types.js";
-import { answersOverIo } from "../../utils/answers-over-io.js";
+import { answersOverIo, failFirstInsertInto } from "../../utils/query-plugins.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 const GITHUB_IDS: Record<string, number> = { owner: 1, second: 2 };
@@ -123,5 +123,22 @@ describe("first admin through an OAuth provider during setup", () => {
 			avatar_url: "https://avatars.example.com/owner.png",
 			email_verified: 1,
 		});
+	});
+
+	it("finishes setup and removes the claim when a retry follows a failed account link", async () => {
+		const failingDb = db.withPlugin(failFirstInsertInto("oauth_accounts"));
+		const firstTry = await approve("owner", failingDb);
+		expect(await firstTry()).toBe("/_emdash/admin/login?error=oauth_error");
+		expect(await db.selectFrom("users").select("data").execute()).not.toEqual([{ data: null }]);
+
+		const retry = await approve("owner", db);
+		expect(await retry()).toBe("/_emdash/admin");
+
+		expect(await db.selectFrom("users").select(["role", "data"]).execute()).toEqual([
+			{ role: Role.ADMIN, data: null },
+		]);
+		expect(await db.selectFrom("oauth_accounts").select("provider_account_id").execute()).toEqual([
+			{ provider_account_id: "1" },
+		]);
 	});
 });

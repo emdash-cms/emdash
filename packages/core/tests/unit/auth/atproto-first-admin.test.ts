@@ -6,7 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET as callback } from "../../../../auth-atproto/src/routes/callback.js";
 import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import type { Database } from "../../../src/database/types.js";
-import { answersOverIo } from "../../utils/answers-over-io.js";
+import { answersOverIo, failFirstInsertInto } from "../../utils/query-plugins.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 vi.mock("emdash/api/route-utils", () => import("../../../src/api/route-utils.js"));
@@ -110,5 +110,48 @@ describe("first admin through AT Protocol during setup", () => {
 		expect(locations).toHaveLength(2);
 		expect(locations).toContain("/_emdash/admin");
 		expect(locations).toContain("/_emdash/admin/login?error=signup_not_allowed");
+	});
+
+	describe("when the account link fails after the admin is created", () => {
+		async function failedFirstSignIn() {
+			const failingDb = db.withPlugin(failFirstInsertInto("oauth_accounts"));
+			expect(await signIn("did:plc:owner", failingDb)).toBe(
+				"/_emdash/admin/login?error=atproto_error",
+			);
+			expect(await db.selectFrom("oauth_accounts").select("user_id").execute()).toEqual([]);
+		}
+
+		it("lets the same DID finish setup", async () => {
+			await failedFirstSignIn();
+
+			expect(await signIn("did:plc:owner")).toBe("/_emdash/admin");
+
+			const [owner] = await db.selectFrom("users").select(["id", "email", "role"]).execute();
+			expect(owner).toMatchObject({ email: "owner@example.com", role: Role.ADMIN });
+			expect(
+				await db.selectFrom("oauth_accounts").select(["provider_account_id", "user_id"]).execute(),
+			).toEqual([{ provider_account_id: "did:plc:owner", user_id: owner?.id }]);
+			expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBe(true);
+		});
+
+		it("refuses a different DID", async () => {
+			await failedFirstSignIn();
+
+			expect(await signIn("did:plc:second")).toBe("/_emdash/admin/login?error=signup_not_allowed");
+
+			expect(await db.selectFrom("oauth_accounts").select("user_id").execute()).toEqual([]);
+			expect(await new OptionsRepository(db).get("emdash:setup_complete")).toBeNull();
+		});
+
+		it("removes the claim once the DID is linked", async () => {
+			await failedFirstSignIn();
+			expect(await db.selectFrom("users").select("data").executeTakeFirst()).not.toEqual({
+				data: null,
+			});
+
+			await signIn("did:plc:owner");
+
+			expect(await db.selectFrom("users").select("data").execute()).toEqual([{ data: null }]);
+		});
 	});
 });

@@ -2,7 +2,7 @@ import type { Kysely } from "kysely";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Database } from "../../../src/database/types.js";
-import { answersOverIo } from "../../utils/answers-over-io.js";
+import { answersOverIo } from "../../utils/query-plugins.js";
 import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
 
 const { authenticate } = vi.hoisted(() => ({ authenticate: vi.fn() }));

@@ -19,7 +19,12 @@ import {
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
 import { getPublicOrigin } from "#api/public-url.js";
-import { createFirstAdmin, finalizeSetup } from "#api/setup-complete.js";
+import {
+	clearFirstAdminClaim,
+	createFirstAdmin,
+	finalizeSetup,
+	findClaimedFirstAdmin,
+} from "#api/setup-complete.js";
 import { getOAuthEnv } from "#auth/oauth-env.js";
 import { createOAuthStateStore } from "#auth/oauth-state-store.js";
 import { startUserSession } from "#auth/start-user-session.js";
@@ -203,14 +208,16 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 					return {
 						allowed: true,
 						role: Role.ADMIN,
-						createUser: async (newUser) => {
+						createUser: async (newUser, account) => {
 							const admin = await createFirstAdmin(emdash.db, {
 								email: newUser.email,
 								name: newUser.name ?? null,
 								avatarUrl: newUser.avatarUrl,
 								emailVerified: newUser.emailVerified,
+								claim: account,
 							});
-							return admin ? adapter.getUserById(admin.id) : null;
+							const adminId = admin?.id ?? (await findClaimedFirstAdmin(emdash.db, account));
+							return adminId ? adapter.getUserById(adminId) : null;
 						},
 					};
 				}
@@ -260,6 +267,7 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 
 		// finalizeSetup is idempotent.
 		if (isFirstUser) {
+			await clearFirstAdminClaim(emdash.db, user.id);
 			await finalizeSetup(emdash.db);
 			console.log(`[oauth] Setup complete: created admin user via ${provider} (${user.email})`);
 		}

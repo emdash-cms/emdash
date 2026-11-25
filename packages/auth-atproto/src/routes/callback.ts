@@ -27,8 +27,10 @@ import {
 import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
 import type { AuthProviderDescriptor } from "emdash";
 import {
+	clearFirstAdminClaim,
 	createFirstAdmin,
 	finalizeSetup,
+	findClaimedFirstAdmin,
 	getPublicOrigin,
 	OptionsRepository,
 } from "emdash/api/route-utils";
@@ -161,15 +163,17 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 				return {
 					allowed: true,
 					role: Role.ADMIN,
-					createUser: async (newUser) => {
+					createUser: async (newUser, account) => {
 						const setupState = await options.get<Record<string, unknown>>("emdash:setup_state");
 						const setupEmail = typeof setupState?.email === "string" ? setupState.email : "";
 						const admin = await createFirstAdmin(emdash.db, {
 							email: setupEmail || newUser.email,
 							name: newUser.name ?? null,
 							emailVerified: setupEmail !== "",
+							claim: account,
 						});
-						return admin ? adapter.getUserById(admin.id) : null;
+						const adminId = admin?.id ?? (await findClaimedFirstAdmin(emdash.db, account));
+						return adminId ? adapter.getUserById(adminId) : null;
 					},
 				};
 			}
@@ -180,6 +184,7 @@ export const GET: APIRoute = async ({ request, locals, session, redirect }) => {
 		});
 
 		if (isFirstUser) {
+			await clearFirstAdminClaim(emdash.db, user.id);
 			await finalizeSetup(emdash.db);
 			console.log(`[atproto-auth] Setup complete: created admin user via atproto (${did})`);
 		}
