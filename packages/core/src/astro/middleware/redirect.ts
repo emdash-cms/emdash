@@ -25,6 +25,8 @@ import { createRedirectSource } from "../../redirects/artifacts.js";
 import type { CachedRedirects, RedirectRule } from "../../redirects/cache.js";
 import { loadCachedRedirects, matchCachedPatterns } from "../../redirects/cache.js";
 import { isSiteRelativeDestination } from "../../redirects/destination.js";
+import { normalizeRedirectPath, redirectNormalizationInput } from "../../redirects/patterns.js";
+import { normalizationChangesPath } from "../../redirects/source-paths.js";
 import { isTerminalStatus } from "../../redirects/status.js";
 import { peekRequestCache } from "../../request-cache.js";
 import {
@@ -72,12 +74,18 @@ function matchRedirect(
 	pathname: string,
 	includePatterns = true,
 ): RedirectMatch | null {
-	let exact = cached.exact.get(pathname);
-	if (!exact && pathname.length > 1) {
-		const alt = pathname.endsWith("/") ? pathname.slice(0, -1) : `${pathname}/`;
+	const normalized = normalizeRedirectPath(pathname);
+	const lookupPath =
+		normalized !== pathname && normalizationChangesPath(redirectNormalizationInput(pathname))
+			? pathname
+			: normalized;
+	let exact = cached.exact.get(lookupPath);
+	if (!exact && lookupPath.length > 1) {
+		const alt = lookupPath.endsWith("/") ? lookupPath.slice(0, -1) : `${lookupPath}/`;
 		exact = cached.exact.get(alt);
 	}
 	if (exact) return { redirect: exact, destination: exact.destination };
+	// Pattern captures are interpolated into Location; preserve their original escaping.
 	return includePatterns ? matchCachedPatterns(cached.patterns, pathname) : null;
 }
 

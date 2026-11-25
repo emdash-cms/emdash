@@ -100,6 +100,29 @@ describe("redirect handlers — loop detection", () => {
 			}
 		});
 
+		it.each([
+			["/blog", "/blog/"],
+			["/a", "/a?x=1"],
+			["/a", "/a#anchor"],
+		])("rejects a self-loop between equivalent paths (%s → %s)", async (source, destination) => {
+			const result = await handleRedirectCreate(db, { source, destination });
+
+			expect(result).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+			if (!result.success) expect(result.error.message).toContain("loop");
+		});
+
+		it("rejects a cycle when an existing source uses a trailing slash", async () => {
+			await handleRedirectCreate(db, { source: "/b/", destination: "/a" });
+
+			const result = await handleRedirectCreate(db, {
+				source: "/a",
+				destination: "/b",
+			});
+
+			expect(result).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+			if (!result.success) expect(result.error.message).toContain("loop");
+		});
+
 		it("rejects a redirect that would create a 3-node loop", async () => {
 			await handleRedirectCreate(db, { source: "/one", destination: "/two" });
 			await handleRedirectCreate(db, { source: "/two", destination: "/three" });

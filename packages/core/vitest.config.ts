@@ -32,6 +32,7 @@ const virtualStubs: Record<string, string> = {
 	// Nothing was built under test, so there is no build dimension to fold
 	// into cache validators. Tests that need one still `vi.mock(...)`.
 	"virtual:emdash/build": "export const buildTime = 0;",
+	"virtual:emdash/page-routes": "export const pageRoutes = [];",
 };
 
 export default defineConfig({

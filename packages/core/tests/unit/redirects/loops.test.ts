@@ -20,6 +20,15 @@ describe("detectLoops", () => {
 		expect(result).toContain("2");
 	});
 
+	it("detects a self-loop through trailing-slash aliases", () => {
+		expect(detectLoops([edge("self", "/a", "/a/")])).toEqual(["self"]);
+	});
+
+	it("detects a cycle through trailing-slash aliases", () => {
+		const edges = [edge("first", "/b", "/c/"), edge("second", "/c", "/b/")];
+		expect(detectLoops(edges).toSorted()).toEqual(["first", "second"]);
+	});
+
 	it("detects a 3-node loop", () => {
 		const edges = [
 			edge("1", "/one", "/two"),
@@ -222,5 +231,66 @@ describe("loop detection across source encodings", () => {
 	it("rejects a new redirect that closes a mixed-encoding loop", () => {
 		const edges = [edge("1", "/café", "/b")];
 		expect(wouldCreateLoop("/b", "/caf%c3%a9", edges)).not.toBeNull();
+	});
+
+	it("keeps double-encoded and reserved percent layers distinct", () => {
+		const edges = [edge("1", "/café", "/double"), edge("2", "/a%2F", "/reserved-double")];
+		expect(detectLoops(edges)).toEqual([]);
+		expect(wouldCreateLoop("/double", "/caf%25C3%25A9", edges)).toBeNull();
+		expect(wouldCreateLoop("/reserved-double", "/a%252F", edges)).toBeNull();
+	});
+
+	it("still detects a cycle using raw double-encoded sources", () => {
+		const edges = [edge("1", "/start", "/caf%25C3%25A9"), edge("2", "/caf%25C3%25A9", "/start")];
+		expect(detectLoops(edges).toSorted()).toEqual(["1", "2"]);
+		expect(wouldCreateLoop("/start", "/caf%25C3%25A9", [edges[1]!])).not.toBeNull();
+	});
+
+	it("prefers an exact source to its trailing-slash alternative", () => {
+		const edges = [edge("bare", "/legacy", "/posts/example"), edge("slash", "/legacy/", "/done")];
+		expect(wouldCreateLoop("/posts/example", "/legacy", edges)).not.toBeNull();
+		expect(wouldCreateLoop("/posts/example", "/legacy/", edges)).toBeNull();
+	});
+
+	it("detects a self-loop through the proposed source's slash fallback", () => {
+		expect(wouldCreateLoop("/legacy", "/legacy/?x=1", [])).not.toBeNull();
+		expect(
+			wouldCreateLoop("/legacy", "/legacy/#anchor", [edge("kept", "/legacy/", "/done")]),
+		).toBeNull();
+	});
+
+	it.each(["?from=wp", "#anchor", "/?from=wp", "/#anchor"])(
+		"treats %s as redirect metadata when detecting cycles",
+		(suffix) => {
+			const edges = [
+				edge("1", "/posts/example", `/legacy${suffix}`),
+				edge("2", "/legacy", "/posts/example"),
+			];
+			expect(wouldCreateLoop("/legacy", "/posts/example", [edges[0]!])).not.toBeNull();
+			expect(detectLoops(edges).toSorted()).toEqual(["1", "2"]);
+		},
+	);
+
+	it("supports query and fragment metadata in pattern destinations", () => {
+		const edges = [edge("1", "/legacy/[slug]", "/posts/[slug]?from=old#anchor", true, true)];
+		expect(wouldCreateLoop("/posts/example", "/legacy/example?x=1", edges)).not.toBeNull();
+		expect(wouldCreateLoop("/posts/example", "/legacy/example#anchor", edges)).not.toBeNull();
+	});
+
+	it("does not strip encoded question marks or hashes from path data", () => {
+		const edges = [edge("1", "/posts/example", "/literal%3Fvalue")];
+		expect(wouldCreateLoop("/literal%3Fvalue", "/posts/example", edges)).not.toBeNull();
+		expect(wouldCreateLoop("/literal%23value", "/posts/example", edges)).toBeNull();
+	});
+
+	it("does not treat an external URL as an internal path", () => {
+		const edges = [edge("1", "/posts/example", "https://other.test/legacy?x")];
+		expect(wouldCreateLoop("/legacy", "/posts/example", edges)).toBeNull();
+	});
+
+	it("keeps double-encoded cycle paths distinct from single-encoded paths", () => {
+		const encoded = [edge("1", "/posts/example", "/literal%2541?x=1")];
+		expect(wouldCreateLoop("/literal%2541", "/posts/example", encoded)).not.toBeNull();
+		expect(wouldCreateLoop("/literal%41", "/posts/example", encoded)).toBeNull();
 	});
 });
