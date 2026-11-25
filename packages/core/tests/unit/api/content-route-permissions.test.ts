@@ -51,6 +51,7 @@ describe("content route — publishedAt / createdAt permission gate", () => {
 					emdash: {
 						handleContentCreate: vi.fn(),
 						handleContentGet: vi.fn(),
+						handleContentGetById: vi.fn(),
 					},
 					user: makeUser(Role.AUTHOR),
 				},
@@ -77,6 +78,7 @@ describe("content route — publishedAt / createdAt permission gate", () => {
 					emdash: {
 						handleContentCreate: vi.fn(),
 						handleContentGet: vi.fn(),
+						handleContentGetById: vi.fn(),
 					},
 					user: makeUser(Role.AUTHOR),
 				},
@@ -103,6 +105,7 @@ describe("content route — publishedAt / createdAt permission gate", () => {
 					emdash: {
 						handleContentCreate: vi.fn(),
 						handleContentGet: vi.fn(),
+						handleContentGetById: vi.fn(),
 					},
 					user: makeUser(Role.AUTHOR),
 				},
@@ -134,7 +137,7 @@ describe("content route — publishedAt / createdAt permission gate", () => {
 				params: { collection: "post" },
 				request,
 				locals: {
-					emdash: { handleContentCreate, handleContentGet: vi.fn() },
+					emdash: { handleContentCreate, handleContentGet: vi.fn(), handleContentGetById: vi.fn() },
 					user: makeUser(Role.EDITOR),
 				},
 				cache: makeCache(),
@@ -163,7 +166,7 @@ describe("content route — publishedAt / createdAt permission gate", () => {
 				params: { collection: "post" },
 				request,
 				locals: {
-					emdash: { handleContentCreate, handleContentGet: vi.fn() },
+					emdash: { handleContentCreate, handleContentGet: vi.fn(), handleContentGetById: vi.fn() },
 					user: makeUser(Role.AUTHOR),
 				},
 				cache: makeCache(),

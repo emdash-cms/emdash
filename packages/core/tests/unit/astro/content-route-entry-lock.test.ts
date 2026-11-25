@@ -122,6 +122,7 @@ describe("content write routes — entry edit lock", () => {
 				emdash: {
 					db,
 					handleContentGet,
+					handleContentGetById: handleContentGet,
 					handleContentUpdate: vi.fn().mockResolvedValue(okItem),
 					handleContentPublish: vi.fn().mockResolvedValue(okItem),
 					handleContentUnpublish: vi.fn().mockResolvedValue(okItem),

@@ -43,7 +43,7 @@ export const GET: APIRoute = async ({ params, url, locals }) => {
 
 export const POST: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
-	if (!emdash?.handleContentCreate || !emdash?.handleContentGet) {
+	if (!emdash?.handleContentCreate || !emdash?.handleContentGetById) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 	const denied = requirePerm(user, "content:create");
@@ -54,7 +54,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 	// Creating a translation requires edit permission on the source item
 	if (body.translationOf) {
-		const source = await emdash.handleContentGet(collection, body.translationOf);
+		const source = await emdash.handleContentGetById(collection, body.translationOf);
 		if (!source.success) {
 			return apiError(
 				source.error?.code ?? "NOT_FOUND",
