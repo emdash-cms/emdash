@@ -2,8 +2,16 @@ import { afterEach, describe, expect, it } from "vitest";
 
 import { HTML_BLOCK_FRAME_MESSAGE, buildHtmlBlockFrame } from "../../src/html-block";
 
-function parse(source: { html: string; css?: string; js?: string }): Document {
+type Source = { html: string; css?: string; js?: string; title?: string };
+
+function parseShell(source: Source): Document {
 	return new DOMParser().parseFromString(buildHtmlBlockFrame(source), "text/html");
+}
+
+/** The author's document, which the frame's shell holds in its own frame. */
+function parse(source: Source): Document {
+	const srcdoc = parseShell(source).querySelector("iframe")?.srcdoc ?? "";
+	return new DOMParser().parseFromString(srcdoc, "text/html");
 }
 
 function mountFrame(source: { html: string; css?: string; js?: string }): HTMLIFrameElement {
@@ -80,6 +88,24 @@ describe("buildHtmlBlockFrame", () => {
 
 		expect(doc.head.querySelector("script")?.textContent).toContain(HTML_BLOCK_FRAME_MESSAGE);
 	});
+
+	it("keeps the author's code inside the frame that holds it", () => {
+		const source = {
+			html: '<p title="&quot;a&amp;b">"></iframe><p id=leak></p>',
+			css: 'p::after { content: "</iframe>"; }',
+			js: "const markup = '\"></iframe><p id=leak></p>';",
+			title: 'A "quoted" <title>',
+		};
+		const shell = parseShell(source);
+		const inner = shell.querySelector("iframe");
+
+		expect(shell.getElementById("leak")).toBeNull();
+		expect(Array.from(shell.body.children, (element) => element.tagName)).toEqual(["IFRAME"]);
+		expect(inner?.sandbox.contains("allow-scripts")).toBe(true);
+		expect(inner?.sandbox.contains("allow-same-origin")).toBe(false);
+		expect(inner?.title).toBe('A "quoted" <title>');
+		expect(parse(source).querySelector("p")?.title).toBe('"a&b');
+	});
 });
 
 describe("HTML block frame", () => {
@@ -150,6 +176,64 @@ describe("HTML block frame", () => {
 		} finally {
 			history.replaceState(null, "", page);
 		}
+	});
+
+	it("doesn't show its JavaScript the page's URL after the script removes the frame's base", async () => {
+		const page = location.href;
+		history.replaceState(null, "", "/posts/draft?_preview=secret#token=secret");
+		try {
+			const frame = mountFrame({
+				html: '<a href="docs">Docs</a>',
+				js:
+					'document.querySelector("base").remove();\n' +
+					'parent.postMessage({ base: document.baseURI, link: document.querySelector("a").href, referrer: document.referrer }, "*");',
+			});
+
+			const data = await nextMessage(
+				frame,
+				(value) => typeof value === "object" && value !== null && "base" in value,
+			);
+			expect(data).toMatchObject({
+				base: `${location.origin}/`,
+				link: `${location.origin}/docs`,
+			});
+			expect(JSON.stringify(data)).not.toContain("secret");
+		} finally {
+			history.replaceState(null, "", page);
+		}
+	});
+
+	it("doesn't show its JavaScript the page's URL after the script removes its head", async () => {
+		const page = location.href;
+		history.replaceState(null, "", "/posts/draft?_preview=secret#token=secret");
+		try {
+			const frame = mountFrame({
+				html: "<p>Hello</p>",
+				js: 'document.head.remove();\nparent.postMessage({ base: document.baseURI }, "*");',
+			});
+
+			expect(
+				await nextMessage(
+					frame,
+					(data) => typeof data === "object" && data !== null && "base" in data,
+				),
+			).toEqual({ base: `${location.origin}/` });
+		} finally {
+			history.replaceState(null, "", page);
+		}
+	});
+
+	it("passes messages from the page to the block's JavaScript", async () => {
+		const frame = mountFrame({
+			html: "<p>Hello</p>",
+			js: 'addEventListener("message", (event) => { if (event.data === "ping") parent.postMessage("pong", "*"); });\nparent.postMessage("ready", "*");',
+		});
+		await nextMessage(frame, (data) => data === "ready");
+
+		const answer = nextMessage(frame, (data) => data === "pong");
+		frame.contentWindow?.postMessage("ping", "*");
+
+		expect(await answer).toBe("pong");
 	});
 
 	it("runs JavaScript that opens with a legacy HTML comment", async () => {

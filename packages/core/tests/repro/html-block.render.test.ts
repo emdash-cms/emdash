@@ -34,7 +34,12 @@ describe("HtmlBlock rendering", () => {
 		expect(sandbox).toContain("allow-scripts");
 		expect(sandbox).not.toContain("allow-same-origin");
 
-		const srcdoc = attribute(html, "iframe", "srcdoc");
+		const shell = attribute(html, "iframe", "srcdoc") ?? "";
+		const innerSandbox = attribute(shell, "iframe", "sandbox")?.split(" ");
+		expect(innerSandbox).toContain("allow-scripts");
+		expect(innerSandbox).not.toContain("allow-same-origin");
+
+		const srcdoc = attribute(shell, "iframe", "srcdoc");
 		expect(srcdoc).toContain('<button id="go">Go</button>');
 		expect(srcdoc).toContain("<style>button { color: red; }</style>");
 		expect(srcdoc).toContain(
