@@ -758,6 +758,13 @@ interface DbHolder {
 	 * DB_INIT_FAILURE_BACKOFF_MS; a successful init clears them.
 	 */
 	failures: Map<string, { at: number; message: string; cause?: unknown }>;
+	/**
+	 * Databases whose latest init attempt found no migrations table, keyed like
+	 * `cache`. Kept until an attempt finds the table or the init succeeds, so a
+	 * request whose init fails, or backs off, can tell a never-migrated database
+	 * from one that is set up.
+	 */
+	unmigrated: Set<string>;
 }
 const globalSymbolStore = globalThis as Record<symbol, unknown>;
 function getDbHolder(): DbHolder {
@@ -768,12 +775,14 @@ function getDbHolder(): DbHolder {
 			cache: new Map<string, Kysely<Database>>(),
 			lock: createInitLock(),
 			failures: new Map(),
+			unmigrated: new Set(),
 		};
 		globalSymbolStore[DB_HOLDER_KEY] = holder;
 	}
 	// A holder created by an older copy of this module (dev-server HMR keeps
 	// globalThis across reloads) may predate the failures map.
 	holder.failures ??= new Map();
+	holder.unmigrated ??= new Set();
 	return holder;
 }
 
@@ -3248,6 +3257,16 @@ export class EmDashRuntime {
 	}
 
 	/**
+	 * Whether the latest attempt to initialize the configured database found no
+	 * migrations table: it has never been migrated, and the attempt to migrate
+	 * it has not succeeded yet.
+	 */
+	static isDatabaseUnmigrated(config: EmDashConfig): boolean {
+		const entrypoint = config.database?.entrypoint;
+		return entrypoint !== undefined && getDbHolder().unmigrated.has(entrypoint);
+	}
+
+	/**
 	 * Whether getDatabase would initialize the configured database: it isn't
 	 * cached yet and isn't backing off after a failed init.
 	 */
@@ -3328,11 +3347,18 @@ export class EmDashRuntime {
 
 				const dialect = deps.createDialect(dbConfig.config);
 				const db = new Kysely<Database>({ dialect, log: kyselyLogOption() });
+				const migrationMode = deps.migrationMode ?? "auto";
 
 				try {
-					await enforceRuntimeMigrationPolicy(db, deps.migrationMode ?? "auto", {
+					const appliedCount =
+						options?.appliedMigrationCount !== undefined || migrationMode !== "auto"
+							? options?.appliedMigrationCount
+							: await getAppliedMigrationCount(db);
+					if (appliedCount === null) holder.unmigrated.add(cacheKey);
+					else if (appliedCount !== undefined) holder.unmigrated.delete(cacheKey);
+					await enforceRuntimeMigrationPolicy(db, migrationMode, {
 						contentRowLimit: autoMigrationContentRowLimit(),
-						appliedCount: options?.appliedMigrationCount,
+						appliedCount,
 					});
 				} catch (error) {
 					// Only a failed migration run, a lock its holder left behind, or
@@ -3359,6 +3385,7 @@ export class EmDashRuntime {
 					throw error;
 				}
 				holder.failures.delete(cacheKey);
+				holder.unmigrated.delete(cacheKey);
 
 				// Note: legacy installs may carry a stray `emdash:manifest_cache`
 				// row in the options table from versions that persisted a JSON

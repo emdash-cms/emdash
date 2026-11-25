@@ -47,7 +47,7 @@ vi.mock("virtual:emdash/scheduler", () => ({ createScheduler: null }), { virtual
 
 vi.mock("../../../src/emdash-runtime.js", () => ({
 	DB_INIT_DEADLINE_MS: 30_000,
-	EmDashRuntime: { create: mockRuntimeCreate },
+	EmDashRuntime: { create: mockRuntimeCreate, isDatabaseUnmigrated: () => false },
 }));
 vi.mock("../../../src/loader.js", () => ({ getDb: mockGetDb }));
 
@@ -59,7 +59,6 @@ import {
 } from "../../../src/database/migrations/runner.js";
 
 const RUNTIME_HOLDER_KEY = Symbol.for("emdash:runtime-holder");
-const SETUP_VERIFIED_KEY = Symbol.for("emdash:setup-verified");
 
 function contextFor(pathname: string) {
 	const url = new URL(pathname, "https://example.com");
@@ -77,7 +76,6 @@ function contextFor(pathname: string) {
 describe("middleware migration check failures", () => {
 	beforeEach(() => {
 		delete (globalThis as Record<symbol, unknown>)[RUNTIME_HOLDER_KEY];
-		delete (globalThis as Record<symbol, unknown>)[SETUP_VERIFIED_KEY];
 		mockGetDb.mockReset();
 		VIRTUAL_CONFIG.migrations = { runtime: "check", dev: "check" };
 		mockRuntimeCreate
@@ -137,11 +135,6 @@ describe("middleware migration check failures", () => {
 
 		beforeEach(() => {
 			VIRTUAL_CONFIG.migrations = { runtime: "auto", dev: "auto" };
-			mockGetDb.mockResolvedValue({
-				selectFrom: () => ({
-					selectAll: () => ({ limit: () => ({ execute: async () => [] }) }),
-				}),
-			});
 		});
 
 		describe.each(errors)("with %s", (_label, error) => {

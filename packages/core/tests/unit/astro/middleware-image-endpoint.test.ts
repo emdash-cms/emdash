@@ -68,6 +68,7 @@ vi.mock("../../../src/emdash-runtime.js", async (importOriginal) => {
 		DB_INIT_DEADLINE_MS: actual.DB_INIT_DEADLINE_MS,
 		EmDashRuntime: {
 			create: mockCreateRuntime,
+			isDatabaseUnmigrated: () => false,
 			getStorage: actual.EmDashRuntime.getStorage,
 		},
 	};
