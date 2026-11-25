@@ -712,6 +712,9 @@ function ThreadCard({
 	const reply = unsentReply ?? "";
 	const setReply = (value: string) => setUnsentReply(value || undefined);
 	const [confirmingDelete, setConfirmingDelete] = React.useState(false);
+	/** The last live comment, whose deletion also deletes the thread, while that is confirmed. */
+	const [confirmingLastComment, setConfirmingLastComment] = React.useState<string | null>(null);
+	const liveComments = thread.comments.filter((comment) => !comment.deletedAt).length;
 	const resolved = thread.status === "resolved";
 	const { actions } = comments;
 	const heading = inPlace
@@ -809,9 +812,10 @@ function ThreadCard({
 									{ onSuccess: onSaved },
 								)
 							}
-							onDelete={() =>
-								actions.deleteComment.mutate({ threadId: thread.id, commentId: comment.id })
-							}
+							onDelete={() => {
+								if (liveComments === 1) setConfirmingLastComment(comment.id);
+								else actions.deleteComment.mutate({ threadId: thread.id, commentId: comment.id });
+							}}
 						/>
 					))}
 				</ol>
@@ -873,6 +877,27 @@ function ThreadCard({
 				onConfirm={() =>
 					actions.deleteThread.mutate(thread.id, { onSuccess: () => setConfirmingDelete(false) })
 				}
+			/>
+			<ConfirmDialog
+				open={confirmingLastComment !== null}
+				onClose={() => {
+					setConfirmingLastComment(null);
+					actions.deleteComment.reset();
+				}}
+				role="alertdialog"
+				title={t`Delete comment`}
+				description={t`This is the thread's only comment, so deleting it deletes the thread too. This action cannot be undone.`}
+				confirmLabel={t`Delete`}
+				pendingLabel={t`Deleting...`}
+				isPending={actions.deleteComment.isPending}
+				error={actions.deleteComment.error}
+				onConfirm={() => {
+					if (!confirmingLastComment) return;
+					actions.deleteComment.mutate(
+						{ threadId: thread.id, commentId: confirmingLastComment },
+						{ onSuccess: () => setConfirmingLastComment(null) },
+					);
+				}}
 			/>
 		</>
 	);

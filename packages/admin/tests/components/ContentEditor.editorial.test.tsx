@@ -17,6 +17,7 @@ import {
 import type { ContentItem } from "../../src/lib/api";
 import {
 	createEditorialThread,
+	deleteEditorialComment,
 	fetchEditorialThreads,
 	type EditorialThread,
 } from "../../src/lib/api/editorial-threads.js";
@@ -55,6 +56,7 @@ vi.mock("../../src/lib/api/editorial-threads.js", async () => {
 		fetchEditorialThreads: vi.fn(async () => []),
 		createEditorialThread: vi.fn(),
 		updateEditorialAnchors: vi.fn(async () => ({ updated: 0 })),
+		deleteEditorialComment: vi.fn(async () => ({ threadDeleted: true, thread: null })),
 	};
 });
 
@@ -336,6 +338,37 @@ describe("editorial comments in Portable Text fields", () => {
 		await expect
 			.element(margin.getByRole("textbox", { name: "Reply" }))
 			.toHaveValue("Still checking");
+	});
+});
+
+describe("editorial comment deletion", () => {
+	it("asks before deleting a thread's only comment, which deletes the thread", async () => {
+		const thread = textThread("thread-1", "content", "quick", "The ");
+		const own = { ...thread.comments[0]!, can: { edit: true, delete: true } };
+		const screen = await renderEntry({
+			fields: { content: { kind: "portableText", label: "Content" } },
+			data: { content: [paragraph("b1", "The quick brown fox")] },
+			threads: [{ ...thread, comments: [own] }],
+			initialThreadId: "thread-1",
+		});
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+
+		await margin.getByRole("button", { name: "Comment actions" }).click();
+		await screen.getByRole("menuitem", { name: "Delete", exact: true }).click();
+		const dialog = screen.getByRole("alertdialog", { name: "Delete comment" });
+		await expect.element(dialog).toBeVisible();
+		expect(vi.mocked(deleteEditorialComment)).not.toHaveBeenCalled();
+
+		// Direct DOM click to bypass Base UI's inert overlay
+		dialog.getByRole("button", { name: "Delete", exact: true }).element().click();
+
+		await vi.waitFor(() =>
+			expect(vi.mocked(deleteEditorialComment)).toHaveBeenCalledWith(
+				expect.anything(),
+				"thread-1",
+				"thread-1-c1",
+			),
+		);
 	});
 });
 
