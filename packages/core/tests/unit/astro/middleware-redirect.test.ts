@@ -991,6 +991,29 @@ describe("redirect middleware: non-ASCII source paths", () => {
 		expect(redirect).toHaveBeenCalledWith("/stitek/domaci", 301);
 	});
 
+	it("matches a source with percent-encoded brackets as that literal path only", async () => {
+		const repo = new RedirectRepository(db);
+		const rule = await repo.create({
+			source: "/posts/%5Bslug%5D",
+			destination: "/posts",
+			type: 301,
+		});
+		expect(rule.isPattern).toBe(false);
+		await publishRedirectArtifacts(db);
+
+		const literal = buildContext({ pathname: "/posts/[slug]" });
+		const literalNext = vi.fn(async () => new Response("not found", { status: 404 }));
+		await runMiddleware(literal.context, literalNext);
+		expect(literal.redirect).toHaveBeenCalledWith("/posts", 301);
+		expect(literalNext).not.toHaveBeenCalled();
+
+		const other = buildContext({ pathname: "/posts/hello" });
+		const otherNext = vi.fn(async () => new Response("ok", { status: 200 }));
+		const response = await runMiddleware(other.context, otherNext);
+		expect(other.redirect).not.toHaveBeenCalled();
+		expect(response.status).toBe(200);
+	});
+
 	it("percent-encodes a non-ASCII destination for the Location header", async () => {
 		const repo = new RedirectRepository(db);
 		await repo.create({ source: "/stitek/zvířata", destination: "/štítek/zvířata", type: 301 });
