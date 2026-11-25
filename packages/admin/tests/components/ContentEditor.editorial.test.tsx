@@ -7,7 +7,7 @@ import { Toasty } from "@cloudflare/kumo";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { userEvent } from "vitest/browser";
+import { page, userEvent } from "vitest/browser";
 
 import {
 	ContentEditor,
@@ -313,18 +313,16 @@ describe("editorial comments in Portable Text fields", () => {
 		expect(card("thread-gone")!.textContent).toContain("Detached");
 	});
 
-	it("moves a thread's card to the detached list when its text is deleted while editing", async () => {
+	it("moves a thread's card to the detached list with its unsent reply when its text is deleted while editing", async () => {
 		const screen = await renderEntry({
 			fields: { content: { kind: "portableText", label: "Content" } },
 			data: { content: [paragraph("b1", "The quick brown fox")] },
 			threads: [textThread("thread-brown", "content", "brown", "The quick ")],
+			initialThreadId: "thread-brown",
 		});
-		await screen.getByRole("button", { name: "Show comments" }).click();
 		const margin = screen.getByRole("complementary", { name: "Comments" });
 		const card = margin.element().querySelector.bind(margin.element());
-		await vi.waitFor(() =>
-			expect(card('[data-editorial-thread-card="thread-brown"]')).not.toBeNull(),
-		);
+		await margin.getByRole("textbox", { name: "Reply" }).fill("Still checking");
 		const { editor } = editorFor("Content");
 
 		selectText(editor, "brown ");
@@ -335,6 +333,9 @@ describe("editorial comments in Portable Text fields", () => {
 			expect(deleted?.textContent).toContain("Detached");
 			expect(deleted?.checkVisibility({ visibilityProperty: true })).toBe(true);
 		});
+		await expect
+			.element(margin.getByRole("textbox", { name: "Reply" }))
+			.toHaveValue("Still checking");
 	});
 });
 
@@ -515,6 +516,33 @@ describe("editorial comment links", () => {
 		});
 
 		expect(scrolled.some((element) => dom.contains(element))).toBe(true);
+	});
+
+	it("scrolls to a linked entry thread's card on a narrow screen", async () => {
+		await page.viewport(390, 844);
+		try {
+			let screen!: Awaited<ReturnType<typeof renderEntry>>;
+			const scrolled = await scrolledDuring(async () => {
+				screen = await renderEntry({
+					fields,
+					data,
+					threads: [textThread("thread-entry", "content", "", "", { anchor: { type: "entry" } })],
+					initialThreadId: "thread-entry",
+				});
+				await vi.waitFor(() =>
+					expect(
+						document.querySelector('[data-editorial-thread-card="thread-entry"]'),
+					).not.toBeNull(),
+				);
+			});
+
+			expect(scrolled).toContain(
+				document.querySelector('[data-editorial-thread-card="thread-entry"]'),
+			);
+			expect(screen.getByRole("complementary", { name: "Comments" }).query()).not.toBeNull();
+		} finally {
+			await page.viewport(1280, 800);
+		}
 	});
 
 	it("selects a thread's text from its card", async () => {

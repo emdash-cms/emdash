@@ -261,6 +261,25 @@ function useCardLayout(
 }
 
 /**
+ * Replies and comment edits not yet sent, by `reply:` thread or `edit:` comment
+ * ID. They outlive a card, which remounts when it moves between the list and
+ * its anchor.
+ */
+const UnsentTextContext = React.createContext<Map<string, string> | null>(null);
+
+/** Text held for `key` across remounts; `undefined` once it is cleared or sent. */
+function useUnsentText(key: string): [string | undefined, (value: string | undefined) => void] {
+	const store = React.useContext(UnsentTextContext);
+	const [value, setValue] = React.useState(() => store?.get(key));
+	const update = (next: string | undefined) => {
+		if (next === undefined) store?.delete(key);
+		else store?.set(key, next);
+		setValue(next);
+	};
+	return [value, update];
+}
+
+/**
  * Comment threads in the margin beside the entry. Text, block and field threads
  * sit next to what they point at; entry and detached threads, and threads on
  * fields outside the page, head the column. Below the large breakpoint the
@@ -283,7 +302,9 @@ export function MarginComments({
 	canComment: boolean;
 }) {
 	const { t } = useLingui();
+	const marginRef = React.useRef<HTMLElement>(null);
 	const gutterRef = React.useRef<HTMLDivElement>(null);
+	const [unsent] = React.useState(() => new Map<string, string>());
 	const { threads, highlights, attachedIds, editors, activeThreadId, draft, showResolved } =
 		comments;
 
@@ -297,12 +318,15 @@ export function MarginComments({
 			if (!editors.has(anchor.field)) return;
 		}
 		if (thread && !goToAnchor(editors, thread, false)) {
-			gutterRef.current
-				?.querySelector(`[data-editorial-thread-card="${CSS.escape(thread.id)}"]`)
-				?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+			const card = marginRef.current?.querySelector(
+				`[data-editorial-thread-card="${CSS.escape(thread.id)}"]`,
+			);
+			// Until its card is shown, keep the link to try again on the next render.
+			if (!card) return;
+			card.scrollIntoView({ block: "nearest", behavior: "smooth" });
 		}
 		clearLinkedThread();
-	}, [linkedThreadId, isLoading, threads, editors, fieldLabels, clearLinkedThread]);
+	});
 
 	const placed = React.useMemo(
 		() => new Set(highlights.map((highlight) => highlight.threadId)),
@@ -399,127 +423,131 @@ export function MarginComments({
 	);
 
 	return (
-		<aside aria-label={t`Comments`} className="flex flex-col gap-3">
-			<div className="flex items-center justify-between gap-2">
-				<h2 className="text-sm font-semibold">{t`Comments`}</h2>
-				<div className="flex items-center gap-1">
-					{resolvedCount > 0 && (
-						<Button
-							variant="ghost"
-							size="sm"
-							type="button"
-							aria-pressed={showResolved}
-							onClick={() => comments.setShowResolved(!showResolved)}
-						>
-							{showResolved ? t`Hide resolved` : t`Show resolved`}
-						</Button>
-					)}
-					{canComment && (
-						<Button
-							variant="secondary"
-							size="sm"
-							type="button"
-							icon={<ChatCircleText aria-hidden="true" />}
-							onClick={() => comments.startComment()}
-						>
-							{t`Comment`}
-						</Button>
-					)}
+		<UnsentTextContext.Provider value={unsent}>
+			<aside ref={marginRef} aria-label={t`Comments`} className="flex flex-col gap-3">
+				<div className="flex items-center justify-between gap-2">
+					<h2 className="text-sm font-semibold">{t`Comments`}</h2>
+					<div className="flex items-center gap-1">
+						{resolvedCount > 0 && (
+							<Button
+								variant="ghost"
+								size="sm"
+								type="button"
+								aria-pressed={showResolved}
+								onClick={() => comments.setShowResolved(!showResolved)}
+							>
+								{showResolved ? t`Hide resolved` : t`Show resolved`}
+							</Button>
+						)}
+						{canComment && (
+							<Button
+								variant="secondary"
+								size="sm"
+								type="button"
+								icon={<ChatCircleText aria-hidden="true" />}
+								onClick={() => comments.startComment()}
+							>
+								{t`Comment`}
+							</Button>
+						)}
+					</div>
 				</div>
-			</div>
 
-			{comments.loadError && (
-				<Banner
-					size="sm"
-					variant="error"
-					role="alert"
-					title={
-						comments.loadError === "load"
-							? t`Comments couldn’t be loaded`
-							: t`Comments couldn’t be refreshed`
-					}
-					description={
-						comments.loadError === "refresh" ? t`These may not be the latest comments.` : undefined
-					}
-					action={
-						<Button
-							variant="ghost"
-							size="xs"
-							type="button"
-							loading={comments.isRetrying}
-							onClick={() => void comments.retry()}
-						>
-							{t`Try again`}
-						</Button>
-					}
-				/>
-			)}
-			{comments.notice && (
-				<Banner
-					size="sm"
-					variant={comments.notice.variant}
-					role={comments.notice.variant === "error" ? "alert" : "status"}
-					title={comments.notice.title}
-					description={comments.notice.description}
-					action={
-						<Button variant="ghost" size="xs" type="button" onClick={comments.dismissNotice}>
-							{t`Dismiss`}
-						</Button>
-					}
-				/>
-			)}
-			{!draftInPlace && draftCard}
-			{listed.map((thread) => (
-				<ThreadCard
-					key={thread.id}
-					thread={thread}
-					comments={comments}
-					inPlace={false}
-					fieldLabels={fieldLabels}
-					detached={isDetached(thread)}
-					canComment={canComment}
-				/>
-			))}
-			{threads.length === 0 && !draft && !comments.isLoading && comments.loadError !== "load" && (
-				<p className="text-sm text-kumo-subtle">
-					{t`Select text and press Comment, or comment on the whole entry.`}
-				</p>
-			)}
+				{comments.loadError && (
+					<Banner
+						size="sm"
+						variant="error"
+						role="alert"
+						title={
+							comments.loadError === "load"
+								? t`Comments couldn’t be loaded`
+								: t`Comments couldn’t be refreshed`
+						}
+						description={
+							comments.loadError === "refresh"
+								? t`These may not be the latest comments.`
+								: undefined
+						}
+						action={
+							<Button
+								variant="ghost"
+								size="xs"
+								type="button"
+								loading={comments.isRetrying}
+								onClick={() => void comments.retry()}
+							>
+								{t`Try again`}
+							</Button>
+						}
+					/>
+				)}
+				{comments.notice && (
+					<Banner
+						size="sm"
+						variant={comments.notice.variant}
+						role={comments.notice.variant === "error" ? "alert" : "status"}
+						title={comments.notice.title}
+						description={comments.notice.description}
+						action={
+							<Button variant="ghost" size="xs" type="button" onClick={comments.dismissNotice}>
+								{t`Dismiss`}
+							</Button>
+						}
+					/>
+				)}
+				{!draftInPlace && draftCard}
+				{listed.map((thread) => (
+					<ThreadCard
+						key={thread.id}
+						thread={thread}
+						comments={comments}
+						inPlace={false}
+						fieldLabels={fieldLabels}
+						detached={isDetached(thread)}
+						canComment={canComment}
+					/>
+				))}
+				{threads.length === 0 && !draft && !comments.isLoading && comments.loadError !== "load" && (
+					<p className="text-sm text-kumo-subtle">
+						{t`Select text and press Comment, or comment on the whole entry.`}
+					</p>
+				)}
 
-			{positioned && (
-				<div ref={gutterRef} className="relative flex-1">
-					{inPlace.map((thread) => (
-						<div
-							key={thread.id}
-							ref={register(thread.id)}
-							className="absolute inset-x-0"
-							style={{
-								top: tops[thread.id] ?? 0,
-								visibility: thread.id in tops ? undefined : "hidden",
-							}}
-						>
-							<ThreadCard
-								thread={thread}
-								comments={comments}
-								inPlace
-								fieldLabels={fieldLabels}
-								detached={false}
-								canComment={canComment}
-							/>
-						</div>
-					))}
-					{draftInPlace && (
-						<div
-							ref={register("draft")}
-							className="absolute inset-x-0"
-							style={{ top: tops.draft ?? 0, visibility: "draft" in tops ? undefined : "hidden" }}
-						>
-							{draftCard}
-						</div>
-					)}
-				</div>
-			)}
-		</aside>
+				{positioned && (
+					<div ref={gutterRef} className="relative flex-1">
+						{inPlace.map((thread) => (
+							<div
+								key={thread.id}
+								ref={register(thread.id)}
+								className="absolute inset-x-0"
+								style={{
+									top: tops[thread.id] ?? 0,
+									visibility: thread.id in tops ? undefined : "hidden",
+								}}
+							>
+								<ThreadCard
+									thread={thread}
+									comments={comments}
+									inPlace
+									fieldLabels={fieldLabels}
+									detached={false}
+									canComment={canComment}
+								/>
+							</div>
+						))}
+						{draftInPlace && (
+							<div
+								ref={register("draft")}
+								className="absolute inset-x-0"
+								style={{ top: tops.draft ?? 0, visibility: "draft" in tops ? undefined : "hidden" }}
+							>
+								{draftCard}
+							</div>
+						)}
+					</div>
+				)}
+			</aside>
+		</UnsentTextContext.Provider>
 	);
 }
 
@@ -680,7 +708,9 @@ function ThreadCard({
 	const { t, i18n } = useLingui();
 	const anchorLabel = useAnchorLabel();
 	const active = comments.activeThreadId === thread.id;
-	const [reply, setReply] = React.useState("");
+	const [unsentReply, setUnsentReply] = useUnsentText(`reply:${thread.id}`);
+	const reply = unsentReply ?? "";
+	const setReply = (value: string) => setUnsentReply(value || undefined);
 	const [confirmingDelete, setConfirmingDelete] = React.useState(false);
 	const resolved = thread.status === "resolved";
 	const { actions } = comments;
@@ -871,8 +901,11 @@ function CommentItem({
 	onDelete: () => void;
 }) {
 	const { t } = useLingui();
-	const [editing, setEditing] = React.useState(false);
-	const [body, setBody] = React.useState(comment.body);
+	const [edit, setEdit] = useUnsentText(`edit:${comment.id}`);
+	const editing = edit !== undefined;
+	const body = edit ?? comment.body;
+	const setBody = (value: string) => setEdit(value);
+	const setEditing = (value: boolean) => setEdit(value ? comment.body : undefined);
 	const deleted = comment.deletedAt !== null;
 	const name = comment.author?.name ?? (comment.author ? t`Unnamed user` : t`Deleted user`);
 
@@ -917,10 +950,7 @@ function CommentItem({
 									{comment.can.edit && (
 										<DropdownMenu.Item
 											icon={<PencilSimple className="size-4" aria-hidden="true" />}
-											onClick={() => {
-												setBody(comment.body);
-												setEditing(true);
-											}}
+											onClick={() => setEditing(true)}
 										>
 											{t`Edit`}
 										</DropdownMenu.Item>
