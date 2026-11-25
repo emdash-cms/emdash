@@ -439,6 +439,17 @@ describe("useEditorialComments across entries", () => {
 		expect(result.current.activeThreadId).toBe("thread-9");
 	});
 
+	it("leaves the anchors of an entry with cached threads alone until its own editors load", async () => {
+		const { update, queryClient } = await renderLoaded(true, brownThread);
+		const cachedThread = { ...lostThread, id: "thread-9" };
+		queryClient.setQueryData(editorialThreadsQueryKey(otherEntry), [cachedThread]);
+
+		await update({ entry: otherEntry, rev: "rev-9" });
+		await new Promise((resolve) => setTimeout(resolve, 50));
+
+		expect(vi.mocked(updateEditorialAnchors)).not.toHaveBeenCalled();
+	});
+
 	it("opens a thread linked on the entry already shown", async () => {
 		const { result, update } = await renderLoaded(true, brownThread);
 

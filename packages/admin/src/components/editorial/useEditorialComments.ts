@@ -80,6 +80,8 @@ function anchorSignature(anchor: EditorAnchor): string {
 			]);
 }
 
+const NO_EDITORS: ReadonlyMap<string, Editor> = new Map();
+
 interface MutationScope {
 	target: EditorialEntry;
 }
@@ -91,7 +93,7 @@ interface MutationScope {
  */
 export function useEditorialComments({
 	entry,
-	editors,
+	editors: pageEditors,
 	rev,
 	isDirty,
 	open,
@@ -119,6 +121,21 @@ export function useEditorialComments({
 
 	const entryKey = entryKeyOf(entry);
 	const [stateEntryKey, setStateEntryKey] = React.useState(entryKey);
+	/** The entry shown when the page's editors last changed, which is the one whose content they hold. */
+	const [editorsEntry, setEditorsEntry] = React.useState({ editors: pageEditors, entryKey });
+	if (
+		editorsEntry.editors !== pageEditors ||
+		(editorsEntry.entryKey === null && entryKey !== null)
+	) {
+		setEditorsEntry({ editors: pageEditors, entryKey });
+	}
+	// After a move to another entry, the previous entry's editors stay until its own replace them.
+	const editors =
+		editorsEntry.editors === pageEditors &&
+		editorsEntry.entryKey !== null &&
+		editorsEntry.entryKey !== entryKey
+			? NO_EDITORS
+			: pageEditors;
 	const [stateThreadLink, setStateThreadLink] = React.useState(initialThreadId);
 	/** A thread a link asked for that the margin hasn't brought into view yet. */
 	const [linkedThreadId, setLinkedThreadId] = React.useState<string | null>(
