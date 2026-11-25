@@ -12,6 +12,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import { applyCommentBeforeCreateResult } from "../comments/service.js";
 import type { BylineSummary } from "../database/repositories/types.js";
 import { toBylineInfo } from "./byline-access.js";
 import { inspectContentPolicyDecision } from "./content-policy.js";
@@ -1209,7 +1210,7 @@ export class HookPipeline {
 				}
 
 				if (result && typeof result === "object") {
-					currentEvent = result;
+					currentEvent = applyCommentBeforeCreateResult(currentEvent, result);
 				}
 			} catch (error) {
 				console.error(

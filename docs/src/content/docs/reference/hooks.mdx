@@ -694,7 +694,7 @@ interface CommentBeforeCreateEvent {
 
 #### Return value
 
-- Return modified event to transform
+- Return modified event to transform. EmDash uses the returned `authorName`, `authorEmail`, `body`, and `metadata`. The other `comment` fields are read-only, and changes to them are ignored
 - Return `false` to reject
 - Return `void` to pass through
 
