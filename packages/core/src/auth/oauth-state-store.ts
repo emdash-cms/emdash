@@ -10,7 +10,15 @@ import type { Kysely } from "kysely";
 
 import type { Database } from "../database/types.js";
 
-const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+export const OAUTH_STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+/**
+ * Holds the `state` of the sign-in this browser started. A stored state only
+ * shows that some browser started a sign-in, so the callback also requires
+ * this cookie to match.
+ */
+export const OAUTH_STATE_COOKIE = "emdash_oauth_state";
+export const OAUTH_STATE_COOKIE_PATH = "/_emdash/api/auth/oauth/";
 
 export function createOAuthStateStore(db: Kysely<Database>): StateStore {
 	return {
