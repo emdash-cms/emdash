@@ -128,10 +128,19 @@ describe("PUT /content/:collection/:id with status: draft", () => {
 		const id = await seed("published");
 		const invalidate = vi.fn();
 
-		const response = await put(id, author, {}, invalidate);
+		const response = await put(
+			id,
+			author,
+			{ data: { title: "Revised" }, _rev: await currentRev(id) },
+			invalidate,
+		);
 
 		expect(response.status, await response.clone().text()).toBe(422);
-		expect(await response.json()).toMatchObject({ error: { code: "UNPUBLISH_REJECTED" } });
+		expect(await response.json()).toMatchObject({
+			error: { code: "UNPUBLISH_REJECTED", details: { _rev: await currentRev(id) } },
+		});
+		const current = await runtime.handleContentGet("post", id);
+		expect(current.success && current.data.item.data).toMatchObject({ title: "Revised" });
 		expect(beforeUnpublish).toHaveBeenCalledTimes(1);
 		expect(beforeUnpublish.mock.calls[0]?.[0]).toMatchObject({
 			origin: { source: "api" },
@@ -201,6 +210,34 @@ describe("PUT /content/:collection/:id with status: draft", () => {
 			data: { item: { status: "draft", data: { title: "Revised" } }, _rev: await currentRev(id) },
 		});
 		expect(await stored(id)).toMatchObject({ status: "draft", liveRevisionId: null });
+	});
+
+	it("unpublishes only the state its own save wrote", async () => {
+		const id = await seed("published");
+		const save = handlers.handleContentUpdate;
+		handlers = {
+			...handlers,
+			handleContentUpdate: async (...args) => {
+				const result = await save(...args);
+				const concurrent = await runtime.handleContentUpdate("post", id, {
+					data: { title: "Concurrent" },
+				});
+				if (!concurrent.success) throw new Error(concurrent.error.message);
+				// A reread after the concurrent write reports that write's `_rev`.
+				return result.success
+					? { ...result, data: { ...result.data, _rev: await currentRev(id) } }
+					: result;
+			},
+		};
+
+		const response = await put(id, editor, {
+			data: { title: "Revised" },
+			_rev: await currentRev(id),
+		});
+
+		expect(response.status, await response.clone().text()).toBe(409);
+		expect(await stored(id)).toMatchObject({ status: "published" });
+		expect(beforeUnpublish).not.toHaveBeenCalled();
 	});
 
 	it("refuses a stale _rev and leaves the entry published", async () => {

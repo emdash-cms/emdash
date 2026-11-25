@@ -112,11 +112,14 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	if (!result.success) return unwrapResult(result);
 
 	if (unpublishing) {
+		// A draft-only save rereads the entry after staging, so `data._rev` can belong to a
+		// concurrent write. `saved.rev` is this save's own.
 		const saved: unknown = result.data;
 		const savedRev =
-			saved && typeof saved === "object" && "_rev" in saved && typeof saved._rev === "string"
+			result.saved?.rev ??
+			(saved && typeof saved === "object" && "_rev" in saved && typeof saved._rev === "string"
 				? saved._rev
-				: undefined;
+				: undefined);
 		const unpublished = await emdash.handleContentUnpublish(collection, resolvedId, {
 			// The save advanced the entry's `_rev`. A request without one stays unconditional.
 			_rev: saveBody._rev === undefined ? undefined : savedRev,
@@ -126,7 +129,15 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 		if (unpublished.success || result.liveContentChanged !== false) {
 			await invalidateRouteCache(cache, [collection, resolvedId]);
 		}
-		if (!unpublished.success) return unwrapResult(unpublished);
+		if (!unpublished.success) {
+			const { code, message, details } = unpublished.error;
+			return apiError(
+				code,
+				`The fields were saved, but the unpublish failed: ${message}`,
+				mapErrorStatus(code),
+				{ ...details, _rev: savedRev },
+			);
+		}
 		// The unpublish result holds the live columns, not the draft this request saved.
 		return unwrapResult(await emdash.handleContentGet(collection, resolvedId, locale));
 	}
