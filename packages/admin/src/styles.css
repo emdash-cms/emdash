@@ -2038,10 +2038,29 @@ div:has(> [role="listbox"] > .emdash-block-option)[data-open] {
 	}
 }
 
-.ProseMirror .emdash-editorial-block {
+/*
+ * The bar is a pseudo-element so it paints over a block's own background,
+ * such as a code block's. Empty blocks use ::before for their placeholder.
+ */
+.ProseMirror .emdash-editorial-block:not(.is-empty) {
+	position: relative;
+}
+
+.ProseMirror .emdash-editorial-block:not(.is-empty)::before {
+	position: absolute;
+	inset-block: 0;
+	inset-inline-start: 0;
+	z-index: 1;
+	inline-size: 3px;
+	background-color: var(--emdash-editorial-line);
+	content: "";
+	pointer-events: none;
+}
+
+.ProseMirror .emdash-editorial-block.is-empty {
 	box-shadow: inset 3px 0 0 var(--emdash-editorial-line);
 }
 
-[dir="rtl"] .ProseMirror .emdash-editorial-block {
+.ProseMirror .emdash-editorial-block.is-empty:dir(rtl) {
 	box-shadow: inset -3px 0 0 var(--emdash-editorial-line);
 }
