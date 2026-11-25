@@ -96,6 +96,7 @@ async function buildEmdash(exists: boolean, authorId = "u-other") {
 			handleContentGet: lookup,
 			handleContentGetIncludingTrashed: lookup,
 			handleContentGetForWrite: lookup,
+			handleContentGetById: lookup,
 			handleRevisionGet: revisionLookup,
 			handleContentUpdate: write,
 			handleContentDelete: write,

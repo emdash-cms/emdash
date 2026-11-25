@@ -74,6 +74,7 @@ const {
 			handleContentCountTrashed: ok,
 			handleContentGetIncludingTrashed: ok,
 			handleContentGetForWrite: ok,
+			handleContentGetById: ok,
 			handleContentDuplicate: ok,
 			handleContentPublish: ok,
 			handleContentUnpublish: ok,

@@ -1279,7 +1279,7 @@ export function createMcpServer(
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
-				const source = await emdash.handleContentGetForWrite(args.collection, args.translationOf);
+				const source = await emdash.handleContentGetById(args.collection, args.translationOf);
 				if (!source.success) return unwrap(source);
 				requireOwnership(
 					extra,
@@ -3799,7 +3799,7 @@ export function createMcpServer(
 			}
 
 			// Fetch the content entry to check ownership
-			const existing = await emdash.handleContentGet(revItem.collection, revItem.entryId);
+			const existing = await emdash.handleContentGetById(revItem.collection, revItem.entryId);
 			if (!existing.success) {
 				return unwrap(existing);
 			}

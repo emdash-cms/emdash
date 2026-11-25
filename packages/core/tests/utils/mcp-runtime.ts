@@ -179,6 +179,7 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		handleContentGet: runtime.handleContentGet.bind(runtime),
 		handleContentGetIncludingTrashed: runtime.handleContentGetIncludingTrashed.bind(runtime),
 		handleContentGetForWrite: runtime.handleContentGetForWrite.bind(runtime),
+		handleContentGetById: runtime.handleContentGetById.bind(runtime),
 		handleContentCreate: runtime.handleContentCreate.bind(runtime),
 		handleContentUpdate: runtime.handleContentUpdate.bind(runtime),
 		handleContentDelete: runtime.handleContentDelete.bind(runtime),
