@@ -21,8 +21,8 @@ import type { ApiResult } from "../types.js";
 
 /**
  * SQL condition that holds while the entry is published and not in the
- * trash, the rule comment submission applies. Public comment reads fold it
- * into a query they already run.
+ * trash. Public comment reads and comment submission must apply the same
+ * rule, and public reads must not add a query to check it.
  */
 export function publishedEntryExists(collection: string, contentId: string): RawBuilder<boolean> {
 	validateIdentifier(collection, "collection");
