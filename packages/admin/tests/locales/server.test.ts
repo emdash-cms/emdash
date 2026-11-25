@@ -1,4 +1,5 @@
-import { describe, expect, test } from "vitest";
+import { I18n } from "@lingui/core";
+import { describe, expect, test, vi } from "vitest";
 
 import { translateAdminShellStrings } from "../../src/locales/server.js";
 
@@ -52,5 +53,35 @@ describe("translateAdminShellStrings", () => {
 			pageTitle: "Mon Site Admin",
 			loading: "Loading Mon Site...",
 		});
+	});
+
+	test("interpolates fallback strings without Lingui's runtime message compiler", () => {
+		// Production builds omit Lingui's runtime ICU compiler; fallback defaults
+		// must already be compiled so `{siteName}` interpolates with no warning.
+		const compilerSpy = vi
+			.spyOn(I18n.prototype, "setMessagesCompiler")
+			.mockImplementation(function (this: I18n) {
+				return this;
+			});
+		const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+		try {
+			expect(translateAdminShellStrings("fr", {}, "Mon Site")).toEqual({
+				pageTitle: "Mon Site Admin",
+				loading: "Loading Mon Site...",
+			});
+			expect(
+				translateAdminShellStrings("es-419", {
+					"adminShell.pageTitle": "",
+					"adminShell.loading": [],
+				}),
+			).toEqual({
+				pageTitle: "EmDash Admin",
+				loading: "Loading EmDash...",
+			});
+			expect(warnSpy).not.toHaveBeenCalled();
+		} finally {
+			warnSpy.mockRestore();
+			compilerSpy.mockRestore();
+		}
 	});
 });

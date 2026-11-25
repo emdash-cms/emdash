@@ -14,24 +14,30 @@ const ADMIN_SHELL_MESSAGES = {
 	loading: msg({ id: "adminShell.loading", message: "Loading {siteName}..." }),
 } satisfies Record<keyof AdminShellStrings, MessageDescriptor>;
 
+// Pre-compiled English defaults so fallback interpolation works in production
+// builds where Lingui omits the runtime ICU message compiler.
+const ADMIN_SHELL_DEFAULTS: Messages = {
+	[ADMIN_SHELL_MESSAGES.pageTitle.id]: [["siteName"], " Admin"],
+	[ADMIN_SHELL_MESSAGES.loading.id]: ["Loading ", ["siteName"], "..."],
+};
+
 export function translateAdminShellStrings(
 	locale: string,
 	messages: Messages,
 	siteName?: string,
 ): AdminShellStrings {
 	const brand = siteName?.trim() || "EmDash";
-	const i18n = setupI18n({ locale, messages: { [locale]: messages } });
+	const catalog: Messages = { ...ADMIN_SHELL_DEFAULTS };
+	for (const key of Object.keys(ADMIN_SHELL_DEFAULTS)) {
+		const entry = messages[key];
+		if (entry !== undefined && entry !== "" && (!Array.isArray(entry) || entry.length > 0)) {
+			catalog[key] = entry;
+		}
+	}
+	const i18n = setupI18n({ locale, messages: { [locale]: catalog } });
 	return {
-		pageTitle: i18n._(
-			ADMIN_SHELL_MESSAGES.pageTitle.id,
-			{ siteName: brand },
-			{ message: ADMIN_SHELL_MESSAGES.pageTitle.message },
-		),
-		loading: i18n._(
-			ADMIN_SHELL_MESSAGES.loading.id,
-			{ siteName: brand },
-			{ message: ADMIN_SHELL_MESSAGES.loading.message },
-		),
+		pageTitle: i18n._(ADMIN_SHELL_MESSAGES.pageTitle.id, { siteName: brand }),
+		loading: i18n._(ADMIN_SHELL_MESSAGES.loading.id, { siteName: brand }),
 	};
 }
 
