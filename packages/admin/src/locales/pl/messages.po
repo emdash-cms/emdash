@@ -11806,6 +11806,11 @@ msgstr "Opublikować teraz?"
 msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Publikowanie, cofanie publikacji, planowanie i anulowanie zaplanowanej publikacji treści"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:54
+msgid "visualEditing.published"
+msgstr "Opublikowany"
+
 #: packages/admin/src/components/calendar/CalendarEntry.tsx:43
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:226
 #: packages/admin/src/components/ContentList.tsx:1072
@@ -11817,11 +11822,6 @@ msgstr "Publikowanie, cofanie publikacji, planowanie i anulowanie zaplanowanej p
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:164
 #: packages/admin/src/router.tsx:1989
 msgid "Published"
-msgstr "Opublikowany"
-
-#. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
-msgid "visualEditing.published"
 msgstr "Opublikowany"
 
 #. placeholder {0}: isolate(formatDate(latest.publishedAt, i18n.locale))
