@@ -14,6 +14,7 @@ import {
 	compilePattern,
 	matchPattern,
 	interpolateDestination,
+	isPattern,
 	normalizeSourcePath,
 	validatePattern,
 	type CompiledPattern,
@@ -188,6 +189,13 @@ function buildGraph(edges: RedirectEdge[]): Map<string, { destination: string; i
  */
 const MAX_PATTERN_HOPS = 20;
 
+/**
+ * Longest path a walk resolves through pattern matching. A destination can
+ * repeat a captured parameter (`/[...path]/[...path]`), so a path can grow
+ * faster than the hop limit catches; no server accepts a request line this long.
+ */
+const MAX_RESOLVED_PATH_LENGTH = 8192;
+
 /** Compare paths in the form the runtime matches them in. */
 function normalizeEdges(edges: RedirectEdge[]): RedirectEdge[] {
 	return edges.map((edge) => ({
@@ -200,7 +208,8 @@ function normalizeEdges(edges: RedirectEdge[]): RedirectEdge[] {
 /**
  * Detect all redirect IDs that participate in cycles.
  * Walks every node in the graph once, collecting IDs from any cycles found.
- * A chain that patterns extend past `MAX_PATTERN_HOPS` counts as a cycle.
+ * A chain that patterns extend past `MAX_PATTERN_HOPS` or
+ * `MAX_RESOLVED_PATH_LENGTH` counts as a cycle.
  *
  * @returns Array of redirect IDs that are part of a loop
  */
@@ -218,8 +227,16 @@ export function detectLoops(rawEdges: RedirectEdge[]): string[] {
 		const path: string[] = [];
 		const pathSet = new Set<string>();
 		const pathIds: string[] = [];
-		let patternHops = 0;
+		const patternHopIds: string[] = [];
 		let current: string | undefined = startSource;
+
+		// Only the latest pattern hops are reported; earlier hops may just lead into the chain
+		const markEndless = () => {
+			for (const id of patternHopIds.slice(-MAX_PATTERN_HOPS / 2)) {
+				loopRedirectIds.add(id);
+				endlessRedirectIds.add(id);
+			}
+		};
 
 		while (current) {
 			if (pathSet.has(current)) {
@@ -233,21 +250,24 @@ export function detectLoops(rawEdges: RedirectEdge[]): string[] {
 				break;
 			}
 
+			const resolvedByPattern = !graph.has(current);
+			if (resolvedByPattern && current.length > MAX_RESOLVED_PATH_LENGTH) {
+				markEndless();
+				break;
+			}
+
 			const next = resolveNext(current, graph, patterns, edges);
 			if (!next) break;
 
-			if (!graph.has(current)) {
+			if (resolvedByPattern) {
 				// An endless chain is followed once, not again from each path leading into it
 				if (endlessRedirectIds.has(next.id)) break;
 
-				if (++patternHops > MAX_PATTERN_HOPS) {
-					// Only the latest hops are reported; earlier ones may just lead into the chain
-					for (const id of pathIds.slice(-MAX_PATTERN_HOPS / 2)) {
-						loopRedirectIds.add(id);
-						endlessRedirectIds.add(id);
-					}
+				if (patternHopIds.length >= MAX_PATTERN_HOPS) {
+					markEndless();
 					break;
 				}
+				patternHopIds.push(next.id);
 			}
 
 			path.push(current);
@@ -307,9 +327,9 @@ export function wouldCreateLoop(
 
 	// If the proposed source is a pattern, compile it so we can check
 	// whether resolved paths would match it (not just string equality)
-	const sourceIsPattern = source.includes("[");
+	// Decided before normalization, which decodes literal `%5B`/`%5D` into brackets
 	const compiledSource =
-		sourceIsPattern && validatePattern(source) === null ? compilePattern(source) : null;
+		isPattern(rawSource) && validatePattern(source) === null ? compilePattern(source) : null;
 
 	// Determine starting points for the walk. If the destination is a
 	// template, generate representative concrete paths AND find existing
@@ -343,6 +363,9 @@ export function wouldCreateLoop(
 		// Walk the chain until it ends or we revisit a node
 		// eslint-disable-next-line no-constant-condition -- terminates via return/break when chain ends or cycle found
 		while (true) {
+			const resolvedByPattern = !graph.has(current);
+			if (resolvedByPattern && current.length > MAX_RESOLVED_PATH_LENGTH) return path;
+
 			const next = resolveNext(current, graph, patterns, filtered);
 			if (!next) break; // chain ends, try next starting point
 
@@ -359,7 +382,7 @@ export function wouldCreateLoop(
 				return path; // cycle found
 			}
 
-			if (!graph.has(current) && ++patternHops > MAX_PATTERN_HOPS) return path;
+			if (resolvedByPattern && ++patternHops > MAX_PATTERN_HOPS) return path;
 
 			// If the resolved path contains dummy segments, try to find the
 			// original pattern template that produced it for cleaner display

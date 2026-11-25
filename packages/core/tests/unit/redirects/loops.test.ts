@@ -135,6 +135,11 @@ describe("detectLoops", () => {
 		expect(detectLoops(edges)).toHaveLength(0);
 	});
 
+	it("reports a pattern redirect that repeats its captured path in the destination", () => {
+		const edges = [edge("1", "/[...path]", "/[...path]/[...path]/[...path]/[...path]", true, true)];
+		expect(detectLoops(edges)).toEqual(["1"]);
+	});
+
 	it("does not report a pattern whose destination adds a file extension", () => {
 		const edges = [edge("1", "/docs/[slug]", "/docs/[slug].html", true, true)];
 		expect(detectLoops(edges)).toHaveLength(0);
@@ -257,6 +262,23 @@ describe("wouldCreateLoop", () => {
 		const result = wouldCreateLoop("/a", "/b", edges);
 		expect(result).not.toBeNull();
 		expect(result!.slice(0, 4)).toEqual(["/a", "/b", "/moved/b", "/moved/moved/b"]);
+	});
+
+	it("rejects a redirect into a pattern that repeats its captured path in the destination", () => {
+		const edges = [edge("1", "/[...path]", "/[...path]/[...path]/[...path]/[...path]", true, true)];
+		expect(wouldCreateLoop("/a", "/b", edges)).not.toBeNull();
+	});
+
+	it("treats a source with percent-encoded brackets as a literal path", () => {
+		expect(
+			wouldCreateLoop("/posts/%5Bslug%5D", "/posts/new", [edge("1", "/posts/new", "/posts/newer")]),
+		).toBeNull();
+		expect(
+			wouldCreateLoop("/posts/%5Bslug%5D", "/landing", [edge("1", "/landing", "/posts/hello")]),
+		).toBeNull();
+		expect(
+			wouldCreateLoop("/posts/%5Bslug%5D", "/landing", [edge("1", "/landing", "/posts/[slug]")]),
+		).not.toBeNull();
 	});
 
 	it("allows a redirect into a pattern that shortens a path until it stops matching", () => {

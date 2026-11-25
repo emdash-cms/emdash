@@ -274,6 +274,20 @@ describe("redirect handlers — loop detection", () => {
 			}
 		});
 
+		it("saves a source with percent-encoded brackets that leads into an existing chain", async () => {
+			await new RedirectRepository(db).create({
+				source: "/posts/new",
+				destination: "/posts/newer",
+			});
+
+			const result = await handleRedirectCreate(db, {
+				source: "/posts/%5Bslug%5D",
+				destination: "/posts/new",
+			});
+
+			expect(result).toMatchObject({ success: true, data: { isPattern: false } });
+		});
+
 		it("lists a stored pattern redirect whose destination its own source matches", async () => {
 			const endless = await new RedirectRepository(db).create({
 				source: "/[...path]",
