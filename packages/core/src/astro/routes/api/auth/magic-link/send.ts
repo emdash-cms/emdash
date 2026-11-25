@@ -25,7 +25,7 @@ import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
-import { after } from "../../../../../after.js";
+import { after, canRunAfterResponse } from "../../../../../after.js";
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash } = locals;
@@ -77,28 +77,35 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Localized copy following the site locale; the locale also
 		// drives lang/dir on the email HTML so RTL copy renders correctly.
 		const emailLocale = resolveEmailLocale(siteOptions.get("emdash:locale"), request);
+		// Deferred, the response time doesn't depend on whether the email has
+		// an account (only then are a token and email created). Hosts that may
+		// stop the process after the response send inline behind a pause.
+		const deferred = await canRunAfterResponse();
 		const config: MagicLinkConfig = {
 			baseUrl,
 			siteName,
 			email: (message) => emdash.email!.send(message, "system"),
 			emailStrings: await getMagicLinkEmailStrings(emailLocale, siteName),
 			emailLocale,
+			delayWhenUnsent: !deferred,
 		};
 
-		// Runs after the response so its duration doesn't depend on whether
-		// the email has an account (only then are a token and email created).
 		const adapter = createKyselyAdapter(emdash.db);
 		const email = body.email.toLowerCase();
-		after(async () => {
-			try {
-				// Yield a macrotask: a synchronous driver (SQLite) would otherwise
-				// run the lookup before the response is written.
-				await new Promise((resolve) => setTimeout(resolve, 0));
-				await sendMagicLink(config, adapter, email);
-			} catch (error) {
-				console.error("Magic link send error:", error);
-			}
-		});
+		if (deferred) {
+			after(async () => {
+				try {
+					// Yield a macrotask: a synchronous driver (SQLite) would otherwise
+					// run the lookup before the response is written.
+					await new Promise((resolve) => setTimeout(resolve, 0));
+					await sendMagicLink(config, adapter, email);
+				} catch (error) {
+					console.error("Magic link send error:", error);
+				}
+			});
+		} else {
+			await sendMagicLink(config, adapter, email);
+		}
 
 		// Always return success to avoid revealing if email exists
 		return apiSuccess({

@@ -131,7 +131,9 @@ vi.mock("../../../src/loader.js", () => ({
 
 import { createRequestScopedDb } from "virtual:emdash/dialect";
 
+import { after } from "../../../src/after.js";
 import onRequest from "../../../src/astro/middleware.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 
 /** Anonymous GET to a public frontend page (the `runAnon` response path). */
 function anonymousPublicPageContext() {
@@ -264,5 +266,49 @@ describe("astro middleware Server-Timing exposure", () => {
 
 		expect(admin.headers.get("Server-Timing")).toContain("render");
 		expect(page.headers.get("Server-Timing")).toContain("render");
+	});
+});
+
+describe("astro middleware host lifetime extender", () => {
+	beforeEach(() => {
+		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
+	});
+
+	it.each([
+		["a public page", "https://example.com/contact"],
+		["an API route", "https://example.com/_emdash/api/auth/magic-link/send"],
+	])("hands deferred work on %s to Netlify's waitUntil", async (_label, href) => {
+		const netlifyContext = {
+			waitUntil: vi.fn(function (this: unknown) {
+				expect(this).toBe(netlifyContext);
+			}),
+		};
+		const context = {
+			...anonymousPublicPageContext(),
+			request: new Request(href),
+			url: new URL(href),
+			locals: { netlify: { context: netlifyContext } },
+		};
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			after(() => {});
+			return new Response("ok");
+		});
+		await waitForDeferredTasks();
+
+		expect(netlifyContext.waitUntil).toHaveBeenCalled();
+	});
+
+	it("hands deferred work to locals.waitUntil", async () => {
+		const waitUntil = vi.fn();
+		const context = { ...anonymousPublicPageContext(), locals: { waitUntil } };
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			after(() => {});
+			return new Response("ok");
+		});
+		await waitForDeferredTasks();
+
+		expect(waitUntil).toHaveBeenCalled();
 	});
 });

@@ -11,11 +11,25 @@ const TOKEN_EXPIRY_MS = 15 * 60 * 1000; // 15 minutes
 /** Function that sends an email (matches the EmailPipeline.send signature) */
 export type EmailSendFn = (message: EmailMessage) => Promise<void>;
 
+/**
+ * Add artificial delay with jitter to prevent timing attacks.
+ * Range approximates the time for token creation + email send.
+ */
+async function timingDelay(): Promise<void> {
+	const delay = 100 + Math.random() * 150; // 100-250ms
+	await new Promise((resolve) => setTimeout(resolve, delay));
+}
+
 export interface SignupConfig {
 	baseUrl: string;
 	siteName: string;
 	/** Optional email sender. When omitted, signup verification cannot be sent. */
 	email?: EmailSendFn;
+	/**
+	 * Wait 100-250 ms before resolving when nothing is sent. Defaults to true.
+	 * Set to false when the call runs after the response has been sent.
+	 */
+	delayWhenUnsent?: boolean;
 }
 
 /**
@@ -43,11 +57,6 @@ export async function canSignup(
  * Request self-signup (sends verification email).
  *
  * Requires `config.email` to be set. Throws if no email sender is configured.
- *
- * Resolves without sending when the user already exists or the domain is not
- * allowed, so how long the call takes depends on those checks. Callers whose
- * response should not depend on that should run this after responding instead
- * of awaiting it.
  */
 export async function requestSignup(
 	config: SignupConfig,
@@ -61,12 +70,16 @@ export async function requestSignup(
 	// Check if user already exists
 	const existing = await adapter.getUserByEmail(email);
 	if (existing) {
+		// Don't reveal that user exists - add delay to match successful path timing
+		if (config.delayWhenUnsent !== false) await timingDelay();
 		return;
 	}
 
 	// Check if domain is allowed
 	const signup = await canSignup(adapter, email);
 	if (!signup) {
+		// Don't reveal that domain is not allowed - add delay to match successful path timing
+		if (config.delayWhenUnsent !== false) await timingDelay();
 		return;
 	}
 

@@ -11,7 +11,7 @@ import type { APIRoute } from "astro";
 
 export const prerender = false;
 
-import { requestSignup } from "@emdash-cms/auth";
+import { requestSignup, type SignupConfig } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 
 import { apiError, apiSuccess } from "#api/error.js";
@@ -23,7 +23,7 @@ import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
-import { after } from "../../../../../after.js";
+import { after, canRunAfterResponse } from "../../../../../after.js";
 
 // Generic response body used for both the real success path and the
 // rate-limited / domain-disallowed paths. Keeping them identical prevents
@@ -74,28 +74,32 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Use the configured site URL (stored option as fallback) to prevent Host header spoofing in signup emails
 		const baseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
 
-		// Handles the existing-user and allowed-domain checks internally and
-		// does nothing when either fails. Runs after the response so its
-		// duration doesn't depend on the outcome of those checks.
+		// requestSignup() does the existing-user and allowed-domain checks and
+		// sends nothing when either fails. Deferred, the response time doesn't
+		// depend on their outcome. Hosts that may stop the process after the
+		// response send inline behind a pause.
+		const deferred = await canRunAfterResponse();
+		const config: SignupConfig = {
+			baseUrl,
+			siteName,
+			email: (message) => emdash.email!.send(message, "system"),
+			delayWhenUnsent: !deferred,
+		};
 		const email = body.email.toLowerCase().trim();
-		after(async () => {
-			try {
-				// Yield a macrotask: a synchronous driver (SQLite) would otherwise
-				// run the lookup before the response is written.
-				await new Promise((resolve) => setTimeout(resolve, 0));
-				await requestSignup(
-					{
-						baseUrl,
-						siteName,
-						email: (message) => emdash.email!.send(message, "system"),
-					},
-					adapter,
-					email,
-				);
-			} catch (error) {
-				console.error("Signup request error:", error);
-			}
-		});
+		if (deferred) {
+			after(async () => {
+				try {
+					// Yield a macrotask: a synchronous driver (SQLite) would otherwise
+					// run the lookup before the response is written.
+					await new Promise((resolve) => setTimeout(resolve, 0));
+					await requestSignup(config, adapter, email);
+				} catch (error) {
+					console.error("Signup request error:", error);
+				}
+			});
+		} else {
+			await requestSignup(config, adapter, email);
+		}
 
 		// Always return success to prevent email enumeration
 		return apiSuccess(GENERIC_SUCCESS);

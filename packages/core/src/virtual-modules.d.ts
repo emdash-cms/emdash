@@ -190,9 +190,11 @@ declare module "virtual:emdash/wait-until" {
 	/**
 	 * Optional host-provided lifetime extender for work deferred past the
 	 * response. Resolves to Cloudflare's `waitUntil` under @astrojs/cloudflare;
-	 * `undefined` on Node (fire-and-forget is safe on a long-lived process).
+	 * `undefined` for other adapters.
 	 */
 	export const waitUntil: ((promise: Promise<unknown>) => void) | undefined;
+	/** True under @astrojs/node, where the process outlives each response. */
+	export const longLivedProcess: boolean;
 }
 
 declare module "virtual:emdash/env" {

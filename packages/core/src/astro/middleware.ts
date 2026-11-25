@@ -819,6 +819,25 @@ function canReuseAnonymousRender(context: APIContext): boolean {
 	return true;
 }
 
+interface HostLocals {
+	netlify?: { context?: { waitUntil?: unknown } };
+	waitUntil?: unknown;
+}
+
+/**
+ * The per-request lifetime extender a host puts on `locals`: Netlify's
+ * `locals.netlify.context`, or `locals.waitUntil` (Vercel edge middleware,
+ * or a site's own middleware).
+ */
+function localsWaitUntil(locals: object): ((promise: Promise<unknown>) => void) | undefined {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- host-specific fields that App.Locals does not declare
+	const host = locals as HostLocals;
+	const netlify = host.netlify?.context;
+	if (typeof netlify?.waitUntil === "function") return netlify.waitUntil.bind(netlify);
+	if (typeof host.waitUntil === "function") return host.waitUntil.bind(locals);
+	return undefined;
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
@@ -1374,7 +1393,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	};
 
 	try {
-		const response = await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+		const response = await runWithContext(
+			{ editMode: false, queryRecorder, metrics, waitUntil: localsWaitUntil(locals) },
+			run,
+		);
 		applyBuildValidator(context);
 		keepUnsharedResponsesOutOfRouteCache(context, response);
 		return response;
