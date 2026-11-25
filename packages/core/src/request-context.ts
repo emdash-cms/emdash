@@ -121,8 +121,11 @@ export interface EmDashRequestContext {
 	metrics?: RequestMetrics;
 	/** Deferred work that owns resources scoped to this request. */
 	deferredTasks?: DeferredTaskTracker;
-	/** The host's per-request lifetime extender, read from `locals` by middleware. */
-	waitUntil?: (promise: Promise<unknown>) => void;
+	/**
+	 * Looks up the host's per-request lifetime extender on `locals`. Read when
+	 * called, so a value a site's own middleware sets later is still found.
+	 */
+	hostWaitUntil?: () => ((promise: Promise<unknown>) => void) | undefined;
 	/**
 	 * Resolves a storage key to its public URL through the configured storage
 	 * adapter, so code without `Astro.locals` (site settings) honors `publicUrl`.

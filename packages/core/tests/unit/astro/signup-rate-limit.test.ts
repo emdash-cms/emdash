@@ -98,7 +98,7 @@ describe("POST /auth/signup/request rate limiting", () => {
 
 		// An allowed, unregistered address is the only case that stores a
 		// token and sends an email, so the response must not wait for either.
-		const res = await runWithContext({ editMode: false, waitUntil: vi.fn() }, () =>
+		const res = await runWithContext({ editMode: false, hostWaitUntil: () => vi.fn() }, () =>
 			signupRequest(ctx({ db, email, body: { email: "a@allowed.com" } })),
 		);
 		expect(res.status).toBe(200);

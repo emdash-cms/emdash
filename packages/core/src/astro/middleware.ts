@@ -825,9 +825,9 @@ interface HostLocals {
 }
 
 /**
- * The per-request lifetime extender a host puts on `locals`: Netlify's
- * `locals.netlify.context`, or `locals.waitUntil` (Vercel edge middleware,
- * or a site's own middleware).
+ * The per-request lifetime extender on `locals`: Netlify's
+ * `locals.netlify.context`, or `locals.waitUntil` set by a site's own
+ * middleware.
  */
 function localsWaitUntil(locals: object): ((promise: Promise<unknown>) => void) | undefined {
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- host-specific fields that App.Locals does not declare
@@ -1394,7 +1394,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	try {
 		const response = await runWithContext(
-			{ editMode: false, queryRecorder, metrics, waitUntil: localsWaitUntil(locals) },
+			{ editMode: false, queryRecorder, metrics, hostWaitUntil: () => localsWaitUntil(locals) },
 			run,
 		);
 		applyBuildValidator(context);

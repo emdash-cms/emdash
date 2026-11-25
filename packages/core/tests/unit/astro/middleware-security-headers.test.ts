@@ -311,4 +311,19 @@ describe("astro middleware host lifetime extender", () => {
 
 		expect(waitUntil).toHaveBeenCalled();
 	});
+
+	it("finds a locals.waitUntil that the site's middleware sets after EmDash's", async () => {
+		const waitUntil = vi.fn();
+		const locals: Record<string, unknown> = {};
+		const context = { ...anonymousPublicPageContext(), locals };
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			locals.waitUntil = waitUntil;
+			after(() => {});
+			return new Response("ok");
+		});
+		await waitForDeferredTasks();
+
+		expect(waitUntil).toHaveBeenCalled();
+	});
 });

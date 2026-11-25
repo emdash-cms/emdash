@@ -6,8 +6,8 @@
  * refreshes. `after()` hands the promise to the first host lifetime
  * extender it finds:
  *
- * 1. a per-request `waitUntil` the middleware recorded from `locals`
- *    (Netlify's `locals.netlify.context`, or `locals.waitUntil`);
+ * 1. a per-request `waitUntil` on `locals` (Netlify's
+ *    `locals.netlify.context`, or `locals.waitUntil` set by the site);
  * 2. Vercel's request context, which `@vercel/functions` also reads;
  * 3. the `virtual:emdash/wait-until` module (Cloudflare's `waitUntil`),
  *    with a runtime probe for workerd when the adapter did not provide one.
@@ -64,7 +64,7 @@ interface VercelRequestContext {
 }
 
 function requestWaitUntil(): WaitUntilFn | undefined {
-	const fromRequest = getRequestContext()?.waitUntil;
+	const fromRequest = getRequestContext()?.hostWaitUntil?.();
 	if (fromRequest) return fromRequest;
 
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- global published by the Vercel runtime

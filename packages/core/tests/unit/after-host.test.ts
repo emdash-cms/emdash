@@ -97,7 +97,7 @@ it("prefers the request's waitUntil over the Vercel context and the adapter bind
 	setVercelWaitUntil(fromVercel);
 	const { runWithContext } = await import("../../src/request-context.js");
 
-	await runWithContext({ editMode: false, waitUntil: fromRequest }, () =>
+	await runWithContext({ editMode: false, hostWaitUntil: () => fromRequest }, () =>
 		expectAnchoredTask(fromRequest),
 	);
 	expect(fromVercel).not.toHaveBeenCalled();
@@ -125,7 +125,9 @@ it("reports whether deferred work can run after the response", async () => {
 
 	const { runWithContext } = await import("../../src/request-context.js");
 	expect(
-		await runWithContext({ editMode: false, waitUntil: vi.fn() }, () => canRunAfterResponse()),
+		await runWithContext({ editMode: false, hostWaitUntil: () => vi.fn() }, () =>
+			canRunAfterResponse(),
+		),
 	).toBe(true);
 
 	vi.resetModules();

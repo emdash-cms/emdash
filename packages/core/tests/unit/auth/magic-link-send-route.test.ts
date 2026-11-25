@@ -64,7 +64,9 @@ describe("magic link send route", () => {
 			},
 		} as unknown as APIContext;
 		if (!hostWaitUntil) return sendLink(context);
-		return runWithContext({ editMode: false, waitUntil: hostWaitUntil }, () => sendLink(context));
+		return runWithContext({ editMode: false, hostWaitUntil: () => hostWaitUntil }, () =>
+			sendLink(context),
+		);
 	}
 
 	async function tokenCount(): Promise<number> {
