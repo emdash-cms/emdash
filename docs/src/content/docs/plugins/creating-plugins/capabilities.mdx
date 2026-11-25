@@ -37,6 +37,8 @@ Declare only what the plugin actually needs. The registry shows these capabiliti
 | `comments:read`                     | `ctx.comments.get()`, `ctx.comments.list()`, `ctx.comments.count()` and comment personal data |
 | `comments:moderate`                 | `ctx.comments.setStatus()` with expected-status concurrency control (implies `comments:read`) |
 | `schema:read`                       | `ctx.schema.listCollections()`, `ctx.schema.getCollection()`                      |
+| `admin.editor-draft:read`           | `routeCtx.input.draft` for extension-selected unsaved editor fields in trusted editor panels |
+| `admin.editor-draft:patch`          | Whole-field `set` and `clear` draft patch responses from trusted editor panel routes (independent of `admin.editor-draft:read`) |
 | `hooks.content-policy:register`     | `content:beforePublish`, `content:beforeSchedule`, and `content:beforeUnpublish` policy hooks |
 | `taxonomies:read`                   | `ctx.taxonomies.getAll()`, `ctx.taxonomies.getTerms()`, `ctx.taxonomies.getEntryTerms()` |
 | `taxonomies:write`                  | `ctx.taxonomies.createTerm()`, `ctx.taxonomies.addEntryTerms()`, `ctx.taxonomies.removeEntryTerms()` (implies `taxonomies:read`) |

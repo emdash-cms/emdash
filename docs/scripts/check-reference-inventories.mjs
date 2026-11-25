@@ -417,10 +417,42 @@ function checkCli() {
 	}
 }
 
+function stringLiteralArray(source, name) {
+	const declaration = source.statements
+		.filter(ts.isVariableStatement)
+		.flatMap((statement) => statement.declarationList.declarations)
+		.find((candidate) => ts.isIdentifier(candidate.name) && candidate.name.text === name);
+	if (!declaration?.initializer) {
+		throw new Error(`Could not find const ${name} in ${source.fileName}`);
+	}
+	const expression = unwrapExpression(declaration.initializer);
+	if (!ts.isArrayLiteralExpression(expression)) {
+		throw new Error(`Expected ${name} in ${source.fileName} to be an array literal`);
+	}
+	return expression.elements.map((element) => {
+		if (!ts.isStringLiteral(element)) {
+			throw new Error(`Expected ${name} in ${source.fileName} to contain only string literals`);
+		}
+		return element.text;
+	});
+}
+
+function checkPluginCapabilities() {
+	const source = parseSource("packages/plugin-types/src/manifest-schema.ts");
+	const capabilities = stringLiteralArray(source, "CURRENT_PLUGIN_CAPABILITIES");
+	const reference = readRepositoryFile(
+		"docs/src/content/docs/plugins/creating-plugins/capabilities.mdx",
+	);
+	const section = markdownSection(reference, "## Capability reference");
+	const documented = Array.from(section.matchAll(HOOK_TABLE_PATTERN), (match) => match[1]);
+	compareInventory("Plugin capabilities", capabilities, documented);
+}
+
 checkFieldTypes();
 checkHooks();
 checkConfiguration();
 checkSiteTemplateApi();
 checkCli();
+checkPluginCapabilities();
 
 console.log("Reference inventories match their source contracts.");
