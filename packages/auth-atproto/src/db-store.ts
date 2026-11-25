@@ -39,8 +39,8 @@ export function createDbStore<K extends string, V>(
 			const entry = await getCollection().get(key);
 			if (!entry) return undefined;
 
-			// Check TTL
-			if (entry.expiresAt && Date.now() > entry.expiresAt * 1000) {
+			// `expiresAt` is in milliseconds, as @atcute/oauth-node-client sets it.
+			if (entry.expiresAt && Date.now() > entry.expiresAt) {
 				await getCollection().delete(key);
 				return undefined;
 			}

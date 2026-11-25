@@ -642,6 +642,62 @@ describeEachDialect("Expired OAuth login cleanup", (dialect) => {
 	});
 });
 
+describeEachDialect("Atmosphere sign-in state cleanup", (dialect) => {
+	let ctx: DialectTestContext;
+	const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60 * 1000).toISOString();
+	const stored = (plugin_id: string, collection: string, id: string, created_at: string) => ({
+		plugin_id,
+		collection,
+		id,
+		data: "{}",
+		created_at,
+		updated_at: created_at,
+	});
+	const remainingIds = async () => {
+		const rows = await ctx.db.selectFrom("_plugin_storage").select("id").orderBy("id").execute();
+		return rows.map((row) => row.id);
+	};
+
+	beforeEach(async () => {
+		ctx = await setupForDialect(dialect);
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("deletes the states of sign-ins that were started and never finished", async () => {
+		await ctx.db
+			.insertInto("_plugin_storage")
+			.values([
+				stored("auth:atproto", "states", "abandoned", minutesAgo(120)),
+				stored("auth:atproto", "states", "in-progress", minutesAgo(5)),
+			])
+			.execute();
+
+		const result = await runSystemCleanup(ctx.db);
+
+		expect(result.atprotoStates).toBe(1);
+		expect(await remainingIds()).toEqual(["in-progress"]);
+	});
+
+	it("leaves other collections and other plugins' storage alone", async () => {
+		await ctx.db
+			.insertInto("_plugin_storage")
+			.values([
+				stored("auth:atproto", "sessions", "did:plc:user", minutesAgo(120)),
+				stored("forms", "states", "plugin-states", minutesAgo(120)),
+				stored("auth:other", "states", "provider-states", minutesAgo(120)),
+			])
+			.execute();
+
+		const result = await runSystemCleanup(ctx.db);
+
+		expect(result.atprotoStates).toBe(0);
+		expect(await remainingIds()).toEqual(["did:plc:user", "plugin-states", "provider-states"]);
+	});
+});
+
 describe("System cleanup scheduling", () => {
 	it("runs cleanup on the top of the hour", () => {
 		expect(shouldRunSystemCleanup(new Date("2026-10-04T12:00:00.000Z"))).toBe(true);
