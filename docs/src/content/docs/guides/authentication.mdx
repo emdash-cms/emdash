@@ -120,6 +120,8 @@ export default defineConfig({
 
 Order matters for the login page: providers render in the order you list them, with compact button-only providers first and providers that need a custom form (like Atmosphere, which asks for a handle) shown after.
 
+If you set a site URL (`siteUrl`, `EMDASH_SITE_URL`, or `SITE_URL`), start GitHub, Google, and Microsoft sign-in from that host name. The provider returns the browser to the site URL, and a sign-in started on another host name, such as `www.` instead of the bare domain or a `workers.dev` address instead of your custom domain, fails with "OAuth session expired or invalid".
+
 ### GitHub
 
 The following example enables the GitHub provider:

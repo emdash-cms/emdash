@@ -13,6 +13,7 @@ import {
 	OAuthError,
 	Role,
 	isValidMicrosoftTenant,
+	secureCompare,
 	type OAuthConsumerConfig,
 	type RoleLevel,
 } from "@emdash-cms/auth";
@@ -21,7 +22,11 @@ import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { getPublicOrigin } from "#api/public-url.js";
 import { finalizeSetup } from "#api/setup-complete.js";
 import { getOAuthEnv } from "#auth/oauth-env.js";
-import { createOAuthStateStore } from "#auth/oauth-state-store.js";
+import {
+	createOAuthStateStore,
+	OAUTH_STATE_COOKIE_PATH,
+	oauthStateCookieName,
+} from "#auth/oauth-state-store.js";
 import { startUserSession } from "#auth/start-user-session.js";
 import type { AuthProviderDescriptor } from "#auth/types.js";
 import { OptionsRepository } from "#db/repositories/options.js";
@@ -129,7 +134,7 @@ function getOAuthConfig(
 	return providers;
 }
 
-export const GET: APIRoute = async ({ params, request, locals, session, redirect }) => {
+export const GET: APIRoute = async ({ params, request, locals, session, cookies, redirect }) => {
 	const { emdash } = locals;
 	const provider = params.provider;
 
@@ -186,6 +191,15 @@ export const GET: APIRoute = async ({ params, request, locals, session, redirect
 				`/_emdash/admin/login?error=server_error&message=${encodeURIComponent(SESSION_UNAVAILABLE_MESSAGE)}`,
 			);
 		}
+
+		// Checked before the state store is read, so a callback URL opened in
+		// another browser neither signs it in nor uses up the stored state.
+		const cookieName = oauthStateCookieName(state);
+		const browserState = cookieName ? cookies.get(cookieName)?.value : undefined;
+		if (!cookieName || !browserState || !secureCompare(browserState, state)) {
+			throw new OAuthError("invalid_state", "Invalid OAuth state");
+		}
+		cookies.delete(cookieName, { path: OAUTH_STATE_COOKIE_PATH });
 
 		const adapter = createKyselyAdapter(emdash.db);
 		const stateStore = createOAuthStateStore(emdash.db);
