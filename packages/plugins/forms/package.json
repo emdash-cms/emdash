@@ -40,6 +40,7 @@
 		"@types/react": "catalog:",
 		"astro": "catalog:",
 		"jsdom": "^26.1.0",
+		"kysely": "catalog:",
 		"react": "catalog:",
 		"react-dom": "catalog:",
 		"vitest": "catalog:"

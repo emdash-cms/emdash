@@ -64,7 +64,8 @@ export async function handleCleanup(ctx: PluginContext) {
 
 				const ids = batch.items.map((item) => item.id);
 				if (ids.length > 0) {
-					deletedCount += await submissions(ctx).deleteMany(ids);
+					await submissions(ctx).deleteMany(ids);
+					deletedCount += ids.length;
 				}
 
 				cursor = batch.cursor;
@@ -72,10 +73,8 @@ export async function handleCleanup(ctx: PluginContext) {
 
 			// Update only the counter, so a form edited or deleted during cleanup stays that way
 			if (deletedCount > 0) {
-				await forms(ctx).updateIf(formItem.id, {
-					where: {},
-					delta: { submissionCount: { dec: deletedCount } },
-				});
+				const submissionCount = await submissions(ctx).count({ formId: formItem.id });
+				await forms(ctx).updateIf(formItem.id, { where: {}, set: { submissionCount } });
 
 				ctx.log.info("Cleaned up expired submissions", {
 					formId: formItem.id,

@@ -1,12 +1,18 @@
-import { describe, expect, it, vi } from "vitest";
+import type { Database, StorageCollection } from "emdash";
+import { PluginStorageRepository } from "emdash";
+import { createDialect } from "emdash/db/sqlite";
+import { Kysely } from "kysely";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handleCleanup } from "../src/handlers/cron.js";
+import { formsDeleteHandler, formsUpdateHandler } from "../src/handlers/forms.js";
 import { submissionDeleteHandler } from "../src/handlers/submissions.js";
 import { submitHandler } from "../src/handlers/submit.js";
-import { submitSchema } from "../src/schemas.js";
-import type { FormDefinition } from "../src/types.js";
+import { formDeleteSchema, formUpdateSchema, submitSchema } from "../src/schemas.js";
+import { FORMS_STORAGE_CONFIG } from "../src/storage.js";
+import type { FormDefinition, Submission } from "../src/types.js";
 
-function form(): FormDefinition {
+function form(overrides: Partial<FormDefinition> = {}): FormDefinition {
 	return {
 		name: "Apply",
 		slug: "apply",
@@ -18,7 +24,7 @@ function form(): FormDefinition {
 				],
 			},
 		],
-		submissionCount: 5,
+		submissionCount: 0,
 		lastSubmissionAt: null,
 		createdAt: "2026-01-01T00:00:00.000Z",
 		updatedAt: "2026-01-01T00:00:00.000Z",
@@ -31,167 +37,231 @@ function form(): FormDefinition {
 			submitLabel: "Send",
 			confirmationMessage: "Thanks",
 		},
-	} as unknown as FormDefinition;
+		...overrides,
+	} as FormDefinition;
 }
 
-type Forms = Map<string, FormDefinition>;
-
-function pauseAndEdit(forms: Forms) {
-	const current = forms.get("apply")!;
-	forms.set("apply", {
-		...current,
-		status: "paused",
-		settings: { ...current.settings, notifyEmails: ["new@example.com"] },
-	});
+function submission(createdAt = new Date().toISOString()): Submission {
+	return {
+		formId: "apply",
+		data: {},
+		status: "new",
+		starred: false,
+		createdAt,
+		meta: { ip: null, userAgent: null, referer: null, country: null },
+	};
 }
 
-function remove(forms: Forms) {
-	forms.delete("apply");
-}
+let db: Kysely<Database>;
+let forms: StorageCollection<FormDefinition>;
+let submissions: StorageCollection<Submission>;
 
-type Delta = { inc: number } | { dec: number };
+beforeEach(async () => {
+	db = new Kysely<Database>({ dialect: createDialect({ url: ":memory:" }) });
+	await db.schema
+		.createTable("_plugin_storage")
+		.addColumn("plugin_id", "text", (col) => col.notNull())
+		.addColumn("collection", "text", (col) => col.notNull())
+		.addColumn("id", "text", (col) => col.notNull())
+		.addColumn("data", "text", (col) => col.notNull())
+		.addColumn("revision", "text", (col) => col.notNull().defaultTo("0"))
+		.addColumn("created_at", "text")
+		.addColumn("updated_at", "text")
+		.addPrimaryKeyConstraint("pk_plugin_storage", ["plugin_id", "collection", "id"])
+		.execute();
+	forms = new PluginStorageRepository(db, "emdash-forms", "forms", [
+		...FORMS_STORAGE_CONFIG.forms.indexes,
+		...FORMS_STORAGE_CONFIG.forms.uniqueIndexes,
+	]);
+	submissions = new PluginStorageRepository(
+		db,
+		"emdash-forms",
+		"submissions",
+		FORMS_STORAGE_CONFIG.submissions.indexes.map((index) =>
+			typeof index === "string" ? index : [...index],
+		),
+	);
+});
+
+afterEach(async () => {
+	await db.destroy();
+});
+
+type Step = () => Promise<void>;
 
 /**
- * A map-backed forms collection with plugin storage's write semantics: `put` is an upsert of the
- * whole record, `updateIf` merges `set` and applies `delta` to an existing record and never
- * inserts. `meanwhile` stands in for an admin request saved while the handler is working: it runs
- * once, right after the handler's first read of the form, or before its first write if it never
- * reads the form.
+ * The forms collection, with `meanwhile` run once: right after the first read of the form, or
+ * just before the first write if the handler writes without reading it first. This puts another
+ * request between a handler's read of the form and its write.
  */
-function formsCollection(stored: Forms, meanwhile: (forms: Forms) => void) {
-	let pending: ((forms: Forms) => void) | null = meanwhile;
-	const runPending = () => {
-		pending?.(stored);
+function formsWith(meanwhile: Step): StorageCollection<FormDefinition> {
+	let pending: Step | null = meanwhile;
+	const runPending = async () => {
+		const step = pending;
 		pending = null;
-	};
-	const read = <T>(value: T): T => {
-		const copy = structuredClone(value);
-		runPending();
-		return copy;
+		await step?.();
 	};
 	return {
-		get: async (id: string) => read(stored.get(id) ?? null),
-		put: async (id: string, value: FormDefinition) => {
-			runPending();
-			stored.set(id, value);
+		...forms,
+		get: async (id) => {
+			const value = await forms.get(id);
+			await runPending();
+			return value;
 		},
-		updateIf: async (
-			id: string,
-			args: { set?: Partial<FormDefinition>; delta?: Record<string, Delta> },
-		) => {
-			runPending();
-			const existing = stored.get(id);
-			if (!existing) return { applied: false };
-			const data: Record<string, unknown> = { ...existing, ...args.set };
-			for (const [field, d] of Object.entries(args.delta ?? {})) {
-				const base = typeof data[field] === "number" ? (data[field] as number) : 0;
-				data[field] = "inc" in d ? base + d.inc : base - d.dec;
-			}
-			stored.set(id, data as unknown as FormDefinition);
-			return { applied: true, data };
+		query: async (options) => {
+			const result = await forms.query(options);
+			await runPending();
+			return result;
 		},
-		query: async () => read({ items: Array.from(stored, ([id, data]) => ({ id, data })) }),
-	};
+		put: async (id, value) => {
+			await runPending();
+			return forms.put(id, value);
+		},
+		updateIf: async (id, args) => {
+			await runPending();
+			return forms.updateIf(id, args);
+		},
+		delete: (id) => forms.delete(id),
+	} as StorageCollection<FormDefinition>;
 }
 
 const log = () => ({ debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() });
 
-type Change = (forms: Forms) => void;
+function submit(formsCollection = forms) {
+	return submitHandler({
+		input: submitSchema.parse({
+			formId: "apply",
+			data: {},
+			files: { cv: { filename: "cv.png", contentType: "image/png", bytes: [1, 2, 3] } },
+		}),
+		storage: { forms: formsCollection, submissions },
+		kv: { get: async () => null },
+		log: log(),
+		media: { upload: async () => ({ mediaId: "m1", storageKey: "k1", url: "/k1" }) },
+		requestMeta: { ip: "203.0.113.1", userAgent: "test", referer: null, headers: {} },
+	} as never);
+}
+
+function deleteSubmission(id: string, formsCollection = forms) {
+	return submissionDeleteHandler({
+		input: { id },
+		storage: { forms: formsCollection, submissions },
+	} as never);
+}
+
+function cleanup(formsCollection = forms) {
+	return handleCleanup({ storage: { forms: formsCollection, submissions }, log: log() } as never);
+}
+
+function updateForm(input: unknown, formsCollection = forms) {
+	return formsUpdateHandler({
+		input: formUpdateSchema.parse(input),
+		storage: { forms: formsCollection, submissions },
+	} as never);
+}
+
+const pauseAndEdit: Step = async () => {
+	await updateForm({
+		id: "apply",
+		status: "paused",
+		settings: { notifyEmails: ["new@example.com"] },
+	});
+};
+
+const deleteForm: Step = async () => {
+	await formsDeleteHandler({
+		input: formDeleteSchema.parse({ id: "apply" }),
+		storage: { forms, submissions },
+	} as never);
+};
+
+const expired = "2020-01-01T00:00:00.000Z";
 
 const handlers = {
-	submit: async (stored: Forms, meanwhile: Change) => {
-		const ctx = {
-			input: submitSchema.parse({
-				formId: "apply",
-				data: {},
-				files: { cv: { filename: "cv.png", contentType: "image/png", bytes: [1, 2, 3] } },
-			}),
-			storage: {
-				forms: formsCollection(stored, meanwhile),
-				submissions: { put: async () => {} },
-			},
-			kv: { get: async () => null },
-			log: log(),
-			media: { upload: async () => ({ mediaId: "m1", storageKey: "k1", url: "/k1" }) },
-			requestMeta: { ip: "203.0.113.1", userAgent: "test", referer: null, headers: {} },
-		};
-		await submitHandler(ctx as never);
+	submit: { seed: async () => {}, run: submit },
+	"submissions/delete": {
+		seed: async () => {
+			await submissions.put("sub-1", submission());
+			await submissions.put("sub-2", submission());
+		},
+		run: (f: StorageCollection<FormDefinition>) => deleteSubmission("sub-1", f),
 	},
-
-	"submissions/delete": async (stored: Forms, meanwhile: Change) => {
-		const ctx = {
-			input: { id: "sub-1" },
-			storage: {
-				forms: formsCollection(stored, meanwhile),
-				submissions: {
-					get: async () => ({ formId: "apply" }),
-					delete: async () => true,
-					count: async () => 4,
-				},
-			},
-		};
-		await submissionDeleteHandler(ctx as never);
-	},
-
-	cleanup: async (stored: Forms, meanwhile: Change) => {
-		const ctx = {
-			storage: {
-				forms: formsCollection(stored, meanwhile),
-				submissions: {
-					query: async () => ({ items: [{ id: "sub-1", data: {} }] }),
-					deleteMany: async (ids: string[]) => ids.length,
-					count: async () => 4,
-				},
-			},
-			log: log(),
-		};
-		await handleCleanup(ctx as never);
+	cleanup: {
+		seed: async () => {
+			await submissions.put("old", submission(expired));
+			await submissions.put("new", submission());
+		},
+		run: cleanup,
 	},
 };
 
-const expectedCount = { submit: 6, "submissions/delete": 4, cleanup: 4 };
+describe.each(Object.entries(handlers))("%s while the form is changed", (_name, handler) => {
+	it("keeps the concurrent edit and counts the stored submissions", async () => {
+		await forms.put("apply", form());
+		await handler.seed();
 
-describe.each(Object.entries(handlers))("%s while the form is changed", (name, run) => {
-	it("updates the counter and keeps the concurrent edit", async () => {
-		const stored: Forms = new Map([["apply", form()]]);
+		await handler.run(formsWith(pauseAndEdit));
 
-		await run(stored, pauseAndEdit);
-
-		const after = stored.get("apply")!;
-		expect(after.status).toBe("paused");
-		expect(after.settings.notifyEmails).toEqual(["new@example.com"]);
-		expect(after.submissionCount).toBe(expectedCount[name as keyof typeof expectedCount]);
+		const after = await forms.get("apply");
+		expect(after?.status).toBe("paused");
+		expect(after?.settings.notifyEmails).toEqual(["new@example.com"]);
+		expect(after?.submissionCount).toBe(1);
 	});
 
 	it("does not recreate a form deleted in the meantime", async () => {
-		const stored: Forms = new Map([["apply", form()]]);
+		await forms.put("apply", form());
+		await handler.seed();
 
-		await run(stored, remove);
+		await handler.run(formsWith(deleteForm));
 
-		expect(stored.has("apply")).toBe(false);
+		expect(await forms.get("apply")).toBeNull();
 	});
 });
 
-it("counts every submission when several are recorded at once", async () => {
-	const stored: Forms = new Map([["apply", form()]]);
+describe("saving a form while a submission is recorded", () => {
+	it("keeps the submission's counters", async () => {
+		await forms.put("apply", form());
 
-	await Promise.all([1, 2, 3].map(() => handlers.submit(stored, () => {})));
+		await updateForm(
+			{ id: "apply", slug: "apply-now" },
+			formsWith(async () => {
+				await submit();
+			}),
+		);
 
-	expect(stored.get("apply")!.submissionCount).toBe(8);
-	expect(stored.get("apply")!.lastSubmissionAt).toEqual(expect.any(String));
+		const after = await forms.get("apply");
+		expect(after?.slug).toBe("apply-now");
+		expect(after?.submissionCount).toBe(1);
+		expect(after?.lastSubmissionAt).toEqual(expect.any(String));
+	});
+
+	it("reports a form deleted in the meantime as not found", async () => {
+		await forms.put("apply", form());
+
+		await expect(
+			updateForm({ id: "apply", slug: "apply-now" }, formsWith(deleteForm)),
+		).rejects.toMatchObject({ status: 404 });
+		expect(await forms.get("apply")).toBeNull();
+	});
 });
 
-it("leaves the counter alone when the submission was already gone", async () => {
-	const stored: Forms = new Map([["apply", form()]]);
-	const ctx = {
-		input: { id: "sub-1" },
-		storage: {
-			forms: formsCollection(stored, () => {}),
-			submissions: { get: async () => ({ formId: "apply" }), delete: async () => false },
-		},
-	};
+describe("a stored count that is already wrong", () => {
+	it("is corrected by the next submission", async () => {
+		await forms.put("apply", form({ submissionCount: 7 }));
+		await submissions.put("sub-1", submission());
 
-	await submissionDeleteHandler(ctx as never);
+		await submit();
 
-	expect(stored.get("apply")!.submissionCount).toBe(5);
+		expect((await forms.get("apply"))?.submissionCount).toBe(2);
+	});
+
+	it("is corrected when a submission is deleted", async () => {
+		await forms.put("apply", form({ submissionCount: 1 }));
+		await submissions.put("sub-1", submission());
+		await submissions.put("sub-2", submission());
+
+		await deleteSubmission("sub-1");
+
+		expect((await forms.get("apply"))?.submissionCount).toBe(1);
+	});
 });

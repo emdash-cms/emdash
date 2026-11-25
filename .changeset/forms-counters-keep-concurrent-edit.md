@@ -2,4 +2,4 @@
 "@emdash-cms/plugin-forms": patch
 ---
 
-Fixes a form edit, pause or delete being undone by a submission that was still being processed when the change was saved. Recording a submission, deleting one and the retention cleanup now adjust only the form's submission counters, so a paused form stays paused and a deleted form stays deleted, and the count stays accurate when several submissions arrive at once. The plugin now requires `emdash` 0.38.0 or later.
+Fixes form changes and submission counts overwriting each other. Recording a submission, deleting one and the retention cleanup now write only the form's submission counters, so a form paused, edited or deleted while a submission is being processed stays that way. Saving a form now writes only the fields it edits, so it no longer resets the submission count, and it returns not found instead of recreating a form that was deleted while the save was in progress. The submission count is recalculated from the stored submissions each time, which also corrects a count that was already wrong. The plugin now requires `emdash` 0.38.0 or later.
