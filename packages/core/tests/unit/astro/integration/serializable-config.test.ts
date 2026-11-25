@@ -6,6 +6,10 @@ describe("buildSerializableConfig", () => {
 	it("passes the update-check opt-out to the runtime config", () => {
 		expect(buildSerializableConfig({ updateCheck: false }).updateCheck).toBe(false);
 	});
+
+	it("passes the generator opt-out to the runtime config", () => {
+		expect(buildSerializableConfig({ generator: false }).generator).toBe(false);
+	});
 });
 
 describe("updateCheck option", () => {

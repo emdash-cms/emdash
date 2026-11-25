@@ -733,6 +733,14 @@ export interface EmDashConfig {
 	toolbar?: "server" | "client" | false;
 
 	/**
+	 * Render `<meta name="generator" content="EmDash 1">`, with the installed
+	 * major version, in every page whose layout renders `EmDashHead`.
+	 *
+	 * @default true
+	 */
+	generator?: boolean;
+
+	/**
 	 * Version of Astro the host project is building with. Populated by the
 	 * integration's `astro:config:setup` hook (not authored by the user) and
 	 * surfaced to the admin and the registry install gate so a plugin's

@@ -747,6 +747,26 @@ Notes on `"client"` mode:
 
 In every mode, the toolbar can be dismissed in the browser via its × button (per-browser, until the next time an editor opens the admin). Preview and edit-mode responses always render server-side with `Cache-Control: private, no-store`.
 
+### `generator`
+
+**Optional.** Controls the generator meta tag that `<EmDashHead>` adds to every page it renders. The default is `true`. The tag names EmDash and the major version of the installed `emdash` package, so a site on version 1.6.2 renders the following tag:
+
+```html
+<meta name="generator" content="EmDash 1" />
+```
+
+Pages whose layout doesn't render `<EmDashHead>` get no tag. Plugin metadata can't replace or remove the tag, and a plugin that contributes its own `generator` meta tag adds a second one.
+
+Set the option to `false` to remove the tag:
+
+```js
+emdash({
+	generator: false,
+});
+```
+
+The option removes only the tag. The public `/_emdash/api/health` endpoint still returns the product name and full version.
+
 ## Database adapters
 
 Import the adapters from `emdash/db`:

@@ -6,7 +6,10 @@ import type { PageMetadataContribution, PublicPageContext } from "../../src/plug
 import { getSiteSettings } from "../../src/settings/index.js";
 import type { SiteSettings } from "../../src/settings/types.js";
 
+const virtualConfig = vi.hoisted((): Record<string, unknown> => ({}));
+
 vi.mock("../../src/settings/index.js", () => ({ getSiteSettings: vi.fn() }));
+vi.mock("virtual:emdash/config", () => ({ default: virtualConfig }));
 
 const page: PublicPageContext = {
 	url: "https://example.com/",
@@ -41,6 +44,7 @@ async function render(settings: Partial<SiteSettings>, emdash?: unknown) {
 describe("EmDashHead", () => {
 	afterEach(() => {
 		vi.mocked(getSiteSettings).mockReset();
+		for (const key of Object.keys(virtualConfig)) delete virtualConfig[key];
 	});
 
 	it("renders JSON-LD as a structured data script", async () => {
@@ -69,5 +73,35 @@ describe("EmDashHead", () => {
 
 		expect(html).toContain('<meta name="robots" content="index, follow">');
 		expect(html).not.toContain("noindex");
+	});
+
+	it.each([
+		["without a runtime", undefined],
+		["with a runtime", runtimeWithPluginMetadata([])],
+	])("names EmDash in a generator tag by default %s", async (_, emdash) => {
+		const html = await render({}, emdash);
+
+		expect(html).toContain('<meta name="generator" content="EmDash">');
+	});
+
+	it.each([
+		["without a runtime", undefined],
+		["with a runtime", runtimeWithPluginMetadata([])],
+	])("renders no generator tag when the site turns it off %s", async (_, emdash) => {
+		virtualConfig.generator = false;
+
+		const html = await render({}, emdash);
+
+		expect(html).not.toContain('name="generator"');
+	});
+
+	it("keeps the EmDash generator tag next to a plugin's own", async () => {
+		const html = await render(
+			{},
+			runtimeWithPluginMetadata([{ kind: "meta", name: "generator", content: "Some Plugin" }]),
+		);
+
+		expect(html).toContain('<meta name="generator" content="EmDash">');
+		expect(html).toContain('<meta name="generator" content="Some Plugin">');
 	});
 });

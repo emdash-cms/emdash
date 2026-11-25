@@ -1,7 +1,7 @@
 ---
 title: Add a meta generator tag to EmDashHead
 type: feature-plan
-status: proposed
+status: implemented
 authors:
   - Noah Pham (@khoinguyenpham04)
 discussion: null

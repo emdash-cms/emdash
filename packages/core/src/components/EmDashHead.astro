@@ -1,6 +1,7 @@
 ---
 /**
- * Renders base SEO metadata, plugin-contributed metadata, and trusted head fragments.
+ * Renders base SEO metadata, plugin-contributed metadata, the EmDash generator
+ * tag, and trusted head fragments.
  *
  * Base SEO metadata (meta tags, OG, Twitter Card, canonical, JSON-LD) is generated
  * from the page context's seo/articleMeta/siteName fields. When the page renders
@@ -46,6 +47,8 @@ import { getSiteSettings } from "../settings/index.js";
 import { absolutizeMediaUrl } from "../page/absolute-url.js";
 import { getHreflangAlternates } from "../seo/hreflang.js";
 import { isI18nEnabled } from "../i18n/config.js";
+import { generatorContent } from "../page/generator.js";
+import { VERSION } from "../version.js";
 
 interface Props {
 	page: PublicPageContext;
@@ -152,6 +155,7 @@ await registerJsonLdCspHashes(virtualConfig.astroCspEnabled === true, () => Astr
 ---
 
 <Fragment set:html={metadataHtml} />
+{virtualConfig.generator !== false && <meta name="generator" content={generatorContent(VERSION)} />}
 {
 	jsonLdScripts.map(({ json }) => <JsonLdScript json={json} />)
 }

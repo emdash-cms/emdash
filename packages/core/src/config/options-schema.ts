@@ -77,6 +77,7 @@ const configShape = {
 	toolbar: z.union([z.enum(["server", "client"]), z.literal(false)], {
 		error: 'Expected "server", "client" or `false`',
 	}),
+	generator: z.boolean(),
 	astroVersion: z.string(),
 	robotsTxtOverridden: z.boolean(),
 } satisfies { [K in keyof Required<EmDashConfig>]: z.ZodType };

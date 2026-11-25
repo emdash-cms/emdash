@@ -111,12 +111,13 @@ const page = createPublicPageContext({
 - A canonical link and `og:url` when the page context or the entry sets a canonical URL.
 - Open Graph tags (`og:type`, `og:title`, `og:description`, `og:image`, `og:site_name`) and Twitter Card tags. When a page has no image, `og:image` uses the default social image from the site settings.
 - `article:published_time`, `article:modified_time`, and `article:author` when the page context includes `articleMeta`.
+- A `generator` meta tag with EmDash's major version, unless the [`generator` option](/reference/configuration/#generator) is `false`.
 
 `<EmDashHead>` does not render the `<title>` element. Render it in the page or layout, as the example does.
 
 For pages that are not content entries, use `kind: "custom"`. [Site Settings](/guides/site-settings/#read-settings-in-a-layout) shows a layout that builds a custom page context from the site settings.
 
-Plugins can add or replace head tags through the [`page:metadata` hook](/plugins/creating-plugins/hooks/#pagemetadata). For the same tag, a plugin's value wins over the site settings, which win over the values generated from the page context.
+Plugins can add or replace head tags through the [`page:metadata` hook](/plugins/creating-plugins/hooks/#pagemetadata). For the same tag, a plugin's value wins over the site settings, which win over the values generated from the page context. The `generator` tag is the exception: a plugin's own `generator` tag renders as a second tag.
 
 ## Structured data
 

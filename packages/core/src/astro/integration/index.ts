@@ -243,6 +243,7 @@ export function buildSerializableConfig(resolvedConfig: EmDashConfig): Record<st
 		imagePlaceholders: resolvedConfig.imagePlaceholders,
 		admin: resolvedConfig.admin,
 		toolbar: resolvedConfig.toolbar,
+		generator: resolvedConfig.generator,
 		updateCheck: resolvedConfig.updateCheck,
 		objectCacheEnabled: resolvedConfig.objectCache !== undefined,
 	};
