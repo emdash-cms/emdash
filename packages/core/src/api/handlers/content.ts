@@ -1231,6 +1231,33 @@ export async function handleContentGet(
 }
 
 /**
+ * Get a content item by id only, never by slug. Use for permission checks on
+ * an entry that the caller then acts on by id.
+ */
+export async function handleContentGetById(
+	db: Kysely<Database>,
+	collection: string,
+	id: string,
+): Promise<ApiResult<{ item: ContentItem }>> {
+	try {
+		const item = await new ContentRepository(db).findById(collection, id);
+		if (item) return { success: true, data: { item } };
+	} catch (error) {
+		if (!isMissingTableError(error)) {
+			console.error("Content get error:", error);
+			return {
+				success: false,
+				error: { code: "CONTENT_GET_ERROR", message: "Failed to get content" },
+			};
+		}
+	}
+	return {
+		success: false,
+		error: { code: "NOT_FOUND", message: `Content item not found: ${id}` },
+	};
+}
+
+/**
  * Get a content item by id, including trashed items.
  * Used by restore endpoint for ownership checks on soft-deleted items.
  */

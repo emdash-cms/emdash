@@ -22,7 +22,11 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const body = await parseOptionalBody(request, revisionRestoreBody, {});
 	if (isParseError(body)) return body;
 
-	if (!emdash?.handleRevisionRestore || !emdash?.handleRevisionGet || !emdash?.handleContentGet) {
+	if (
+		!emdash?.handleRevisionRestore ||
+		!emdash?.handleRevisionGet ||
+		!emdash?.handleContentGetById
+	) {
 		return apiError("NOT_CONFIGURED", "EmDash not configured", 500);
 	}
 
@@ -44,18 +48,13 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	}
 
 	// Fetch the content entry to check ownership
-	const existing = await emdash.handleContentGet(collection, entryId);
+	const existing = await emdash.handleContentGetById(collection, entryId);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",
 			existing.error?.message ?? "Content not found",
 			mapErrorStatus(existing.error?.code),
 		);
-	}
-
-	// The lookup also matches slugs, so it can return a different entry.
-	if (existing.data.item.id !== entryId) {
-		return apiError("NOT_FOUND", "Content not found", 404);
 	}
 
 	const authorId = existing.data?.item?.authorId ?? "";

@@ -442,6 +442,12 @@ export interface EmDashHandlers {
 
 	handleContentGetIncludingTrashed: (collection: string, id: string) => Promise<HandlerResponse>;
 
+	/** Looks up by id only, never by slug. */
+	handleContentGetById: (
+		collection: string,
+		id: string,
+	) => Promise<HandlerResponse<{ item: { id: string; authorId: string | null } }>>;
+
 	handleContentDuplicate: (
 		collection: string,
 		id: string,

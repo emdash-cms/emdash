@@ -1272,9 +1272,8 @@ export function createMcpServer(
 			}
 
 			// Creating a translation requires edit permission on the source item
-			let translationOf = args.translationOf;
-			if (translationOf) {
-				const source = await emdash.handleContentGet(args.collection, translationOf);
+			if (args.translationOf) {
+				const source = await emdash.handleContentGetById(args.collection, args.translationOf);
 				if (!source.success) return unwrap(source);
 				requireOwnership(
 					extra,
@@ -1282,8 +1281,6 @@ export function createMcpServer(
 					"content:edit_own",
 					"content:edit_any",
 				);
-				// The lookup also matches slugs, so link to the entry that was checked.
-				translationOf = extractContentId(source.data) ?? translationOf;
 			}
 
 			const data = await convertWriteData(emdash, args.collection, args.data);
@@ -1302,7 +1299,7 @@ export function createMcpServer(
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
-					translationOf,
+					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
 					migrateBlocks: args.migrateBlocks,
@@ -1334,7 +1331,7 @@ export function createMcpServer(
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
-					translationOf,
+					translationOf: args.translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
 					migrateBlocks: args.migrateBlocks,
@@ -3769,13 +3766,9 @@ export function createMcpServer(
 			}
 
 			// Fetch the content entry to check ownership
-			const existing = await emdash.handleContentGet(revItem.collection, revItem.entryId);
+			const existing = await emdash.handleContentGetById(revItem.collection, revItem.entryId);
 			if (!existing.success) {
 				return unwrap(existing);
-			}
-			// The lookup also matches slugs, so it can return a different entry.
-			if (extractContentId(existing.data) !== revItem.entryId) {
-				return respondError("NOT_FOUND", "Content not found");
 			}
 			requireOwnership(
 				extra,
