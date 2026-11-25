@@ -30,6 +30,54 @@ describe("initializePlayground", () => {
 		await Promise.all(databases.splice(0).map((db) => db.destroy()));
 	});
 
+	it("counts full media links without a Site URL setting in a fresh playground", async () => {
+		const db = createDatabase();
+		databases.push(db);
+		const seed = loadPlaygroundSeed();
+		const asset = PLAYGROUND_MEDIA_ASSETS[0]!;
+		const origin = "https://preview.example.test";
+		seed.content!.posts![0]!.data.content = [
+			{
+				_type: "block",
+				_key: "copy-url",
+				children: [{ _type: "span", text: "Download", marks: ["download"] }],
+				markDefs: [
+					{
+						_type: "link",
+						_key: "download",
+						href: `${origin}/_emdash/api/media/file/${asset.storageKey}`,
+					},
+				],
+			},
+		];
+
+		await initializePlayground(db, seed, origin);
+		expect(await new OptionsRepository(db).get("site:url")).toBeNull();
+		const usage = await db
+			.selectFrom("_emdash_media_usage")
+			.select(["reference_type", "field_path"])
+			.where("media_id", "=", asset.id)
+			.execute();
+		expect(usage).toContainEqual({
+			reference_type: "link",
+			field_path: "content[0].markDefs[0].href",
+		});
+	});
+
+	it("adds a missing setup origin to an initialized session without overwriting it later", async () => {
+		const db = createDatabase();
+		databases.push(db);
+		const seed = loadPlaygroundSeed();
+		await initializePlayground(db, seed);
+		const options = new OptionsRepository(db);
+		await options.set("emdash:site_title", "Edited title");
+		await initializePlayground(db, seed, "https://preview.example.test");
+		expect(await options.get("emdash:site_url")).toBe("https://preview.example.test");
+		expect(await options.get("emdash:site_title")).toBe("Edited title");
+		await initializePlayground(db, seed, "https://other.example.test");
+		expect(await options.get("emdash:site_url")).toBe("https://preview.example.test");
+	});
+
 	it("creates seven ready media rows referenced by the seeded posts", async () => {
 		const db = createDatabase();
 		databases.push(db);

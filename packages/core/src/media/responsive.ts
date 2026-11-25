@@ -44,6 +44,13 @@ export function responsiveSizes(width: number | undefined): string {
 /** Column count `Gallery.astro` uses when a gallery block does not set one. */
 export const GALLERY_DEFAULT_COLUMNS = 3;
 
+/** The gallery block's column count: its positive integer `columns`, or the default. */
+export function galleryColumns(columns: unknown): number {
+	return typeof columns === "number" && Number.isInteger(columns) && columns > 0
+		? columns
+		: GALLERY_DEFAULT_COLUMNS;
+}
+
 /**
  * Build the `sizes` attribute for one cell of a Portable Text gallery.
  *
@@ -53,10 +60,7 @@ export const GALLERY_DEFAULT_COLUMNS = 3;
  * renders at; pass `sizes` to `Gallery` when the container width is known.
  */
 export function gallerySizes(columns: number | undefined): string {
-	const count =
-		typeof columns === "number" && Number.isInteger(columns) && columns > 0
-			? columns
-			: GALLERY_DEFAULT_COLUMNS;
+	const count = galleryColumns(columns);
 	return `(max-width: 640px) ${galleryCell(2)}, ${galleryCell(count)}`;
 }
 

@@ -95,6 +95,9 @@ export async function handleRoomJoin(
 	try {
 		const { user } = input;
 		if (!user) return failure(ErrorCode.UNAUTHORIZED, "Authentication required");
+		if (!hasPermission(user, "content:read_drafts")) {
+			return failure(ErrorCode.FORBIDDEN, "Insufficient permissions");
+		}
 		const first = await joinOnce(db, rooms, input, user);
 		if (first !== "stale") return first;
 		// The room refused the token because the entry's status or author changed since this
@@ -116,9 +119,6 @@ async function joinOnce(
 ): Promise<ApiResult<RoomJoinResult> | "stale"> {
 	const entry = await findEntry(db, input, { includeTrashed: false });
 	if (!entry) return failure(ErrorCode.NOT_FOUND, "Content item not found");
-	if (!hasPermission(user, "content:read_drafts")) {
-		return failure(ErrorCode.FORBIDDEN, "Insufficient permissions");
-	}
 	const room = roomId({ collection: input.collection, id: entry.id });
 
 	if (!rooms || input.playground) return singleEditor();
@@ -209,6 +209,12 @@ export async function handleRecoveryRevisionCreate(
 ): Promise<ApiResult<{ id: string }>> {
 	try {
 		if (!input.user) return failure(ErrorCode.UNAUTHORIZED, "Authentication required");
+		if (
+			!hasPermission(input.user, "content:edit_own") &&
+			!hasPermission(input.user, "content:edit_own_drafts")
+		) {
+			return failure(ErrorCode.FORBIDDEN, "Insufficient permissions");
+		}
 		const entry = await findEntry(db, input, { includeTrashed: true });
 		if (!entry) return failure(ErrorCode.NOT_FOUND, "Content item not found");
 		if (!entryEditAccess(input.user, { authorId: entry.authorId ?? "", status: entry.status })) {

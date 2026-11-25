@@ -16,12 +16,11 @@ if (!slug) {
 }
 
 const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 if (!post) {
 	return Astro.rewrite("/404");
 }
-
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 const { siteTitle } = resolveStarterSiteIdentity(await getSiteSettings());
 
 // SEO meta from content fields

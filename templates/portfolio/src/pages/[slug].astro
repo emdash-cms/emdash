@@ -27,6 +27,7 @@ if (!slug || slug.includes(".")) return Astro.rewrite("/404");
 
 const { entry: page, error, cacheHint } = await getEmDashEntry("pages", slug);
 if (error) return new Response("Could not load the page", { status: 500 });
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 async function menuLinksTo(path: string): Promise<boolean> {
 	const { data: menu } = await getMenuWithCacheHint("primary");
@@ -54,13 +55,7 @@ const projectsResult = page?.data.layout?.some(
 	? await getSelectedWork()
 	: undefined;
 
-if (Astro.cache?.enabled) {
-	Astro.cache.set(cacheHint);
-	if (projectsResult?.cacheHint) Astro.cache.set(projectsResult.cacheHint);
-	// A missing entry carries no tags, so publishing the page later wouldn't
-	// clear the cached placeholder.
-	if (!page) Astro.cache.set({ tags: ["pages"] });
-}
+if (Astro.cache?.enabled && projectsResult?.cacheHint) Astro.cache.set(projectsResult.cacheHint);
 
 const placeholderNote =
 	slug === "contact"

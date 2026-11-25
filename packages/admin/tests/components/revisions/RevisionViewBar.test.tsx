@@ -8,6 +8,7 @@ import "../../../dist/styles.css";
 import { RevisionViewBar } from "../../../src/components/revisions/RevisionViewBar";
 import type { RevisionListItem } from "../../../src/lib/api";
 import { RoomOperationsContext } from "../../../src/lib/co-editing/operations";
+import { userColor } from "../../../src/lib/user-color";
 import { render } from "../../utils/render.tsx";
 
 /** A Saturday, so the Wednesday before it reads as "Wednesday", the longest English weekday. */
@@ -72,7 +73,7 @@ function BarAt({
 					editedBy,
 					createdAt,
 				}}
-				authorColor="blue"
+				authorColor={userColor("u-maya")}
 				isCurrent={current}
 				isPublished={published}
 				sameAsCurrent={statuses}
@@ -274,6 +275,28 @@ describe("RevisionViewBar", () => {
 		});
 		expect(layout[1]).toEqual(layout[0]);
 	});
+
+	it.each([
+		{ dirty: false, focused: "Restore" },
+		{ dirty: true, focused: "Cancel" },
+	])(
+		"opens the restore dialog on $focused when unsaved edits are $dirty",
+		async ({ dirty, focused }) => {
+			const screen = await renderBar(
+				<BarAt width={2000} createdAt={lastWednesdayEvening()} dirty={dirty} />,
+			);
+
+			await screen.getByRole("button", { name: "Restore", exact: true }).click();
+
+			await expect
+				.element(
+					screen
+						.getByRole("dialog", { name: "Restore this version?" })
+						.getByRole("button", { name: focused, exact: true }),
+				)
+				.toHaveFocus();
+		},
+	);
 
 	describe("in a room", () => {
 		afterEach(() => {

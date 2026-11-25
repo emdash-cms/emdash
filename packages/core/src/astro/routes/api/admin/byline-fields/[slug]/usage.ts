@@ -13,7 +13,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, unwrapResult } from "#api/error.js";
 import { handleBylineFieldUsage } from "#api/handlers/byline-fields.js";
 
 export const prerender = false;
@@ -25,8 +25,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const denied = requirePerm(user, "schema:read");
 	if (denied) return denied;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const slug = params.slug;
 	if (!slug) return apiError("MISSING_PARAM", "Field slug is required", 400);

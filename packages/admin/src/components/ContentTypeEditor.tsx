@@ -39,13 +39,11 @@ import type {
 } from "../lib/api/relations.js";
 import { useConfirmedRequest } from "../lib/dialog-form.js";
 import { cn, slugifyIdentifier } from "../lib/utils";
-import { ArrowPrev } from "./ArrowIcons.js";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { EditorHeader } from "./EditorHeader";
 import { FieldEditor } from "./FieldEditor";
 import { RelationImpact } from "./RelationImpact.js";
 import { RelationsPanel } from "./RelationsPanel.js";
-import { RouterLinkButton } from "./RouterLinkButton.js";
 import { SaveButton } from "./SaveButton";
 
 const MULTIPLE_PLACEHOLDERS_IN_SEGMENT = /\{\w+\}[^/]*\{\w+\}/;
@@ -443,15 +441,6 @@ export function ContentTypeEditor({
 	return (
 		<div className="space-y-6">
 			<EditorHeader
-				leading={
-					<RouterLinkButton
-						to="/content-types"
-						aria-label={t`Back to Content Types`}
-						variant="ghost"
-						shape="square"
-						icon={<ArrowPrev />}
-					/>
-				}
 				actions={
 					!isFromCode && !isNew ? (
 						<SaveButton

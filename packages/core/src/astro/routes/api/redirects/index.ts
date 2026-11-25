@@ -8,7 +8,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleRedirectCreate, handleRedirectList } from "#api/handlers/redirects.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createRedirectBody, redirectsListQuery } from "#api/schemas.js";
@@ -18,8 +18,9 @@ export const prerender = false;
 
 export const GET: APIRoute = async ({ url, locals }) => {
 	const { emdash, user } = locals;
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const db = emdash.db;
 
 	const denied = requirePerm(user, "redirects:read");
@@ -38,8 +39,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
 export const POST: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const db = emdash.db;
 
 	const denied = requirePerm(user, "redirects:manage");

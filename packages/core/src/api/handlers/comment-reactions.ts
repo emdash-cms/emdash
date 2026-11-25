@@ -15,6 +15,7 @@ import type { Database } from "#db/types.js";
 
 import { invalidateCommentObjectCache } from "../../object-cache/index.js";
 import type { ApiResult } from "../types.js";
+import { isUnknownCollectionError, publishedEntryExists } from "./comments.js";
 
 /** Max reactions a single voter may register per window before throttling. */
 const REACTION_RATE_LIMIT = 30;
@@ -68,13 +69,15 @@ export async function handleReactionToggle(
 			};
 		}
 
-		// The comment must exist, be approved, and belong to this content item.
+		// The comment must exist, be approved, and belong to this content item,
+		// and the content item must be published.
 		const comment = await db
 			.selectFrom("_emdash_comments")
 			.select(["id", "status"])
 			.where("id", "=", commentId)
 			.where("collection", "=", collection)
 			.where("content_id", "=", contentId)
+			.where(publishedEntryExists(collection, contentId))
 			.executeTakeFirst();
 
 		if (!comment) {
@@ -108,7 +111,10 @@ export async function handleReactionToggle(
 			success: true,
 			data: { commentId, reaction, reacted, counts: countsMap.get(commentId) ?? {} },
 		};
-	} catch {
+	} catch (error) {
+		if (isUnknownCollectionError(error)) {
+			return { success: false, error: { code: "NOT_FOUND", message: "Comment not found" } };
+		}
 		return {
 			success: false,
 			error: { code: "REACTION_TOGGLE_ERROR", message: "Failed to toggle reaction" },
@@ -133,6 +139,7 @@ export async function handleReactionCounts(
 			.where("collection", "=", collection)
 			.where("content_id", "=", contentId)
 			.where("status", "=", "approved")
+			.where(publishedEntryExists(collection, contentId))
 			.execute();
 
 		const ids = comments.map((c) => c.id);
@@ -156,7 +163,10 @@ export async function handleReactionCounts(
 		}
 
 		return { success: true, data };
-	} catch {
+	} catch (error) {
+		if (isUnknownCollectionError(error)) {
+			return { success: true, data: voterHash ? { reactions: {}, viewer: {} } : { reactions: {} } };
+		}
 		return {
 			success: false,
 			error: { code: "REACTION_COUNTS_ERROR", message: "Failed to read reactions" },

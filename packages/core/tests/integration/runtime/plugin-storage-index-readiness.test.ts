@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import { sql, SqliteDialect } from "kysely";
-import { afterEach, describe, expect, it } from "vitest";
+import type { KyselyPlugin } from "kysely";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
@@ -138,6 +139,198 @@ describe("plugin storage index readiness", () => {
 				generateIndexName("shop", "orders", ["externalId"], { unique: true }),
 			].toSorted(),
 		);
+	});
+
+	it.each(["registry read", "index DDL"])(
+		"replaces an abandoned cross-request sync paused during %s",
+		async (pauseAt) => {
+			const storage: StorageDeclaration = {
+				orders: { indexes: ["status"], uniqueIndexes: ["externalId"] },
+			};
+			const runtime = await createRuntime(storage);
+			runtimes.push(runtime);
+
+			let releaseFirst!: () => void;
+			const firstReleased = new Promise<void>((resolve) => (releaseFirst = resolve));
+			let firstSelectStarted!: () => void;
+			const firstSelect = new Promise<void>((resolve) => (firstSelectStarted = resolve));
+			const pausedQueryIds = new Set<unknown>();
+			let pauseFirstSelect = true;
+			const firstDb = runtime.db.withPlugin({
+				transformQuery: ({ node, queryId }) => {
+					const query = runtime.db.getExecutor().compileQuery(node, queryId);
+					if (
+						pauseFirstSelect &&
+						(pauseAt === "registry read"
+							? query.sql.toLowerCase().includes("select") &&
+								query.sql.includes("_plugin_indexes") &&
+								query.parameters.includes("shop")
+							: /create\s+index/i.test(query.sql))
+					) {
+						pauseFirstSelect = false;
+						pausedQueryIds.add(queryId);
+					}
+					return node;
+				},
+				async transformResult({ queryId, result }) {
+					if (pausedQueryIds.has(queryId)) {
+						firstSelectStarted();
+						await firstReleased;
+					}
+					return result;
+				},
+			} satisfies KyselyPlugin);
+			const firstRecorder = createRecorder("abandoned-owner", "POST", "cold");
+			const now = vi.spyOn(Date, "now").mockReturnValue(3_000_000);
+			let first: Promise<Response> | undefined;
+			let second: Promise<Response> | undefined;
+			try {
+				first = runWithContext({ db: firstDb, editMode: false, queryRecorder: firstRecorder }, () =>
+					dispatchPluginApiRequest({
+						runtime,
+						pluginId: "shop",
+						path: "/checkout",
+						request: new Request("https://example.com/_emdash/api/plugins/shop/checkout", {
+							method: "POST",
+						}),
+					}),
+				);
+				await firstSelect;
+				now.mockReturnValue(3_015_001);
+
+				const secondRecorder = createRecorder("replacement-owner", "POST", "cold");
+				second = dispatchWithRecorder(runtime, "POST", secondRecorder);
+				const timeout = Symbol("second request timeout");
+				let timer: ReturnType<typeof setTimeout> | undefined;
+				const secondResult = await Promise.race([
+					second,
+					new Promise<typeof timeout>((resolve) => {
+						timer = setTimeout(resolve, 1_000, timeout);
+					}),
+				]);
+				if (timer) clearTimeout(timer);
+				expect(secondResult).not.toBe(timeout);
+				expect((secondResult as Response).status).toBe(200);
+				expect(ddlQueries(secondRecorder)).toHaveLength(3);
+				expect(
+					(await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute())
+						.map((row) => row.index_name)
+						.toSorted(),
+				).toEqual(
+					[
+						generateIndexName("shop", "orders", ["externalId"]),
+						generateIndexName("shop", "orders", ["status"]),
+						generateIndexName("shop", "orders", ["externalId"], { unique: true }),
+					].toSorted(),
+				);
+
+				const repository = new PluginStorageRepository<{ externalId: string }>(
+					runtime.db,
+					"shop",
+					"orders",
+					["externalId"],
+				);
+				await repository.put("one", { externalId: "duplicate" });
+				await expect(repository.put("two", { externalId: "duplicate" })).rejects.toThrow();
+
+				releaseFirst();
+				await expect(first).resolves.toMatchObject({
+					status: pauseAt === "registry read" ? 200 : 503,
+				});
+				const retryRecorder = createRecorder("after-superseded-owner", "POST", "retry");
+				expect((await dispatchWithRecorder(runtime, "POST", retryRecorder)).status).toBe(200);
+				expect(ddlQueries(retryRecorder)).toHaveLength(pauseAt === "registry read" ? 0 : 3);
+				expect(ddlQueries(firstRecorder)).toHaveLength(pauseAt === "registry read" ? 0 : 1);
+			} finally {
+				releaseFirst();
+				await first?.catch(() => undefined);
+				await second?.catch(() => undefined);
+				now.mockRestore();
+			}
+		},
+	);
+
+	it("times out a waiter while a reclaimed owner is still running", async () => {
+		const runtime = await createRuntime({
+			orders: { indexes: ["status"], uniqueIndexes: ["externalId"] },
+		});
+		runtimes.push(runtime);
+
+		const pausedDb = () => {
+			let pause = true;
+			let release!: () => void;
+			const released = new Promise<void>((resolve) => (release = resolve));
+			let started!: () => void;
+			const queryStarted = new Promise<void>((resolve) => (started = resolve));
+			const pausedQueryIds = new Set<unknown>();
+			const db = runtime.db.withPlugin({
+				transformQuery: ({ node, queryId }) => {
+					const query = runtime.db.getExecutor().compileQuery(node, queryId);
+					if (
+						pause &&
+						query.sql.toLowerCase().includes("select") &&
+						query.sql.includes("_plugin_indexes") &&
+						query.parameters.includes("shop")
+					) {
+						pause = false;
+						pausedQueryIds.add(queryId);
+					}
+					return node;
+				},
+				async transformResult({ queryId, result }) {
+					if (pausedQueryIds.has(queryId)) {
+						started();
+						await released;
+					}
+					return result;
+				},
+			} satisfies KyselyPlugin);
+			return { db, queryStarted, release };
+		};
+		const first = pausedDb();
+		const third = pausedDb();
+		const now = vi.spyOn(Date, "now").mockReturnValue(3_000_000);
+		const post = (db: typeof runtime.db, recorderName: string) =>
+			runWithContext(
+				{ db, editMode: false, queryRecorder: createRecorder(recorderName, "POST", "cold") },
+				() =>
+					dispatchPluginApiRequest({
+						runtime,
+						pluginId: "shop",
+						path: "/checkout",
+						request: new Request("https://example.com/_emdash/api/plugins/shop/checkout", {
+							method: "POST",
+						}),
+					}),
+			);
+
+		let firstRequest: Promise<Response> | undefined;
+		let waiter: Promise<Response> | undefined;
+		let replacement: Promise<Response> | undefined;
+		try {
+			firstRequest = post(first.db, "timeout-first");
+			await first.queryStarted;
+			waiter = post(runtime.db, "timeout-waiter");
+			now.mockReturnValue(3_020_000);
+			replacement = post(third.db, "timeout-replacement");
+			await third.queryStarted;
+			now.mockReturnValue(3_031_000);
+
+			const timeout = Symbol("waiter timeout");
+			const result = await Promise.race([
+				waiter,
+				new Promise<typeof timeout>((resolve) => setTimeout(resolve, 1_000, timeout)),
+			]);
+			expect(result).not.toBe(timeout);
+			expect((result as Response).status).toBe(503);
+		} finally {
+			first.release();
+			third.release();
+			await firstRequest?.catch(() => undefined);
+			await waiter?.catch(() => undefined);
+			await replacement?.catch(() => undefined);
+			now.mockRestore();
+		}
 	});
 
 	it("uses the registry fast path when declared indexes already exist", async () => {
@@ -315,6 +508,99 @@ describe("plugin storage index readiness", () => {
 		},
 	);
 
+	it("shares one failed unique-index attempt with a burst of request contexts", async () => {
+		const storage: StorageDeclaration = {
+			orders: { indexes: ["status"], uniqueIndexes: ["externalId"] },
+		};
+		const runtime = await createRuntime(storage);
+		runtimes.push(runtime);
+
+		const repository = new PluginStorageRepository<{ externalId: string }>(
+			runtime.db,
+			"shop",
+			"orders",
+			["externalId"],
+		);
+		await repository.put("one", { externalId: "duplicate" });
+		await repository.put("two", { externalId: "duplicate" });
+
+		let releaseRegistryQuery!: () => void;
+		const registryQueryReleased = new Promise<void>((resolve) => {
+			releaseRegistryQuery = resolve;
+		});
+		let registryQueryStarted!: () => void;
+		const registryQueryHasStarted = new Promise<void>((resolve) => {
+			registryQueryStarted = resolve;
+		});
+		let pauseRegistryQuery = true;
+		let uniqueCreateAttempts = 0;
+		const gatedDb = runtime.db.withPlugin({
+			transformQuery: ({ node, queryId }) => {
+				const query = runtime.db.getExecutor().compileQuery(node, queryId);
+				if (/create\s+unique\s+index/i.test(query.sql)) uniqueCreateAttempts += 1;
+				if (
+					pauseRegistryQuery &&
+					query.sql.toLowerCase().includes("select") &&
+					query.sql.includes("_plugin_indexes") &&
+					query.parameters.includes("shop")
+				) {
+					pauseRegistryQuery = false;
+					registryQueryStarted();
+				}
+				return node;
+			},
+			async transformResult({ result }) {
+				if (!pauseRegistryQuery) await registryQueryReleased;
+				return result;
+			},
+		} satisfies KyselyPlugin);
+		const recorder = createRecorder("burst", "POST", "cold");
+		const burstSize = 8;
+		let requestsStarted = 0;
+		let releaseBurst!: () => void;
+		const burstReleased = new Promise<void>((resolve) => (releaseBurst = resolve));
+		const requests = Array.from({ length: burstSize }, () =>
+			runWithContext({ db: gatedDb, editMode: false, queryRecorder: recorder }, async () => {
+				requestsStarted += 1;
+				if (requestsStarted === burstSize) releaseBurst();
+				await burstReleased;
+				return dispatchPluginApiRequest({
+					runtime,
+					pluginId: "shop",
+					path: "/checkout",
+					request: new Request("https://example.com/_emdash/api/plugins/shop/checkout", {
+						method: "POST",
+					}),
+				});
+			}),
+		);
+
+		try {
+			await registryQueryHasStarted;
+			await Promise.resolve();
+			releaseRegistryQuery();
+			const responses = await Promise.all(requests);
+			expect(responses.every((response) => response.status === 503)).toBe(true);
+			expect(uniqueCreateAttempts).toBe(1);
+			expect(ddlQueries(recorder)).toHaveLength(2);
+			expect(
+				pluginIndexQueries(recorder).filter((event) => /^select/i.test(event.sql)),
+			).toHaveLength(2);
+
+			await repository.delete("two");
+			const retryRecorder = createRecorder("retry", "POST", "cold");
+			const retryResponse = await dispatchWithRecorder(runtime, "POST", retryRecorder);
+			expect(retryResponse.status).toBe(200);
+			expect(ddlQueries(retryRecorder)).toHaveLength(3);
+			expect(
+				ddlQueries(retryRecorder).filter((event) => /create\s+unique\s+index/i.test(event.sql)),
+			).toHaveLength(1);
+		} finally {
+			releaseRegistryQuery();
+			await Promise.all(requests);
+		}
+	});
+
 	it("removes stale indexes from a collection and removed collections before the route", async () => {
 		const storage: StorageDeclaration = { orders: { indexes: ["status"] } };
 		const runtime = await createRuntime(storage);
@@ -391,7 +677,7 @@ describe("plugin storage index readiness", () => {
 		);
 	});
 
-	it("shares per-plugin flights between targeted and all-plugin syncs", async () => {
+	it("coalesces targeted and all-plugin syncs across request contexts", async () => {
 		const runtime = await createMultiPluginRuntime([
 			{ id: "shop", storage: { orders: { indexes: ["status"], uniqueIndexes: ["externalId"] } } },
 			{ id: "forum", storage: { threads: { indexes: ["pinned"] } } },
@@ -400,14 +686,24 @@ describe("plugin storage index readiness", () => {
 
 		const sync = runtime as unknown as IndexSyncAccessor;
 		const recorder = createRecorder("scheduled-and-route", "POST", "cold");
-		const [shopReady, allReady] = await runWithContext(
-			{ editMode: false, queryRecorder: recorder },
-			() =>
-				Promise.all([sync.ensureStorageIndexesSynced("shop"), sync.ensureStorageIndexesSynced()]),
-		);
+		const [shopReady, allReady] = await Promise.all([
+			runWithContext({ editMode: false, queryRecorder: recorder }, () =>
+				sync.ensureStorageIndexesSynced("shop"),
+			),
+			runWithContext({ editMode: false, queryRecorder: recorder }, () =>
+				sync.ensureStorageIndexesSynced(),
+			),
+		]);
 
 		expect(shopReady).toBe(true);
 		expect(allReady).toBe(true);
+		for (const pluginId of ["shop", "forum"]) {
+			expect(
+				pluginIndexQueries(recorder).filter(
+					(event) => /^select/i.test(event.sql) && event.params.includes(pluginId),
+				),
+			).toHaveLength(2);
+		}
 		expect(ddlQueries(recorder).filter((event) => /create/i.test(event.sql))).toHaveLength(4);
 
 		const indexes = await runtime.db.selectFrom("_plugin_indexes").select("index_name").execute();

@@ -1,6 +1,5 @@
 import type { Awareness } from "y-protocols/awareness";
 
-import { assignAuthorColors, authorColorOf, type AuthorColor } from "../../author-colors.js";
 import type { PresencePeer, PresenceUser, RoomPresence } from "../types.js";
 
 /** The page marks the element that holds a room's fields with the replica's `id`. */
@@ -36,22 +35,12 @@ export class Presence implements RoomPresence {
 	readonly #listeners = new Set<() => void>();
 	#self: string | null = null;
 	#peers: readonly PresencePeer[] = [];
-	#colors: ReadonlyMap<string, AuthorColor> = new Map();
 	#users: readonly PresenceUser[] = NO_USERS;
 	#byField: ReadonlyMap<string, readonly PresenceUser[]> = new Map();
 
 	constructor(awareness: Awareness) {
 		this.#awareness = awareness;
 		awareness.on("change", this.#read);
-	}
-
-	/** The color of each user present, this tab's user included. A new map only when one changes. */
-	get colors(): ReadonlyMap<string, AuthorColor> {
-		return this.#colors;
-	}
-
-	colorOf(userId: string | null | undefined): AuthorColor {
-		return authorColorOf(this.#colors, userId);
 	}
 
 	setSelf(userId: string | null): void {
@@ -82,21 +71,18 @@ export class Presence implements RoomPresence {
 
 	#update(peers: readonly PresencePeer[]): void {
 		this.#peers = peers;
-		const colors = assignAuthorColors([this.#self, ...peers.map((peer) => peer.user.id)]);
 		const users = new Map<string, PresenceUser>();
 		const fields = new Map<string, Map<string, PresenceUser>>();
 		for (const { user, field } of peers) {
 			if (user.id === this.#self) continue;
-			const color = authorColorOf(colors, user.id);
 			const known = users.get(user.id);
 			if (!known || (known.field === null && field !== null)) {
-				users.set(user.id, { id: user.id, name: user.name, color, field });
+				users.set(user.id, { id: user.id, name: user.name, field });
 			}
 			if (field === null) continue;
 			let inField = fields.get(field);
 			if (!inField) fields.set(field, (inField = new Map()));
-			if (!inField.has(user.id))
-				inField.set(user.id, { id: user.id, name: user.name, color, field });
+			if (!inField.has(user.id)) inField.set(user.id, { id: user.id, name: user.name, field });
 		}
 		const nextUsers = keep(this.#users, [...users.values()]);
 		const nextByField = new Map<string, readonly PresenceUser[]>();
@@ -107,11 +93,9 @@ export class Presence implements RoomPresence {
 			nextUsers !== this.#users ||
 			nextByField.size !== this.#byField.size ||
 			[...nextByField].some(([field, inField]) => this.#byField.get(field) !== inField);
-		const colorsChanged = !sameColors(colors, this.#colors);
-		if (colorsChanged) this.#colors = colors;
 		this.#users = nextUsers;
 		this.#byField = nextByField;
-		if (changed || colorsChanged) for (const listener of this.#listeners) listener();
+		if (changed) for (const listener of this.#listeners) listener();
 	}
 }
 
@@ -164,7 +148,6 @@ function keep(
 				other !== undefined &&
 				other.id === user.id &&
 				other.name === user.name &&
-				other.color === user.color &&
 				other.field === user.field
 			);
 		});
@@ -185,10 +168,6 @@ function samePeers(a: readonly PresencePeer[], b: readonly PresencePeer[]): bool
 			);
 		})
 	);
-}
-
-function sameColors(a: ReadonlyMap<string, AuthorColor>, b: ReadonlyMap<string, AuthorColor>) {
-	return a.size === b.size && [...a].every(([id, color]) => b.get(id) === color);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

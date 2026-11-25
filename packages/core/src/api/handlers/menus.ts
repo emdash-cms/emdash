@@ -12,6 +12,7 @@
  */
 
 import type { Kysely } from "kysely";
+import { sql } from "kysely";
 
 import {
 	MenuGoneError,
@@ -26,7 +27,10 @@ import {
 	type UpdateMenuItemInput as UpdateMenuItemRepoInput,
 } from "../../database/repositories/menu.js";
 import type { Database } from "../../database/types.js";
+import { validateIdentifier } from "../../database/validate.js";
 import { getI18nConfig, getLocaleRank, resolveConfiguredLocale } from "../../i18n/config.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { isMissingTableError } from "../../utils/db-errors.js";
 import type { ApiResult } from "../types.js";
 
 // Re-export entity types so route files and tests can import them from the
@@ -117,22 +121,118 @@ async function resolveMenu(
 	return { success: true, menu };
 }
 
+/**
+ * The content entry a menu item links to, or `null` when it links to none
+ * (custom URLs, taxonomy terms, collection archives). `collection` is `null`
+ * when the item names an entry but no collection to find it in.
+ */
+function getContentTarget(item: MenuItem): { collection: string | null; id: string } | null {
+	if (item.type === "custom" || item.type === "taxonomy" || !item.referenceId) return null;
+	const collection =
+		item.referenceCollection ||
+		(item.type === "page" || item.type === "post" ? `${item.type}s` : null);
+	return { collection, id: item.referenceId };
+}
+
+/**
+ * Drop the items that link to a content entry with no published row, and
+ * everything nested under them, as `getMenu()` does for visitors. Such an item
+ * names its target and usually carries the target's title as its label.
+ */
+async function omitUnpublishedTargets(
+	db: Kysely<Database>,
+	items: MenuItem[],
+): Promise<MenuItem[]> {
+	const targets = new Map<string, Set<string>>();
+	for (const item of items) {
+		const target = getContentTarget(item);
+		if (!target?.collection) continue;
+		const ids = targets.get(target.collection) ?? new Set<string>();
+		targets.set(target.collection, ids.add(target.id));
+	}
+
+	// `referenceId` is the target's translation_group, or the id of one row for
+	// items stored with that instead.
+	const published = new Map<string, Set<string>>();
+	for (const [collection, ids] of targets) {
+		const found = new Set<string>();
+		published.set(collection, found);
+		try {
+			validateIdentifier(collection, "menu item collection");
+			// Each id is bound twice per batch.
+			for (const batch of chunks([...ids], Math.floor(SQL_BATCH_SIZE / 2))) {
+				const result = await sql<{ id: string; translation_group: string | null }>`
+					SELECT id, translation_group FROM ${sql.ref(`ec_${collection}`)}
+					WHERE (translation_group IN (${sql.join(batch)}) OR id IN (${sql.join(batch)}))
+					AND deleted_at IS NULL
+					AND status = 'published'
+				`.execute(db);
+				for (const row of result.rows) {
+					if (row.translation_group && ids.has(row.translation_group)) {
+						found.add(row.translation_group);
+					}
+					if (ids.has(row.id)) found.add(row.id);
+				}
+			}
+		} catch (error) {
+			// A collection that can't be read has nothing published to link to. One
+			// dropped since the item was added is a tolerated dangling reference.
+			if (!isMissingTableError(error)) {
+				console.error(`[emdash] Failed to resolve menu item targets in ${collection}:`, error);
+			}
+		}
+	}
+
+	const hidden = new Set<string>();
+	for (const item of items) {
+		const target = getContentTarget(item);
+		if (!target) continue;
+		if (!target.collection || !published.get(target.collection)?.has(target.id)) {
+			hidden.add(item.id);
+		}
+	}
+	if (hidden.size === 0) return items;
+
+	// Nested items go with their parent, as in the rendered tree.
+	let size: number;
+	do {
+		size = hidden.size;
+		for (const item of items) {
+			if (item.parentId && hidden.has(item.parentId)) hidden.add(item.id);
+		}
+	} while (hidden.size > size);
+	return items.filter((item) => !hidden.has(item.id));
+}
+
 // ---------------------------------------------------------------------------
 // Menu handlers
 // ---------------------------------------------------------------------------
 
 /**
  * List menus with item counts. Filter by `locale` when provided.
+ *
+ * Without `includeDrafts` (callers lacking `content:read_drafts`), `itemCount`
+ * counts only the items `handleMenuGet` would return to the same caller.
  */
 export async function handleMenuList(
 	db: Kysely<Database>,
-	options: { locale?: string } = {},
+	options: { locale?: string; includeDrafts?: boolean } = {},
 ): Promise<ApiResult<MenuListItem[]>> {
 	try {
 		const repo = new MenuRepository(db);
 		const locale = options.locale ? resolveConfiguredLocale(options.locale) : undefined;
 		const items = await repo.findMany({ locale });
-		return { success: true, data: items };
+		if (options.includeDrafts) return { success: true, data: items };
+
+		const menuIds = items.filter((menu) => menu.itemCount > 0).map((menu) => menu.id);
+		const itemCounts = new Map<string, number>();
+		for (const item of await omitUnpublishedTargets(db, await repo.findItemsForMenus(menuIds))) {
+			itemCounts.set(item.menuId, (itemCounts.get(item.menuId) ?? 0) + 1);
+		}
+		return {
+			success: true,
+			data: items.map((menu) => ({ ...menu, itemCount: itemCounts.get(menu.id) ?? 0 })),
+		};
 	} catch {
 		return {
 			success: false,
@@ -222,11 +322,14 @@ export async function handleMenuCreate(
  *
  * Historical behaviour: when `locale` is omitted, returns the lowest-locale
  * match (deterministic). Mirrors the pre-repo handler.
+ *
+ * Without `includeDrafts` (callers lacking `content:read_drafts`), items that
+ * link to unpublished content are left out, as they are from the rendered menu.
  */
 export async function handleMenuGet(
 	db: Kysely<Database>,
 	name: string,
-	options: { locale?: string } = {},
+	options: { locale?: string; includeDrafts?: boolean } = {},
 ): Promise<ApiResult<MenuWithItems>> {
 	try {
 		const repo = new MenuRepository(db);
@@ -239,7 +342,8 @@ export async function handleMenuGet(
 			};
 		}
 		const menu = matches[0];
-		const items = await repo.findItems(menu.id);
+		const allItems = await repo.findItems(menu.id);
+		const items = options.includeDrafts ? allItems : await omitUnpublishedTargets(db, allItems);
 		return { success: true, data: { ...menu, items } };
 	} catch {
 		return {

@@ -16,10 +16,17 @@ const PLAYGROUND_USER_ID = "playground-admin";
 const PLAYGROUND_USER_EMAIL = "playground@emdashcms.com";
 const PLAYGROUND_USER_NAME = "Playground User";
 const PLAYGROUND_USER_ROLE = 50;
-export async function initializePlayground(db: Kysely<Database>, seed: SeedFile): Promise<void> {
+export async function initializePlayground(
+	db: Kysely<Database>,
+	seed: SeedFile,
+	siteUrl?: string,
+): Promise<void> {
 	const options = new OptionsRepository(db);
 	try {
-		if ((await options.get<boolean>("emdash:setup_complete")) === true) return;
+		if ((await options.get<boolean>("emdash:setup_complete")) === true) {
+			if (siteUrl) await options.setIfAbsent("emdash:site_url", siteUrl);
+			return;
+		}
 	} catch (error) {
 		if (!(error instanceof Error) || !error.message.includes("no such table: options")) {
 			throw error;
@@ -27,6 +34,7 @@ export async function initializePlayground(db: Kysely<Database>, seed: SeedFile)
 	}
 
 	await runMigrations(db);
+	if (siteUrl) await options.setIfAbsent("emdash:site_url", siteUrl);
 	const activation = await handleMediaUsageActivationAdvance(db, { writersDrained: true });
 	if (!activation.success || activation.data.activation.state !== "active") {
 		throw new Error("Media Usage activation did not become active");

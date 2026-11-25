@@ -12,6 +12,7 @@
 
 import { AsyncLocalStorage } from "node:async_hooks";
 
+import { applyCommentBeforeCreateResult } from "../comments/before-create.js";
 import type { BylineSummary } from "../database/repositories/types.js";
 import { toBylineInfo } from "./byline-access.js";
 import { inspectContentPolicyDecision } from "./content-policy.js";
@@ -1199,18 +1200,17 @@ export class HookPipeline {
 			const start = Date.now();
 
 			try {
-				const result = await this.executeWithTimeout(
-					() => handler({ ...currentEvent }, ctx),
-					hook.timeout,
-				);
+				const input = { ...currentEvent, comment: { ...currentEvent.comment } };
+				const result = await this.executeWithTimeout(() => handler(input, ctx), hook.timeout);
 
 				if (result === false) {
 					return false;
 				}
 
-				if (result && typeof result === "object") {
-					currentEvent = result;
-				}
+				currentEvent = applyCommentBeforeCreateResult(
+					currentEvent,
+					result && typeof result === "object" ? result : input,
+				);
 			} catch (error) {
 				console.error(
 					`[comment:beforeCreate] Plugin "${hook.pluginId}" error (${Date.now() - start}ms):`,

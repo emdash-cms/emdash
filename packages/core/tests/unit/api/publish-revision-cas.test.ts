@@ -195,7 +195,7 @@ describe("conditional publish route authorization", () => {
 			locals: {
 				user: { id: "owner", role: Role.EDITOR },
 				emdash: {
-					handleContentGet: vi.fn().mockResolvedValue({
+					handleContentGetForWrite: vi.fn().mockResolvedValue({
 						success: true,
 						data: { item: { id: "entry", authorId: "owner" }, _rev: "approved-rev" },
 					}),
@@ -229,7 +229,7 @@ describe("conditional publish route authorization", () => {
 			locals: {
 				user: { id: "subscriber", role: Role.SUBSCRIBER },
 				emdash: {
-					handleContentGet: vi.fn().mockResolvedValue({
+					handleContentGetForWrite: vi.fn().mockResolvedValue({
 						success: true,
 						data: { item: { id: "entry", authorId: "subscriber" }, _rev: "current-rev" },
 					}),

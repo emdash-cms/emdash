@@ -811,6 +811,11 @@ export class PublisherDurableObject extends DurableObject<Env> {
 		return this.#workloadPolicies.get(packageSlug);
 	}
 
+	isWorkloadPolicyDerived(publisherDid: string, packageSlug: string): boolean {
+		this.#assertPublisherDid(publisherDid);
+		return this.#workloadPolicies.isDerivedFromRepositoryConnection(packageSlug);
+	}
+
 	getWorkloadPolicyIfInitialized(
 		publisherDid: string,
 		packageSlug: string,
@@ -856,7 +861,12 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			return { ok: true, status: "connected", policy: currentPolicy };
 		}
 		const repositoryPolicy = this.#workloadPolicies.findMatching(input.claim);
-		if (repositoryPolicy) {
+		if (
+			repositoryPolicy &&
+			(currentPolicy === null ||
+				(currentPolicy.active &&
+					this.#workloadPolicies.isDerivedFromRepositoryConnection(input.packageSlug)))
+		) {
 			const reused = await this.putWorkloadPolicy({
 				publisherDid: input.publisherDid,
 				packageSlug: input.packageSlug,
@@ -867,6 +877,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 				allowedRefs: repositoryPolicy.allowedRefs,
 				allowedEnvironments: repositoryPolicy.allowedEnvironments,
 				active: true,
+				derivedFromRepositoryConnection: true,
 				expectedVersion: currentPolicy?.stateVersion ?? null,
 				now: input.now,
 			});
@@ -1666,6 +1677,7 @@ export class PublisherDurableObject extends DurableObject<Env> {
 			this.ctx.storage.sql.exec("DELETE FROM deadlines");
 			this.ctx.storage.sql.exec("DELETE FROM intents");
 			this.ctx.storage.sql.exec("DELETE FROM workload_policies");
+			this.ctx.storage.sql.exec("DELETE FROM derived_workload_policies");
 			this.ctx.storage.sql.exec("DELETE FROM workflow_connection_requests");
 			this.ctx.storage.sql.exec("DELETE FROM workflow_connection_invitations");
 			this.ctx.storage.sql.exec("DELETE FROM publisher_sessions");

@@ -13,7 +13,9 @@ import type { Kysely } from "kysely";
 import { ulid } from "ulidx";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
+import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
 	connectMcpHarness,
 	extractJson,
@@ -222,6 +224,68 @@ describe("menu_get", () => {
 			arguments: { name: "main" },
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
+	});
+
+	describe("items linking to unpublished content", () => {
+		beforeEach(async () => {
+			const menuId = await seedMenu(db, "main", "Main", [{ label: "Home", url: "/" }]);
+			const registry = new SchemaRegistry(db);
+			await registry.createCollection({ slug: "page", label: "Pages", labelSingular: "Page" });
+			await registry.createField("page", { slug: "title", label: "Title", type: "string" });
+			const draft = await new ContentRepository(db).create({
+				type: "page",
+				slug: "acme",
+				data: { title: "We are acquiring Acme Corp" },
+			});
+			await db
+				.insertInto("_emdash_menu_items" as never)
+				.values({
+					id: ulid(),
+					menu_id: menuId,
+					label: "We are acquiring Acme Corp",
+					type: "page",
+					reference_collection: "page",
+					reference_id: draft.id,
+					sort_order: 1,
+					locale: "en",
+					created_at: new Date().toISOString(),
+				} as never)
+				.execute();
+		});
+
+		async function readMain(): Promise<{ labels: string[]; itemCount: number | undefined }> {
+			const menu = extractJson<{ items: Array<{ label: string }> }>(
+				await harness.client.callTool({ name: "menu_get", arguments: { name: "main" } }),
+			);
+			const list = extractJson<Array<{ name: string; itemCount: number }>>(
+				await harness.client.callTool({ name: "menu_list", arguments: {} }),
+			);
+			return {
+				labels: menu.items.map((item) => item.label),
+				itemCount: list.find((entry) => entry.name === "main")?.itemCount,
+			};
+		}
+
+		it("are hidden from users without content:read_drafts", async () => {
+			harness = await connectMcpHarness({
+				db,
+				userId: SUBSCRIBER_ID,
+				userRole: Role.SUBSCRIBER,
+			});
+			expect(await readMain()).toEqual({ labels: ["Home"], itemCount: 1 });
+		});
+
+		it("are returned to users with content:read_drafts", async () => {
+			harness = await connectMcpHarness({
+				db,
+				userId: "user_contributor",
+				userRole: Role.CONTRIBUTOR,
+			});
+			expect(await readMain()).toEqual({
+				labels: ["Home", "We are acquiring Acme Corp"],
+				itemCount: 2,
+			});
+		});
 	});
 });
 

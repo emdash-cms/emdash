@@ -147,7 +147,6 @@ function RowSwitch<T extends LayoutRowItem>({
 		return (
 			<Switch
 				size="sm"
-				variant="neutral"
 				checked
 				disabled
 				aria-label={t`${label} is always shown`}
@@ -158,7 +157,6 @@ function RowSwitch<T extends LayoutRowItem>({
 	return (
 		<Switch
 			size="sm"
-			variant="neutral"
 			checked={!row.hidden}
 			disabled={disabled}
 			onCheckedChange={(checked) => onToggle(row.id, checked)}
@@ -335,7 +333,7 @@ function OverlayEntry<T extends LayoutRowItem>({ entry }: { entry: LayoutEntry<T
 				handle={handle}
 				toggle={
 					isFolder(entry) ? null : (
-						<Switch size="sm" variant="neutral" checked={!entry.hidden} tabIndex={-1} />
+						<Switch size="sm" checked={!entry.hidden} disabled={!entry.canHide} tabIndex={-1} />
 					)
 				}
 			/>
@@ -355,7 +353,12 @@ function OverlayEntry<T extends LayoutRowItem>({ entry }: { entry: LayoutEntry<T
 								entry={member}
 								handle={null}
 								toggle={
-									<Switch size="sm" variant="neutral" checked={!member.hidden} tabIndex={-1} />
+									<Switch
+										size="sm"
+										checked={!member.hidden}
+										disabled={!member.canHide}
+										tabIndex={-1}
+									/>
 								}
 							/>
 						</div>

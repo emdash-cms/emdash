@@ -35,6 +35,7 @@ export interface PutWorkloadPolicyInput {
 	allowedEnvironments: readonly string[];
 	active: boolean;
 	repositoryConnection?: boolean;
+	derivedFromRepositoryConnection?: boolean;
 	expectedVersion: number | null;
 	now?: number;
 }
@@ -251,6 +252,10 @@ export function initializeWorkloadPolicySchema(storage: DurableObjectStorage): v
 			package_slug TEXT PRIMARY KEY,
 			created_at INTEGER NOT NULL
 		);
+		CREATE TABLE IF NOT EXISTS derived_workload_policies (
+			package_slug TEXT PRIMARY KEY,
+			created_at INTEGER NOT NULL
+		);
 	`);
 }
 
@@ -281,6 +286,8 @@ export class WorkloadPolicyStore {
 			typeof input.active !== "boolean" ||
 			(input.repositoryConnection !== undefined &&
 				typeof input.repositoryConnection !== "boolean") ||
+			(input.derivedFromRepositoryConnection !== undefined &&
+				typeof input.derivedFromRepositoryConnection !== "boolean") ||
 			(input.expectedVersion !== null &&
 				(!Number.isSafeInteger(input.expectedVersion) || input.expectedVersion < 1)) ||
 			!Number.isSafeInteger(now) ||
@@ -345,6 +352,19 @@ export class WorkloadPolicyStore {
 					now,
 				);
 			}
+			if (input.derivedFromRepositoryConnection === true) {
+				this.#storage.sql.exec(
+					`INSERT INTO derived_workload_policies (package_slug, created_at)
+					 VALUES (?, ?) ON CONFLICT(package_slug) DO NOTHING`,
+					input.packageSlug,
+					now,
+				);
+			} else {
+				this.#storage.sql.exec(
+					"DELETE FROM derived_workload_policies WHERE package_slug = ?",
+					input.packageSlug,
+				);
+			}
 			const invalidatedApprovalChallenges = this.#invalidatePreWriteIntents(
 				input.publisherDid,
 				input.packageSlug,
@@ -395,6 +415,18 @@ export class WorkloadPolicyStore {
 			return policy;
 		}
 		return null;
+	}
+
+	isDerivedFromRepositoryConnection(packageSlug: string): boolean {
+		if (!PACKAGE_SLUG_PATTERN.test(packageSlug)) throw new WorkloadPolicyError();
+		return (
+			this.#storage.sql
+				.exec<{ count: number }>(
+					"SELECT COUNT(*) AS count FROM derived_workload_policies WHERE package_slug = ?",
+					packageSlug,
+				)
+				.one().count === 1
+		);
 	}
 
 	#invalidatePreWriteIntents(

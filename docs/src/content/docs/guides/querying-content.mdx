@@ -230,8 +230,8 @@ if (error) {
   return new Response("Unable to load post", { status: 500 });
 }
 
-if (!post) return Astro.rewrite("/404");
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+if (!post) return Astro.rewrite("/404");
 ---
 
 {isPreview && <p>This is an unpublished preview.</p>}
@@ -264,7 +264,9 @@ provider renders through that provider. An empty video block, which has no `asse
 
 With [Astro's content security policy](https://docs.astro.build/en/reference/configuration-reference/#securitycsp)
 turned on, the browser blocks the styles and scripts inside isolated HTML blocks, so they render
-without their CSS, JavaScript or automatic height. Iframe blocks also lose their custom size, and
+without their CSS, JavaScript or automatic height. Their content stays 150 pixels tall even if your
+site's styles make the block's frame taller. If the policy sets `base-uri 'none'`, isolated HTML
+blocks don't load; allow `'self'` in `base-uri` to show them. Iframe blocks also lose their custom size, and
 the policy's `frame-src` must allow the hosts they embed. Video blocks whose media is on another
 host, such as a storage public URL or a media provider, need that host in `media-src`.
 
@@ -402,7 +404,8 @@ request. If you deliberately prerender a route, its HTML contains the content av
 time and changes only after another build.
 
 When Astro's cache is enabled, pass the query's `cacheHint` to `Astro.cache.set()`. EmDash associates
-the response with the collection and entry tags so publishing can invalidate affected cached pages.
+the response with the tags in the hint so publishing can invalidate affected cached pages.
+See [Route caching](/deployment/route-caching/) for which tags belong on index and detail pages.
 Avoid replacing that integration with a long fixed `Cache-Control` lifetime unless delayed updates
 are an explicit product decision.
 
