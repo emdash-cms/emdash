@@ -167,9 +167,13 @@ export function Settings() {
 							>
 								<Combobox.Trigger
 									aria-label={t`Language`}
-									className={`${inputVariants()} relative flex w-full items-center pe-8 text-start sm:w-48`}
+									className={`${inputVariants()} relative flex w-full items-center pe-8 text-start whitespace-nowrap sm:w-auto sm:min-w-48 sm:max-w-72 sm:shrink-0`}
 								>
-									<Combobox.Value>{(option) => option?.label ?? t`Select`}</Combobox.Value>
+									<Combobox.Value>
+										{(option) => (
+											<span className="min-w-0 truncate">{option?.label ?? t`Select`}</span>
+										)}
+									</Combobox.Value>
 									<Combobox.Icon className="absolute end-2 top-1/2 flex -translate-y-1/2 items-center text-kumo-subtle">
 										<CaretDown className="h-4 w-4" aria-hidden="true" />
 									</Combobox.Icon>
