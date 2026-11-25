@@ -161,6 +161,38 @@ describe("publisher API", () => {
 		});
 	});
 
+	it("stores an unchanged derived workload policy as the publisher's own", async () => {
+		const configuration = await loadConfiguration(TEST_BINDINGS);
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await publisher.putWorkloadPolicy({
+			publisherDid: PUBLISHER_DID,
+			...policyBody(),
+			active: true,
+			derivedFromRepositoryConnection: true,
+			now: NOW,
+		});
+
+		const saved = await handlePutPublisherWorkload(
+			request("/v1/publisher/workloads", await sessionHeaders(true), "POST", policyBody(1)),
+			"request-1",
+			configuration,
+		);
+		expect(saved.status).toBe(200);
+		expect(await saved.json()).toMatchObject({
+			data: { policy: { stateVersion: 2 }, replayed: false },
+		});
+		await expect(publisher.isWorkloadPolicyDerived(PUBLISHER_DID, "gallery")).resolves.toBe(false);
+
+		const replay = await handlePutPublisherWorkload(
+			request("/v1/publisher/workloads", await sessionHeaders(true), "POST", policyBody(2)),
+			"request-2",
+			configuration,
+		);
+		expect(await replay.json()).toMatchObject({
+			data: { policy: { stateVersion: 2 }, replayed: true },
+		});
+	});
+
 	it("compares signed approvers without exposing credential metadata", async () => {
 		const configuration = await loadConfiguration(TEST_BINDINGS);
 		const enrolledDid = "did:plc:enrolled-approver";
