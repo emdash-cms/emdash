@@ -1802,7 +1802,7 @@ const commentsPaths = {
 						},
 					},
 				},
-				...standardErrors(500),
+				...standardErrors(404, 500),
 			},
 		},
 		post: {

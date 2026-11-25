@@ -12,7 +12,7 @@ import type { APIRoute } from "astro";
 
 import { apiError, handleError } from "#api/error.js";
 import { handleOAuthClientCreate } from "#api/handlers/oauth-clients.js";
-import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
+import { checkRateLimit, getClientNetwork } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 
 export const prerender = false;
@@ -149,8 +149,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 			return scopes;
 		}
 
-		const ip = getClientIp(request, getTrustedProxyHeaders(emdash.config));
-		const rateLimit = await checkRateLimit(emdash.db, ip, "oauth/register", 10, 60);
+		const client = getClientNetwork(request, getTrustedProxyHeaders(emdash.config));
+		const rateLimit = await checkRateLimit(emdash.db, client, "oauth/register", 10, 60);
 		if (!rateLimit.allowed) {
 			const response = registrationError(
 				"Too many registration requests. Please try again later.",

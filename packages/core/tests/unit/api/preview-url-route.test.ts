@@ -92,7 +92,12 @@ describe("preview-url route — respects collection url_pattern", () => {
 		});
 	}
 
-	const call = async (collection: string, id: string, body: Record<string, unknown> = {}) => {
+	const call = async (
+		collection: string,
+		id: string,
+		body: Record<string, unknown> = {},
+		tokenScopes?: string[],
+	) => {
 		const request = new Request(
 			`http://localhost/_emdash/api/content/${collection}/${id}/preview-url`,
 			{
@@ -110,6 +115,7 @@ describe("preview-url route — respects collection url_pattern", () => {
 					handleContentGet: runtime.handleContentGet.bind(runtime),
 				},
 				user: { id: "u1", role: Role.ADMIN },
+				tokenScopes,
 			},
 		} as unknown as Parameters<typeof previewUrl>[0]);
 		return response;
@@ -142,6 +148,106 @@ describe("preview-url route — respects collection url_pattern", () => {
 		// The generic collection/id fallback must NOT leak through.
 		expect(url.startsWith("/post/")).toBe(false);
 	});
+
+	it("refuses a token that lacks content:read", async () => {
+		const created = await handleContentCreate(db, "post", { data: { title: "Draft" } });
+		const id = created.data!.item.id;
+
+		const writeOnly = await call("post", id, {}, ["content:write"]);
+		expect(writeOnly.status).toBe(403);
+		expect((await writeOnly.json()).error.code).toBe("INSUFFICIENT_SCOPE");
+
+		const readAndWrite = await call("post", id, {}, ["content:read", "content:write"]);
+		expect(readAndWrite.status).toBe(200);
+	});
+
+	describe("token lifetime", () => {
+		it.each(["8d", "5200w", 60 * 60 * 24 * 365, -60, 0, "junk"])(
+			"rejects an expiresIn of %s",
+			async (expiresIn) => {
+				const created = await handleContentCreate(db, "post", { data: { title: "Hello" } });
+				const id = created.data!.item.id;
+
+				const response = await call("post", id, { expiresIn });
+				expect(response.status).toBe(400);
+				const { error } = (await response.json()) as { error: { code: string } };
+				expect(error.code).toBe("VALIDATION_ERROR");
+			},
+		);
+
+		it("signs the longest allowed lifetime and reports its expiry", async () => {
+			const created = await handleContentCreate(db, "post", { data: { title: "Hello" } });
+			const id = created.data!.item.id;
+
+			const before = Math.floor(Date.now() / 1000);
+			const response = await call("post", id, { expiresIn: "7d" });
+			expect(response.status).toBe(200);
+			const { url, expiresAt } = (await response.json()).data as {
+				url: string;
+				expiresAt: number;
+			};
+			const { previewSecret } = await resolveSecretsCached(db);
+			const token = await verifyPreviewToken({
+				url: new URL(url, "http://localhost"),
+				secret: previewSecret,
+			});
+			expect(token.valid).toBe(true);
+			if (!token.valid) return;
+			expect(token.payload.exp - before).toBeGreaterThanOrEqual(7 * 24 * 60 * 60);
+			expect(Math.abs(token.payload.exp - expiresAt)).toBeLessThanOrEqual(1);
+		});
+	});
+
+	it.each([
+		{ pattern: null, body: {} },
+		{ pattern: "/blog/{slug}", body: {} },
+		{ pattern: "/blog/{slug}", body: { pathPattern: "/custom/{id}" } },
+	])(
+		"does not open a later entry that takes the requested slug (url_pattern $pattern, body $body)",
+		async ({ pattern, body }) => {
+			if (pattern) await new SchemaRegistry(db).updateCollection("post", { urlPattern: pattern });
+			const created = await runtime.handleContentCreate("post", {
+				data: { title: "First" },
+				slug: "shared-slug",
+			});
+			expect(created.success).toBe(true);
+			if (!created.success) return;
+
+			const response = await call("post", "shared-slug", body);
+			expect(response.status).toBe(200);
+			const { url } = (await response.json()).data as { url: string };
+			const { previewSecret } = await resolveSecretsCached(db);
+			const token = await verifyPreviewToken({
+				url: new URL(url, "http://localhost"),
+				secret: previewSecret,
+			});
+			expect(token.valid).toBe(true);
+			if (!token.valid) return;
+			const preview = parseContentId(token.payload.cid);
+
+			const renamed = await runtime.handleContentUpdate("post", created.data.item.id, {
+				slug: "moved",
+				_rev: created.data._rev,
+			});
+			expect(renamed.success).toBe(true);
+			const later = await runtime.handleContentCreate("post", {
+				data: { title: "Later draft" },
+				slug: "shared-slug",
+			});
+			expect(later.success).toBe(true);
+
+			const result = await runWithContext({ db, editMode: false, preview }, () =>
+				getEmDashEntry("post", "shared-slug"),
+			);
+			expect(result.entry).toBeNull();
+
+			const own = await runWithContext({ db, editMode: false, preview }, () =>
+				getEmDashEntry("post", "moved"),
+			);
+			expect(own.entry).toMatchObject({ data: { title: "First" } });
+			expect(own.isPreview).toBe(true);
+		},
+	);
 
 	it("falls back to /{collection}/{id} when no url_pattern is configured", async () => {
 		const created = await handleContentCreate(db, "post", {
@@ -305,7 +411,7 @@ describe("preview-url route — respects collection url_pattern", () => {
 			{ pattern: null, body: {}, path: "/post/old-slug" },
 			{ pattern: "/blog/{slug}", body: { pathPattern: "/custom/{id}" }, path: "/custom/old-slug" },
 		])(
-			"retains the route slug in the fallback path and token at $path",
+			"retains the route slug in the fallback path and previews the entry at $path",
 			async ({ pattern, body, path }) => {
 				if (pattern) await new SchemaRegistry(db).updateCollection("post", { urlPattern: pattern });
 				const created = await runtime.handleContentCreate("post", {

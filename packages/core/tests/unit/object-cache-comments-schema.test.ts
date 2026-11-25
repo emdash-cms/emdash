@@ -79,6 +79,7 @@ describe("object cache: comments (getComments)", () => {
 			type: "post",
 			slug: "p1",
 			data: { title: "P1" },
+			status: "published",
 		});
 		postId = post.id;
 		await new CommentRepository(db).create({

@@ -154,4 +154,28 @@ describe("POST /auth/signup/request rate limiting", () => {
 		await signupRequest(makeCtx(req("198.51.100.8", "x@allowed.com")));
 		expect(email.send).toHaveBeenCalledTimes(4);
 	});
+
+	it("counts every address of one IPv6 /64 as one client", async () => {
+		const email = buildEmail();
+
+		function makeCtx(ip: string, addr: string): APIContext {
+			const request = cfRequest("http://localhost/_emdash/api/auth/signup/request", {
+				email: addr,
+			});
+			request.headers.set("cf-connecting-ip", ip);
+			return {
+				request,
+				locals: { emdash: { db, email } },
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub
+			} as unknown as APIContext;
+		}
+
+		for (const host of ["1", "2", "3", "4"]) {
+			await signupRequest(makeCtx(`2001:db8:bad:1::${host}`, `${host}@allowed.com`));
+		}
+		expect(email.send).toHaveBeenCalledTimes(3);
+
+		await signupRequest(makeCtx("2001:db8:bad:2::1", "x@allowed.com"));
+		expect(email.send).toHaveBeenCalledTimes(4);
+	});
 });

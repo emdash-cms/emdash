@@ -1130,13 +1130,13 @@ function FilterBar({
 					onValueChange={(v) => onAuthorFilterChange?.(v ?? "")}
 					items={{
 						"": t`All authors`,
-						...Object.fromEntries(authors.map((a) => [a.id, a.name || a.email])),
+						...Object.fromEntries(authors.map((a) => [a.id, a.name || a.email || t`Unnamed user`])),
 					}}
 				>
 					<Select.Option value="">{t`All authors`}</Select.Option>
 					{authors.map((a) => (
 						<Select.Option key={a.id} value={a.id}>
-							{a.name || a.email}
+							{a.name || a.email || t`Unnamed user`}
 						</Select.Option>
 					))}
 				</Select>

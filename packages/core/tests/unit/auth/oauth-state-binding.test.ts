@@ -34,7 +34,7 @@ function browser() {
 				},
 				delete: (name: string) => jar.delete(name),
 			},
-			session: { set: vi.fn() },
+			session: { set: vi.fn(), regenerate: vi.fn(async () => {}) },
 		},
 	};
 }
