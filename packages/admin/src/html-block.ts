@@ -219,10 +219,13 @@ export function buildHtmlBlockFrame({
 		`<!doctype html><html><head><meta charset="utf-8">${BASE}` +
 		`<style>${BASE_STYLE}</style><script>${FRAME_SCRIPT}</script>${style}</head>` +
 		`<body>${html}${script}</body></html>`;
+	// A content security policy can block the shell's style, so attributes also set
+	// the inner frame's width, border and alignment and the shell's margins.
 	return (
 		`<!doctype html><html><head><meta charset="utf-8">${BASE}` +
 		`<style>${SHELL_STYLE}</style><script>${SHELL_SCRIPT}</script></head>` +
-		`<body><iframe sandbox="${HTML_BLOCK_FRAME_SANDBOX}" title="${escapeAttribute(title)}" ` +
+		`<body marginwidth="0" marginheight="0"><iframe sandbox="${HTML_BLOCK_FRAME_SANDBOX}" ` +
+		`title="${escapeAttribute(title)}" width="100%" frameborder="0" align="top" ` +
 		`srcdoc="${escapeAttribute(content)}"></iframe></body></html>`
 	);
 }

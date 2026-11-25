@@ -193,9 +193,10 @@ describe("HTML block frame", () => {
 				frame,
 				(value) => typeof value === "object" && value !== null && "base" in value,
 			);
-			expect(data).toMatchObject({
+			expect(data).toEqual({
 				base: `${location.origin}/`,
 				link: `${location.origin}/docs`,
+				referrer: "",
 			});
 			expect(JSON.stringify(data)).not.toContain("secret");
 		} finally {
@@ -234,6 +235,33 @@ describe("HTML block frame", () => {
 		frame.contentWindow?.postMessage("ping", "*");
 
 		expect(await answer).toBe("pong");
+	});
+
+	it("fills the frame without margins or a border when a CSP blocks its inline styles", async () => {
+		const csp =
+			"<meta http-equiv=\"Content-Security-Policy\" content=\"style-src 'none'; script-src 'none'\">";
+		const frame = document.createElement("iframe");
+		// Same-origin access lets the test measure the shell; scripts stay off.
+		frame.setAttribute("sandbox", "allow-same-origin");
+		frame.style.width = "600px";
+		frame.srcdoc = buildHtmlBlockFrame({ html: "<p>Hello</p>" }).replace("<head>", `<head>${csp}`);
+		const loaded = new Promise((resolve) => frame.addEventListener("load", resolve));
+		document.body.append(frame);
+		await loaded;
+
+		const shell = frame.contentDocument!;
+		const root = shell.documentElement;
+		const inner = shell.querySelector("iframe")!;
+		expect(shell.defaultView!.getComputedStyle(inner).display).not.toBe("block");
+		expect(inner.getBoundingClientRect().toJSON()).toMatchObject({
+			x: 0,
+			y: 0,
+			width: root.clientWidth,
+			height: root.clientHeight,
+		});
+		expect(shell.defaultView!.getComputedStyle(inner).borderTopWidth).toBe("0px");
+		expect(root.scrollHeight).toBe(root.clientHeight);
+		expect(root.scrollWidth).toBe(root.clientWidth);
 	});
 
 	it("runs JavaScript that opens with a legacy HTML comment", async () => {
