@@ -126,7 +126,10 @@ export async function createComment(
 	};
 
 	// 2. Run comment:beforeCreate pipeline
-	const result = await hooks.runBeforeCreate(beforeCreateEvent);
+	const result = await hooks.runBeforeCreate({
+		...beforeCreateEvent,
+		comment: { ...beforeCreateEvent.comment },
+	});
 	if (result === false) {
 		return null; // Rejected
 	}

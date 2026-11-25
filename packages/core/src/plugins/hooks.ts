@@ -1200,18 +1200,17 @@ export class HookPipeline {
 			const start = Date.now();
 
 			try {
-				const result = await this.executeWithTimeout(
-					() => handler({ ...currentEvent }, ctx),
-					hook.timeout,
-				);
+				const input = { ...currentEvent, comment: { ...currentEvent.comment } };
+				const result = await this.executeWithTimeout(() => handler(input, ctx), hook.timeout);
 
 				if (result === false) {
 					return false;
 				}
 
-				if (result && typeof result === "object") {
-					currentEvent = applyCommentBeforeCreateResult(currentEvent, result);
-				}
+				currentEvent = applyCommentBeforeCreateResult(
+					currentEvent,
+					result && typeof result === "object" ? result : input,
+				);
 			} catch (error) {
 				console.error(
 					`[comment:beforeCreate] Plugin "${hook.pluginId}" error (${Date.now() - start}ms):`,

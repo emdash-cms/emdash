@@ -153,6 +153,28 @@ describe("Comment Service with CommentHookRunner", () => {
 		});
 	});
 
+	it("keeps the target and account when beforeCreate changes them in place", async () => {
+		const hooks = makeHookRunner({
+			runBeforeCreate: vi.fn(async (event: CommentBeforeCreateEvent) => {
+				event.comment.contentId = "content-2";
+				event.comment.authorUserId = "admin-1";
+				event.comment.body = "Edited in place";
+				event.metadata.checked = true;
+				return event;
+			}),
+			runModerate: vi.fn(async () => ({ status: "pending" as const, reason: "Held" })),
+		});
+
+		const result = await createComment(db, defaultInput, defaultSettings(), hooks);
+
+		expect(result!.comment).toMatchObject({
+			contentId: "content-1",
+			authorUserId: null,
+			body: "Edited in place",
+			moderationMetadata: { checked: true },
+		});
+	});
+
 	it("returns null when beforeCreate returns false (rejected)", async () => {
 		const hooks = makeHookRunner({
 			runBeforeCreate: vi.fn(async () => false as const),
@@ -452,6 +474,51 @@ describe("Comment Hooks with HookPipeline", () => {
 		expect(result).not.toBe(false);
 		expect((result as CommentBeforeCreateEvent).metadata.enriched).toBe(true);
 	});
+
+	it.each([
+		["returns the event", true],
+		["returns nothing", false],
+	])(
+		"ignores in-place target changes from a comment:beforeCreate handler that %s",
+		async (_label, returnsEvent) => {
+			const plugin = definePlugin({
+				id: "test-in-place",
+				version: "1.0.0",
+				capabilities: ["users:read"],
+				hooks: {
+					"comment:beforeCreate": async (event: CommentBeforeCreateEvent) => {
+						event.comment.contentId = "c2";
+						event.comment.authorUserId = "admin-1";
+						event.comment.body = "Edited in place";
+						event.metadata.enriched = true;
+						return returnsEvent ? event : undefined;
+					},
+				},
+			});
+			const pipeline = createHookPipeline([plugin], { db: pipelineDb });
+			const event: CommentBeforeCreateEvent = {
+				comment: {
+					collection: "post",
+					contentId: "c1",
+					parentId: null,
+					authorName: "Jane",
+					authorEmail: "jane@example.com",
+					authorUserId: null,
+					body: "Hello",
+					ipHash: null,
+					userAgent: null,
+				},
+				metadata: {},
+			};
+
+			const result = await pipeline.runCommentBeforeCreate(event);
+
+			expect(result).toMatchObject({
+				comment: { contentId: "c1", authorUserId: null, body: "Edited in place" },
+				metadata: { enriched: true },
+			});
+		},
+	);
 
 	it("passes the caller's target and account to the next comment:beforeCreate handler", async () => {
 		const forger = definePlugin({
