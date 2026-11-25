@@ -75,7 +75,12 @@ describe("form block inside another form", () => {
 		expect(onAction).toHaveBeenCalledTimes(1);
 	});
 
-	it.each(["5.00", "5.25"])("submits %s with a fractional minimum", (value) => {
+	it.each([
+		{ value: "5.00", min: 0.01 },
+		{ value: "5.25", min: 0.01 },
+		{ value: "5.25", min: 0 },
+		{ value: "5.25", min: undefined },
+	])("submits $value with min=$min", ({ value, min }) => {
 		const onAction = vi.fn();
 		render(
 			<BlockRenderer
@@ -83,7 +88,7 @@ describe("form block inside another form", () => {
 					{
 						type: "form",
 						block_id: "plan",
-						fields: [{ type: "number_input", action_id: "price", label: "Price", min: 0.01 }],
+						fields: [{ type: "number_input", action_id: "price", label: "Price", min }],
 						submit: { label: "Save price", action_id: "save_price" },
 					},
 				]}
