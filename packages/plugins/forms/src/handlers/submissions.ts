@@ -110,14 +110,13 @@ export async function submissionDeleteHandler(ctx: RouteContext<SubmissionDelete
 		}
 	}
 
-	await submissions(ctx).delete(input.id);
+	const deleted = await submissions(ctx).delete(input.id);
 
-	// Update form counter using count() to avoid race conditions
-	if (existing.formId) {
-		const count = await submissions(ctx).count({ formId: existing.formId });
+	// Decrement in SQL and touch only the counter, so concurrent deletes and form edits both hold
+	if (deleted && existing.formId) {
 		await forms(ctx).updateIf(existing.formId, {
 			where: {},
-			set: { submissionCount: count },
+			delta: { submissionCount: { dec: 1 } },
 		});
 	}
 
