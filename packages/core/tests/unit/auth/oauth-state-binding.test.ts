@@ -12,7 +12,7 @@ const ENV = {
 	EMDASH_OAUTH_GITHUB_CLIENT_SECRET: "client-secret",
 };
 
-const STATE_COOKIE = "emdash_oauth_state";
+const STATE_COOKIE_PREFIX = "emdash_oauth_state_";
 
 function redirect(url: string): Response {
 	return new Response(null, { status: 302, headers: { Location: url } });
@@ -40,6 +40,15 @@ function browser() {
 }
 
 type Browser = ReturnType<typeof browser>;
+
+function stateCookieOptions(b: Browser): Record<string, unknown> | undefined {
+	const name = [...b.options.keys()].find((key) => key.startsWith(STATE_COOKIE_PREFIX));
+	return name ? b.options.get(name) : undefined;
+}
+
+function stateCookieCount(b: Browser): number {
+	return [...b.jar.keys()].filter((key) => key.startsWith(STATE_COOKIE_PREFIX)).length;
+}
 
 describe("OAuth sign-in completes only in the browser that started it", () => {
 	let db: Kysely<Database>;
@@ -124,7 +133,7 @@ describe("OAuth sign-in completes only in the browser that started it", () => {
 
 		expect(await openCallback(own, await startSignIn(own))).toBe("/_emdash/admin");
 		expect(own.context.session.set).toHaveBeenCalledWith("user", { id: memberId });
-		expect(own.jar.has(STATE_COOKIE)).toBe(false);
+		expect(stateCookieCount(own)).toBe(0);
 	});
 
 	it("refuses a callback URL opened in a browser that started no sign-in", async () => {
@@ -150,13 +159,36 @@ describe("OAuth sign-in completes only in the browser that started it", () => {
 		expect(await openCallback(other, otherCallback)).toBe("/_emdash/admin");
 	});
 
+	it("finishes several sign-ins started in the same browser", async () => {
+		const own = browser();
+		const first = await startSignIn(own);
+		const second = await startSignIn(own);
+
+		expect(await openCallback(own, first)).toBe("/_emdash/admin");
+		expect(await openCallback(own, second)).toBe("/_emdash/admin");
+		expect(stateCookieCount(own)).toBe(0);
+	});
+
+	it("refuses a state that is not shaped like one EmDash issues", async () => {
+		const own = browser();
+		await startSignIn(own);
+
+		const location = await openCallback(
+			own,
+			"http://localhost:4321/_emdash/api/auth/oauth/github/callback?code=auth-code&state=a%3Bb",
+		);
+
+		expect(location).toContain("error=invalid_state");
+		expect(own.context.session.set).not.toHaveBeenCalled();
+	});
+
 	it("keeps the state cookie away from scripts and sends it over https only on an https site", async () => {
 		const plain = browser();
 		await startSignIn(plain);
-		expect(plain.options.get(STATE_COOKIE)).toMatchObject({ httpOnly: true, secure: false });
+		expect(stateCookieOptions(plain)).toMatchObject({ httpOnly: true, secure: false });
 
 		const tls = browser();
 		await startSignIn(tls, "https://cms.example.com");
-		expect(tls.options.get(STATE_COOKIE)).toMatchObject({ httpOnly: true, secure: true });
+		expect(stateCookieOptions(tls)).toMatchObject({ httpOnly: true, secure: true });
 	});
 });

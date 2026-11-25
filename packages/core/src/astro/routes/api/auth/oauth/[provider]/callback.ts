@@ -24,8 +24,8 @@ import { finalizeSetup } from "#api/setup-complete.js";
 import { getOAuthEnv } from "#auth/oauth-env.js";
 import {
 	createOAuthStateStore,
-	OAUTH_STATE_COOKIE,
 	OAUTH_STATE_COOKIE_PATH,
+	oauthStateCookieName,
 } from "#auth/oauth-state-store.js";
 import { startUserSession } from "#auth/start-user-session.js";
 import type { AuthProviderDescriptor } from "#auth/types.js";
@@ -194,11 +194,12 @@ export const GET: APIRoute = async ({ params, request, locals, session, cookies,
 
 		// Checked before the state store is read, so a callback URL opened in
 		// another browser neither signs it in nor uses up the stored state.
-		const browserState = cookies.get(OAUTH_STATE_COOKIE)?.value;
-		if (!browserState || !secureCompare(browserState, state)) {
+		const cookieName = oauthStateCookieName(state);
+		const browserState = cookieName ? cookies.get(cookieName)?.value : undefined;
+		if (!cookieName || !browserState || !secureCompare(browserState, state)) {
 			throw new OAuthError("invalid_state", "Invalid OAuth state");
 		}
-		cookies.delete(OAUTH_STATE_COOKIE, { path: OAUTH_STATE_COOKIE_PATH });
+		cookies.delete(cookieName, { path: OAUTH_STATE_COOKIE_PATH });
 
 		const adapter = createKyselyAdapter(emdash.db);
 		const stateStore = createOAuthStateStore(emdash.db);

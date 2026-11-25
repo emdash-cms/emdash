@@ -18,9 +18,9 @@ import { getPublicOrigin } from "#api/public-url.js";
 import { getOAuthEnv } from "#auth/oauth-env.js";
 import {
 	createOAuthStateStore,
-	OAUTH_STATE_COOKIE,
 	OAUTH_STATE_COOKIE_PATH,
 	OAUTH_STATE_TTL_MS,
+	oauthStateCookieName,
 } from "#auth/oauth-state-store.js";
 
 type ProviderName = "github" | "google" | "microsoft";
@@ -170,7 +170,9 @@ export const GET: APIRoute = async ({ params, request, locals, cookies, redirect
 		// Lax, not Strict: the provider's redirect back is a cross-site navigation.
 		// `secure` follows the public origin because the request URL can be
 		// `http:` behind a TLS-terminating proxy.
-		cookies.set(OAUTH_STATE_COOKIE, state, {
+		const cookieName = oauthStateCookieName(state);
+		if (!cookieName) throw new Error("Unexpected OAuth state format");
+		cookies.set(cookieName, state, {
 			path: OAUTH_STATE_COOKIE_PATH,
 			httpOnly: true,
 			sameSite: "lax",
