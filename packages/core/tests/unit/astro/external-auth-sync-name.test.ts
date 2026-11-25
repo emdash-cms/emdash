@@ -53,7 +53,7 @@ async function request(db: Kysely<Database>, config: Record<string, unknown>) {
 		request: new Request(url, { headers: { "Cf-Access-Jwt-Assertion": "access-jwt" } }),
 		url,
 		locals,
-		session: { get: vi.fn(async () => null), set: vi.fn() },
+		session: { get: vi.fn(async () => null), set: vi.fn(), regenerate: vi.fn(async () => {}) },
 		redirect: vi.fn(),
 	};
 	const response = await onRequest(context as never, async () => new Response("ok"));

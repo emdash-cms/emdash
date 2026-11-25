@@ -21,7 +21,7 @@ import { execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { rmSync } from "node:fs";
-import { writeFile, mkdir, rm, unlink } from "node:fs/promises";
+import { writeFile, mkdtemp, rm, unlink } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { createRequire } from "node:module";
@@ -409,7 +409,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	private invokeToken = randomBytes(32).toString("hex");
 
-	/** Temporary directory for capnp config and plugin code files */
+	/**
+	 * Temporary directory for capnp config and plugin code files. The
+	 * generated wrappers embed invokeToken and each plugin's bridge token,
+	 * so it must be readable only by the user running the server.
+	 */
 	private configDir: string | null = null;
 
 	/** Email send callback, wired from EmailPipeline */
@@ -896,11 +900,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		// Create temp directory for config files
 		if (!this.configDir) {
-			this.configDir = join(
-				tmpdir(),
-				`emdash-workerd-${process.pid}-${randomBytes(8).toString("hex")}`,
-			);
-			await mkdir(this.configDir, { recursive: true });
+			// mkdtemp creates the directory with mode 0700 whatever the umask.
+			this.configDir = await mkdtemp(join(tmpdir(), `emdash-workerd-${process.pid}-`));
 		}
 
 		// Write the shared emdash shim once -- every plugin worker references
@@ -916,7 +917,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 				authToken: plugin.token,
 				invokeToken: this.invokeToken,
 			});
-			await writeFile(join(this.configDir, `${safeId}-wrapper.js`), wrapperCode);
+			await writeFile(join(this.configDir, `${safeId}-wrapper.js`), wrapperCode, {
+				mode: 0o600,
+			});
 			await writeFile(join(this.configDir, `${safeId}-plugin.js`), plugin.code);
 		}
 

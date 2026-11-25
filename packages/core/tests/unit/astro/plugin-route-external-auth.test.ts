@@ -51,7 +51,7 @@ function createContext(db: Kysely<Database>, path: string, isPublic: boolean) {
 		},
 	};
 	const url = new URL(path, "https://example.com");
-	const session = { get: vi.fn(async () => null), set: vi.fn() };
+	const session = { get: vi.fn(async () => null), set: vi.fn(), regenerate: vi.fn(async () => {}) };
 
 	return {
 		locals,

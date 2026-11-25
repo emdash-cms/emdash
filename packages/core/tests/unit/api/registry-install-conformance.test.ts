@@ -365,6 +365,7 @@ describe("registry delegated-release conformance", () => {
 
 	it.each([
 		{ name: "success", expected: { success: true } },
+		{ name: "disabled plugin stays disabled", disabled: true, expected: { success: true } },
 		{
 			name: "release CID mismatch",
 			aggregator: { releaseCid: "bafyreirelease-mismatch" },
@@ -424,6 +425,9 @@ describe("registry delegated-release conformance", () => {
 			);
 			if (!installed.success) throw new Error(installed.error.message);
 			const pluginId = installed.data.pluginId;
+			if ("disabled" in scenario) {
+				await new PluginStateRepository(db).disable(pluginId, initial.version);
+			}
 			const before = await new PluginStateRepository(db).get(pluginId);
 
 			await context.publisher.repo.updateRecord(
@@ -477,6 +481,7 @@ describe("registry delegated-release conformance", () => {
 				});
 				expect(await new PluginStateRepository(db).get(pluginId)).toMatchObject({
 					version: next.version,
+					status: "disabled" in scenario ? "inactive" : "active",
 					displayName: "Gallery",
 					description: "Reviewed description",
 				});

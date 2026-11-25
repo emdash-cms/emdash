@@ -19,7 +19,7 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { signupRequestBody } from "#api/schemas.js";
 import { getSiteTitle } from "#api/site-title.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
-import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
+import { checkRateLimit, getClientNetwork } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
@@ -55,8 +55,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		// Rate limit: 3 requests per 300 seconds per IP. Matches magic-link/send.
-		const ip = getClientIp(request, getTrustedProxyHeaders(emdash.config));
-		const rateLimit = await checkRateLimit(emdash.db, ip, "signup/request", 3, 300);
+		const client = getClientNetwork(request, getTrustedProxyHeaders(emdash.config));
+		const rateLimit = await checkRateLimit(emdash.db, client, "signup/request", 3, 300);
 		if (!rateLimit.allowed) {
 			// Return success-shaped response to avoid revealing rate limiting
 			// (and by extension, the fact that the caller is probing).

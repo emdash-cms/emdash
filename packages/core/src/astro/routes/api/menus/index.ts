@@ -5,6 +5,7 @@
  * POST /_emdash/api/menus              - Create menu (body may include locale & translationOf)
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
@@ -30,7 +31,10 @@ export const GET: APIRoute = async ({ request, locals }) => {
 	if (isParseError(query)) return query;
 
 	try {
-		const result = await handleMenuList(emdash.db, { locale: query.locale });
+		const result = await handleMenuList(emdash.db, {
+			locale: query.locale,
+			includeDrafts: hasPermission(user, "content:read_drafts"),
+		});
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to fetch menus", "MENU_LIST_ERROR");

@@ -20,7 +20,7 @@
 
 import { mkdir, open, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { dirname, join } from "node:path";
+import { dirname, join, win32 } from "node:path";
 
 import {
 	CompositeDidDocumentResolver,
@@ -528,21 +528,48 @@ export async function bindLoopbackServer(
 // ──────────────────────────────────────────────────────────────────────────
 
 /**
+ * Build the command that opens `target` in the default browser. Returns null
+ * when `target` is not an http(s) URL.
+ */
+export function getBrowserCommand(
+	target: string,
+	platform: NodeJS.Platform = process.platform,
+): { file: string; args: string[] } | null {
+	let url: URL;
+	try {
+		url = new URL(target);
+	} catch {
+		return null;
+	}
+	if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+
+	if (platform === "darwin") {
+		return { file: "open", args: [url.href] };
+	}
+	if (platform === "win32") {
+		// rundll32 receives the URL without a shell, so `&` and `%` pass through unchanged.
+		const rundll32 = win32.join(
+			process.env.SystemRoot ?? "C:\\Windows",
+			"System32",
+			"rundll32.exe",
+		);
+		return { file: rundll32, args: ["url.dll,FileProtocolHandler", url.href] };
+	}
+	return { file: "xdg-open", args: [url.href] };
+}
+
+/**
  * Best-effort attempt to open `url` in the user's default browser. Failure is
  * non-fatal: the CLI prints the URL too, so a headless or sandboxed user can
  * complete the flow manually. We do NOT await the spawned process.
  */
 export function tryOpenBrowser(url: string): void {
+	const command = getBrowserCommand(url);
+	if (!command) return;
 	void (async () => {
 		try {
 			const { execFile } = await import("node:child_process");
-			if (process.platform === "darwin") {
-				execFile("open", [url]);
-			} else if (process.platform === "win32") {
-				execFile("cmd", ["/c", "start", "", url]);
-			} else {
-				execFile("xdg-open", [url]);
-			}
+			execFile(command.file, command.args);
 		} catch {
 			// swallowed by design
 		}

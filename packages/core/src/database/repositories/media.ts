@@ -131,7 +131,12 @@ export interface MediaPageResult {
 	totalCount: number;
 }
 
-const UPLOAD_ATTEMPT_CLEANUP_AGE_MS = 60 * 60 * 1000;
+/** Lifetime of the signed upload URLs EmDash issues for pending media. */
+export const SIGNED_UPLOAD_URL_EXPIRES_IN_SECONDS = 3600;
+
+// A retired signed upload key is cleaned up only once this age has passed, so it
+// must not be shorter than the lifetime of the URL that can still write to it.
+const UPLOAD_ATTEMPT_CLEANUP_AGE_MS = SIGNED_UPLOAD_URL_EXPIRES_IN_SECONDS * 1000;
 const UPLOAD_ATTEMPT_CLEANUP_BATCH_SIZE = 100;
 
 /**
