@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "Opties voor HTML-blok"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "Voorbeeld van HTML-blok"
 
@@ -8514,7 +8514,7 @@ msgstr "Bestaande content wordt geïndexeerd"
 msgid "Inline"
 msgstr "Inline"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Inline blokken gebruiken de stijlen van je site. Je site verwijdert scripts, stijltags en stijlattributen, en maakt iframes leeg, behalve die van YouTube en Vimeo."
 
@@ -10795,7 +10795,7 @@ msgstr "Er is niets op deze site gewijzigd."
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "Niets gepubliceerd of ingepland in {monthTitle}"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "Nog niets om als voorbeeld te tonen."
@@ -12969,7 +12969,7 @@ msgstr "Rijen"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "Voorbeeld uitvoeren"
 
@@ -14865,7 +14865,7 @@ msgstr "het veld {0} van {1}, dat items kiest waarnaar het verwijst"
 msgid "The admin was updated"
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "Het beveiligingsbeleid van de beheeromgeving heeft bepaalde bronnen die dit blok laadt geblokkeerd, zoals externe scripts, lettertypen of frames. Je site laadt deze mogelijk wel."
 
@@ -15353,7 +15353,7 @@ msgstr "Dit blok sluit een pagina van {0} in."
 msgid "This block has no fields."
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "Dit blok voert JavaScript uit."
 

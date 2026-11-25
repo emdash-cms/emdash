@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "HTML-Blockoptionen"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "HTML-Blockvorschau"
 
@@ -8514,7 +8514,7 @@ msgstr "Bestehende Inhalte werden indexiert"
 msgid "Inline"
 msgstr "Inline"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Inline-Blöcke verwenden die Styles deiner Website. Deine Website entfernt Skripte, Style-Tags und Style-Attribute und leert Inlineframes, die nicht von YouTube oder Vimeo stammen."
 
@@ -10795,7 +10795,7 @@ msgstr "Auf dieser Website hat sich nichts geändert."
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "Im {monthTitle} ist nichts veröffentlicht oder geplant"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "Noch nichts für die Vorschau vorhanden."
@@ -12969,7 +12969,7 @@ msgstr "Zeilen"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "Vorschau ausführen"
 
@@ -14865,7 +14865,7 @@ msgstr "das Feld {0} in {1}, das Einträge auswählt, auf die es verweist"
 msgid "The admin was updated"
 msgstr "Der Adminbereich wurde aktualisiert"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "Die Sicherheitsrichtlinie des Adminbereichs hat einige Ressourcen blockiert, die dieser Block lädt, zum Beispiel externe Skripte, Schriftarten oder Frames. Deine Website kann sie möglicherweise trotzdem laden."
 
@@ -15353,7 +15353,7 @@ msgstr "Dieser Block bettet eine Seite von {0} ein."
 msgid "This block has no fields."
 msgstr "Dieser Block hat keine Felder."
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "Dieser Block führt JavaScript aus."
 

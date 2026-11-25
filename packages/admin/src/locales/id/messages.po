@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "Opsi blok HTML"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "Pratinjau blok HTML"
 
@@ -8514,7 +8514,7 @@ msgstr "Mengindeks konten yang ada"
 msgid "Inline"
 msgstr "Inline"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Blok inline menggunakan gaya situs Anda. Situs Anda menghapus skrip, tag gaya, dan atribut gaya, serta mengosongkan iframe selain YouTube dan Vimeo."
 
@@ -10795,7 +10795,7 @@ msgstr "Tidak ada di situs ini berubah."
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "Tidak ada yang dipublikasikan atau dijadwalkan pada {monthTitle}"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "Belum ada yang dipratinjau."
@@ -12969,7 +12969,7 @@ msgstr "Baris"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "Jalankan pratinjau"
 
@@ -14865,7 +14865,7 @@ msgstr "kolom {0} di {1}, yang memilih entri yang ditautkannya"
 msgid "The admin was updated"
 msgstr "Admin telah diperbarui"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "Kebijakan keamanan admin memblokir beberapa sumber daya yang dimuat blok ini, seperti skrip eksternal, font atau bingkai. Situs Anda mungkin masih memuat mereka."
 
@@ -15353,7 +15353,7 @@ msgstr "Blok ini menyematkan halaman dari {0}."
 msgid "This block has no fields."
 msgstr "Blok ini tidak memiliki kolom."
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "Blok ini menjalankan JavaScript."
 

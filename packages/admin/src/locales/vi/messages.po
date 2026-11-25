@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "Tuỳ chọn khối HTML"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "Xem trước khối HTML"
 
@@ -8514,7 +8514,7 @@ msgstr "Đang lập chỉ mục nội dung hiện có"
 msgid "Inline"
 msgstr "Nội tuyến"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Khối nội tuyến dùng kiểu dáng trang web của bạn. Hệ thống sẽ loại bỏ script, thẻ style, thuộc tính style và các iframe không phải YouTube hay Vimeo."
 
@@ -10795,7 +10795,7 @@ msgstr "Không có thay đổi nào trên trang này."
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "Không có gì được xuất bản hoặc đặt lịch trong {monthTitle}"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "Chưa có gì để xem trước."
@@ -12969,7 +12969,7 @@ msgstr "Hàng"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "Chạy xem trước"
 
@@ -14865,7 +14865,7 @@ msgstr "trường {0} trên {1}, chọn các mục mà nó liên kết tới"
 msgid "The admin was updated"
 msgstr ""
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "Chính sách bảo mật của trang quản trị đã chặn một số tài nguyên bên ngoài từ khối này (script, font chữ hoặc iframe). Nội dung này vẫn có thể hiển thị bình thường trên trang web của bạn."
 
@@ -15353,7 +15353,7 @@ msgstr "Khối này nhúng một trang từ {0}."
 msgid "This block has no fields."
 msgstr "Khối này không có trường nào."
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "Khối này chạy JavaScript."
 

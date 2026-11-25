@@ -8147,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "Opzioni del blocco HTML"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "Anteprima del blocco HTML"
 
@@ -8514,7 +8514,7 @@ msgstr "Indicizzazione dei contenuti esistenti"
 msgid "Inline"
 msgstr "Nel testo"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "I blocchi nel testo usano gli stili del tuo sito. Il sito rimuove gli script, i tag style e gli attributi style e svuota gli iframe diversi da YouTube e Vimeo."
 
@@ -10795,7 +10795,7 @@ msgstr "Nessuna modifica apportata a questo sito."
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "Nessun elemento pubblicato o programmato in {monthTitle}"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "Nessun contenuto da mostrare in anteprima."
@@ -12969,7 +12969,7 @@ msgstr "Righe"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "Esegui l'anteprima"
 
@@ -14865,7 +14865,7 @@ msgstr "il campo {0} in {1}, che seleziona gli elementi a cui rimanda"
 msgid "The admin was updated"
 msgstr "L'interfaccia di amministrazione è stata aggiornata"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "I criteri di sicurezza del pannello di amministrazione hanno bloccato alcune risorse caricate da questo blocco, come script, caratteri o frame esterni. Il tuo sito potrebbe comunque caricarle."
 
@@ -15353,7 +15353,7 @@ msgstr "Questo blocco incorpora una pagina di {0}."
 msgid "This block has no fields."
 msgstr "Questo blocco non ha campi."
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "Questo blocco esegue JavaScript."
 
