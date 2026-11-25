@@ -50,8 +50,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	if (isParseError(body)) return body;
 
 	// Creating a translation requires edit permission on the source item
-	if (body.translationOf) {
-		const source = await emdash.handleContentGet(collection, body.translationOf);
+	let translationOf = body.translationOf;
+	if (translationOf) {
+		const source = await emdash.handleContentGet(collection, translationOf);
 		if (!source.success) {
 			return apiError(
 				source.error?.code ?? "NOT_FOUND",
@@ -67,6 +68,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			"content:edit_any",
 		);
 		if (translationDenied) return translationDenied;
+		// The lookup also matches slugs, so link to the entry that was checked.
+		translationOf = source.data.item.id;
 	}
 
 	// Only EDITOR+ can write publishedAt / createdAt directly — incl. clearing to null.
@@ -86,7 +89,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		...body,
 		authorId: user?.id,
 		locale: body.locale,
-		translationOf: body.translationOf,
+		translationOf,
 		actor,
 	});
 

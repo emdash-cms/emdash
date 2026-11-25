@@ -1272,8 +1272,9 @@ export function createMcpServer(
 			}
 
 			// Creating a translation requires edit permission on the source item
-			if (args.translationOf) {
-				const source = await emdash.handleContentGet(args.collection, args.translationOf);
+			let translationOf = args.translationOf;
+			if (translationOf) {
+				const source = await emdash.handleContentGet(args.collection, translationOf);
 				if (!source.success) return unwrap(source);
 				requireOwnership(
 					extra,
@@ -1281,6 +1282,8 @@ export function createMcpServer(
 					"content:edit_own",
 					"content:edit_any",
 				);
+				// The lookup also matches slugs, so link to the entry that was checked.
+				translationOf = extractContentId(source.data) ?? translationOf;
 			}
 
 			const data = await convertWriteData(emdash, args.collection, args.data);
@@ -1299,7 +1302,7 @@ export function createMcpServer(
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
-					translationOf: args.translationOf,
+					translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
 					migrateBlocks: args.migrateBlocks,
@@ -1331,7 +1334,7 @@ export function createMcpServer(
 					slug: args.slug,
 					authorId: userId,
 					locale: args.locale,
-					translationOf: args.translationOf,
+					translationOf,
 					bylines: args.bylines,
 					taxonomies: args.taxonomies,
 					migrateBlocks: args.migrateBlocks,
