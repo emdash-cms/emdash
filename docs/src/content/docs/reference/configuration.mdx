@@ -304,7 +304,7 @@ emdash({
 });
 ```
 
-Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. The following example uses the object form:
+Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. In either form, use the service's final URL. The server does not follow redirects from the registry service, so plugin verification, installs, updates, update checks, and registry images fail when the URL redirects. The following example uses the object form:
 
 ```js title="astro.config.mjs"
 import { sandbox } from "@emdash-cms/cloudflare";
@@ -324,7 +324,7 @@ emdash({
 
 | Option                            | Type                   | Description                                                                                   |
 | --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
-| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production.                                    |
+| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production, and a URL that does not redirect.  |
 | `acceptLabelers`                  | `string`               | Optional comma-separated decentralized identifiers (DIDs) for moderation services accepted by the request. A DID is a stable Atmosphere account identifier. This setting cannot override the registry service's policy. |
 | `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
 | `policy.minimumReleaseAgeExclude` | `string[]`             | Publisher DIDs, or `<did>/<plugin-slug>` pairs, exempt from the holdback.                     |
