@@ -6,6 +6,7 @@
  * DELETE /_emdash/api/menus/:name[?locale=xx]
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
@@ -32,7 +33,10 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	if (isParseError(query)) return query;
 
 	try {
-		const result = await handleMenuGet(emdash.db, name, { locale: query.locale });
+		const result = await handleMenuGet(emdash.db, name, {
+			locale: query.locale,
+			includeDrafts: hasPermission(user, "content:read_drafts"),
+		});
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to fetch menu", "MENU_GET_ERROR");

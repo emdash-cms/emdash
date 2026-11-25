@@ -32,7 +32,18 @@ export const prerender = false;
 
 const MAX_CACHE_PURGE_TAGS = 100;
 
-function assignmentResponse(assignments: TaxonomyAssignmentResolution[], entryLocale: string) {
+/**
+ * `includeUnresolved` must be false for a caller without `content:read_drafts`.
+ * Assignments span the content translation group, so one with no variant in
+ * this entry's locale chain was made while editing another translation, which
+ * may be unpublished. The site never renders those for this entry; only the
+ * editor's taxonomy sidebar needs them.
+ */
+function assignmentResponse(
+	assignments: TaxonomyAssignmentResolution[],
+	entryLocale: string,
+	includeUnresolved: boolean,
+) {
 	const config = getI18nConfig();
 	const defaultLocale = config?.defaultLocale ?? "en";
 	return {
@@ -51,13 +62,15 @@ function assignmentResponse(assignments: TaxonomyAssignmentResolution[], entryLo
 					]
 				: [],
 		),
-		unresolved: assignments
-			.filter(({ term }) => term === null)
-			.map(({ translationGroup, availableLocales, translations }) => ({
-				translationGroup,
-				availableLocales,
-				translations,
-			})),
+		unresolved: includeUnresolved
+			? assignments
+					.filter(({ term }) => term === null)
+					.map(({ translationGroup, availableLocales, translations }) => ({
+						translationGroup,
+						availableLocales,
+						translations,
+					}))
+			: [],
 		entryLocale,
 		defaultLocale,
 		implicitDefaultLocale: config === null,
@@ -101,7 +114,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 			defaultLocale,
 		);
 
-		return apiSuccess(assignmentResponse(assignments, locale));
+		return apiSuccess(
+			assignmentResponse(assignments, locale, hasPermission(user, "content:read_drafts")),
+		);
 	} catch (error) {
 		return handleError(error, "Failed to get entry terms", "TERMS_GET_ERROR");
 	}
@@ -251,7 +266,8 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 			getI18nConfig()?.defaultLocale ?? "en",
 		);
 
-		return apiSuccess(assignmentResponse(assignments, entryLocale));
+		// Every caller that gets here may edit the entry, so may read drafts.
+		return apiSuccess(assignmentResponse(assignments, entryLocale, true));
 	} catch (error) {
 		return handleError(error, "Failed to set entry terms", "TERMS_SET_ERROR");
 	}
