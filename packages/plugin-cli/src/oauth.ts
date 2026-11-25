@@ -547,7 +547,7 @@ export function getBrowserCommand(
 		return { file: "open", args: [url.href] };
 	}
 	if (platform === "win32") {
-		// `cmd /c start` parses `&` and `%` in the URL as shell syntax.
+		// rundll32 receives the URL without a shell, so `&` and `%` pass through unchanged.
 		const rundll32 = win32.join(
 			process.env.SystemRoot ?? "C:\\Windows",
 			"System32",
