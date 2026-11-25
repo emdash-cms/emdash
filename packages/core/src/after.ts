@@ -3,14 +3,11 @@
  *
  * Use for bookkeeping that doesn't need to complete before the client
  * gets bytes — writes that record state, maintenance queries, cache
- * refreshes. `after()` hands the promise to the first host lifetime
- * extender it finds:
- *
- * 1. a per-request `waitUntil` on `locals` (Netlify's
- *    `locals.netlify.context`, or `locals.waitUntil` set by the site);
- * 2. Vercel's request context, which `@vercel/functions` also reads;
- * 3. the `virtual:emdash/wait-until` module (Cloudflare's `waitUntil`),
- *    with a runtime probe for workerd when the adapter did not provide one.
+ * refreshes. `after()` hands the promise to a host lifetime extender. A
+ * per-request `waitUntil` on `locals` (Netlify's `locals.netlify.context`, or
+ * `locals.waitUntil` set by the site) takes precedence over Vercel's request
+ * context, then `virtual:emdash/wait-until` (Cloudflare), with a workerd
+ * runtime probe when the adapter did not provide a binding.
  *
  * With none of these the task runs without one, which is only safe when the
  * process outlives the response (`@astrojs/node`). Import failures are

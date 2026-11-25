@@ -1351,7 +1351,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// Some API routes give the same answer whether or not a record
 				// exists; query counts and durations would differ, so API
 				// responses only carry timings in dev.
-				const isApiRoute = url.pathname.startsWith("/_emdash/api");
+				const isApiRoute = publicPath.startsWith("/_emdash/api");
 				const exposedTimings = import.meta.env.DEV || !isApiRoute ? timings : undefined;
 				// Server-Timing only sees pre-stream queries; the stream-end
 				// wrapper (instrumentation-gated, no-op otherwise) emits the
