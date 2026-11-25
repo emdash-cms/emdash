@@ -336,6 +336,13 @@ async function deleteSyndicatedRecords(
 		ctx.log.info(`Deleted AT Protocol records for ${collection}/${id}`);
 	} catch (error) {
 		ctx.log.error(`Failed to delete AT Protocol records for ${collection}/${id}`, error);
+		await ctx.storage.records!.put(storageKey, {
+			...existing,
+			status: "error",
+			lastSyncedAt: new Date().toISOString(),
+			errorMessage: "Could not remove the published records",
+			retryCount: (existing.retryCount || 0) + 1,
+		});
 	}
 }
 

@@ -571,6 +571,28 @@ describe("sandbox hooks", () => {
 			expect(ctx.storage.records.delete).toHaveBeenCalledWith("posts:post-1");
 		});
 
+		it("marks the sync record as an error when removing the records fails", async () => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const { ctx } = setupExistingSync({ document: null });
+			ctx.http.fetch.mockImplementation(async () => jsonResponse({ error: "failed" }, 500));
+
+			await (plugin as any).hooks["content:afterUnpublish"].handler(
+				{ collection: "posts", content: { id: "post-1", status: "draft" } },
+				ctx,
+			);
+
+			expect(ctx.storage.records.delete).not.toHaveBeenCalled();
+			expect(ctx.storage.records.put).toHaveBeenCalledWith(
+				"posts:post-1",
+				expect.objectContaining({
+					atUri: "at://did:example/site.standard.document/doc-1",
+					status: "error",
+					errorMessage: "Could not remove the published records",
+					retryCount: 1,
+				}),
+			);
+		});
+
 		it("keeps the records of an unpublished post when deleteOnUnpublish is off", async () => {
 			const { default: plugin } = await import("../src/plugin.js");
 			const { ctx } = setupExistingSync({ document: null });
