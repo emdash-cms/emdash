@@ -5210,6 +5210,12 @@ export class EmDashRuntime {
 			action === "restore"
 				? await repo.findByIdOrSlugIncludingTrashed(collection, id)
 				: await repo.findByIdOrSlug(collection, id);
+		// Must run before the re-entrancy guard, whose error would also tell a live entry from a missing one.
+		if (action === "restore" && !(item && (await repo.isTrashed(collection, item.id)))) {
+			throw Object.assign(new Error(`Trashed content item not found: ${id}`), {
+				code: "NOT_FOUND",
+			});
+		}
 		const resolvedId = item?.id ?? id;
 		const key = this.pluginContentActionKey(collection, resolvedId);
 		if ((this.activePluginContentActions.get(key) ?? 0) > 0) {
