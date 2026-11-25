@@ -53,6 +53,11 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		);
 	}
 
+	// The lookup also matches slugs, so it can return a different entry.
+	if (existing.data.item.id !== entryId) {
+		return apiError("NOT_FOUND", "Content not found", 404);
+	}
+
 	const authorId = existing.data?.item?.authorId ?? "";
 
 	// Check ownership: authors can only restore their own content, editors+ can restore any

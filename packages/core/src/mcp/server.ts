@@ -3773,6 +3773,10 @@ export function createMcpServer(
 			if (!existing.success) {
 				return unwrap(existing);
 			}
+			// The lookup also matches slugs, so it can return a different entry.
+			if (extractContentId(existing.data) !== revItem.entryId) {
+				return respondError("NOT_FOUND", "Content not found");
+			}
 			requireOwnership(
 				extra,
 				extractContentAuthorId(existing.data),
