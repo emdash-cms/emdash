@@ -62,7 +62,32 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
-	const { overrideLock, ...saveBody } = body;
+	// `status` is never saved as a column: setting a published or scheduled entry
+	// to draft goes through the unpublish handler, so its hooks run and the live
+	// revision and any schedule are cleared.
+	const { overrideLock, status, ...saveBody } = body;
+
+	let unpublishing = false;
+	if (status === "draft") {
+		const existing = await emdash.handleContentGet(collection, id, locale);
+		if (!existing.success) return unwrapResult(existing);
+		const existingItem = existing.data.item;
+		if (
+			existingItem.status !== "draft" ||
+			existingItem.liveRevisionId ||
+			existingItem.scheduledAt
+		) {
+			const denied = requireOwnerPerm(
+				user,
+				existingItem.authorId ?? "",
+				"content:publish_own",
+				"content:publish_any",
+			);
+			if (denied) return denied;
+			unpublishing = true;
+		}
+	}
+
 	// saveContent resolves a slug to the entry's ID before it calls beforeWrite.
 	let resolvedId = id;
 	const result = await saveContent(emdash, {
@@ -83,6 +108,37 @@ export const PUT: APIRoute = async ({ params, request, locals, cache }) => {
 	});
 
 	if (!result.success) return unwrapResult(result);
+
+	if (unpublishing) {
+		// A draft-only save rereads the entry after staging, so `data._rev` can belong to a
+		// concurrent write. `saved.rev` is this save's own.
+		const saved: unknown = result.data;
+		const savedRev =
+			result.saved?.rev ??
+			(saved && typeof saved === "object" && "_rev" in saved && typeof saved._rev === "string"
+				? saved._rev
+				: undefined);
+		const unpublished = await emdash.handleContentUnpublish(collection, resolvedId, {
+			// The save advanced the entry's `_rev`. A request without one stays unconditional.
+			_rev: saveBody._rev === undefined ? undefined : savedRev,
+			actor: { id: user!.id, role: user!.role },
+			origin: { source: "api" },
+		});
+		if (unpublished.success || result.liveContentChanged !== false) {
+			await invalidateRouteCache(cache, [collection, resolvedId]);
+		}
+		if (!unpublished.success) {
+			const { code, message, details } = unpublished.error;
+			return apiError(
+				code,
+				`The fields were saved, but the unpublish failed: ${message}`,
+				mapErrorStatus(code),
+				{ ...details, _rev: savedRev },
+			);
+		}
+		// The unpublish result holds the live columns, not the draft this request saved.
+		return unwrapResult(await emdash.handleContentGet(collection, resolvedId, locale));
+	}
 
 	if (result.liveContentChanged !== false) {
 		await invalidateRouteCache(cache, [collection, resolvedId]);
