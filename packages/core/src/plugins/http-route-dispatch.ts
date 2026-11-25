@@ -4,6 +4,7 @@ import { validateContentEditorPanelInteraction } from "@emdash-cms/blocks/server
 
 import { requirePerm, requireOwnerPerm } from "../api/authorize.js";
 import { apiError, apiSuccess } from "../api/error.js";
+import { getPublicUrl } from "../api/public-url.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { requireScope } from "../auth/scopes.js";
 import type { PluginEditorExtensionDispatch } from "../emdash-runtime.js";
@@ -79,8 +80,15 @@ function authorizePrivatePluginRouteRequest(
 	return null;
 }
 
+/** Behind a TLS-terminating proxy `request.url` is the internal address, not the one the browser is on. */
+function publicRequestUrl(request: Request, config: EmDashHandlers["config"] | undefined): string {
+	const url = new URL(request.url);
+	return getPublicUrl(url, config, `${url.pathname}${url.search}`);
+}
+
 export interface PluginApiRequestContext {
-	runtime: Pick<EmDashHandlers, "getPluginRouteMeta" | "handlePluginApiRoute">;
+	runtime: Pick<EmDashHandlers, "getPluginRouteMeta" | "handlePluginApiRoute"> &
+		Partial<Pick<EmDashHandlers, "config">>;
 	pluginId: string;
 	path: string;
 	request: Request;
@@ -145,7 +153,9 @@ export async function dispatchPluginApiRequest({
 			response = pluginRouteResponseFromWire(
 				await pluginRouteResponseToWire(
 					result.data,
-					routeMeta.public ? { publicRequestUrl: request.url } : { allowExternalLocation: true },
+					routeMeta.public
+						? { publicRequestUrl: publicRequestUrl(request, runtime.config) }
+						: { allowExternalLocation: true },
 				),
 				method,
 			);

@@ -128,6 +128,41 @@ describe("raw plugin route responses", () => {
 		expect(response.headers.get("location")).toBeNull();
 	});
 
+	describe("behind a TLS-terminating proxy", () => {
+		function invokeBehindProxy(location: string) {
+			const { locals } = createLocals(
+				{ public: true, response: "raw" },
+				pluginResponse({ status: 302, headers: { location } }),
+			);
+			Object.assign(locals.emdash, { config: { siteUrl: "https://example.com" } });
+			return GET({
+				params: { pluginId: "reports", path: "download" },
+				request: new Request("http://example.com/_emdash/api/plugins/reports/download"),
+				locals,
+			} as never);
+		}
+
+		it.each([
+			"http:other.example/landing",
+			"http:/other.example/landing",
+			"http:\\other.example/landing",
+			"http://example.com/download/complete",
+		])("rejects a public raw redirect to %s", async (location) => {
+			const response = await invokeBehindProxy(location);
+			expect(response.status).toBe(500);
+			expect(response.headers.get("location")).toBeNull();
+		});
+
+		it.each(["/_emdash/admin", "https://example.com/download/complete"])(
+			"allows a public raw redirect to %s",
+			async (location) => {
+				const response = await invokeBehindProxy(location);
+				expect(response.status).toBe(302);
+				expect(response.headers.get("location")).toBe(location);
+			},
+		);
+	});
+
 	it.each(["/_emdash/admin", "https://example.com/download/complete"])(
 		"allows a safe public raw redirect to %s",
 		async (location) => {
