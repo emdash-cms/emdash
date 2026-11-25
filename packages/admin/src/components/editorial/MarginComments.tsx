@@ -304,16 +304,27 @@ export function MarginComments({
 		clearLinkedThread();
 	}, [linkedThreadId, isLoading, threads, editors, fieldLabels, clearLinkedThread]);
 
-	const highlighted = React.useMemo(
+	const placed = React.useMemo(
 		() => new Set(highlights.map((highlight) => highlight.threadId)),
 		[highlights],
 	);
+	// An edit drops a highlight whose text it deletes before the threads are placed again, so
+	// read what the editors hold now. Each transaction re-renders the margin.
+	const highlighted = new Set<string>();
+	for (const field of new Set(highlights.map((highlight) => highlight.field))) {
+		const editor = editors.get(field);
+		if (!editor || editor.isDestroyed) continue;
+		for (const highlight of getEditorialHighlights(editor.state)) {
+			highlighted.add(highlight.threadId);
+		}
+	}
 	const isDetached = (thread: EditorialThread) => {
 		const { anchor } = thread;
 		if (!isEditorAnchor(anchor)) return false;
 		if (!Object.hasOwn(fieldLabels, anchor.field)) return true;
 		// Until its field's editor is ready, a thread is as the server last found it.
 		if (!editors.has(anchor.field)) return thread.anchorState === "orphaned";
+		if (placed.has(thread.id) && !highlighted.has(thread.id)) return true;
 		return !attachedIds.has(thread.id);
 	};
 	const visible = threads.filter(

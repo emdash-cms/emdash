@@ -312,6 +312,30 @@ describe("editorial comments in Portable Text fields", () => {
 		expect(card("thread-kept")!.textContent).not.toContain("Detached");
 		expect(card("thread-gone")!.textContent).toContain("Detached");
 	});
+
+	it("moves a thread's card to the detached list when its text is deleted while editing", async () => {
+		const screen = await renderEntry({
+			fields: { content: { kind: "portableText", label: "Content" } },
+			data: { content: [paragraph("b1", "The quick brown fox")] },
+			threads: [textThread("thread-brown", "content", "brown", "The quick ")],
+		});
+		await screen.getByRole("button", { name: "Show comments" }).click();
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		const card = margin.element().querySelector.bind(margin.element());
+		await vi.waitFor(() =>
+			expect(card('[data-editorial-thread-card="thread-brown"]')).not.toBeNull(),
+		);
+		const { editor } = editorFor("Content");
+
+		selectText(editor, "brown ");
+		editor.commands.deleteSelection();
+
+		await vi.waitFor(() => {
+			const deleted = card<HTMLElement>('[data-editorial-thread-card="thread-brown"]');
+			expect(deleted?.textContent).toContain("Detached");
+			expect(deleted?.checkVisibility({ visibilityProperty: true })).toBe(true);
+		});
+	});
 });
 
 describe("editorial comments without edit access", () => {
