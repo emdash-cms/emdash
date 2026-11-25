@@ -230,6 +230,36 @@ describe("GET /content/:collection — subscriber drafts leak", () => {
 		expect(call?.status).toBeUndefined();
 	});
 
+	it("hides a published item's pending draft from SUBSCRIBER", async () => {
+		const pending = makeItem({
+			id: "pub-2",
+			status: "published",
+			draftRevisionId: "rev-2",
+			version: 3,
+		});
+		const emdash = buildEmdash({ listItems: [pending] });
+		const res = await getList(ctx({ user: subscriber, emdash }));
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: { items: StubItem[] } };
+		expect(body.data.items.map((i) => i.id)).toEqual(["pub-2"]);
+		expect(body.data.items[0]).not.toHaveProperty("draftRevisionId");
+		expect(body.data.items[0]).not.toHaveProperty("version");
+	});
+
+	it("lists a published item's pending draft for CONTRIBUTOR", async () => {
+		const pending = makeItem({
+			id: "pub-2",
+			status: "published",
+			draftRevisionId: "rev-2",
+			version: 3,
+		});
+		const emdash = buildEmdash({ listItems: [pending] });
+		const res = await getList(ctx({ user: contributor, emdash }));
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: { items: StubItem[] } };
+		expect(body.data.items[0]).toMatchObject({ draftRevisionId: "rev-2", version: 3 });
+	});
+
 	it("parses indexed field filters before calling the runtime", async () => {
 		const emdash = buildEmdash({ listItems: items });
 		const fieldFilters = encodeURIComponent(
@@ -304,11 +334,13 @@ describe("GET /content/:collection/:id — subscriber drafts leak", () => {
 			ctx({ user: subscriber, emdash, params: { collection: "post", id: "p1" } }),
 		);
 		expect(res.status).toBe(200);
-		const body = (await res.json()) as { data: { item: Record<string, unknown>; _rev: string } };
+		const body = (await res.json()) as { data: { item: Record<string, unknown>; _rev?: string } };
 		expect(body.data.item.data).toEqual({ title: "Published title" });
 		expect(body.data.item).not.toHaveProperty("liveData");
 		expect(body.data.item).not.toHaveProperty("draftRevisionId");
-		expect(body.data._rev).toBe("rev1");
+		// Saving or discarding a draft advances `version`, and `_rev` encodes it.
+		expect(body.data.item).not.toHaveProperty("version");
+		expect(body.data).not.toHaveProperty("_rev");
 	});
 
 	it("serves CONTRIBUTOR the pending draft of a published item", async () => {
@@ -324,10 +356,12 @@ describe("GET /content/:collection/:id — subscriber drafts leak", () => {
 		const res = await getItem(
 			ctx({ user: contributor, emdash, params: { collection: "post", id: "p1" } }),
 		);
-		const body = (await res.json()) as { data: { item: Record<string, unknown> } };
+		const body = (await res.json()) as { data: { item: Record<string, unknown>; _rev?: string } };
 		expect(body.data.item.data).toEqual({ title: "Unpublished edit" });
 		expect(body.data.item.liveData).toEqual({ title: "Published title" });
 		expect(body.data.item.draftRevisionId).toBe("rev-draft");
+		expect(body.data.item.version).toBe(1);
+		expect(body.data._rev).toBe("rev1");
 	});
 });
 
