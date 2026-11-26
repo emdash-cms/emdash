@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { MediaUsageRepository } from "../../../src/database/repositories/media-usage.js";
 import { MediaRepository } from "../../../src/database/repositories/media.js";
+import { OptionsRepository } from "../../../src/database/repositories/options.js";
 import { validateIdentifier } from "../../../src/database/validate.js";
 import { installMediaUsageCaptureTriggers } from "../../../src/media/usage/capture-triggers.js";
 import {
@@ -128,7 +129,10 @@ describeEachDialect("content media usage repair", (dialect) => {
 	});
 
 	it("indexes rich text media named by its file URL", async () => {
+		await new OptionsRepository(ctx.db).set("site:url", "https://content.example.test");
 		await registry.createField("posts", { slug: "body", label: "Body", type: "portableText" });
+		await registry.createField("posts", { slug: "download", label: "Download", type: "string" });
+		await registry.createField("posts", { slug: "source", label: "Source", type: "url" });
 		const media = new MediaRepository(ctx.db);
 		const image = await media.create({
 			filename: "slash-menu.png",
@@ -140,6 +144,21 @@ describeEachDialect("content media usage repair", (dialect) => {
 			mimeType: "video/mp4",
 			storageKey: "01K0EDITORVIDEO.mp4",
 		});
+		const pdf = await media.create({
+			filename: "linked.pdf",
+			mimeType: "application/pdf",
+			storageKey: "01K0LINKEDPDF.pdf",
+		});
+		const htmlImage = await media.create({
+			filename: "html-image.png",
+			mimeType: "image/png",
+			storageKey: "01K0HTMLIMAGE.png",
+		});
+		const htmlPdf = await media.create({
+			filename: "html-document.pdf",
+			mimeType: "application/pdf",
+			storageKey: "01K0HTMLPDF.pdf",
+		});
 		const post = await insertPost(ctx, {
 			slug: "release-notes",
 			status: "published",
@@ -147,27 +166,48 @@ describeEachDialect("content media usage repair", (dialect) => {
 		});
 		await sql`
 			UPDATE ec_posts
-			SET body = ${JSON.stringify([
-				{
-					_type: "image",
-					_key: "markdown",
-					alt: "Slash menu",
-					asset: { url: "/_emdash/api/media/file/01K0MARKDOWNIMAGE.png" },
-				},
-				{
-					_type: "video",
-					_key: "editor",
-					asset: {
-						_ref: "/_emdash/api/media/file/01K0EDITORVIDEO.mp4",
-						url: "/_emdash/api/media/file/01K0EDITORVIDEO.mp4",
+			SET download = ${"https://content.example.test/_emdash/api/media/file/01K0LINKEDPDF.pdf"},
+				source = ${"https://content.example.test/_emdash/api/media/file/01K0EDITORVIDEO.mp4"},
+				body = ${JSON.stringify([
+					{
+						_type: "image",
+						_key: "markdown",
+						alt: "Slash menu",
+						asset: {
+							url: "https://content.example.test/_emdash/api/media/file/01K0MARKDOWNIMAGE.png",
+						},
 					},
-				},
-				{
-					_type: "image",
-					_key: "missing",
-					asset: { url: "/_emdash/api/media/file/01K0DELETED.png" },
-				},
-			])}
+					{
+						_type: "video",
+						_key: "editor",
+						asset: {
+							_ref: "https://content.example.test/_emdash/api/media/file/01K0EDITORVIDEO.mp4",
+							url: "https://content.example.test/_emdash/api/media/file/01K0EDITORVIDEO.mp4",
+						},
+					},
+					{
+						_type: "image",
+						_key: "missing",
+						asset: { url: "/_emdash/api/media/file/01K0DELETED.png" },
+					},
+					{
+						_type: "htmlBlock",
+						_key: "html-links",
+						html: '<a href="https://content.example.test/_emdash/api/media/file/01K0HTMLPDF.pdf"><img src="https://content.example.test/_emdash/api/media/file/01K0HTMLIMAGE.png"></a>',
+					},
+					{
+						_type: "block",
+						_key: "linked",
+						children: [{ _type: "span", text: "Download PDF" }],
+						markDefs: [
+							{
+								_type: "link",
+								_key: "pdf-link",
+								href: "https://content.example.test/_emdash/api/media/file/01K0LINKEDPDF.pdf",
+							},
+						],
+					},
+				])}
 			WHERE id = ${post.id}
 		`.execute(ctx.db);
 
@@ -186,15 +226,65 @@ describeEachDialect("content media usage repair", (dialect) => {
 				}),
 			},
 		]);
-		expect(await usageRepo.findCurrentUsageByMediaId(video.id)).toEqual([
-			{
-				source: expect.objectContaining({ contentId: post.id }),
-				occurrence: expect.objectContaining({
-					fieldPath: "body[1].asset._ref",
-					referenceType: "portable_text_video",
-					mediaId: video.id,
+		expect(await usageRepo.findCurrentUsageByMediaId(video.id)).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					occurrence: expect.objectContaining({
+						fieldPath: "body[1].asset._ref",
+						referenceType: "portable_text_video",
+						mediaId: video.id,
+					}),
 				}),
-			},
+			]),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId(pdf.id)).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					occurrence: expect.objectContaining({
+						fieldPath: "download",
+						referenceType: "link",
+						mediaId: pdf.id,
+					}),
+				}),
+				expect.objectContaining({
+					occurrence: expect.objectContaining({
+						fieldPath: "body[4].markDefs[0].href",
+						referenceType: "link",
+						mediaId: pdf.id,
+					}),
+				}),
+			]),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId(video.id)).toEqual(
+			expect.arrayContaining([
+				expect.objectContaining({
+					occurrence: expect.objectContaining({
+						fieldPath: "source",
+						referenceType: "link",
+						mediaId: video.id,
+					}),
+				}),
+			]),
+		);
+		expect(await usageRepo.findCurrentUsageByMediaId(htmlImage.id)).toEqual([
+			expect.objectContaining({
+				occurrence: expect.objectContaining({
+					fieldPath: "body[3].html",
+					occurrenceIndex: 1,
+					referenceType: "link",
+					mediaId: htmlImage.id,
+				}),
+			}),
+		]);
+		expect(await usageRepo.findCurrentUsageByMediaId(htmlPdf.id)).toEqual([
+			expect.objectContaining({
+				occurrence: expect.objectContaining({
+					fieldPath: "body[3].html",
+					occurrenceIndex: 0,
+					referenceType: "link",
+					mediaId: htmlPdf.id,
+				}),
+			}),
 		]);
 		const occurrences = await ctx.db
 			.selectFrom("_emdash_media_usage")
@@ -203,6 +293,11 @@ describeEachDialect("content media usage repair", (dialect) => {
 		expect(occurrences.map((row) => row.field_path).toSorted()).toEqual([
 			"body[0].asset.url",
 			"body[1].asset._ref",
+			"body[3].html",
+			"body[3].html",
+			"body[4].markDefs[0].href",
+			"download",
+			"source",
 		]);
 	});
 

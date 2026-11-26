@@ -1,7 +1,7 @@
 import { z, type ZodType } from "zod";
 
 import { hashString } from "../utils/hash.js";
-import { isSafeUrlFieldValue } from "../utils/url.js";
+import { isSafeMediaUrl, isSafeUrlFieldValue } from "../utils/url.js";
 import type { BlockFieldDefinition } from "./block-types.js";
 import {
 	isStoragelessField,
@@ -74,6 +74,20 @@ export function generateBlockFieldSchema(field: BlockFieldDefinition): ZodType {
 		defaultValue: field.defaultValue,
 	});
 }
+
+/**
+ * A URL inside an `image` or `file` value. Themes render these in `src` and
+ * `href` attributes, so only http, https and scheme-less values are accepted.
+ */
+const mediaUrlSchema = z.string().check((ctx) => {
+	if (isSafeMediaUrl(ctx.value)) return;
+	ctx.issues.push({
+		code: "invalid_format",
+		format: "url",
+		input: ctx.value,
+		message: "media URL must use http or https, or be a relative path",
+	});
+});
 
 /**
  * Get base Zod schema for a field type
@@ -162,7 +176,7 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 		case "image": {
 			const mediaSchema = z.object({
 				id: z.string(),
-				src: z.string().optional(),
+				src: mediaUrlSchema.optional(),
 				alt: z.string().optional(),
 				caption: z.string().optional(),
 				width: z.number().optional(),
@@ -177,7 +191,7 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 				/** Provider ID (e.g. "local", "cloudflare-images") */
 				provider: z.string().optional(),
 				/** Admin-side preview URL for external providers (not persisted by plugins) */
-				previewUrl: z.string().optional(),
+				previewUrl: mediaUrlSchema.optional(),
 				/** Provider-specific metadata; for local media this carries storageKey */
 				meta: z.record(z.string(), z.unknown()).optional(),
 			});
@@ -190,8 +204,8 @@ function getBaseSchema(type: FieldType, field: Pick<Field, "validation">): ZodTy
 		case "file":
 			return z.object({
 				id: z.string(),
-				url: z.string().optional(),
-				src: z.string().optional(),
+				url: mediaUrlSchema.optional(),
+				src: mediaUrlSchema.optional(),
 				filename: z.string().optional(),
 				mimeType: z.string().optional(),
 				size: z.number().optional(),

@@ -18,25 +18,38 @@ export function checkModerationLinks(
 	return links.map(checkModerationLink);
 }
 
+const SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
+const IN_PAGE_HOST = "in-page.invalid";
+
 export function checkModerationLink(link: ModerationLinkField): CheckedModerationLink {
 	const issues: DisplayUrlIssue[] = [];
 	if (containsControlCharacter(link.url)) issues.push("control-character");
+	const relative = link.usage === "markdown" && !SCHEME_RE.test(link.url);
 	let parsed: URL;
 	try {
-		parsed = new URL(link.url);
+		parsed = relative ? new URL(link.url, `https://${IN_PAGE_HOST}/`) : new URL(link.url);
 	} catch {
 		return { ...link, issues: [...issues, "invalid-url"] };
 	}
+	// A relative or anchor link stays on the page that renders it; one that
+	// resolves to another host, such as `//host/path`, is checked as outbound.
+	if (relative && parsed.host === IN_PAGE_HOST) return { ...link, issues };
 	const supportedSchemes =
 		link.usage === "repository"
-			? ["https:", "at:"]
+			? ["https:", "http:", "at:"]
 			: link.usage === "markdown"
-				? ["https:", "mailto:"]
-				: ["https:"];
+				? ["https:", "http:", "mailto:"]
+				: ["https:", "http:"];
 	if (!supportedSchemes.includes(parsed.protocol)) issues.push("unsupported-scheme");
 	if (parsed.username !== "" || parsed.password !== "") issues.push("embedded-credentials");
-	if (hasUnicodeAuthority(link.url)) issues.push("unicode-host");
+	if (hasUnicodeAuthority(link.url) || (relative && hasPunycodeLabel(parsed.hostname))) {
+		issues.push("unicode-host");
+	}
 	return { ...link, normalizedUrl: parsed.toString(), issues };
+}
+
+function hasPunycodeLabel(hostname: string): boolean {
+	return hostname.split(".").some((label) => label.startsWith("xn--"));
 }
 
 function hasUnicodeAuthority(value: string): boolean {

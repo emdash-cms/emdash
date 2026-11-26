@@ -457,6 +457,13 @@ function previewFrame(): HTMLIFrameElement | null {
 	return document.querySelector<HTMLIFrameElement>("iframe[title='HTML block preview']");
 }
 
+/** The body of the block's document, which the preview frame's shell holds in its own frame. */
+function previewBody(): HTMLElement {
+	const parser = new DOMParser();
+	const shell = parser.parseFromString(previewFrame()!.srcdoc, "text/html");
+	return parser.parseFromString(shell.querySelector("iframe")!.srcdoc, "text/html").body;
+}
+
 function nextMessageFrom(frame: () => HTMLIFrameElement | null, data: unknown): Promise<void> {
 	return new Promise((resolve) => {
 		const onMessage = (event: MessageEvent) => {
@@ -537,7 +544,7 @@ describe("HTML block preview", () => {
 
 		await vi.waitFor(() => expect(previewFrame()).not.toBeNull());
 		const parse = (html: string) => new DOMParser().parseFromString(html, "text/html").body;
-		expect(parse(previewFrame()!.srcdoc).innerHTML).toBe(parse(site).innerHTML);
+		expect(previewBody().innerHTML).toBe(parse(site).innerHTML);
 	});
 
 	it("cleans an inline block's preview the way the site does", async () => {
@@ -549,7 +556,7 @@ describe("HTML block preview", () => {
 		const { screen } = await renderEditor({ value: [block] });
 
 		await vi.waitFor(() => expect(previewFrame()).not.toBeNull());
-		const body = new DOMParser().parseFromString(previewFrame()!.srcdoc, "text/html").body;
+		const body = previewBody();
 		expect(body.querySelector("script, style")).toBeNull();
 		expect(body.querySelector("p")?.getAttributeNames()).toEqual([]);
 		expect(body.textContent).toBe("Kept");

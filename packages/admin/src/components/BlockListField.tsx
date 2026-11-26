@@ -127,6 +127,8 @@ export interface BlockListFieldProps {
 	invalidItems: ReadonlySet<number>;
 	/** A new token opens the items in `invalidItems`. */
 	revealToken: number;
+	/** Opens this saved item's card without revealing validation problems. */
+	revealItem?: number;
 	onItemDeleted: (deleted: DeletedListItem) => void;
 	/**
 	 * Called as an item's row starts shrinking away before it's deleted, with the function that
@@ -247,6 +249,7 @@ export function BlockListField({
 	error,
 	invalidItems,
 	revealToken,
+	revealItem,
 	onItemDeleted,
 	onItemDeleteStart,
 	onItemsShift,
@@ -272,6 +275,7 @@ export function BlockListField({
 	const [source, setSource] = React.useState(value);
 	const [openKeys, setOpenKeys] = React.useState<ReadonlySet<string>>(() => new Set());
 	const [seenReveal, setSeenReveal] = React.useState(0);
+	const [seenItemReveal, setSeenItemReveal] = React.useState<number | undefined>();
 	const [announcement, setAnnouncement] = React.useState("");
 	/** The row just added, duplicated or put back by Undo, which grows into place. */
 	const [arrived, setArrived] = React.useState<{ key: string; restored?: true } | null>(null);
@@ -323,6 +327,17 @@ export function BlockListField({
 			.map((row) => row.key);
 		if (presentation === "items" && revealedKeys.length > 0) {
 			setOpenKeys(new Set([...openKeys, ...revealedKeys]));
+		}
+	}
+
+	if (revealItem !== seenItemReveal) {
+		setSeenItemReveal(revealItem);
+		const row =
+			revealItem === undefined
+				? undefined
+				: current.find((_, index) => positions[index] === revealItem);
+		if (presentation === "items" && row) {
+			setOpenKeys((keys) => new Set(keys).add(row.key));
 		}
 	}
 

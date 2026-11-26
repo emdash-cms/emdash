@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -272,6 +272,112 @@ describe.each([
 		await settle(await nextRequest("forms/list"), ok({ items: [] }));
 		expect(screen.getByText(/No forms/)).toBeTruthy();
 		expect(requests).toHaveLength(1);
+	});
+});
+
+describe("Submissions permissions", () => {
+	const SubmissionsPage = pages!["/submissions"]!;
+
+	async function loadSubmissions(data: unknown): Promise<HTMLElement> {
+		render(<SubmissionsPage />);
+		await settle(await nextRequest("forms/list"), ok({ items: [form("a", "A")] }));
+		const request = await nextRequest("submissions/list");
+		await settle(request, ok(data));
+		return screen.getByText("Alice");
+	}
+
+	it("hides all write and export controls for an Editor while keeping the row openable", async () => {
+		const alice = await loadSubmissions({
+			items: [{ ...submission("s1", "Alice"), starred: true }],
+			canManage: false,
+		});
+		const row = alice.closest("tr")!;
+
+		expect(screen.queryByText("CSV")).toBeNull();
+		expect(screen.queryByText("JSON")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Toggle status" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+		expect(screen.queryByText("Actions")).toBeNull();
+		expect(row.querySelector("svg")).not.toBeNull();
+		expect(within(row).queryAllByRole("button")).toHaveLength(0);
+		fireEvent.click(row);
+		expect(screen.getByText("Submission Detail")).toBeTruthy();
+	});
+
+	it("defaults to read-only when the capability is missing", async () => {
+		await loadSubmissions({ items: [submission("s1", "Alice")] });
+
+		expect(screen.queryByText("CSV")).toBeNull();
+		expect(screen.queryByText("JSON")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Toggle status" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+	});
+
+	it("does not expose controls while a new submissions list is loading", async () => {
+		render(<SubmissionsPage />);
+		await settle(await nextRequest("forms/list"), ok({ items: [form("a", "A")] }));
+		await nextRequest("submissions/list");
+
+		expect(screen.queryByText("CSV")).toBeNull();
+		expect(screen.queryByText("JSON")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Toggle status" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+	});
+
+	it("does not expose controls when loading submissions fails", async () => {
+		render(<SubmissionsPage />);
+		await settle(await nextRequest("forms/list"), ok({ items: [form("a", "A")] }));
+		await settle(await nextRequest("submissions/list"), new Response("{}", { status: 500 }));
+
+		expect(screen.getByRole("alert")).toBeTruthy();
+		expect(screen.queryByText("CSV")).toBeNull();
+		expect(screen.queryByText("JSON")).toBeNull();
+		expect(screen.queryByRole("button", { name: "Toggle status" })).toBeNull();
+		expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+	});
+
+	it.each(["read-only", "failure"])(
+		"revokes controls when the next list is %s",
+		async (outcome) => {
+			await loadSubmissions({ items: [submission("s1", "Alice")], canManage: true });
+			expect(screen.getByText("CSV")).toBeTruthy();
+			fireEvent.change(screen.getByRole("combobox", { name: "Filter by status" }), {
+				target: { value: "new" },
+			});
+			const request = await nextRequest("submissions/list");
+			expect(screen.queryByText("CSV")).toBeNull();
+			await settle(
+				request,
+				outcome === "failure"
+					? new Response("{}", { status: 500 })
+					: ok({ items: [submission("s2", "Bob")], canManage: false }),
+			);
+			expect(screen.queryByText("CSV")).toBeNull();
+			expect(screen.queryByText("JSON")).toBeNull();
+			expect(screen.queryByRole("button", { name: "Toggle status" })).toBeNull();
+			expect(screen.queryByRole("button", { name: "Delete" })).toBeNull();
+		},
+	);
+
+	it("keeps submission actions available to an administrator", async () => {
+		const alice = await loadSubmissions({
+			items: [submission("s1", "Alice")],
+			canManage: true,
+		});
+		const row = alice.closest("tr")!;
+
+		expect(screen.getByText("CSV")).toBeTruthy();
+		expect(screen.getByText("JSON")).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Toggle status" })).toBeTruthy();
+		expect(screen.getByRole("button", { name: "Delete" })).toBeTruthy();
+		expect(screen.getByText("Actions")).toBeTruthy();
+
+		fireEvent.click(within(row).getAllByRole("button")[0]!);
+		await settle(await nextRequest("submissions/update"), ok({}));
+		fireEvent.click(screen.getByRole("button", { name: "Toggle status" }));
+		const update = await nextRequest("submissions/update");
+		expect(update.body.status).toBe("read");
+		await settle(update, ok({}));
 	});
 });
 

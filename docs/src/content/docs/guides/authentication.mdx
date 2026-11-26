@@ -120,6 +120,8 @@ export default defineConfig({
 
 Order matters for the login page: providers render in the order you list them, with compact button-only providers first and providers that need a custom form (like Atmosphere, which asks for a handle) shown after.
 
+If you set a site URL (`siteUrl`, `EMDASH_SITE_URL`, or `SITE_URL`), start GitHub, Google, and Microsoft sign-in from that host name. The provider returns the browser to the site URL, and a sign-in started on another host name, such as `www.` instead of the bare domain or a `workers.dev` address instead of your custom domain, fails with "OAuth session expired or invalid".
+
 ### GitHub
 
 The following example enables the GitHub provider:
@@ -404,10 +406,20 @@ When deploying to Cloudflare, you can use [Cloudflare Access](https://developers
 
 ### Set up Access
 
-1. Create a Cloudflare Access application and policy for your site's `/_emdash/*` path. Protecting only `/_emdash/admin/*` leaves the REST API without the JWT that EmDash expects.
-2. Copy the application's **Application Audience (AUD) Tag**.
-3. Store the tag in the `CF_ACCESS_AUDIENCE` runtime environment variable. Follow the [EmDash secrets guide](/deployment/secrets/) for local and deployed values.
-4. Configure EmDash to read that value at runtime:
+1. Create a Cloudflare Access application and an Allow policy for your site's `/_emdash/*` path. Protecting only `/_emdash/admin/*` leaves the REST API without the JWT that EmDash expects.
+2. Create a second Access application for the EmDash routes that site visitors use, with a **Bypass** policy that includes **Everyone**. Add these paths on your site's hostname:
+
+   - `/_emdash/api/media/file`, which serves images and other uploaded files when your storage has no `publicUrl`
+   - `/_emdash/api/comments`, which lists and accepts comments
+   - `/_emdash/api/search`, which answers the live search box
+   - each plugin route that a plugin marks as public, such as `/_emdash/api/plugins/emdash-forms/submit` for the forms plugin
+   - `/_emdash/api/health`, if an uptime monitor checks it
+
+   Access uses the application with the more specific path, so these routes stay open to visitors while the rest of `/_emdash/*` requires a login. Without this application, a visitor's request to one of these routes redirects to the Access login page, so images don't load and comments and search fail. A path also covers the routes below it, such as the admin-only `/_emdash/api/search/stats`. EmDash still rejects requests to those admin-only routes from anyone who isn't signed in.
+
+3. Copy the **Application Audience (AUD) Tag** of the application from step 1.
+4. Store the tag in the `CF_ACCESS_AUDIENCE` runtime environment variable. Follow the [EmDash secrets guide](/deployment/secrets/) for local and deployed values.
+5. Configure EmDash to read that value at runtime:
 
 ```js title="astro.config.mjs"
 import { defineConfig } from "astro/config";
@@ -440,9 +452,10 @@ The application audience identifies which Access application issued the JWT. EmD
 | `audience`      | `string`  | —        | Application Audience (AUD) tag supplied directly. Prefer `audienceEnvVar` on Workers. |
 | `autoProvision` | `boolean` | `true`   | Create EmDash users on first Access login                   |
 | `defaultRole`   | `number`  | `30`     | Role for users not matching any group (30 = Author)           |
-| `syncRoles`     | `boolean` | `false`  | Update role on each login based on IdP groups                 |
+| `syncRoles`     | `boolean` | `false`  | Update role on each login based on IdP groups or GitHub teams                 |
 | `syncName`      | `boolean` | `true`   | Update the user's name from the IdP on every authenticated request |
-| `roleMapping`   | `object`  | —        | Map IdP group names to role levels                            |
+| `roleMapping`   | `object`  | —        | Map IdP group names or GitHub `org/team` names to role levels                            |
+| `matchGroupsBy` | `"name"` \| `"id"` | `"name"` | Group field that `roleMapping` keys are compared with. See [Matching groups by ID](#matching-groups-by-id). |
 | `audienceEnvVar`| `string`  | `"CF_ACCESS_AUDIENCE"` | Environment variable containing the audience tag. Used when `audience` is omitted. |
 
 Provide either `audience` or an environment value under `audienceEnvVar`.
@@ -466,13 +479,39 @@ emdash({
 });
 ```
 
-The first matching group wins if a user belongs to multiple groups. The **first user** to access the site always becomes Admin, regardless of groups.
+For the GitHub identity provider, use `"organization-name/team-name"` as the `roleMapping` key, such as `"my-org/Web Admins": 50`. Use the organization and team names returned by Access. Bare team names and organization names are not matched: users can create identically named teams in other GitHub organizations. Update mappings when a GitHub organization is renamed, because another organization can claim its old name.
+
+The first match wins in the order returned by Access, checking groups before GitHub teams. The **first user** to access the site always becomes Admin, regardless of groups.
+
+#### Matching groups by ID
+
+By default, `roleMapping` keys are compared with group display names. Some identity providers allow several groups with the same display name and let members create their own groups. Microsoft Entra ID, for example, lets ordinary users create groups by default and does not require display names to be unique. In that case, anyone who can create a group named like a mapped key, such as `Admins`, receives that key's role when their account is provisioned, or on their next request with `syncRoles: true`.
+
+If members of your directory can create or rename groups, set `matchGroupsBy: "id"` and key `roleMapping` by group ID:
+
+```js title="astro.config.mjs"
+emdash({
+	auth: access({
+		teamDomain: "myteam.cloudflareaccess.com",
+		audienceEnvVar: "CF_ACCESS_AUDIENCE",
+		matchGroupsBy: "id",
+		roleMapping: {
+			"0b5c8e2a-3f1d-4c7e-9a61-2d4f8b7c1e90": 50, // Admins
+			"7e1a4d3c-9b2f-4e8a-b5c6-1f0d2a3e4b57": 40, // Content Editors
+		},
+	}),
+});
+```
+
+Use the `id` values that Access reports for each group. EmDash logs them in the `[cf-access] Identity from Access` message on each sign-in, and you can also read them from `https://<teamDomain>/cdn-cgi/access/get-identity` while signed in through Access. GitHub team keys stay in `"organization-name/team-name"` form with either setting.
+
+Matching by ID only helps when the `id` that Access reports differs from the group's name. The log line prints both for each group. Some generic SAML and OIDC providers send the group name as its `id`, so the two are the same. In that case `matchGroupsBy: "id"` makes no difference: restrict who can create and rename groups in your identity provider instead.
 
 ### Role sync behavior
 
 By default (`syncRoles: false`), a user's role is set when they first log in and doesn't change afterward. This allows admins to manually adjust roles in EmDash.
 
-Set `syncRoles: true` if you want IdP groups to be authoritative — the user's role will update on every login based on their current groups.
+Set `syncRoles: true` if you want IdP groups or GitHub teams to be authoritative — the user's role will update on every login based on their current memberships.
 
 ### Name sync behavior
 
@@ -508,6 +547,12 @@ When Access is enabled, these features are unavailable:
 Access policies decide who reaches EmDash. EmDash still owns local roles, content ownership, and the disabled-user flag. With `syncRoles: false`, administrators can change a provisioned user's role in EmDash. With `syncRoles: true`, the mapped Access groups replace that role on each login. User names follow the same pattern with `syncName`, except that it defaults to `true`.
 
 ### Troubleshooting
+
+#### Images, comments, or search fail for visitors
+
+Visitors see broken images, the live search box shows no results, or the comment form reports **Network error. Please try again.** In the browser's developer tools, requests to `/_emdash/api/media/file/...`, `/_emdash/api/search`, or `/_emdash/api/comments/...` redirect to your `<team>.cloudflareaccess.com` login page, and the console shows CORS errors for the search and comment requests.
+
+The Access application that protects `/_emdash/*` also covers these routes. Add the second Access application with a Bypass policy from [Set up Access](#set-up-access), step 2.
 
 #### "No Access JWT present"
 

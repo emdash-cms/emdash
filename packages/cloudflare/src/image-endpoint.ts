@@ -13,11 +13,17 @@
 // @astrojs/cloudflare's binding-mode transform endpoint; resolved in the consumer.
 import { GET as adapterGET } from "@astrojs/cloudflare/image-transform-endpoint";
 import type { APIRoute } from "astro";
+// @ts-ignore - astro:assets is resolved by the consumer's Astro build
+import { imageConfig } from "astro:assets";
 import { env } from "cloudflare:workers";
 import type { Storage } from "emdash";
 import {
+	cacheMediaResponse,
+	canonicalTransformRedirect,
+	canonicalTransformSearch,
 	getTransformFingerprint,
 	canDelegateImageHref,
+	isCacheableMediaSource,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
@@ -27,6 +33,8 @@ import {
 	isNotModified,
 	type ImageTransformFormat,
 } from "emdash/media/image-endpoint";
+// @ts-ignore - virtual module resolved by the consumer's Astro build
+import virtualConfig from "virtual:emdash/config";
 
 export const prerender = false;
 
@@ -88,6 +96,14 @@ export const GET: APIRoute = async (ctx) => {
 		}
 		// Not EmDash media: bundled assets via ASSETS, allowed remote via fetch.
 		return adapterGET(ctx);
+	}
+
+	// Astro adds the adapter's assetQueryParams; the public `astro:assets` type omits it.
+	const config: typeof imageConfig & { assetQueryParams?: URLSearchParams } = imageConfig;
+	const stockService = config.service.entrypoint === "@astrojs/cloudflare/image-service-workerd";
+	if (stockService) {
+		const canonical = canonicalTransformSearch(url, config.assetQueryParams);
+		if (canonical !== null) return canonicalTransformRedirect(url, canonical);
 	}
 
 	// An unread download keeps its storage read open even for a bodyless response.
@@ -161,6 +177,13 @@ export const GET: APIRoute = async (ctx) => {
 			return serveOriginal(original, ORIGINAL_FALLBACK);
 		}
 
+		if (
+			stockService &&
+			virtualConfig?.routeCacheProvider !== "memory" &&
+			isCacheableMediaSource(url.searchParams.get("href"), url)
+		) {
+			cacheMediaResponse(ctx.cache, key);
+		}
 		return new Response(response.body, {
 			status: 200,
 			headers: {

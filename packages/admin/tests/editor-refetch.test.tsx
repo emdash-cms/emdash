@@ -457,6 +457,30 @@ describe("ContentEditPage background reads with the real editor", () => {
 		},
 	);
 
+	it("keeps a title and a slug typed while a manual save was in flight through its reload", async () => {
+		const { screen } = await renderEditPage();
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		const slug = screen.getByRole("textbox", { name: "Slug", exact: true });
+		await title.fill("Saved title");
+		await vi.advanceTimersByTimeAsync(150);
+		server.delayRead();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+		await vi.waitFor(() => expect(server.readPending).toBe(true));
+		await title.fill("Typed during the save");
+		await slug.fill("typed-during-the-save");
+		server.resolveRead();
+		await vi.advanceTimersByTimeAsync(2500);
+
+		const puts = server.requests.filter((r) => r.method === "PUT");
+		expect(puts).toHaveLength(2);
+		expect(puts[1]?.body).toMatchObject({
+			data: { title: "Typed during the save" },
+			slug: "typed-during-the-save",
+		});
+		await expect.element(title).toHaveValue("Typed during the save");
+		await expect.element(slug).toHaveValue("typed-during-the-save");
+	});
+
 	it.each(["discard", "restore"])("replaces unsaved edits after an explicit %s", async (action) => {
 		vi.useRealTimers();
 		if (action === "discard") server.publishWithDraft();
@@ -509,6 +533,72 @@ describe("ContentEditPage background reads with the real editor", () => {
 			_rev: revision(2),
 		});
 		expect(server.current.seo?.noIndex).toBe(true);
+		expect(screen.getByRole("button", { name: "Save anyway", exact: true }).query()).toBeNull();
+	});
+
+	it.each(["manual save", "autosave"])(
+		"conflicts on %s after undoing an edit made before a background read",
+		async (save) => {
+			const { screen, queryClient } = await renderEditPage();
+			const title = screen.getByRole("textbox", { name: "Title", exact: true });
+			await title.fill("Unsaved title");
+			server.advance();
+			await queryClient.refetchQueries({ queryKey: ["content", "posts", "post_1"] });
+			await vi.advanceTimersByTimeAsync(0);
+			await expect.element(title).toHaveValue("Unsaved title");
+
+			await title.fill("Draft title");
+			await vi.advanceTimersByTimeAsync(0);
+			await expect
+				.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+				.toBeNull();
+			await expect.element(title).toHaveValue("Draft title");
+			expect(server.requests.filter((r) => r.method === "PUT")).toHaveLength(0);
+
+			await title.fill("Next local edit");
+			if (save === "manual save") {
+				await screen.getByRole("button", { name: "Save", exact: true }).click();
+				await vi.advanceTimersByTimeAsync(0);
+			} else {
+				await vi.advanceTimersByTimeAsync(2500);
+			}
+			expect(server.requests.find((r) => r.method === "PUT")?.body).toMatchObject({
+				data: { title: "Next local edit" },
+				_rev: revision(1),
+			});
+			await expect
+				.element(screen.getByRole("button", { name: "Save anyway", exact: true }))
+				.toBeVisible();
+			expect(server.current.data).toEqual({ title: "Newer server title" });
+			await expect.element(title).toHaveValue("Next local edit");
+		},
+	);
+
+	it("adopts the revision of newer data applied by a save's item reset", async () => {
+		const { screen, queryClient } = await renderEditPage();
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		await title.fill("Saved local title");
+		server.delayRead();
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+		await vi.waitFor(() => expect(server.readPending).toBe(true));
+		server.advance();
+		server.resolveRead();
+		await vi.waitFor(() =>
+			expect(queryClient.isFetching({ queryKey: ["content", "posts", "post_1"] })).toBe(0),
+		);
+		await expect.element(title).toHaveValue("Newer server title");
+		await expect
+			.element(screen.getByRole("button", { name: "Save", exact: true }).query())
+			.toBeNull();
+
+		await title.fill("Edit on newer title");
+		await screen.getByRole("button", { name: "Save", exact: true }).click();
+		await vi.advanceTimersByTimeAsync(0);
+		expect(server.requests.findLast((r) => r.method === "PUT")?.body).toMatchObject({
+			data: { title: "Edit on newer title" },
+			_rev: revision(3),
+		});
+		expect(server.current.data).toEqual({ title: "Edit on newer title" });
 		expect(screen.getByRole("button", { name: "Save anyway", exact: true }).query()).toBeNull();
 	});
 

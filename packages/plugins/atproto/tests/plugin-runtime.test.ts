@@ -14,6 +14,7 @@ function createCtx(kvValues: Record<string, unknown> = {}) {
 			records: {
 				get: vi.fn(async () => null),
 				put: vi.fn(async () => undefined),
+				delete: vi.fn(async () => true),
 				query: vi.fn(async () => ({ items: [] })),
 				count: vi.fn(async () => 0),
 			},
@@ -543,6 +544,70 @@ describe("sandbox hooks", () => {
 				title: "Updated title",
 				bskyPostRef: { cid: "old-post-cid" },
 			});
+		});
+
+		it.each([
+			[
+				"content:afterUnpublish",
+				{ collection: "posts", content: { id: "post-1", status: "draft" } },
+			],
+			["content:afterDelete", { collection: "posts", id: "post-1", permanent: false }],
+		])("deletes the document and the Bluesky post on %s", async (hook, event) => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const { ctx } = setupExistingSync({ document: null });
+			const deleted: string[] = [];
+			ctx.http.fetch.mockImplementation(async (input: string, init?: RequestInit) => {
+				if (!input.endsWith("com.atproto.repo.deleteRecord")) {
+					throw new Error(`Unexpected PDS request: ${input}`);
+				}
+				const body = parseRequestBody(init);
+				deleted.push(`${String(body.collection)}/${String(body.rkey)}`);
+				return jsonResponse({});
+			});
+
+			await (plugin as any).hooks[hook].handler(event, ctx);
+
+			expect(deleted).toEqual(["site.standard.document/doc-1", "app.bsky.feed.post/post-1"]);
+			expect(ctx.storage.records.delete).toHaveBeenCalledWith("posts:post-1");
+		});
+
+		it("marks the sync record as an error when removing the records fails", async () => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const { ctx } = setupExistingSync({ document: null });
+			ctx.http.fetch.mockImplementation(async () => jsonResponse({ error: "failed" }, 500));
+
+			await (plugin as any).hooks["content:afterUnpublish"].handler(
+				{ collection: "posts", content: { id: "post-1", status: "draft" } },
+				ctx,
+			);
+
+			expect(ctx.storage.records.delete).not.toHaveBeenCalled();
+			expect(ctx.storage.records.put).toHaveBeenCalledWith(
+				"posts:post-1",
+				expect.objectContaining({
+					atUri: "at://did:example/site.standard.document/doc-1",
+					status: "error",
+					errorMessage: expect.stringContaining("Could not remove the published records"),
+					retryCount: 1,
+				}),
+			);
+		});
+
+		it("keeps the records of an unpublished post when deleteOnUnpublish is off", async () => {
+			const { default: plugin } = await import("../src/plugin.js");
+			const { ctx } = setupExistingSync({ document: null });
+			const getKv = ctx.kv.get.getMockImplementation()!;
+			ctx.kv.get.mockImplementation(async (key: string) =>
+				key === "settings:deleteOnUnpublish" ? false : getKv(key),
+			);
+
+			await (plugin as any).hooks["content:afterUnpublish"].handler(
+				{ collection: "posts", content: { id: "post-1", status: "draft" } },
+				ctx,
+			);
+
+			expect(ctx.http.fetch).not.toHaveBeenCalled();
+			expect(ctx.storage.records.delete).not.toHaveBeenCalled();
 		});
 	});
 });

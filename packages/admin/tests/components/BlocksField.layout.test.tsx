@@ -414,6 +414,31 @@ describe("Block row layout", () => {
 	);
 });
 
+describe("Empty blocks field", () => {
+	it.each(["ltr", "rtl"] as const)(
+		"starts the empty message where the Add block label starts (%s)",
+		async (dir) => {
+			document.documentElement.dir = dir;
+			const screen = await renderField(
+				<div dir={dir} style={{ width: 480 }}>
+					<Field value={[]} blockTypes={[blockType("statement", "Statement")]} />
+				</div>,
+			);
+			const startOfText = (element: Element) => {
+				const text = document.createTreeWalker(element, NodeFilter.SHOW_TEXT).nextNode()!;
+				const range = document.createRange();
+				range.selectNodeContents(text);
+				const box = range.getBoundingClientRect();
+				return dir === "rtl" ? box.right : box.left;
+			};
+
+			const message = screen.getByText("No blocks yet").element();
+			const add = screen.getByRole("button", { name: "Add block", exact: true }).element();
+			expect(startOfText(message)).toBeCloseTo(startOfText(add), 0);
+		},
+	);
+});
+
 describe("Block picker position", () => {
 	it("opens next to the control that adds the block", async () => {
 		const screen = await renderField(

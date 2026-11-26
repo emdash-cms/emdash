@@ -20,6 +20,11 @@ import {
 
 export { generateIndexName };
 
+type StorageIndexSyncOptions = {
+	/** Track destructive statements until their outcome is known. */
+	trackDrop?: (drop: () => Promise<unknown>) => Promise<unknown>;
+};
+
 /**
  * Generate a Kysely sql expression for creating an expression index.
  *
@@ -170,7 +175,7 @@ export async function removeOrphanedIndexes(
 	pluginId: string,
 	collection: string,
 	currentIndexes: Array<string | string[]>,
-	options?: { uniqueIndexes?: Array<string | string[]> },
+	options?: { uniqueIndexes?: Array<string | string[]> } & StorageIndexSyncOptions,
 ): Promise<{
 	removed: string[];
 	errors: Array<{ index: string; error: string }>;
@@ -196,8 +201,9 @@ export async function removeOrphanedIndexes(
 	for (const { index_name } of existingIndexes) {
 		if (!currentIndexNames.has(index_name)) {
 			try {
-				// Drop the index
-				await generateDropIndexSql(index_name).execute(db);
+				const drop = () => generateDropIndexSql(index_name).execute(db);
+				if (options?.trackDrop) await options.trackDrop(drop);
+				else await drop();
 
 				// Remove from tracking table
 				await db
@@ -228,7 +234,7 @@ export async function syncStorageIndexes(
 	pluginId: string,
 	collection: string,
 	indexes: Array<string | string[]>,
-	options?: { uniqueIndexes?: Array<string | string[]> },
+	options?: { uniqueIndexes?: Array<string | string[]> } & StorageIndexSyncOptions,
 ): Promise<{
 	created: string[];
 	removed: string[];
@@ -267,6 +273,7 @@ export async function syncDeclaredStorageIndexes(
 			{ indexes: Array<string | string[]>; uniqueIndexes?: Array<string | string[]> }
 		>;
 	}>,
+	options?: StorageIndexSyncOptions,
 ): Promise<StorageIndexSyncResult> {
 	const errors: StorageIndexSyncResult["errors"] = [];
 
@@ -275,6 +282,7 @@ export async function syncDeclaredStorageIndexes(
 			try {
 				const result = await syncStorageIndexes(db, plugin.id, collection, config.indexes, {
 					uniqueIndexes: config.uniqueIndexes,
+					trackDrop: options?.trackDrop,
 				});
 				for (const failure of result.errors) {
 					console.error(

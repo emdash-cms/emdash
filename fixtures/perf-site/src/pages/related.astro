@@ -7,11 +7,12 @@
 import { getEmDashEntry } from "emdash";
 import Base from "../layouts/Base.astro";
 
-const { entry: post, cacheHint } = await getEmDashEntry(
+const { entry: post, error, cacheHint } = await getEmDashEntry(
 	"posts",
 	"designing-with-constraints",
 	{ references: { related_posts: true } },
 );
+if (error) throw error;
 Astro.cache.set(cacheHint);
 
 const related = post?.references?.related_posts?.entries ?? [];

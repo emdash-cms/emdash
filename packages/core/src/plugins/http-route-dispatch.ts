@@ -4,8 +4,11 @@ import { validateContentEditorPanelInteraction } from "@emdash-cms/blocks/server
 
 import { requirePerm, requireOwnerPerm } from "../api/authorize.js";
 import { apiError, apiSuccess } from "../api/error.js";
+import { getPublicUrl } from "../api/public-url.js";
+import type { EmDashHandlers } from "../astro/types.js";
 import { requireScope } from "../auth/scopes.js";
-import type { EmDashRuntime, PluginEditorExtensionDispatch } from "../emdash-runtime.js";
+import type { PluginEditorExtensionDispatch } from "../emdash-runtime.js";
+import { roomId } from "../rooms/types.js";
 import {
 	validateEditorDraftPatch,
 	validateEditorDraftRequest,
@@ -13,8 +16,7 @@ import {
 } from "./editor-draft.js";
 import { pluginRouteResponseFromWire, pluginRouteResponseToWire } from "./route-wire.js";
 import { parseDeclaredPluginRouteInput, PluginRouteRequestError } from "./route-wire.js";
-import type { PluginContentCacheInvalidator, RouteMeta } from "./routes.js";
-import type { UserInfo } from "./types.js";
+import type { PluginContentCacheInvalidator, RouteCallerInput, RouteMeta } from "./routes.js";
 
 function editorDraftErrorResponse(error: { code: string; message: string }): Response {
 	const status =
@@ -49,7 +51,7 @@ function isPermission(value: string): value is Permission {
 function authorizePrivatePluginRouteRequest(
 	routeMeta: RouteMeta,
 	request: Request,
-	user?: UserInfo | null,
+	user?: RouteCallerInput | null,
 	tokenScopes?: string[],
 ): Response | null {
 	const permission = routeMeta.permission ?? "plugins:manage";
@@ -78,12 +80,19 @@ function authorizePrivatePluginRouteRequest(
 	return null;
 }
 
+/** Behind a TLS-terminating proxy `request.url` is the internal address, not the one the browser is on. */
+function publicRequestUrl(request: Request, config: EmDashHandlers["config"] | undefined): string {
+	const url = new URL(request.url);
+	return getPublicUrl(url, config, `${url.pathname}${url.search}`);
+}
+
 export interface PluginApiRequestContext {
-	runtime: EmDashRuntime;
+	runtime: Pick<EmDashHandlers, "getPluginRouteMeta" | "handlePluginApiRoute"> &
+		Partial<Pick<EmDashHandlers, "config">>;
 	pluginId: string;
 	path: string;
 	request: Request;
-	user?: UserInfo | null;
+	user?: RouteCallerInput | null;
 	tokenScopes?: string[];
 	invalidateContentCache?: PluginContentCacheInvalidator;
 	editorDispatch?: PluginEditorExtensionDispatch;
@@ -144,7 +153,9 @@ export async function dispatchPluginApiRequest({
 			response = pluginRouteResponseFromWire(
 				await pluginRouteResponseToWire(
 					result.data,
-					routeMeta.public ? { publicRequestUrl: request.url } : { allowExternalLocation: true },
+					routeMeta.public
+						? { publicRequestUrl: publicRequestUrl(request, runtime.config) }
+						: { allowExternalLocation: true },
 				),
 				method,
 			);
@@ -169,14 +180,23 @@ export async function dispatchPluginApiRequest({
 }
 
 export interface PluginEditorExtensionApiRequestContext {
-	runtime: EmDashRuntime;
+	runtime: Pick<
+		EmDashHandlers,
+		| "getPluginRouteMeta"
+		| "handlePluginApiRoute"
+		| "getPluginEditorExtension"
+		| "handleContentGet"
+		| "handleContentGetForWrite"
+		| "getPluginEditorDraftSchema"
+		| "rooms"
+	>;
 	pluginId: string;
 	kind: "panel" | "action";
 	extensionId: string;
 	collection: string;
 	entryId: string;
 	request: Request;
-	user?: UserInfo | null;
+	user?: RouteCallerInput | null;
 	tokenScopes?: string[];
 	invalidateContentCache?: PluginContentCacheInvalidator;
 }
@@ -210,12 +230,31 @@ export async function dispatchPluginEditorExtensionApiRequest({
 	const denied = authorizePrivatePluginRouteRequest(routeMeta, request, user, tokenScopes);
 	if (denied) return denied;
 
+	let ownershipUser: { id: string; role: RoleLevel } | null | undefined =
+		user == null ? user : undefined;
+	if (user) {
+		const ownerRole = toRoleLevel(user.role);
+		if (ownerRole === null) {
+			return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
+		}
+		ownershipUser = { id: user.id, role: ownerRole };
+	}
+	const roleDenied = requirePerm(ownershipUser, "content:edit_own");
+	if (roleDenied) return roleDenied;
+
 	const requestedLocale = new URL(request.url).searchParams.get("locale") || undefined;
-	const contentResult = await runtime.handleContentGet(collection, entryId, requestedLocale);
+	const contentResult =
+		kind === "action"
+			? await runtime.handleContentGetForWrite(collection, entryId, requestedLocale)
+			: await runtime.handleContentGet(collection, entryId, requestedLocale);
 	if (!contentResult.success) {
-		return contentResult.error?.code === "NOT_FOUND"
-			? apiError("NOT_FOUND", "Content item not found", 404)
-			: apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
+		if (contentResult.error?.code === "NOT_FOUND") {
+			return apiError("NOT_FOUND", "Content item not found", 404);
+		}
+		if (contentResult.error?.code === "AMBIGUOUS_LOCALE") {
+			return apiError("AMBIGUOUS_LOCALE", contentResult.error.message, 400);
+		}
+		return apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
 	}
 	const contentData = contentResult.data;
 	const item =
@@ -226,15 +265,6 @@ export async function dispatchPluginEditorExtensionApiRequest({
 		return apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
 	}
 	const authorId = "authorId" in item && typeof item.authorId === "string" ? item.authorId : "";
-	let ownershipUser: { id: string; role: RoleLevel } | null | undefined =
-		user == null ? user : undefined;
-	if (user) {
-		const ownerRole = toRoleLevel(user.role);
-		if (ownerRole === null) {
-			return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
-		}
-		ownershipUser = { id: user.id, role: ownerRole };
-	}
 	const ownershipDenied = requireOwnerPerm(
 		ownershipUser,
 		authorId,
@@ -310,6 +340,7 @@ export async function dispatchPluginEditorExtensionApiRequest({
 			patchSelector: definition.extension.draft?.patch,
 			canRead: definition.capabilities.includes("admin.editor-draft:read"),
 			canPatch: definition.capabilities.includes("admin.editor-draft:patch"),
+			roomOpen: (await runtime.rooms?.isOpen(roomId({ collection, id: canonicalId }))) ?? false,
 		});
 		if ("code" in draft) {
 			console.warn(

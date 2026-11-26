@@ -275,6 +275,106 @@ describe("GitHub workflow connection requests", () => {
 		).resolves.toMatchObject({ ok: true, status: "pending" });
 	});
 
+	it("does not replace a package policy the publisher set with the repository connection", async () => {
+		await enablePublishing();
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await publisher.requestWorkflowConnection(requestInput());
+		await publisher.confirmWorkflowConnection(PUBLISHER_DID, REQUEST_ID, "version_tags", NOW + 1);
+		await publisher.putWorkloadPolicy({
+			publisherDid: PUBLISHER_DID,
+			packageSlug: "comments",
+			repository: CLAIM.repository,
+			repositoryId: CLAIM.repositoryId,
+			repositoryOwnerId: CLAIM.repositoryOwnerId,
+			workflowRef: CLAIM.workflowRef,
+			allowedRefs: ["refs/heads/main"],
+			allowedEnvironments: ["comments-release"],
+			active: true,
+			expectedVersion: null,
+			now: NOW + 2,
+		});
+
+		await expect(
+			publisher.requestWorkflowConnection(
+				requestInput({
+					requestId: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+					mutationKey: "workflow-connection-request-0002",
+					connectionKey: "L".repeat(43),
+					invitationTokenHash: null,
+					packageSlug: "comments",
+					claim: { ...CLAIM, ref: "refs/tags/comments@1.0.0" },
+					now: NOW + 3,
+				}),
+			),
+		).resolves.toMatchObject({
+			ok: true,
+			status: "pending",
+			request: { expectedPolicyVersion: 1 },
+		});
+		await expect(publisher.getWorkloadPolicy(PUBLISHER_DID, "comments")).resolves.toMatchObject({
+			workflowRef: CLAIM.workflowRef,
+			allowedRefs: ["refs/heads/main"],
+			allowedEnvironments: ["comments-release"],
+			active: true,
+			stateVersion: 1,
+		});
+	});
+
+	it("does not re-enable a derived package policy the publisher disabled", async () => {
+		await enablePublishing();
+		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);
+		await publisher.requestWorkflowConnection(requestInput());
+		await publisher.confirmWorkflowConnection(PUBLISHER_DID, REQUEST_ID, "version_tags", NOW + 1);
+		const derived = await publisher.requestWorkflowConnection(
+			requestInput({
+				requestId: "01JABCDEFGHJKMNPQRSTVWXYZ1",
+				mutationKey: "workflow-connection-request-0002",
+				connectionKey: "L".repeat(43),
+				invitationTokenHash: null,
+				packageSlug: "comments",
+				claim: { ...CLAIM, ref: "refs/tags/comments@1.0.0" },
+				now: NOW + 2,
+			}),
+		);
+		expect(derived).toMatchObject({ ok: true, status: "connected" });
+		if (!derived.ok || derived.status !== "connected") {
+			throw new Error("Workflow connection was not reused");
+		}
+		await expect(
+			publisher.putWorkloadPolicy({
+				publisherDid: PUBLISHER_DID,
+				packageSlug: "comments",
+				repository: derived.policy.repository,
+				repositoryId: derived.policy.repositoryId,
+				repositoryOwnerId: derived.policy.repositoryOwnerId,
+				workflowRef: derived.policy.workflowRef,
+				allowedRefs: derived.policy.allowedRefs,
+				allowedEnvironments: derived.policy.allowedEnvironments,
+				active: false,
+				expectedVersion: derived.policy.stateVersion,
+				now: NOW + 3,
+			}),
+		).resolves.toMatchObject({ ok: true, policy: { active: false, stateVersion: 2 } });
+
+		await expect(
+			publisher.requestWorkflowConnection(
+				requestInput({
+					requestId: "01JABCDEFGHJKMNPQRSTVWXYZ2",
+					mutationKey: "workflow-connection-request-0003",
+					connectionKey: "M".repeat(43),
+					invitationTokenHash: null,
+					packageSlug: "comments",
+					claim: { ...CLAIM, ref: "refs/tags/comments@1.0.1" },
+					now: NOW + 4,
+				}),
+			),
+		).resolves.toMatchObject({ ok: true, status: "pending" });
+		await expect(publisher.getWorkloadPolicy(PUBLISHER_DID, "comments")).resolves.toMatchObject({
+			active: false,
+			stateVersion: 2,
+		});
+	});
+
 	it("keeps tag and manual-run scopes after both are approved", async () => {
 		await enablePublishing();
 		const publisher = env.PUBLISHER_DO.getByName(PUBLISHER_DID);

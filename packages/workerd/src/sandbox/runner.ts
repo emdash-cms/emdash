@@ -17,13 +17,15 @@
  * auth token that encodes its ID and capabilities.
  */
 
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
-import { writeFile, mkdir, rm, unlink } from "node:fs/promises";
+import { rmSync } from "node:fs";
+import { writeFile, mkdtemp, rm, unlink } from "node:fs/promises";
 import { createServer } from "node:http";
 import type { Server } from "node:http";
 import { createRequire } from "node:module";
+import type { Socket } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -52,6 +54,13 @@ import type { BackingServiceHandler } from "./backing-service.js";
 import { generateCapnpConfig, pluginSocketName } from "./capnp.js";
 import type { LoadedPlugin } from "./capnp.js";
 import { MiniflareDevRunner } from "./dev-runner.js";
+import {
+	killWorkerdChildren,
+	signalWorkerd,
+	spawnWorkerd,
+	supportsWorkerdWatchdog,
+	unrefWorkerd,
+} from "./workerd-process.js";
 import { waitForWorkerdReady } from "./workerd-startup.js";
 import { generatePluginWrapper, parseRouteTransport, stringifyRouteTransport } from "./wrapper.js";
 
@@ -103,24 +112,93 @@ export function minimalWorkerdEnv(): NodeJS.ProcessEnv {
  * Falls back to TCP on Windows where Unix sockets are not available. */
 const USE_UNIX_SOCKET = process.platform !== "win32";
 
-const activeRunners = new Set<WorkerdSandboxRunner>();
-let sigHandlerRegistered = false;
+const LIFECYCLE_KEY = Symbol.for("emdash.workerd-runner-lifecycle");
+const lifecycleGlobal = globalThis as typeof globalThis & {
+	[LIFECYCLE_KEY]?: {
+		runners: Set<WorkerdSandboxRunner>;
+		removedSignalHandlers: Set<"SIGTERM" | "SIGINT">;
+		onRemoveListener: typeof onRemoveListener;
+		onSigterm: () => void;
+		onSigint: () => void;
+		onExit: () => void;
+	};
+};
+const lifecycle = (lifecycleGlobal[LIFECYCLE_KEY] ??= {
+	runners: new Set<WorkerdSandboxRunner>(),
+	removedSignalHandlers: new Set<"SIGTERM" | "SIGINT">(),
+	onRemoveListener,
+	onSigterm,
+	onSigint,
+	onExit: onHostExit,
+});
+const activeRunners = lifecycle.runners;
+
+function handleSignal(signal: "SIGTERM" | "SIGINT"): void {
+	const handler = signal === "SIGTERM" ? lifecycle.onSigterm : lifecycle.onSigint;
+	const hasOtherHandlers =
+		lifecycle.removedSignalHandlers.has(signal) ||
+		process.listeners(signal).some((listener) => listener !== handler);
+	if (hasOtherHandlers) {
+		for (const runner of activeRunners) runner["allowHostDrain"]();
+		if (process.platform !== "win32" && !supportsWorkerdWatchdog()) {
+			// A native re-raise skips JavaScript exit handlers; without the EOF
+			// watchdog, cleanup must complete before application handlers run.
+			for (const runner of activeRunners) {
+				void runner.terminateAll();
+				runner["cleanupExitFiles"]();
+			}
+			killWorkerdChildren();
+		}
+		process.off(signal, handler);
+		return;
+	}
+	for (const runner of activeRunners) void runner.terminateAll();
+	killWorkerdChildren();
+	onHostExit();
+	process.off(signal, handler);
+	process.kill(process.pid, signal);
+}
+
+function onRemoveListener(event: string | symbol, listener: (...args: never[]) => unknown): void {
+	if (event !== "SIGTERM" && event !== "SIGINT") return;
+	const handler = event === "SIGTERM" ? lifecycle.onSigterm : lifecycle.onSigint;
+	if (listener === handler) return;
+	// A once-listener removes itself before later signal listeners run. Keep
+	// its ownership until the synchronous dispatch has finished.
+	lifecycle.removedSignalHandlers.add(event);
+	queueMicrotask(() => lifecycle.removedSignalHandlers.delete(event));
+}
+
+function onSigterm(): void {
+	handleSignal("SIGTERM");
+}
+
+function onSigint(): void {
+	handleSignal("SIGINT");
+}
+
+function onHostExit(): void {
+	for (const runner of activeRunners) runner["cleanupExitFiles"]();
+}
 
 function registerSigHandler(runner: WorkerdSandboxRunner): void {
-	activeRunners.add(runner);
-	if (!sigHandlerRegistered) {
-		sigHandlerRegistered = true;
-		process.on("SIGTERM", () => {
-			for (const r of activeRunners) {
-				r["shuttingDown"] = true;
-				void r.terminateAll();
-			}
-		});
+	if (activeRunners.size === 0) {
+		process.on("removeListener", lifecycle.onRemoveListener);
+		process.prependListener("SIGTERM", lifecycle.onSigterm);
+		process.prependListener("SIGINT", lifecycle.onSigint);
+		process.on("exit", lifecycle.onExit);
 	}
+	activeRunners.add(runner);
 }
 
 function unregisterSigHandler(runner: WorkerdSandboxRunner): void {
 	activeRunners.delete(runner);
+	if (activeRunners.size === 0) {
+		process.off("SIGTERM", lifecycle.onSigterm);
+		process.off("SIGINT", lifecycle.onSigint);
+		process.off("exit", lifecycle.onExit);
+		process.off("removeListener", lifecycle.onRemoveListener);
+	}
 }
 
 /**
@@ -130,7 +208,7 @@ function unregisterSigHandler(runner: WorkerdSandboxRunner): void {
 const DEFAULT_LIMITS = {
 	cpuMs: 50,
 	memoryMb: 128,
-	subrequests: 10,
+	subrequests: 30,
 	wallTimeMs: 30_000,
 } as const;
 
@@ -226,30 +304,35 @@ export function makeWorkerdExitHandler(
 
 /**
  * Send SIGTERM and resolve when the process exits, escalating to SIGKILL
- * after `timeoutMs` if it ignores the term signal.
+ * after `timeoutMs` if it ignores the term signal. Forced stops send SIGKILL
+ * immediately.
  *
  * The fallback timer is cleared on clean exit so it does not keep the Node
  * event loop alive past termination -- previously a stale timer would
  * delay `terminateAll()` and process shutdown by up to 5 seconds. Exported
  * for testing.
  */
-export function waitForProcessExit(proc: ChildProcess, timeoutMs = 5000): Promise<void> {
+export function waitForProcessExit(
+	proc: ChildProcess,
+	timeoutMs = 5000,
+	options: { force?: boolean } = {},
+): Promise<void> {
 	let killTimer: ReturnType<typeof setTimeout> | null = null;
 	const exitPromise = new Promise<void>((resolve) => {
-		proc.once("exit", () => {
-			if (killTimer !== null) {
-				clearTimeout(killTimer);
-				killTimer = null;
-			}
-			resolve();
-		});
+		proc.once("exit", () => resolve());
 	});
-	proc.kill("SIGTERM");
-	killTimer = setTimeout(() => {
-		killTimer = null;
-		if (proc.exitCode === null) proc.kill("SIGKILL");
-	}, timeoutMs);
-	return exitPromise;
+	if (options.force) {
+		signalWorkerd(proc, "SIGKILL");
+	} else {
+		signalWorkerd(proc, "SIGTERM");
+		killTimer = setTimeout(() => {
+			killTimer = null;
+			if (proc.exitCode === null && proc.signalCode == null) signalWorkerd(proc, "SIGKILL");
+		}, timeoutMs);
+	}
+	return exitPromise.finally(() => {
+		if (killTimer !== null) clearTimeout(killTimer);
+	});
 }
 
 /** Decoded claims encoded in a per-plugin auth token. */
@@ -305,6 +388,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	/** Backing service HTTP server (runs in Node) */
 	private backingServer: Server | null = null;
+	private backingConnections = new Set<Socket>();
+	private hostDraining = false;
 	private backingPort = 0;
 	private backingService: BackingServiceHandler | null = null;
 	private backingSocketPath: string | null = null;
@@ -324,7 +409,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	private invokeToken = randomBytes(32).toString("hex");
 
-	/** Temporary directory for capnp config and plugin code files */
+	/**
+	 * Temporary directory for capnp config and plugin code files. The
+	 * generated wrappers embed invokeToken and each plugin's bridge token,
+	 * so it must be readable only by the user running the server.
+	 */
 	private configDir: string | null = null;
 
 	/** Email send callback, wired from EmailPipeline */
@@ -346,6 +435,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	/** Serializes concurrent ensureRunning() calls */
 	private startupPromise: Promise<void> | null = null;
 	private stoppingPromise: Promise<void> | null = null;
+	private timeoutProbes = new Set<Promise<void>>();
+	private timeoutWatchdogs = new Set<ReturnType<typeof setTimeout>>();
 
 	/** Crash restart state */
 	private crashCount = 0;
@@ -377,8 +468,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		this.contentActionsCallback = options.contentActions ?? null;
 
 		// Warn about unenforceable resource limits. Standalone workerd
-		// only supports wall-time enforcement on the Node path (via
-		// Promise.race). cpuMs, memoryMb, and subrequests are Cloudflare
+		// only supports wall-time enforcement on the Node path. cpuMs,
+		// memoryMb, and subrequests are Cloudflare
 		// platform features and are not enforced here.
 		if (
 			options.limits &&
@@ -393,7 +484,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			);
 		}
 
-		// Forward SIGTERM to workerd child for clean shutdown
+		// Preserve host signal behavior while stopping sandbox children.
 		registerSigHandler(this);
 	}
 
@@ -420,14 +511,14 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	private resolveWorkerdBinary(): string {
 		try {
-			// workerd package: main is lib/main.js, bin is bin/workerd
 			const esmRequire = createRequire(import.meta.url);
-			const workerdMain = esmRequire.resolve("workerd");
-			// workerdMain = .../node_modules/workerd/lib/main.js
-			// binary = .../node_modules/workerd/bin/workerd
-			const pkgDir = join(workerdMain, "..", "..");
-			const binName = process.platform === "win32" ? "workerd.exe" : "workerd";
-			return join(pkgDir, "bin", binName);
+			// workerd exports the native executable path. Its CLI entry can be
+			// a Node shim, whose exit would leave the actual isolate running.
+			const workerd: unknown = esmRequire("workerd");
+			if (!isRecord(workerd) || typeof workerd.default !== "string") {
+				throw new Error("workerd did not export a binary path");
+			}
+			return workerd.default;
 		} catch {
 			// Fallback: try workerd on PATH
 			return "workerd";
@@ -474,6 +565,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 */
 	async ensureRunning(options?: { waitForPendingRestart?: boolean }): Promise<void> {
 		if (this.shuttingDown || this.gaveUp || this.plugins.size === 0) return;
+		if (this.timeoutProbes.size > 0) {
+			await Promise.all(this.timeoutProbes);
+			return this.ensureRunning(options);
+		}
 		if (this.restartTimer) {
 			if (!options?.waitForPendingRestart) return;
 			await new Promise<void>((resolve) => {
@@ -625,6 +720,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			this.eagerStartTimer = null;
 			this.ensureRunning().catch(() => {});
 		}, 50);
+		if (this.hostDraining) this.eagerStartTimer.unref();
 	}
 
 	/**
@@ -641,14 +737,37 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			clearTimeout(this.eagerStartTimer);
 			this.eagerStartTimer = null;
 		}
-		unregisterSigHandler(this);
 		this.plugins.clear();
 		this.configurationVersion++;
+		await this.stopWorkerd();
+		await this.startupPromise?.catch(() => {});
 		await this.stopWorkerd();
 		await this.stopBackingServer();
 		if (this.configDir) {
 			await rm(this.configDir, { recursive: true, force: true }).catch(() => {});
 			this.configDir = null;
+		}
+		unregisterSigHandler(this);
+	}
+
+	private allowHostDrain(): void {
+		this.hostDraining = true;
+		this.backingServer?.unref();
+		for (const connection of this.backingConnections) connection.unref();
+		if (this.workerdProcess) unrefWorkerd(this.workerdProcess);
+		this.eagerStartTimer?.unref();
+		this.restartTimer?.unref();
+		for (const timer of this.timeoutWatchdogs) timer.unref();
+	}
+
+	private cleanupExitFiles(): void {
+		for (const path of [this.configDir, this.backingSocketPath]) {
+			if (!path) continue;
+			try {
+				rmSync(path, { recursive: true, force: true });
+			} catch {
+				// Exit handlers cannot await filesystem cleanup or abort other runners' cleanup.
+			}
 		}
 	}
 
@@ -709,6 +828,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			this.needsRestart = true;
 			this.resolveRestartWaiters();
 		}, delayMs);
+		if (this.hostDraining) this.restartTimer.unref();
 	}
 
 	/**
@@ -771,6 +891,7 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 			plugins.set(pluginId, { ...plugin });
 		}
 		await this.stopWorkerd();
+		if (this.shuttingDown) return;
 
 		// Ensure backing server is running
 		if (!this.backingServer) {
@@ -779,11 +900,8 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		// Create temp directory for config files
 		if (!this.configDir) {
-			this.configDir = join(
-				tmpdir(),
-				`emdash-workerd-${process.pid}-${randomBytes(8).toString("hex")}`,
-			);
-			await mkdir(this.configDir, { recursive: true });
+			// mkdtemp creates the directory with mode 0700 whatever the umask.
+			this.configDir = await mkdtemp(join(tmpdir(), `emdash-workerd-${process.pid}-`));
 		}
 
 		// Write the shared emdash shim once -- every plugin worker references
@@ -799,14 +917,17 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 				authToken: plugin.token,
 				invokeToken: this.invokeToken,
 			});
-			await writeFile(join(this.configDir, `${safeId}-wrapper.js`), wrapperCode);
+			await writeFile(join(this.configDir, `${safeId}-wrapper.js`), wrapperCode, {
+				mode: 0o600,
+			});
 			await writeFile(join(this.configDir, `${safeId}-plugin.js`), plugin.code);
 		}
 
 		// Generate capnp config. Note: cpuMs/memoryMb/subrequests from
 		// this.limits are NOT passed here because standalone workerd doesn't
 		// support per-worker enforcement of those limits (Cloudflare-only).
-		// Only wallTimeMs is enforced (via Promise.race in invokeHook/invokeRoute).
+		// Wall-time enforcement restarts workerd for unresponsive listeners or
+		// invocations that remain unsettled beyond the grace period.
 		const capnpConfig = generateCapnpConfig({
 			plugins,
 			backingServiceAddress: this.backingServiceAddress,
@@ -816,17 +937,21 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		const configPath = join(this.configDir, "workerd.capnp");
 		await writeFile(configPath, capnpConfig);
+		if (this.shuttingDown) return;
 
 		// Spawn workerd using resolved binary (not npx). Capture into a local
 		// `proc` immediately so the exit handler closure can gate on identity
 		// and ignore late exits from a previous workerd if another restart()
 		// has already reassigned this.workerdProcess.
 		const workerdBin = this.resolveWorkerdBinary();
-		const proc = spawn(workerdBin, ["serve", configPath, "--control-fd=3"], {
-			stdio: ["ignore", "pipe", "pipe", "pipe"],
-			env: minimalWorkerdEnv(),
-		});
+		if (this.shuttingDown) return;
+		const proc = spawnWorkerd(
+			workerdBin,
+			["serve", configPath, "--control-fd=3"],
+			minimalWorkerdEnv(),
+		);
 		this.workerdProcess = proc;
+		if (this.hostDraining) unrefWorkerd(proc);
 
 		this.epoch++;
 
@@ -876,7 +1001,9 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 	 * this, every intentional reload (plugin install/uninstall) would
 	 * cascade into a phantom crash-restart cycle.
 	 */
-	private stopWorkerd(): Promise<void> {
+	private stopWorkerd(force = false): Promise<void> {
+		for (const timer of this.timeoutWatchdogs) clearTimeout(timer);
+		this.timeoutWatchdogs.clear();
 		if (this.stoppingPromise) return this.stoppingPromise;
 		if (!this.workerdProcess) return Promise.resolve();
 		this.healthy = false;
@@ -885,9 +1012,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		const proc = this.workerdProcess;
 		this.workerdProcess = null;
 
-		// Fast path: process already exited (exitCode is set after exit)
-		// waitForProcessExit force-kills after five seconds if SIGTERM is ignored.
-		const completion = proc.exitCode === null ? waitForProcessExit(proc) : Promise.resolve();
+		// A timeout must bypass SIGTERM: a spinning isolate may never handle it.
+		const completion =
+			proc.exitCode === null && proc.signalCode == null
+				? waitForProcessExit(proc, 5000, { force })
+				: Promise.resolve();
 		this.stoppingPromise = completion;
 		return completion.finally(() => {
 			this.intentionalStop = false;
@@ -903,6 +1032,11 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 		return new Promise((resolve, reject) => {
 			this.backingServer = createServer(this.backingService!.handler);
+			this.backingServer.on("connection", (connection) => {
+				this.backingConnections.add(connection);
+				connection.once("close", () => this.backingConnections.delete(connection));
+				if (this.hostDraining) connection.unref();
+			});
 
 			if (USE_UNIX_SOCKET) {
 				const socketPath = join(
@@ -911,11 +1045,13 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 				);
 				this.backingSocketPath = socketPath;
 				this.backingServer.listen(socketPath, () => {
+					if (this.hostDraining) this.backingServer?.unref();
 					resolve();
 				});
 			} else {
 				// Windows fallback: TCP on localhost
 				this.backingServer.listen(0, "127.0.0.1", () => {
+					if (this.hostDraining) this.backingServer?.unref();
 					const addr = this.backingServer!.address();
 					if (addr && typeof addr === "object") {
 						this.backingPort = addr.port;
@@ -1040,6 +1176,50 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 
 	getSiteInfo() {
 		return this.siteInfo;
+	}
+
+	private async stopTimedOutProcess(epoch: number, proc: ChildProcess): Promise<void> {
+		if (epoch !== this.epoch || this.workerdProcess !== proc || this.shuttingDown) return;
+		this.needsRestart = true;
+		await this.stopWorkerd(true);
+	}
+
+	/** Probe responsiveness while allowing one more wall-time interval to settle. */
+	async recoverFromTimeout(
+		pluginId: string,
+		epoch: number,
+		invocation: Promise<unknown>,
+	): Promise<void> {
+		const proc = this.workerdProcess;
+		if (epoch !== this.epoch || !proc || this.shuttingDown) return;
+		const watchdog = setTimeout(() => {
+			this.timeoutWatchdogs.delete(watchdog);
+			void this.stopTimedOutProcess(epoch, proc)
+				.then(() => this.ensureRunning())
+				.catch((error: unknown) => {
+					console.error("[emdash:workerd] timeout recovery failed:", error);
+				});
+		}, this.limits.wallTimeMs);
+		this.timeoutWatchdogs.add(watchdog);
+		if (this.hostDraining) watchdog.unref();
+		const clearWatchdog = () => {
+			clearTimeout(watchdog);
+			this.timeoutWatchdogs.delete(watchdog);
+		};
+		void invocation.then(clearWatchdog, clearWatchdog);
+
+		const port = this.getPluginPort(pluginId);
+		const probe = (async () => {
+			if (await probeAllReady([{ port }], this.invokeToken, 500)) return;
+			await this.stopTimedOutProcess(epoch, proc);
+		})();
+		this.timeoutProbes.add(probe);
+		try {
+			await probe;
+		} finally {
+			this.timeoutProbes.delete(probe);
+		}
+		await this.ensureRunning();
 	}
 
 	/** Get the current epoch (incremented on each workerd restart) */
@@ -1186,6 +1366,7 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 		options?: SandboxInvocationOptions,
 	): Promise<T> {
 		const wallTimeMs = this.limits.wallTimeMs;
+		const epoch = this.runner.currentEpoch;
 		let timer: ReturnType<typeof setTimeout> | undefined;
 		const invocationId = crypto.randomUUID();
 		this.runner.contentActions?.begin?.(
@@ -1202,6 +1383,9 @@ class WorkerdSandboxedPlugin implements SandboxedPluginInstance {
 						`Plugin ${this.manifest.id} exceeded wall-time limit of ${wallTimeMs}ms during ${operation}`,
 					),
 				);
+				void this.runner.recoverFromTimeout(this.id, epoch, invocation).catch((error: unknown) => {
+					console.error("[emdash:workerd] timeout recovery failed:", error);
+				});
 			}, wallTimeMs);
 		});
 

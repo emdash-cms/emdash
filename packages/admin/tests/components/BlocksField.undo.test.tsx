@@ -356,15 +356,21 @@ async function reduceMotion() {
 	});
 }
 
-/** Calls `read` on every frame for `ms`, and returns what it read with the time of each frame. */
-async function sample<T>(read: () => T, ms: number): Promise<Array<{ t: number; value: T }>> {
+/**
+ * Calls `read` on every frame until `done`, or for at most 300 frames, and returns what it read
+ * with the time of each frame.
+ */
+async function sample<T>(
+	read: () => T,
+	done: () => boolean,
+): Promise<Array<{ t: number; value: T }>> {
 	const frames: Array<{ t: number; value: T }> = [];
 	const start = performance.now();
 	await new Promise<void>((resolve) => {
 		const tick = (now: number) => {
 			frames.push({ t: now - start, value: read() });
-			if (now - start < ms) requestAnimationFrame(tick);
-			else resolve();
+			if (done() || frames.length >= 300) resolve();
+			else requestAnimationFrame(tick);
 		};
 		requestAnimationFrame(tick);
 	});
@@ -796,7 +802,10 @@ describe("Structure motion", () => {
 		await frame();
 
 		await menuButtonOf("four").click();
-		const tops = sample(() => toggleOf("three").getBoundingClientRect().top, 450);
+		const tops = sample(
+			() => toggleOf("three").getBoundingClientRect().top,
+			() => !rowKeys().includes("four") && running().length === 0,
+		);
 		await page.getByRole("menuitem", { name: "Delete" }).click();
 		const values = (await tops).map((each) => each.value);
 

@@ -1,8 +1,10 @@
 import { Toast } from "@cloudflare/kumo";
+import { useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { page } from "vitest/browser";
 
 import type { CalendarEntry } from "../../../src/lib/api/calendar";
+import type { AdminManifest } from "../../../src/lib/api/client";
 import {
 	fetchContent,
 	publishContent,
@@ -91,10 +93,14 @@ function details(authorId: string): ContentItem {
 	};
 }
 
+function manifestCollections(supports: string[]): AdminManifest["collections"] {
+	return { posts: { label: "Posts", labelSingular: "Post", supports, hasSeo: false } };
+}
+
 function renderPanel(
 	item: ReturnType<typeof scheduledItem>,
 	user: CurrentUser,
-	{ compact = false } = {},
+	{ compact = false, supports = [] }: { compact?: boolean; supports?: string[] } = {},
 ) {
 	const onClose = vi.fn();
 	const screen = render(
@@ -106,6 +112,7 @@ function renderPanel(
 			i18n={undefined}
 			urlPatterns={{}}
 			user={user}
+			collections={manifestCollections(supports)}
 			onClose={onClose}
 			onRescheduled={() => {}}
 		/>,
@@ -181,4 +188,78 @@ describe("CalendarEntryPanel", () => {
 		expect(panel.getByRole("button", { name: "Reschedule" }).query()).toBeNull();
 		expect(panel.getByRole("button", { name: "Remove schedule" }).query()).toBeNull();
 	});
+
+	it("keeps removing and publishing an existing schedule available without rescheduling", async () => {
+		const { screen, onClose } = renderPanel(scheduledItem("2026-10-15T11:00:00.000Z"), editor, {
+			supports: ["no-scheduling"],
+		});
+		const panel = (await screen).getByRole("dialog", { name: "Launch" });
+
+		expect(panel.getByRole("button", { name: "Reschedule" }).query()).toBeNull();
+		await expect.element(panel.getByRole("button", { name: "Publish now" })).toBeVisible();
+		await expect.element(panel.getByRole("button", { name: "Remove schedule" })).toBeVisible();
+
+		await panel.getByRole("button", { name: "Publish now" }).click();
+		await expect
+			.poll(() => vi.mocked(publishContent).mock.calls[0])
+			.toEqual(["posts", "launch", { locale: "en", _rev: "rev-1" }]);
+
+		await panel.getByRole("button", { name: "Remove schedule" }).click();
+
+		await expect.poll(() => onClose.mock.calls.length).toBe(2);
+		expect(unscheduleContent).toHaveBeenCalledWith("posts", "launch", { locale: "en" });
+	});
+
+	it.each([false, true])(
+		"keeps Reschedule hidden while an opted-out panel closes (compact=%s)",
+		async (compact) => {
+			if (compact) await page.viewport(390, 700);
+			function ClosingPanel() {
+				const [selectedItem, setSelectedItem] = useState<ReturnType<typeof scheduledItem>>();
+				const collections = manifestCollections(["no-scheduling"]);
+				return (
+					<>
+						<button
+							type="button"
+							onClick={() => setSelectedItem(scheduledItem("2026-10-20T09:00:00.000Z"))}
+						>
+							Open entry
+						</button>
+						<CalendarEntryPanel
+							item={selectedItem}
+							display={display}
+							now={now}
+							compact={compact}
+							i18n={undefined}
+							urlPatterns={{}}
+							user={editor}
+							collections={collections}
+							onClose={() => setSelectedItem(undefined)}
+							onRescheduled={() => {}}
+						/>
+					</>
+				);
+			}
+			const screen = await render(<ClosingPanel />, { wrapper: Toast.Provider });
+			await screen.getByRole("button", { name: "Open entry" }).click();
+			const panel = screen.getByRole("dialog", { name: "Launch" });
+			await expect.element(panel).toBeVisible();
+			await expect.poll(() => panel.element().getAnimations().length).toBe(0);
+			await expect.element(panel.getByRole("button", { name: "Remove schedule" })).toBeVisible();
+			expect(panel.getByRole("button", { name: "Reschedule" }).query()).toBeNull();
+			const popup = panel.element();
+			// Keep the exiting content mounted while inspecting its controls.
+			popup.style.transitionDuration = "10s";
+			await panel.getByRole("button", { name: "Close", exact: true }).click();
+			await expect.poll(() => popup.hasAttribute("data-ending-style")).toBe(true);
+			expect(popup.isConnected).toBe(true);
+			expect(popup.textContent).toContain("Launch");
+			expect(popup.textContent).toContain("Remove schedule");
+			expect(
+				[...popup.querySelectorAll("button")].some(
+					(button) => button.textContent?.trim() === "Reschedule",
+				),
+			).toBe(false);
+		},
+	);
 });

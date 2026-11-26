@@ -131,7 +131,10 @@ export function scanRecordValues(record: SitePackageRecord): RecordScan {
 }
 
 export interface ValueIssue {
-	code: Extract<PlanBlockerCode, "integer_out_of_range" | "value_constraint_violation">;
+	code: Extract<
+		PlanBlockerCode,
+		"dangling_reference" | "integer_out_of_range" | "value_constraint_violation"
+	>;
 	message: string;
 	property: string;
 	field?: string;
@@ -189,6 +192,11 @@ function urlMismatch(property: string, field: string): ValueIssue {
 	};
 }
 
+/** A present value of a `url` field, in any type, that a write path would refuse. */
+function isUnsafeUrlValue(value: unknown): boolean {
+	return value !== undefined && value !== null && !isSafeUrlFieldWriteValue(value);
+}
+
 function arrayValue(value: unknown): unknown[] | undefined {
 	if (Array.isArray(value)) return value;
 	if (typeof value !== "string") return undefined;
@@ -203,7 +211,7 @@ function unsafeUrlFields(value: unknown, fields: readonly UrlValueField[], path:
 		const fieldPath = `${path}.${field.slug}`;
 		const fieldValue = value[field.slug];
 		if (field.type === "url") {
-			if (typeof fieldValue === "string" && !isSafeUrlFieldWriteValue(fieldValue)) {
+			if (isUnsafeUrlValue(fieldValue)) {
 				issues.push(fieldPath);
 			}
 			continue;
@@ -212,7 +220,7 @@ function unsafeUrlFields(value: unknown, fields: readonly UrlValueField[], path:
 			if (!isPlainObject(row)) continue;
 			for (const slug of field.urlSubFields ?? []) {
 				const nested = row[slug];
-				if (typeof nested === "string" && !isSafeUrlFieldWriteValue(nested)) {
+				if (isUnsafeUrlValue(nested)) {
 					issues.push(`${fieldPath}.${index}.${slug}`);
 				}
 			}
@@ -221,6 +229,29 @@ function unsafeUrlFields(value: unknown, fields: readonly UrlValueField[], path:
 	return issues;
 }
 
+/**
+ * The URL fields of the block type version a stored block names, or
+ * `undefined` when the package defines no such version. A block without a
+ * `_version` is read as its type's current version, as a write would store it.
+ */
+function blockUrlFields(
+	block: unknown,
+	blockTypes: ReadonlyMap<string, BlockTypeInfo>,
+	blockVersions: ReadonlyMap<string, readonly UrlValueField[]>,
+): readonly UrlValueField[] | undefined {
+	if (!isPlainObject(block) || typeof block._type !== "string") return undefined;
+	const type = blockTypes.get(block._type);
+	if (!type) return undefined;
+	const version = block._version === undefined ? type.currentVersion : block._version;
+	if (typeof version !== "number" || !Number.isInteger(version)) return undefined;
+	return blockVersions.get(`${type.id}:${version}`);
+}
+
+/**
+ * URL values in entry or revision field values that a write path would
+ * refuse. A block that names a block type or version the package lacks is an
+ * issue as well, since none of its URL fields can be checked.
+ */
 export function checkContentUrlFields(
 	values: Record<string, unknown>,
 	fields: ReadonlyMap<string, FieldInfo>,
@@ -232,7 +263,7 @@ export function checkContentUrlFields(
 	for (const [slug, info] of fields) {
 		const value = values[slug];
 		if (info.type === "url") {
-			if (typeof value === "string" && !isSafeUrlFieldWriteValue(value)) {
+			if (isUnsafeUrlValue(value)) {
 				issues.push(urlMismatch(property, slug));
 			}
 			continue;
@@ -248,14 +279,16 @@ export function checkContentUrlFields(
 		}
 		if (info.type !== "blocks") continue;
 		for (const [index, block] of (arrayValue(value) ?? []).entries()) {
-			if (!isPlainObject(block) || typeof block._type !== "string") continue;
-			const type = blockTypes.get(block._type);
-			if (!type) continue;
-			const version =
-				typeof block._version === "number" && Number.isInteger(block._version)
-					? block._version
-					: type.currentVersion;
-			const descriptors = blockVersions.get(`${type.id}:${version}`) ?? [];
+			const descriptors = blockUrlFields(block, blockTypes, blockVersions);
+			if (!descriptors) {
+				issues.push({
+					code: "dangling_reference",
+					message: "Block does not resolve to a block type version in the package",
+					property,
+					field: `${slug}.${index}`,
+				});
+				continue;
+			}
 			for (const path of unsafeUrlFields(block, descriptors, `${slug}.${index}`)) {
 				issues.push(urlMismatch(property, path));
 			}

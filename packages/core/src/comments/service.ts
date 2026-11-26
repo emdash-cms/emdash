@@ -27,6 +27,7 @@ import type {
 	ModerationDecision,
 	StoredComment,
 } from "../plugins/types.js";
+import { applyCommentBeforeCreateResult } from "./before-create.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -125,12 +126,15 @@ export async function createComment(
 	};
 
 	// 2. Run comment:beforeCreate pipeline
-	const result = await hooks.runBeforeCreate(beforeCreateEvent);
+	const result = await hooks.runBeforeCreate({
+		...beforeCreateEvent,
+		comment: { ...beforeCreateEvent.comment },
+	});
 	if (result === false) {
 		return null; // Rejected
 	}
 
-	const event = result;
+	const event = applyCommentBeforeCreateResult(beforeCreateEvent, result);
 
 	// 3. Query prior approved count for first-time moderation
 	const priorApprovedCount = await repo.countApprovedByEmail(event.comment.authorEmail);

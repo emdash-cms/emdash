@@ -17,6 +17,7 @@ import {
 	securityContactHref,
 	sourceLabel,
 } from "../../../lib/detail.js";
+import { updatedAt } from "../../../lib/discovery.js";
 import { pluginArtSeed } from "../../../lib/plugin-art.js";
 import {
 	isLiveEntryNotFoundError,
@@ -88,8 +89,8 @@ const artSeed = pluginArtSeed(plugin);
 const official = isOfficialPublisher(plugin);
 const isNew = isNewPlugin(plugin);
 const version = release?.version ?? plugin.latestVersion;
-const lastUpdated = profile?.lastUpdated;
-const updated = lastUpdated ? relativeUpdated(lastUpdated) : undefined;
+const lastUpdated = updatedAt(plugin);
+const updated = relativeUpdated(lastUpdated);
 const listed = formatListedDate(plugin.indexedAt);
 const license = profile?.license;
 const securityHref = securityContactHref(profile?.security);

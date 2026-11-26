@@ -14,6 +14,7 @@ import {
 	MAX_COLLECTION_GROUP_LENGTH,
 	MAX_COLLECTION_ICON_LENGTH,
 	MAX_COLLECTION_LIST_COLUMNS,
+	REPEATER_SUB_FIELD_TYPES,
 	RESERVED_COLLECTION_SLUGS,
 	RESERVED_FIELD_SLUGS,
 } from "../schema/types.js";
@@ -356,6 +357,23 @@ export function validateSeed(data: unknown): ValidationResult {
 								warnings.push(
 									`${fieldPrefix}.validation.subFields: repeater needs a non-empty array of sub-fields, so its rows have nothing to edit`,
 								);
+							}
+							if (Array.isArray(subFields)) {
+								for (const [index, subField] of subFields.entries()) {
+									const subFieldPrefix = `${fieldPrefix}.validation.subFields[${index}]`;
+									if (!isRecord(subField)) {
+										errors.push(`${subFieldPrefix}: must be an object`);
+										continue;
+									}
+									if (
+										typeof subField.type !== "string" ||
+										!(REPEATER_SUB_FIELD_TYPES as readonly string[]).includes(subField.type)
+									) {
+										errors.push(
+											`${subFieldPrefix}.type: must be one of ${REPEATER_SUB_FIELD_TYPES.join(", ")}`,
+										);
+									}
+								}
 							}
 						}
 					}

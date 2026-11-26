@@ -7,7 +7,8 @@ import { Comments, CommentForm } from "emdash/ui/comments";
 
 const { slug } = Astro.params;
 if (!slug) return Astro.rewrite("/404");
-const { entry: post } = await getEmDashEntry("posts", slug);
+const { entry: post, error } = await getEmDashEntry("posts", slug);
+if (error) throw error;
 if (!post) return new Response("Not found", { status: 404 });
 ---
 

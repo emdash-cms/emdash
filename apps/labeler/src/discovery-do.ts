@@ -19,6 +19,10 @@ export interface DiscoveryStatus {
 	reason?: "awaiting-start" | "connecting" | "stream-unavailable";
 }
 
+// The stream loop lives only in memory, so a recurring alarm restarts it
+// after the object is evicted or redeployed instead of waiting for the cron.
+const HEARTBEAT_MS = 30_000;
+
 export class LabelerDiscoveryDO extends DurableObject<Env> {
 	#runPromise: Promise<void> | undefined;
 	#ready = false;
@@ -42,6 +46,16 @@ export class LabelerDiscoveryDO extends DurableObject<Env> {
 			throw new TypeError("discovery wake timestamp is invalid");
 		}
 		this.#start();
+		await this.#scheduleHeartbeat();
+	}
+
+	override async alarm(): Promise<void> {
+		this.#start();
+		await this.#scheduleHeartbeat();
+	}
+
+	async #scheduleHeartbeat(): Promise<void> {
+		await this.ctx.storage.setAlarm(Date.now() + HEARTBEAT_MS);
 	}
 
 	#start(): void {

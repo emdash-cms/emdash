@@ -7,7 +7,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, unwrapResult } from "#api/error.js";
+import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleMenuItemCreate } from "#api/handlers/menus.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createMenuItemBody, localeFilterQuery } from "#api/schemas.js";
@@ -22,6 +22,9 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 
 	const denied = requirePerm(user, "menus:manage");
 	if (denied) return denied;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const localeQ = parseQuery(new URL(request.url), localeFilterQuery);
 	if (isParseError(localeQ)) return localeQ;
