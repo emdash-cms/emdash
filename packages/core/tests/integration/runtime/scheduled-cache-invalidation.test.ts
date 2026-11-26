@@ -6,18 +6,57 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { NodeSqliteCompatDatabase as Database } from "#node-sqlite";
 
 import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { MediaRepository } from "../../../src/database/repositories/media.js";
 import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 import { EmDashRuntime } from "../../../src/emdash-runtime.js";
+import { mediaCacheTag } from "../../../src/media/image-endpoint.js";
 import { CronAccessImpl } from "../../../src/plugins/cron.js";
 import { definePlugin } from "../../../src/plugins/define-plugin.js";
 import type { ContentAfterPublishHandler, PluginContext } from "../../../src/plugins/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
+import type { Storage } from "../../../src/storage/types.js";
+
+function createFakeStorage(): { storage: Storage; files: Set<string> } {
+	const files = new Set<string>();
+	const storage: Storage = {
+		async upload(options) {
+			files.add(options.key);
+			return { key: options.key, size: 0 };
+		},
+		async download() {
+			throw new Error("not implemented");
+		},
+		async delete(key) {
+			files.delete(key);
+		},
+		async exists(key) {
+			return files.has(key);
+		},
+		async list() {
+			return { items: [] };
+		},
+		async getSignedUploadUrl(options) {
+			return {
+				url: `https://signed.example.com/${options.key}`,
+				method: "PUT",
+				headers: {},
+				expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+			};
+		},
+		getPublicUrl(key) {
+			return `/media/${key}`;
+		},
+	};
+	return { storage, files };
+}
 
 describe("scheduled plugin cache invalidation", () => {
 	let runtime: EmDashRuntime;
 	let ids: string[];
 	let task: (ctx: PluginContext) => Promise<void>;
 	let afterPublication: ContentAfterPublishHandler;
+	let now: Date | undefined;
+	let files: Set<string>;
 
 	async function publish(ctx: PluginContext, id: string) {
 		if (!ctx.content?.getVersioned || !ctx.content.publish) {
@@ -31,19 +70,20 @@ describe("scheduled plugin cache invalidation", () => {
 	beforeEach(async () => {
 		task = async () => {};
 		afterPublication = async () => {};
+		now = undefined;
+		const fake = createFakeStorage();
+		files = fake.files;
+		const entrypoint = `test-scheduled-cache-${randomUUID()}`;
 		runtime = await EmDashRuntime.create({
 			config: {
-				database: {
-					entrypoint: `test-scheduled-cache-${randomUUID()}`,
-					config: {},
-					type: "sqlite",
-				},
+				database: { entrypoint, config: {}, type: "sqlite" },
+				storage: { entrypoint, config: {} },
 			},
 			plugins: [
 				definePlugin({
 					id: "importer",
 					version: "1.0.0",
-					capabilities: ["content:publish"],
+					capabilities: ["content:publish", "media:write"],
 					hooks: {
 						cron: { handler: async (_event, ctx) => task(ctx) },
 						"content:afterPublish": {
@@ -54,6 +94,8 @@ describe("scheduled plugin cache invalidation", () => {
 				}),
 			],
 			createDialect: () => new SqliteDialect({ database: new Database(":memory:") }),
+			createStorage: () => fake.storage,
+			now: () => now ?? new Date(),
 			createScheduler: null,
 			sandboxEnabled: false,
 			sandboxedPluginEntries: [],
@@ -241,5 +283,42 @@ describe("scheduled plugin cache invalidation", () => {
 
 		expect((await repo.findById("post", ids[1]!))?.status).toBe("published");
 		expect(invalidate).toHaveBeenCalledExactlyOnceWith(["post", ids[1]]);
+	});
+
+	it("purges the media tag of a file a plugin task deletes, once after the tick", async () => {
+		const invalidate = vi.fn(async (_tags: string[]) => {});
+		const callsDuringTask: number[] = [];
+		let storageKey: string | undefined;
+		task = async (ctx) => {
+			const uploaded = await ctx.media!.upload!(
+				"doomed.png",
+				"image/png",
+				new Uint8Array([1, 2, 3, 4]).buffer,
+			);
+			storageKey = uploaded.storageKey;
+			await ctx.media!.delete!(uploaded.mediaId);
+			callsDuringTask.push(invalidate.mock.calls.length);
+		};
+		await schedule();
+
+		await runtime.runScheduledTasks({ invalidateContentCache: invalidate });
+
+		expect(storageKey).toBeDefined();
+		expect(files.has(storageKey!)).toBe(false);
+		expect(callsDuringTask).toEqual([0]);
+		expect(invalidate).toHaveBeenCalledExactlyOnceWith([mediaCacheTag(storageKey!)]);
+	});
+
+	it("purges the media tags of upload files removed by the hourly cleanup", async () => {
+		const invalidate = vi.fn(async (_tags: string[]) => {});
+		const storageKey = "abandoned-upload.png";
+		files.add(storageKey);
+		await new MediaRepository(runtime.db).trackStorageKeyForCleanup("orphan-media", storageKey);
+		now = new Date("2026-11-04T13:00:00Z");
+
+		await runtime.runScheduledTasks({ invalidateContentCache: invalidate });
+
+		expect(files.has(storageKey)).toBe(false);
+		expect(invalidate).toHaveBeenCalledExactlyOnceWith([mediaCacheTag(storageKey)]);
 	});
 });

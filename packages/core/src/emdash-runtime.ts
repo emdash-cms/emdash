@@ -1325,7 +1325,7 @@ export class EmDashRuntime {
 			await runSystemCleanup(
 				this.db,
 				this.storage ?? undefined,
-				this.pluginContentCacheInvalidator,
+				this.scheduledContentCacheInvalidator.getStore() ?? this.pluginContentCacheInvalidator,
 			);
 		} catch (error) {
 			console.error("[cleanup] System cleanup failed:", error);
@@ -7635,6 +7635,7 @@ export class EmDashRuntime {
 		const invalidator =
 			invalidateContentCache ??
 			(key ? this.pluginInvocationCacheInvalidators.get(key) : undefined) ??
+			this.scheduledContentCacheInvalidator.getStore() ??
 			this.pluginContentCacheInvalidator;
 		if (!invalidator) return;
 		const purge = async () => {
