@@ -5,7 +5,7 @@
 
 import { sql } from "kysely";
 import type { Kysely } from "kysely";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
 	handleContentCreate,
@@ -23,18 +23,18 @@ import {
 	asInlineTransaction,
 	describeEachDialect,
 	setupForDialect,
-	setupTestDatabase,
 	teardownForDialect,
-	teardownTestDatabase,
 } from "../../utils/test-db.js";
 import type { DialectTestContext } from "../../utils/test-db.js";
 
-describe("handleContentUpdate _rev against an interleaved write", () => {
+describeEachDialect("handleContentUpdate _rev against an interleaved write", (dialect) => {
+	let ctx: DialectTestContext;
 	let db: Kysely<Database>;
 	let runtime: EmDashRuntime;
 
 	beforeEach(async () => {
-		db = await setupTestDatabase();
+		ctx = await setupForDialect(dialect);
+		db = ctx.db;
 		const registry = new SchemaRegistry(db);
 		await registry.createCollection({ slug: "posts", label: "Posts" });
 		await registry.createField("posts", { slug: "title", label: "Title", type: "string" });
@@ -45,7 +45,7 @@ describe("handleContentUpdate _rev against an interleaved write", () => {
 
 	afterEach(async () => {
 		vi.restoreAllMocks();
-		await teardownTestDatabase(db);
+		await teardownForDialect(ctx);
 	});
 
 	/**
