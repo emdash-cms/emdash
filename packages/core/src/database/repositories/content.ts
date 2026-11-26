@@ -49,6 +49,7 @@ import {
 const ULID_PATTERN = /^[0-9A-Z]{26}$/;
 const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
+const D1_PATTERN_MAX_BYTES = 50;
 
 const MAX_INDEXED_FIELD_FILTERS = 20;
 const MAX_IN_FILTER_VALUES = SQL_BATCH_SIZE;
@@ -2057,7 +2058,7 @@ export class ContentRepository {
 				const slugPrefix = term.toLowerCase();
 				const slugPattern = buildSlugGlobPrefix(term);
 				const slugFilter =
-					new TextEncoder().encode(slugPattern).byteLength <= 50
+					new TextEncoder().encode(slugPattern).byteLength <= D1_PATTERN_MAX_BYTES
 						? sql<boolean>`slug GLOB ${slugPattern}`
 						: sql<boolean>`substr(slug, 1, length(${slugPrefix})) = ${slugPrefix}`;
 				return query.where((eb) =>

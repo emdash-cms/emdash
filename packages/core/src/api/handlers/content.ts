@@ -768,12 +768,12 @@ export function changedStoragelessDataKeys(
 
 /**
  * Decide whether the content-list `q` filter can be served from the
- * collection's FTS5 index instead of a full-scan substring LIKE (#1517).
+ * collection's FTS5 index instead of a full-scan substring comparison.
  *
  * Requires SQLite (FTS5 is SQLite-only), search enabled on the collection,
  * every non-slug display column present in the searchable-field set (or the
- * index would miss matches the LIKE finds), and the index table actually
- * existing.
+ * index would miss matches the substring comparison finds), and the index
+ * table actually existing.
  */
 async function canUseFtsForListFilter(
 	db: Kysely<Database>,
