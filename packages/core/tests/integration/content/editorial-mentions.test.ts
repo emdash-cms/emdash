@@ -204,6 +204,35 @@ describeEachDialect("editorial mentions and notifications", (dialect) => {
 		expect(wildcard.items.map((user) => user.id)).toEqual([LIN.id]);
 	});
 
+	it("matches names outside ASCII whatever their case", async () => {
+		await db
+			.insertInto("users")
+			.values(
+				[
+					{ id: "u-emile", name: "Émile Zola" },
+					{ id: "u-anna", name: "Анна Петрова" },
+				].map(({ id, name }) => ({
+					id,
+					email: `${id}@example.com`,
+					name,
+					role: Role.CONTRIBUTOR,
+					email_verified: 1,
+					disabled: 0,
+				})),
+			)
+			.execute();
+
+		for (const [query, id] of [
+			["ém", "u-emile"],
+			["ÉMILE", "u-emile"],
+			["ан", "u-anna"],
+			["ПЕТ", "u-anna"],
+		]) {
+			const found = expectData(await handleEditorialMentionable(db, entry, query!));
+			expect(found.items.map((user) => user.id)).toEqual([id]);
+		}
+	});
+
 	it("lists users without a name last, and only without a search term", async () => {
 		const unnamed = [
 			{ id: "a-blank", name: "" },
