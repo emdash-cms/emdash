@@ -72,13 +72,20 @@ A seed with one collection and one taxonomy:
 
 ### Migration
 
-A new migration removes the two built-in definitions when all of these hold:
+A taxonomy is stored in two tables: `_emdash_taxonomy_defs` holds one row per locale with its labels, and `_emdash_taxonomy_def_groups` (migration 085) holds one row per taxonomy name with its hierarchy and `collections`. On a new database, both tables have a row for `category` and one for `tag`.
 
-1. `_emdash_collections` has no rows. Migrations run before the setup wizard and the first-boot seed, so on a new database this is true when the migration runs. On a database that has been set up, it is false and the migration does nothing.
-2. The definition still holds the values migration 006 inserted: its `taxdef_category` or `taxdef_tag` id, label, singular label, hierarchy and `collections`. `isUntouchedBuiltInTaxonomyDef` in `seed/apply.ts` performs this check at runtime; the migration repeats the comparison in SQL because migrations don't import runtime code.
-3. No row in `taxonomies` uses the definition's `name`.
+A new migration removes a built-in taxonomy, from both tables, when all of these hold:
 
-The migration is one `DELETE` on `_emdash_taxonomy_defs` with the three conditions in its `WHERE` clause. Running it again after a lost response deletes nothing new, so it is safe to restart. `down` is a no-op, like other data migrations.
+1. `_emdash_collections` has no rows, and the `options` table has no `emdash:setup_complete` row. Migrations run before the setup wizard and the first-boot seed, so on a new database both are true when the migration runs. On a database that has been set up, at least one is false and the migration does nothing, including on a site that was set up and later deleted all its collections.
+2. Its definition is the only `_emdash_taxonomy_defs` row of that name, and still holds the values migrations 006 and 085 left: the `taxdef_category` or `taxdef_tag` id, label, singular label, hierarchy and `collections`. Its `_emdash_taxonomy_def_groups` row holds the same hierarchy and `collections`. `isUntouchedBuiltInTaxonomyDef` in `seed/apply.ts` performs the definition check at runtime; the migration repeats the comparison in SQL because migrations don't import runtime code.
+3. No row in `taxonomies` uses the name.
+
+The migration runs two statements in this order:
+
+1. A `DELETE` on `_emdash_taxonomy_defs` for `taxdef_category` and `taxdef_tag` with the three conditions in its `WHERE` clause.
+2. A `DELETE` on `_emdash_taxonomy_def_groups` for the names `category` and `tag` when no `_emdash_taxonomy_defs` row of that name remains and condition 1 still holds.
+
+If the migration stops after the first statement, the next run deletes no further definitions and the second statement removes the groups left without one. Running it again after it completed deletes nothing. `down` is a no-op, like other data migrations.
 
 Migration 006 stays unchanged, since shipped migrations are immutable.
 
@@ -97,7 +104,7 @@ The seed becomes the only source of taxonomy definitions on a new site:
 
 ## Compatibility and migration
 
-- Existing sites: no change. The migration's first condition is false on every site that has been set up.
+- Existing sites: no change. The migration's first condition is false on every site that has been set up, whether or not it still has collections.
 - A database that was migrated but never set up, for example an install that stopped at the setup wizard, loses the two untouched, empty definitions. Its setup then applies the seed, which recreates them when the seed or the default seed declares them.
 - Code that expects `category` and `tag` on every new site breaks when the site's seed doesn't declare them. `getTaxonomyTerms()` already returns an empty list for a missing taxonomy, so pages still render, but a template relying on the built-ins has to add them to its seed. The changeset names this and shows the seed entries to add.
 - Rollback: reinstalling the previous release doesn't restore the definitions. A site that needs them creates them in the admin, through the API, or from a seed.
@@ -110,19 +117,20 @@ No additional security or privacy surface. The migration deletes rows only under
 
 ## Performance
 
-No runtime effect. The migration adds one `DELETE` with three subqueries, run once per database. Logged-out routes and query counts are unchanged.
+No runtime effect. The migration adds two `DELETE` statements with subqueries, run once per database. Logged-out routes and query counts are unchanged.
 
 ## Failure handling
 
-The migration is a single statement. If it fails, the runner reports the error like any other migration and retries on the next start. A single statement can't partially complete, and its conditions make a retry safe.
+If a statement fails, the runner reports the error like any other migration and retries on the next start. Each statement completes or leaves its table unchanged. A stop between the two leaves group rows without a definition, which the retry removes. Until then those rows are not visible, because taxonomy readers start from `_emdash_taxonomy_defs`, and a seed that declares the taxonomy replaces their structure.
 
 ## Verification
 
 - Migration tests on SQLite, D1 (workerd suite) and PostgreSQL:
-  - a new database ends without `category` and `tag`;
-  - a database with a collection keeps both;
+  - a new database ends without `category` and `tag` in either table;
+  - a database with a collection keeps both, and so does a database with `emdash:setup_complete` and no collections;
   - a database without collections but with an edited `category`, or with `tag` terms, keeps that definition;
-  - running the migration twice gives the same result.
+  - a `category` whose group row has an edited hierarchy or `collections` keeps both rows;
+  - running the migration twice gives the same result, and a run stopped after the first statement completes on retry.
 - Seed tests: the default seed still produces `category` and `tag` with today's values; a seed without them leaves none; a seed declaring them with other labels gets those labels.
 - Setup and first-boot seed integration tests for a seed without taxonomies.
 - Manual check of the `marketing` template: no Taxonomies entries in the admin after setup.
@@ -147,4 +155,3 @@ One implementation pull request: the migration, its registration in `runner.ts`,
 ## Open questions
 
 - Should the WordPress importers create `category` and `tag` when the source has categories or tags and the site lacks the definitions, as the plugin importer already does for custom taxonomies?
-- Is `_emdash_collections` being empty the right signal for a new database, or should the migration also check `emdash:setup_complete`?
