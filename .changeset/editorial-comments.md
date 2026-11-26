@@ -21,7 +21,7 @@ When the site has an email provider, a new comment emails the people it mentions
 
 #### MCP tools
 
-AI agents can review entries through four MCP tools: `editorial_thread_list`, `editorial_thread_create`, `editorial_comment_create` and `editorial_thread_resolve`. A token needs the `content:read` scope for `editorial_thread_list` and the `content:write` scope for the other three. The user behind the token needs the `editorial:comment` and `content:read_drafts` permissions for every tool.
+AI agents can review entries through five MCP tools: `editorial_thread_list`, `editorial_mentionable_list`, `editorial_thread_create`, `editorial_comment_create` and `editorial_thread_resolve`. A token needs the `content:read` scope for `editorial_thread_list` and `editorial_mentionable_list`, and the `content:write` scope for the other three. `editorial_mentionable_list` finds the user IDs that comment bodies mention as `<@USER_ID>`. The user behind the token needs the `editorial:comment` and `content:read_drafts` permissions for every tool.
 
 `editorial_thread_create` starts a thread on the whole entry, or on one field when you pass `field`. To comment on specific text, pass `field` and the exact `quote`, with optional `prefix` and `suffix` to tell repeated text apart. The tool finds the quote in the entry's current draft. Passing `prefix` or `suffix` without `quote` fails with `VALIDATION_ERROR`.
 

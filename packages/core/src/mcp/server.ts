@@ -9,7 +9,7 @@
  * The handlers instance is passed per-request via authInfo on the transport.
  */
 
-import { locateQuote } from "@emdash-cms/admin/internal/editorial-anchors";
+import { blockText, locateQuote } from "@emdash-cms/admin/internal/editorial-anchors";
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
 import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -35,6 +35,7 @@ import { after } from "../after.js";
 import { entryEditAccess, toPublishedListView, toPublishedView } from "../api/authorize.js";
 import {
 	handleEditorialCommentCreate,
+	handleEditorialMentionable,
 	handleEditorialThreadCreate,
 	handleEditorialThreadList,
 	handleEditorialThreadUpdate,
@@ -3970,7 +3971,9 @@ export function createMcpServer(
 		.trim()
 		.min(1)
 		.max(EDITORIAL_COMMENT_MAX_LENGTH)
-		.describe("Plain text. Mention a user with <@USER_ID>.");
+		.describe(
+			"Plain text. Mention a user with <@USER_ID>; editorial_mentionable_list finds their IDs.",
+		);
 
 	/** Threads discuss unpublished content, so every editorial tool needs draft access too. */
 	function editorialActor(extra: { authInfo?: { extra?: Record<string, unknown> } }) {
@@ -4034,6 +4037,37 @@ export function createMcpServer(
 					actor,
 					{ collection: args.collection, id: args.id, locale: args.locale },
 					{ status: args.status ?? "open", limit: args.limit ?? 50, cursor: args.cursor },
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"editorial_mentionable_list",
+		{
+			title: "List People to Mention",
+			description:
+				"Find users who can be mentioned in an entry's editorial comments, matched by display " +
+				"name, up to 10, without email addresses. Mention one in a comment body as " +
+				"<@USER_ID> with the `id` returned here; `@Name` text mentions nobody.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				query: z
+					.string()
+					.max(100)
+					.optional()
+					.describe("Text to match against display names. Omit to list the first users by name."),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			editorialActor(extra);
+			return unwrap(
+				await handleEditorialMentionable(
+					getEmDash(extra).db,
+					{ collection: args.collection, id: args.id, locale: args.locale },
+					args.query ?? "",
 				),
 			);
 		},
@@ -4111,9 +4145,23 @@ export function createMcpServer(
 					suffix: args.suffix,
 				});
 				if (located.status === "missing") {
+					const { quote } = args;
+					const inKeylessBlock =
+						Array.isArray(fieldValue) &&
+						fieldValue.some(
+							(block: unknown) =>
+								!(
+									block &&
+									typeof block === "object" &&
+									typeof Reflect.get(block, "_key") === "string"
+								) && blockText(block)?.includes(quote),
+						);
 					return respondError(
 						"VALIDATION_ERROR",
-						`The quote doesn't appear in a text block of '${args.field}'`,
+						inKeylessBlock
+							? `The quote is in a block of '${args.field}' that has no \`_key\`, so a comment can't be anchored to it. ` +
+									"Give the field's blocks `_key`s with content_update, or omit `quote` to comment on the whole field."
+							: `The quote doesn't appear in a text block of '${args.field}'`,
 					);
 				}
 				if (located.status === "ambiguous") {

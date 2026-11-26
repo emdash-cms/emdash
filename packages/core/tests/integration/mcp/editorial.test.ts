@@ -175,6 +175,43 @@ describe("MCP editorial tools", () => {
 		expect(await db.selectFrom("_emdash_editorial_threads").select("id").execute()).toEqual([]);
 	});
 
+	it("finds the ID to mention someone by, without their email address", async () => {
+		await connect();
+
+		const result = await call("editorial_mentionable_list", { query: "con" });
+
+		expect(JSON.parse(extractText(result))).toEqual({
+			items: [{ id: USER, name: "Con", avatarUrl: null }],
+		});
+		expect(extractText(result)).not.toContain("@example.com");
+	});
+
+	it("says when a quote is in a block without a key", async () => {
+		const keyless = block("b1", "Imported text.");
+		delete (keyless as { _key?: string })._key;
+		const item = await new ContentRepository(db).create({
+			type: "post",
+			data: { title: "Imported", content: [keyless] },
+			authorId: USER,
+		});
+		await connect();
+
+		const result = await harness!.client.callTool({
+			name: "editorial_thread_create",
+			arguments: {
+				collection: "post",
+				id: item.id,
+				body: "Check this",
+				field: "content",
+				quote: "Imported",
+			},
+		});
+
+		expect(extractText(result)).toMatch(
+			/^\[VALIDATION_ERROR\] The quote is in a block .* no `_key`/,
+		);
+	});
+
 	it("emails the people a new thread or reply concerns, with a link to the thread", async () => {
 		await db
 			.insertInto("users")
