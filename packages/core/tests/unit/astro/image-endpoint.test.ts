@@ -593,8 +593,11 @@ describe("GET /_image when the image service cannot transform", () => {
 		const cache = { enabled: false, set: vi.fn() };
 
 		const response = await GET(buildContext(request(), { download }, cache));
+		const repeat = await GET(buildContext(request(), { download }, cache));
 
 		expect(response.status).toBe(200);
+		expect(repeat.status).toBe(200);
+		expect(transform).toHaveBeenCalledTimes(1);
 		expect(cache.set).not.toHaveBeenCalled();
 	});
 

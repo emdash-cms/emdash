@@ -252,6 +252,20 @@ describe("Cloudflare image endpoint", () => {
 		expect(ctx.cache.set.mock.calls).toEqual([[false]]);
 	});
 
+	it("leaves a disabled route cache untouched when the transform fails", async () => {
+		const { output } = installImages();
+		output.mockRejectedValueOnce(new Error("Images unavailable"));
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const { ctx } = context("w=120");
+		ctx.cache.enabled = false;
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("source");
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
 	it("does not cache a failed transform when the original can't be read again", async () => {
 		const { output } = installImages();
 		output.mockRejectedValueOnce(new Error("Images unavailable"));
