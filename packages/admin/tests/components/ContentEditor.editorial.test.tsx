@@ -19,6 +19,7 @@ import {
 	createEditorialThread,
 	deleteEditorialComment,
 	fetchEditorialThreads,
+	replyToEditorialThread,
 	type EditorialThread,
 } from "../../src/lib/api/editorial-threads.js";
 import { render } from "../utils/render.tsx";
@@ -57,6 +58,7 @@ vi.mock("../../src/lib/api/editorial-threads.js", async () => {
 		createEditorialThread: vi.fn(),
 		updateEditorialAnchors: vi.fn(async () => ({ updated: 0 })),
 		deleteEditorialComment: vi.fn(async () => ({ threadDeleted: true, thread: null })),
+		replyToEditorialThread: vi.fn(),
 	};
 });
 
@@ -338,6 +340,39 @@ describe("editorial comments in Portable Text fields", () => {
 		await expect
 			.element(margin.getByRole("textbox", { name: "Reply" }))
 			.toHaveValue("Still checking");
+	});
+	it("clears a reply sent before its card moved once the reply is saved", async () => {
+		let finish!: (thread: EditorialThread) => void;
+		vi.mocked(replyToEditorialThread).mockReturnValue(
+			new Promise((resolve) => {
+				finish = resolve;
+			}),
+		);
+		const thread = textThread("thread-brown", "content", "brown", "The quick ");
+		const screen = await renderEntry({
+			fields: { content: { kind: "portableText", label: "Content" } },
+			data: { content: [paragraph("b1", "The quick brown fox")] },
+			threads: [thread],
+			initialThreadId: "thread-brown",
+		});
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		const card = margin.element().querySelector.bind(margin.element());
+		await margin.getByRole("textbox", { name: "Reply" }).fill("Still checking");
+		await margin.getByRole("button", { name: "Reply", exact: true }).click();
+		await vi.waitFor(() => expect(vi.mocked(replyToEditorialThread)).toHaveBeenCalled());
+		const { editor } = editorFor("Content");
+
+		selectText(editor, "brown ");
+		editor.commands.deleteSelection();
+		await vi.waitFor(() =>
+			expect(card('[data-editorial-thread-card="thread-brown"]')?.textContent).toContain(
+				"Detached",
+			),
+		);
+		const reply = { ...thread.comments[0]!, id: "thread-brown-c2", body: "Still checking" };
+		finish({ ...thread, comments: [...thread.comments, reply] });
+
+		await expect.element(margin.getByRole("textbox", { name: "Reply" })).toHaveValue("");
 	});
 });
 

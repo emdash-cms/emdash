@@ -265,17 +265,52 @@ function useCardLayout(
  * ID. They outlive a card, which remounts when it moves between the list and
  * its anchor.
  */
-const UnsentTextContext = React.createContext<Map<string, string> | null>(null);
+const UnsentTextContext = React.createContext<UnsentText | null>(null);
 
-/** Text held for `key` across remounts; `undefined` once it is cleared or sent. */
+class UnsentText {
+	private values = new Map<string, string>();
+	private listeners = new Map<string, Set<() => void>>();
+
+	get(key: string) {
+		return this.values.get(key);
+	}
+
+	set(key: string, value: string | undefined) {
+		if (value === undefined) this.values.delete(key);
+		else this.values.set(key, value);
+		for (const listener of this.listeners.get(key) ?? []) listener();
+	}
+
+	subscribe(key: string, listener: () => void) {
+		let listeners = this.listeners.get(key);
+		if (!listeners) {
+			listeners = new Set();
+			this.listeners.set(key, listeners);
+		}
+		listeners.add(listener);
+		return () => {
+			listeners.delete(listener);
+			if (listeners.size === 0) this.listeners.delete(key);
+		};
+	}
+}
+
+/**
+ * Text held for `key` across remounts; `undefined` once it is cleared or sent.
+ * A request that finishes after its card has moved clears the card shown now.
+ */
 function useUnsentText(key: string): [string | undefined, (value: string | undefined) => void] {
 	const store = React.useContext(UnsentTextContext);
-	const [value, setValue] = React.useState(() => store?.get(key));
-	const update = (next: string | undefined) => {
-		if (next === undefined) store?.delete(key);
-		else store?.set(key, next);
-		setValue(next);
-	};
+	if (!store) throw new Error("useUnsentText needs an UnsentTextContext provider");
+	const subscribe = React.useCallback(
+		(listener: () => void) => store.subscribe(key, listener),
+		[store, key],
+	);
+	const value = React.useSyncExternalStore(subscribe, () => store.get(key));
+	const update = React.useCallback(
+		(next: string | undefined) => store.set(key, next),
+		[store, key],
+	);
 	return [value, update];
 }
 
@@ -304,7 +339,7 @@ export function MarginComments({
 	const { t } = useLingui();
 	const marginRef = React.useRef<HTMLElement>(null);
 	const gutterRef = React.useRef<HTMLDivElement>(null);
-	const [unsent] = React.useState(() => new Map<string, string>());
+	const [unsent] = React.useState(() => new UnsentText());
 	const { threads, highlights, attachedIds, editors, activeThreadId, draft, showResolved } =
 		comments;
 
