@@ -223,6 +223,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// is purged, so before one is returned the rules are verified current.
 			cached = await loadCachedRedirects(source);
 			match = matchRedirect(cached, pathname, !isFilePath);
+			if (
+				match &&
+				!isTerminalStatus(match.redirect.type) &&
+				isSiteRelativeDestination(match.destination)
+			) {
+				routeCache?.set(false);
+			}
 			if (match && routeCacheStores(routeCache)) {
 				cached = await loadCachedRedirects(source, { verify: true });
 				verified = true;

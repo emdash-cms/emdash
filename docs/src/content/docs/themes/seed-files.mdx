@@ -557,7 +557,7 @@ Redirects require local source and destination paths:
 
 Both paths must start with one `/`. Protocol-relative URLs, path traversal segments, and newlines are rejected. Allowed status codes are `301`, `302`, `307`, and `308`.
 
-Redirect rules match the request path and preserve its query string before any destination fragment. For example, `/old-path?utm_source=email` redirects to `/new-path?utm_source=email`. If the destination specifies a query string, it takes precedence and request parameters are not merged. To discard incoming parameters, use an empty query in the destination, such as `/new-path?` or `/new-path?#section`.
+Seeded rules use the same [query-string behavior as admin-created redirects](/guides/seo/#redirects-and-the-404-log), including the empty-query opt-out for discarding incoming parameters.
 
 ## Widget areas
 
