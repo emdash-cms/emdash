@@ -38,8 +38,8 @@ test.describe("image optimization", () => {
 		if (!src && lastError) throw lastError;
 		expect(src, "image src should be optimized via Astro's image endpoint").toContain("/_image");
 
-		// The optimized URL must return real image bytes, not an Access redirect or 404.
-		const res = await request.get(src!);
+		// The generated URL is already canonical and must return image bytes directly.
+		const res = await request.get(src!, { maxRedirects: 0 });
 		expect(res.status()).toBe(200);
 		expect(res.headers()["content-type"]).toMatch(/^image\//);
 		expect((await res.body()).byteLength).toBeGreaterThan(0);

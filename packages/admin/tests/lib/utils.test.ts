@@ -116,6 +116,13 @@ describe("parseTimestamp", () => {
 });
 
 describe("formatRelativeTime", () => {
+	it.each(["", "not a date", "0000-00-00 00:00:00", null, undefined])(
+		"renders %s as empty",
+		(value) => {
+			expect(formatRelativeTime(value, "en")).toBe("");
+		},
+	);
+
 	const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
 
 	it("formats recent times in the admin locale", () => {
@@ -133,6 +140,13 @@ describe("formatRelativeTime", () => {
 });
 
 describe("formatDate", () => {
+	it.each(["", "not a date", "0000-00-00 00:00:00", new Date(NaN), null, undefined])(
+		"renders %s as empty",
+		(value) => {
+			expect(formatDate(value, "en")).toBe("");
+		},
+	);
+
 	it("formats in the given locale rather than the browser's", () => {
 		expect(
 			formatDate("2026-09-22T19:48:00Z", "en-GB", { dateStyle: "medium", timeZone: "UTC" }),

@@ -77,7 +77,7 @@ export class DOSqlDialect implements Dialect {
 	}
 
 	createAdapter(): SqliteAdapter {
-		return new SqliteAdapter();
+		return new DOSqlAdapter(this.#config);
 	}
 
 	createDriver(): Driver {
@@ -132,6 +132,38 @@ class DOSqlDriver implements Driver {
 	async releaseConnection(): Promise<void> {}
 
 	async destroy(): Promise<void> {}
+}
+
+export class DOSqlAdapter extends SqliteAdapter {
+	readonly #config: DOSqlDialectConfig;
+
+	constructor(config: DOSqlDialectConfig) {
+		super();
+		this.#config = config;
+	}
+
+	async executeAtomicBatch(
+		queries: readonly CompiledQuery[],
+	): Promise<readonly QueryResult<unknown>[]> {
+		if (queries.length === 0) return [];
+		const stub = this.#config.resolveStub();
+		if (typeof stub.executeAtomicBatch !== "function") {
+			throw new Error("EmDashDB stub does not support atomic SQL batches");
+		}
+		this.#config.onRpc?.();
+		const results = await stub.executeAtomicBatch(
+			queries.map((query) => ({ sql: query.sql, params: [...query.parameters] })),
+		);
+		for (const result of results) {
+			if (result.bookmark && this.#config.bookmarkSink) {
+				this.#config.bookmarkSink.latest = result.bookmark;
+			}
+		}
+		return results.map((result) => ({
+			rows: result.rows,
+			numAffectedRows: result.changes !== undefined ? BigInt(result.changes) : undefined,
+		}));
+	}
 }
 
 class DOSqlConnection implements DatabaseConnection {

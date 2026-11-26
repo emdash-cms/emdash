@@ -106,32 +106,24 @@ export async function getAtprotoOAuthClient(
 		}),
 	});
 
-	// Use plugin storage when available (required for multi-instance deployments
-	// like Cloudflare Workers where in-memory state doesn't survive across
-	// requests). Fall back to MemoryStore for local dev.
-	const stores = storage
-		? {
-				sessions: createDbStore<Did, StoredSession>(
-					() =>
-						// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- plugin storage collections match StorageCollectionLike shape
-						storage.sessions as StorageCollectionLike<{
-							value: StoredSession;
-							expiresAt: number | null;
-						}>,
-				),
-				states: createDbStore<string, StoredState>(
+	// States must survive from the login request to the callback, so they use
+	// plugin storage when available (in-memory state doesn't survive across
+	// requests on multi-instance deployments like Cloudflare Workers). The
+	// session is only used within the callback request and never restored
+	// later, so it stays in memory.
+	const stores = {
+		sessions: new MemoryStore<Did, StoredSession>(),
+		states: storage
+			? createDbStore<string, StoredState>(
 					() =>
 						// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- plugin storage collections match StorageCollectionLike shape
 						storage.states as StorageCollectionLike<{
 							value: StoredState;
 							expiresAt: number | null;
 						}>,
-				),
-			}
-		: {
-				sessions: new MemoryStore<Did, StoredSession>(),
-				states: new MemoryStore<string, StoredState>(),
-			};
+				)
+			: new MemoryStore<string, StoredState>(),
+	};
 
 	if (isLoopback(baseUrl)) {
 		// Loopback public client for local development.

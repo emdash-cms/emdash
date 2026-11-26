@@ -142,10 +142,13 @@ When using EmDash, add a regular `number` field to your collection for per-page 
 
 ```astro title="src/pages/posts/[...slug].astro"
 ---
-import { getEmDashEntry } from "emdash";
+import { decodeSlug, getEmDashEntry } from "emdash";
 
-const { slug } = Astro.params;
-const { entry } = await getEmDashEntry("posts", slug);
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.rewrite("/404");
+
+const { entry, error } = await getEmDashEntry("posts", slug);
+if (error) throw error;
 
 if (!entry) return Astro.rewrite("/404");
 

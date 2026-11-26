@@ -13,7 +13,7 @@
 
 import type { APIRoute } from "astro";
 
-import { apiError, apiSuccess, handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { handleReactionCounts, handleReactionToggle } from "#api/handlers/comment-reactions.js";
 import { hashIp } from "#api/handlers/comments.js";
 import { isParseError, parseBody } from "#api/parse.js";
@@ -31,16 +31,16 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 		return apiError("VALIDATION_ERROR", "Collection and content ID required", 400);
 	}
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	try {
 		// Salted voter hash from request IP (same primitive as comment ip_hash).
-		// Behind Cloudflare (CF-Connecting-IP) or a configured trusted proxy this
-		// is per-visitor. Without a trusted IP it collapses to a shared "unknown"
-		// bucket, so reaction dedup degrades for those visitors — a real
-		// per-visitor token is Tier 2 (visitor identity). Operators should set
-		// trustedProxyHeaders; see the comment ingest route for the same note.
+		// Behind Cloudflare (CF-Connecting-IP) or a configured trusted proxy it
+		// identifies one IPv4 address or one IPv6 /64 network. Without a trusted
+		// IP every visitor shares the "unknown" voter, so reaction dedup does not
+		// tell those visitors apart.
 		const meta = extractRequestMeta(request, emdash.config);
 		let voterHash = "unknown";
 		if (meta.ip) {
@@ -63,8 +63,9 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		return apiError("VALIDATION_ERROR", "Collection and content ID required", 400);
 	}
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	try {
 		const body = await parseBody(request, createReactionBody);

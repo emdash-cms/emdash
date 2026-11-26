@@ -9,10 +9,10 @@
  * - Future: CLI export, backup, site migration
  */
 
-import type { Kysely } from "kysely";
+import type { Kysely, RawBuilder } from "kysely";
 import { sql } from "kysely";
 
-import { listTableColumns, listTablesLike } from "../../database/dialect-helpers.js";
+import { isSqlite, listTableColumns, listTablesLike } from "../../database/dialect-helpers.js";
 import type { Database } from "../../database/types.js";
 
 // ─�� Preview signature verification ──────────────────────────────
@@ -305,6 +305,21 @@ function normalizeRows(
 	return rows;
 }
 
+/**
+ * Content-table columns that describe an entry's staged edit rather than its
+ * published state. A published-only snapshot keeps them in `schema` and
+ * exports them as NULL, since the revisions they point at are left out.
+ */
+const UNPUBLISHED_STATE_COLUMNS = ["draft_revision_id", "scheduled_at"] as const;
+
+function clearUnpublishedState(rows: Record<string, unknown>[]): void {
+	for (const row of rows) {
+		for (const column of UNPUBLISHED_STATE_COLUMNS) {
+			if (column in row) row[column] = null;
+		}
+	}
+}
+
 function createPublishedProjection(): PublishedProjection {
 	return {
 		content: new Map(),
@@ -336,6 +351,10 @@ function recordPublishedContent(
 	projection.content.set(tableName.slice("ec_".length), references);
 }
 
+/**
+ * For columns that hold a translation group or a row id
+ * (`content_taxonomies.entry_id`, `_emdash_menu_items.reference_id`).
+ */
 function isPublishedContentReference(
 	projection: PublishedProjection,
 	collection: unknown,
@@ -346,6 +365,22 @@ function isPublishedContentReference(
 	if (!collectionName || !id) return false;
 	const references = projection.content.get(collectionName);
 	return references?.ids.has(id) === true || references?.translationGroups.has(id) === true;
+}
+
+/**
+ * For columns that hold one content row's own id (`_emdash_seo.content_id`).
+ * A translation group is named after its first row, so matching published
+ * groups here would also match an unpublished original of a live translation.
+ */
+function isPublishedContentRow(
+	projection: PublishedProjection,
+	collection: unknown,
+	rowId: unknown,
+): boolean {
+	const collectionName = readString(collection);
+	const id = readString(rowId);
+	if (!collectionName || !id) return false;
+	return projection.content.get(collectionName)?.ids.has(id) === true;
 }
 
 function collectMediaReferences(value: unknown, projection: PublishedProjection): void {
@@ -438,7 +473,7 @@ function projectPublishedRows(
 	switch (tableName) {
 		case "_emdash_seo":
 			return rows.filter((row) => {
-				const published = isPublishedContentReference(projection, row.collection, row.content_id);
+				const published = isPublishedContentRow(projection, row.collection, row.content_id);
 				if (!published) return false;
 				const image = readString(row.seo_image);
 				if (image) {
@@ -487,6 +522,84 @@ function projectPublishedRows(
 			return rows;
 		default:
 			return [];
+	}
+}
+
+/**
+ * D1 rejects a query whose result exceeds 50 MB. A page that hits the limit is
+ * retried at half the size, and later pages are sized from the largest row
+ * read so far to aim at a third of the limit.
+ */
+const FIRST_PAGE_ROWS = 500;
+const MAX_PAGE_ROWS = 10_000;
+const PAGE_TARGET_CHARS = 16 * 1024 * 1024;
+const ROWID_ALIAS = "__emdash_snapshot_rowid";
+const ROWID_NAMES = ["rowid", "_rowid_", "oid"];
+
+function isResultTooLargeError(error: unknown): boolean {
+	return error instanceof Error && error.message.includes("maximum response size");
+}
+
+function approximateRowChars(row: Record<string, unknown>): number {
+	let chars = 0;
+	for (const value of Object.values(row)) {
+		if (typeof value === "string") chars += value.length;
+		else if (value instanceof Uint8Array) chars += value.byteLength * 2;
+		else if (Array.isArray(value)) chars += value.length * 4;
+		else chars += 8;
+	}
+	return chars;
+}
+
+/**
+ * Read every row of a table that matches `where`. On SQLite (including D1)
+ * rows are read in rowid-ordered pages so no single result grows past D1's
+ * result size limit. A column named like the rowid shadows it, so the first
+ * rowid name that no column uses is the one paged on.
+ */
+async function readTableRows(
+	db: Kysely<Database>,
+	tableName: string,
+	columns: string[],
+	where: RawBuilder<unknown> = sql`1 = 1`,
+): Promise<Record<string, unknown>[]> {
+	const rowid = ROWID_NAMES.find((name) => !columns.includes(name));
+	if (!isSqlite(db) || !rowid) {
+		return (
+			await sql<Record<string, unknown>>`
+				SELECT * FROM ${sql.ref(tableName)} WHERE ${where}
+			`.execute(db)
+		).rows;
+	}
+
+	const rows: Record<string, unknown>[] = [];
+	let after: unknown = null;
+	let limit = FIRST_PAGE_ROWS;
+	let largestRowChars = 1;
+	for (;;) {
+		const afterClause = after === null ? sql`1 = 1` : sql`${sql.ref(rowid)} > ${after}`;
+		let page;
+		try {
+			// oxlint-disable-next-line no-await-in-loop -- each page starts after the previous one
+			page = await sql<Record<string, unknown>>`
+				SELECT ${sql.ref(rowid)} AS ${sql.ref(ROWID_ALIAS)}, * FROM ${sql.ref(tableName)}
+				WHERE (${where}) AND ${afterClause}
+				ORDER BY ${sql.ref(rowid)}
+				LIMIT ${limit}
+			`.execute(db);
+		} catch (error) {
+			if (limit === 1 || !isResultTooLargeError(error)) throw error;
+			limit = Math.ceil(limit / 2);
+			continue;
+		}
+		for (const row of page.rows) {
+			after = row[ROWID_ALIAS];
+			delete row[ROWID_ALIAS];
+			largestRowChars = Math.max(largestRowChars, approximateRowChars(row));
+			rows.push(row);
+		}
+		if (page.rows.length < limit) return rows;
+		limit = Math.min(MAX_PAGE_ROWS, Math.max(1, Math.floor(PAGE_TARGET_CHARS / largestRowChars)));
 	}
 }
 
@@ -555,26 +668,16 @@ export async function generateSnapshot(
 
 		if (tableName.startsWith("ec_")) {
 			if (includeTrashed) {
-				rows = (
-					await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.ref(tableName)}
-					`.execute(db)
-				).rows;
+				rows = await readTableRows(db, tableName, columns);
 			} else if (includeDrafts) {
-				rows = (
-					await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.ref(tableName)}
-						WHERE deleted_at IS NULL
-					`.execute(db)
-				).rows;
+				rows = await readTableRows(db, tableName, columns, sql`deleted_at IS NULL`);
 			} else {
-				rows = (
-					await sql<Record<string, unknown>>`
-						SELECT * FROM ${sql.ref(tableName)}
-						WHERE deleted_at IS NULL
-						AND status = 'published'
-					`.execute(db)
-				).rows;
+				rows = await readTableRows(
+					db,
+					tableName,
+					columns,
+					sql`deleted_at IS NULL AND status = 'published'`,
+				);
 			}
 		} else if (
 			publishedOnly &&
@@ -583,24 +686,17 @@ export async function generateSnapshot(
 		) {
 			rows = [];
 		} else if (tableName === "options") {
-			rows = (
-				await sql<Record<string, unknown>>`
-					SELECT * FROM ${sql.ref(tableName)}
-				`.execute(db)
-			).rows.filter((row) => {
+			rows = (await readTableRows(db, tableName, columns)).filter((row) => {
 				const name = typeof row.name === "string" ? row.name : "";
 				return optionKeys.has(name) || optionPrefixes.some((prefix) => name.startsWith(prefix));
 			});
 		} else {
-			rows = (
-				await sql<Record<string, unknown>>`
-					SELECT * FROM ${sql.ref(tableName)}
-				`.execute(db)
-			).rows;
+			rows = await readTableRows(db, tableName, columns);
 		}
 
 		if (publishedOnly) {
 			if (tableName.startsWith("ec_")) {
+				clearUnpublishedState(rows);
 				recordPublishedContent(publishedProjection, tableName, rows);
 			} else if (
 				isSystemTable(tableName) &&

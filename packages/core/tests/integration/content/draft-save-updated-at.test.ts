@@ -110,6 +110,7 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		await runtime.handleContentPublish("posts", id);
 		const firstSave = await runtime.handleContentUpdate("posts", id, {
 			data: { title: "Draft v1" },
+			skipRevision: true,
 		});
 		const firstDraftId = firstSave.data!.item.draftRevisionId!;
 		const revisionRepo = new RevisionRepository(db);
@@ -153,7 +154,6 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		});
 		const id = created.data!.item.id;
 		const revisionRepo = new RevisionRepository(db);
-		const beforeCount = await revisionRepo.countByEntry("posts", id);
 		const originalCreate = RevisionRepository.prototype.create;
 		const create = vi
 			.spyOn(RevisionRepository.prototype, "create")
@@ -172,7 +172,8 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 		create.mockRestore();
 
 		expect(result).toMatchObject({ success: false, error: { code: "CONFLICT" } });
-		expect(await revisionRepo.countByEntry("posts", id)).toBe(beforeCount);
+		const revisions = await revisionRepo.findByEntry("posts", id);
+		expect(revisions.map((revision) => revision.data.title)).toEqual(["Initial"]);
 		expect((await new ContentRepository(db).findById("posts", id))?.draftRevisionId).toBeNull();
 	});
 
@@ -196,7 +197,8 @@ describe("draft saves on published entries keep updated_at (#2143)", () => {
 
 		expect(result.success).toBe(true);
 		expect(result.data!.item.data.title).toBe("Retried draft");
-		expect(await revisionRepo.countByEntry("posts", id)).toBe(1);
+		const revisions = await revisionRepo.findByEntry("posts", id);
+		expect(revisions.map((revision) => revision.data.title)).toEqual(["Retried draft", "Initial"]);
 	});
 
 	it("Discard Draft restores updated_at from before the draft saves", async () => {

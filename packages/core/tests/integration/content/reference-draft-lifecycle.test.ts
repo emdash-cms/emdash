@@ -5,7 +5,7 @@
  */
 
 import { sql } from "kysely";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import {
 	handleContentCompare,
@@ -369,6 +369,64 @@ describeEachDialect("versioned reference selections", (dialect) => {
 		expect(published.success).toBe(true);
 		if (published.success) expect(published.data.item.data.title).toBe("Original");
 		expect(await liveGroups(id)).toEqual([a.translationGroup]);
+	});
+
+	it.each([
+		["created with links", true, false, null],
+		["created without links", false, false, null],
+		["duplicated with links", true, true, null],
+		["created with links, after a refused first save", true, false, "save"],
+		["created with links, after a refused publish", true, false, "publish"],
+	])("restores the selection an entry was %s", async (_, withLinks, duplicated, refused) => {
+		const [a, b] = [await createPage("A"), await createPage("B")];
+		const created = await runtime.handleContentCreate("posts", {
+			data: { title: "Created" },
+			slug: "created",
+			references: withLinks ? { related_pages: [a.id] } : undefined,
+		});
+		if (!created.success) throw new Error(created.error.message);
+		let id = created.data.item.id;
+		if (duplicated) {
+			await runtime.handleContentPublish("posts", id);
+			const copy = await handleContentDuplicate(ctx.db, "posts", id);
+			if (!copy.success) throw new Error(copy.error.message);
+			id = copy.data.item.id;
+		}
+		if (refused === "save") {
+			const current = await runtime.handleContentGet("posts", id);
+			if (!current.success) throw new Error(current.error.message);
+			const createRevision = RevisionRepository.prototype.create;
+			const spy = vi
+				.spyOn(RevisionRepository.prototype, "create")
+				.mockImplementationOnce(async function (this: RevisionRepository, input) {
+					const revision = await createRevision.call(this, input);
+					await sql`UPDATE ec_posts SET version = version + 1 WHERE id = ${id}`.execute(ctx.db);
+					return revision;
+				});
+			const refusedSave = await runtime.handleContentUpdate("posts", id, {
+				references: { related_pages: [b.id] },
+				_rev: current.data._rev,
+			});
+			spy.mockRestore();
+			expect(refusedSave.success).toBe(false);
+		}
+		if (refused === "publish") {
+			// Inline, as on D1, so the refused publish leaves behind what it wrote.
+			const refusedPublish = await handleContentPublish(asInlineTransaction(ctx.db), "posts", id, {
+				requireScheduledDue: true,
+			});
+			expect(refusedPublish.success).toBe(false);
+		}
+
+		await runtime.handleContentUpdate("posts", id, { references: { related_pages: [b.id] } });
+		await runtime.handleContentPublish("posts", id);
+		expect(await liveGroups(id)).toEqual([b.translationGroup]);
+
+		const oldest = (await new RevisionRepository(ctx.db).findByEntry("posts", id)).at(-1);
+		const restored = await runtime.handleRevisionRestore(oldest!.id, "user-1");
+		expect(restored.success).toBe(true);
+		await runtime.handleContentPublish("posts", id);
+		expect(await liveGroups(id)).toEqual(withLinks ? [a.translationGroup] : []);
 	});
 
 	it("restores the selection a revision published without naming", async () => {

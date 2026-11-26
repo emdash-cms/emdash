@@ -3,6 +3,7 @@
  * Tags widget component
  * Displays a tag cloud with optional counts
  */
+import { localePathPrefix } from "../../i18n/resolve.js";
 import { getTaxonomyTerms } from "../../taxonomies/index.js";
 
 interface Props {
@@ -12,9 +13,11 @@ interface Props {
 
 const { showCount = false, limit = 20 } = Astro.props;
 
-const allTags = await getTaxonomyTerms("tag", { includeCounts: showCount });
+const locale = Astro.currentLocale;
+const allTags = await getTaxonomyTerms("tag", { includeCounts: showCount, locale });
 const tags = allTags.slice(0, limit);
 const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+const localePrefix = await localePathPrefix(locale);
 
 ---
 
@@ -24,7 +27,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
 			<ul class="widget-tags__cloud">
 				{tags.map((tag) => (
 					<li>
-						<a href={`${base}/tag/${tag.slug}`} class="widget-tags__link">
+						<a href={`${base}${localePrefix}/tag/${tag.slug}`} class="widget-tags__link">
 							{tag.label}
 						</a>
 						{showCount && tag.count !== undefined && (

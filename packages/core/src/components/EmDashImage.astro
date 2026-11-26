@@ -32,12 +32,14 @@ import { buildRenderMediaUrl } from "../media/url.js";
 import {
 	buildResponsiveImage,
 	formatContentType,
+	canOptimizeImage,
 	toAbsoluteMediaUrl,
 	responsiveSizes,
 	responsiveWidths,
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 import { focalPointToObjectPosition } from "../media/focal-point.js";
+import { cssColor } from "../utils/css-value.js";
 
 interface Props extends Omit<
 	HTMLAttributes<"img">,
@@ -134,6 +136,7 @@ function generateSrcset(
 // an explicit `fallbackFormat`, every `formats` entry stays a `<source>`.
 const imgFormat = formats?.length ? (fallbackFormat ?? formats.at(-1)) : undefined;
 const sourceFormats = formats?.length ? (fallbackFormat ? formats : formats.slice(0, -1)) : [];
+const outputFormats = [...new Set([imgFormat, ...sourceFormats])];
 
 interface ResolvedImage {
 	src: string;
@@ -170,7 +173,20 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 		const publicOrigin = getPublicOrigin(Astro.url, Astro.locals.emdash?.config);
 		const absoluteSrc = toAbsoluteMediaUrl(src, publicOrigin);
 		if (finalWidth && finalHeight && absoluteSrc.startsWith(`${publicOrigin}/`)) {
-			astroImageSrc = absoluteSrc;
+			const optimizedFormats = await Promise.all(
+				outputFormats.map((format) =>
+					canOptimizeImage(getImage, {
+						src: absoluteSrc,
+						width: finalWidth,
+						height: finalHeight,
+						...(format !== undefined ? { format } : {}),
+						...(quality !== undefined ? { quality } : {}),
+					}),
+				),
+			);
+			if (optimizedFormats.every(Boolean)) {
+				astroImageSrc = absoluteSrc;
+			}
 		} else {
 			const optimized = await buildResponsiveImage(getImage, {
 				src: absoluteSrc,
@@ -251,8 +267,7 @@ async function resolveImage(img: MediaValue): Promise<ResolvedImage> {
 	// Build placeholder background style. Prefer the first-class MediaValue fields;
 	// fall back to `meta` for snapshots stored before LQIP was promoted off `meta`.
 	const blurhash = img.blurhash ?? (img.meta?.blurhash as string | undefined);
-	const dominantColor =
-		img.dominantColor ?? (img.meta?.dominantColor as string | undefined);
+	const dominantColor = cssColor(img.dominantColor) ?? cssColor(img.meta?.dominantColor);
 
 	let placeholderStyle = "";
 	if (placeholder && blurhash) {

@@ -254,7 +254,7 @@ export interface AccessConfig {
 	defaultRole?: number;
 
 	/**
-	 * Update user's role on each login based on current IdP groups
+	 * Update user's role on each login based on current IdP groups or GitHub teams
 	 * When false, role is only set on first provisioning
 	 * @default false
 	 */
@@ -268,8 +268,9 @@ export interface AccessConfig {
 	syncName?: boolean;
 
 	/**
-	 * Map IdP group names to EmDash role levels
-	 * First match wins if user is in multiple groups
+	 * Map IdP group names (or group IDs, see `matchGroupsBy`) or GitHub
+	 * org/team names to EmDash role levels
+	 * First match wins, checking groups before teams in identity response order
 	 *
 	 * @example
 	 * ```ts
@@ -281,6 +282,16 @@ export interface AccessConfig {
 	 * ```
 	 */
 	roleMapping?: Record<string, number>;
+
+	/**
+	 * Which IdP group field `roleMapping` keys are compared with.
+	 * Group names are not unique in every directory, and some directories let
+	 * members create groups, so a group named like a mapped key receives its
+	 * role. Use `"id"` to match the group's stable ID instead.
+	 * GitHub teams are always matched by `org/team` name.
+	 * @default "name"
+	 */
+	matchGroupsBy?: "name" | "id";
 }
 
 /**

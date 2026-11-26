@@ -3,7 +3,7 @@
  * GET  /_emdash/api/auth/dev-bypass
  *
  * Development-only endpoint to bypass passkey authentication.
- * Creates or uses a test admin user and establishes a session.
+ * Creates or uses a test admin user and establishes a session after setup is complete.
  *
  * ONLY available when import.meta.env.DEV is true.
  *
@@ -24,6 +24,8 @@ import { ulid } from "ulidx";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { escapeHtml } from "#api/escape.js";
 import { isSafeRedirect } from "#api/redirect.js";
+import { getAuthMode } from "#auth/mode.js";
+import { OptionsRepository } from "#db/repositories/options.js";
 
 const DEV_USER_EMAIL = "dev@emdash.local";
 const DEV_USER_NAME = "Dev Admin";
@@ -45,6 +47,23 @@ async function handleDevBypass(context: Parameters<APIRoute>[0]): Promise<Respon
 	}
 
 	try {
+		const options = new OptionsRepository(emdash.db);
+		const setupComplete = await options.get("emdash:setup_complete");
+		const isComplete = setupComplete === true || setupComplete === "true";
+		const requiresUser = getAuthMode(emdash.config).type === "passkey";
+		const hasUsers =
+			isComplete && requiresUser
+				? await emdash.db.selectFrom("users").select("id").limit(1).executeTakeFirst()
+				: undefined;
+
+		if (!isComplete || (requiresUser && !hasUsers)) {
+			return apiError(
+				"SETUP_REQUIRED",
+				"Complete the setup wizard at /_emdash/admin/setup before using dev authentication, or explicitly skip setup via /_emdash/api/setup/dev-bypass?content=0.",
+				409,
+			);
+		}
+
 		// Find or create dev user (direct DB access to avoid @emdash-cms/auth import issues in dev)
 		const existingUser = await emdash.db
 			.selectFrom("users")

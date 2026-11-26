@@ -17,10 +17,12 @@ import { isParseError, parseBody } from "#api/parse.js";
 import { getPublicOrigin } from "#api/public-url.js";
 import { setupAdminVerifyBody } from "#api/schemas.js";
 import { createFirstAdmin } from "#api/setup-complete.js";
+import { getSiteTitle } from "#api/site-title.js";
 import { getConfiguredAllowedOrigins, validateAllowedOrigins } from "#auth/allowed-origins.js";
 import { createChallengeStore } from "#auth/challenge-store.js";
 import { getPasskeyConfig } from "#auth/passkey-config.js";
 import { SETUP_NONCE_COOKIE } from "#auth/setup-nonce.js";
+import { startUserSession } from "#auth/start-user-session.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
 import { sessionUnavailableError } from "../../../session-user.js";
@@ -90,7 +92,7 @@ export const POST: APIRoute = async ({ cookies, request, locals, session }) => {
 
 		// Get passkey config
 		const url = new URL(request.url);
-		const siteName = (await options.get<string>("emdash:site_title")) ?? undefined;
+		const siteName = await getSiteTitle(options);
 		const siteUrl = getPublicOrigin(url, emdash?.config);
 		const allowedOrigins = validateAllowedOrigins(
 			siteUrl,
@@ -122,7 +124,7 @@ export const POST: APIRoute = async ({ cookies, request, locals, session }) => {
 		await options.set("emdash:setup_complete", true);
 
 		// Authenticate the newly created admin so the dashboard opens immediately.
-		session.set("user", { id: user.id });
+		await startUserSession(emdash.db, session, user.id);
 
 		// Clean up setup state and the session nonce cookie
 		await options.delete("emdash:setup_state");

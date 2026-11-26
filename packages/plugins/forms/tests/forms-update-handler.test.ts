@@ -32,8 +32,9 @@ function context(input: unknown) {
 	let current = stored;
 	const forms = {
 		get: async () => current,
-		put: async (_id: string, value: FormDefinition) => {
-			current = value;
+		updateIf: async (_id: string, args: { set: Partial<FormDefinition> }) => {
+			current = { ...current, ...args.set };
+			return { applied: true, data: current };
 		},
 		query: async () => ({ items: [], hasMore: false }),
 	};

@@ -167,6 +167,11 @@ interface RepeaterSubFieldState {
 	type: string;
 	label: string;
 	required: boolean;
+	/** One option per line, for `select` sub-fields. */
+	options: string;
+	/** The type the sub-field was saved with, if it has been saved. */
+	persistedType?: string;
+	validation?: { allowedMimeTypes?: string[] };
 }
 
 interface FieldFormState {
@@ -223,9 +228,17 @@ function getInitialFormState(field?: SchemaField): FieldFormState {
 			pattern: field.validation?.pattern ?? "",
 			options: field.validation?.options?.join("\n") ?? "",
 			subFields: (field.validation as Record<string, unknown>)?.subFields
-				? ((field.validation as Record<string, unknown>).subFields as RepeaterSubFieldState[]).map(
-						(sf) => ({ ...sf, slugEdited: true, slugPersisted: true }),
-					)
+				? (
+						(field.validation as Record<string, unknown>).subFields as Array<
+							Omit<RepeaterSubFieldState, "options"> & { options?: string[] }
+						>
+					).map((sf) => ({
+						...sf,
+						options: sf.options?.join("\n") ?? "",
+						persistedType: sf.type,
+						slugEdited: true,
+						slugPersisted: true,
+					}))
 				: [],
 			minItems: (field.validation as Record<string, unknown>)?.minItems?.toString() ?? "",
 			maxItems: (field.validation as Record<string, unknown>)?.maxItems?.toString() ?? "",
@@ -300,7 +313,7 @@ const FIELD_INPUTS = [
 
 type FieldInput = (typeof FIELD_INPUTS)[number];
 
-type SubFieldInput = "label" | "slug";
+type SubFieldInput = "label" | "slug" | "options";
 
 interface FormProblems {
 	fields: Partial<Record<FieldInput, MessageDescriptor>>;
@@ -370,6 +383,13 @@ function isValidPattern(pattern: string): boolean {
 	} catch {
 		return false;
 	}
+}
+
+const ADD_AN_OPTION = msg`Add at least one option.`;
+
+/** A sub-field saved as a select before options could be set may stay without them. */
+function needsOptions(sf: RepeaterSubFieldState): boolean {
+	return sf.type === "select" && sf.persistedType !== "select";
 }
 
 function optionList(options: string): string[] {
@@ -446,7 +466,7 @@ function formProblems(state: FieldFormState, context: ProblemContext): FormProbl
 		(type === "select" || type === "multiSelect") &&
 		optionList(state.options).length === 0
 	) {
-		fields.options = msg`Add at least one option.`;
+		fields.options = ADD_AN_OPTION;
 	}
 
 	const subFields: FormProblems["subFields"] = [];
@@ -469,6 +489,9 @@ function formProblems(state: FieldFormState, context: ProblemContext): FormProbl
 				else if (state.subFields.findIndex((other) => other.slug === sf.slug) !== index) {
 					problems.slug = msg`Another sub-field already uses this slug. Enter a different one.`;
 				}
+			}
+			if (needsOptions(sf) && optionList(sf.options).length === 0) {
+				problems.options = ADD_AN_OPTION;
 			}
 			subFields[index] = problems;
 		});
@@ -667,7 +690,7 @@ export function FieldEditor({
 		},
 		{
 			type: "select",
-			label: t`Select`,
+			label: t({ message: "Select", context: "field type" }),
 			description: t`Single choice from options`,
 			icon: List,
 		},
@@ -808,7 +831,7 @@ export function FieldEditor({
 	if (slugRefusal && slug === failure?.sent?.slug) problems.fields.slug = slugRefusal;
 	const hasProblems =
 		Object.keys(problems.fields).length > 0 ||
-		problems.subFields.some((subField) => subField.label || subField.slug);
+		problems.subFields.some((subField) => subField.label || subField.slug || subField.options);
 
 	const errors: Partial<Record<FieldInput, string>> = {};
 	const subFieldErrors: Partial<Record<SubFieldInput, string>>[] = [];
@@ -821,6 +844,7 @@ export function FieldEditor({
 			subFieldErrors[index] = {
 				label: subField.label && t(subField.label),
 				slug: subField.slug && t(subField.slug),
+				options: subField.options && t(subField.options),
 			};
 		});
 	}
@@ -909,6 +933,10 @@ export function FieldEditor({
 					type: sf.type,
 					label: sf.label,
 					required: sf.required || undefined,
+					...(sf.type === "select" && optionList(sf.options).length > 0
+						? { options: optionList(sf.options) }
+						: {}),
+					...(sf.validation ? { validation: sf.validation } : {}),
 				}));
 			}
 			if (formState.minItems)
@@ -1441,65 +1469,69 @@ export function FieldEditor({
 														className="rounded-lg border border-kumo-line p-3"
 													>
 														<div className="flex items-center gap-2">
-															<Checkbox
-																label={blockType.label}
-																checked={selected}
-																disabled={retired && !selected}
-																onCheckedChange={(checked) => {
-																	setField(
-																		"allowedTypes",
-																		checked
-																			? [...formState.allowedTypes, blockType.slug]
-																			: formState.allowedTypes.filter(
-																					(candidateSlug) => candidateSlug !== blockType.slug,
-																				),
-																	);
-																}}
-															/>
-															<code dir="ltr" className="text-xs text-kumo-subtle">
-																{blockType.slug}
-															</code>
-															{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
-															{selected && (
-																<div className="ms-auto flex gap-1">
-																	<Button
-																		variant="ghost"
-																		shape="square"
-																		size="sm"
-																		disabled={selectedIndex === 0}
-																		onClick={() => {
-																			const next = [...formState.allowedTypes];
-																			[next[selectedIndex - 1], next[selectedIndex]] = [
-																				next[selectedIndex]!,
-																				next[selectedIndex - 1]!,
-																			];
-																			setField("allowedTypes", next);
-																		}}
-																		aria-label={t`Move ${blockType.label} up`}
-																	>
-																		<ArrowUp className="h-4 w-4" />
-																	</Button>
-																	<Button
-																		variant="ghost"
-																		shape="square"
-																		size="sm"
-																		disabled={selectedIndex === formState.allowedTypes.length - 1}
-																		onClick={() => {
-																			const next = [...formState.allowedTypes];
-																			[next[selectedIndex], next[selectedIndex + 1]] = [
-																				next[selectedIndex + 1]!,
-																				next[selectedIndex]!,
-																			];
-																			setField("allowedTypes", next);
-																		}}
-																		aria-label={t`Move ${blockType.label} down`}
-																	>
-																		<ArrowDown className="h-4 w-4" />
-																	</Button>
-																</div>
-															)}
+															<div className="flex min-w-0 items-baseline gap-2">
+																<Checkbox
+																	label={blockType.label}
+																	checked={selected}
+																	disabled={retired && !selected}
+																	onCheckedChange={(checked) => {
+																		setField(
+																			"allowedTypes",
+																			checked
+																				? [...formState.allowedTypes, blockType.slug]
+																				: formState.allowedTypes.filter(
+																						(candidateSlug) => candidateSlug !== blockType.slug,
+																					),
+																		);
+																	}}
+																/>
+																<code dir="ltr" className="text-xs text-kumo-subtle">
+																	{blockType.slug}
+																</code>
+																{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
+															</div>
+															{/* Kept on unticked cards too, so ticking one doesn't make it taller. */}
+															<div className={cn("ms-auto flex gap-1", !selected && "invisible")}>
+																<Button
+																	variant="ghost"
+																	shape="square"
+																	size="sm"
+																	disabled={!selected || selectedIndex === 0}
+																	onClick={() => {
+																		const next = [...formState.allowedTypes];
+																		[next[selectedIndex - 1], next[selectedIndex]] = [
+																			next[selectedIndex]!,
+																			next[selectedIndex - 1]!,
+																		];
+																		setField("allowedTypes", next);
+																	}}
+																	aria-label={t`Move ${blockType.label} up`}
+																>
+																	<ArrowUp className="h-4 w-4" />
+																</Button>
+																<Button
+																	variant="ghost"
+																	shape="square"
+																	size="sm"
+																	disabled={
+																		!selected || selectedIndex === formState.allowedTypes.length - 1
+																	}
+																	onClick={() => {
+																		const next = [...formState.allowedTypes];
+																		[next[selectedIndex], next[selectedIndex + 1]] = [
+																			next[selectedIndex + 1]!,
+																			next[selectedIndex]!,
+																		];
+																		setField("allowedTypes", next);
+																	}}
+																	aria-label={t`Move ${blockType.label} down`}
+																>
+																	<ArrowDown className="h-4 w-4" />
+																</Button>
+															</div>
 														</div>
-														<div className="mt-2 flex flex-wrap gap-2">
+														{/* Past the checkbox, so it starts where the label's text starts. */}
+														<div className="mt-2 flex flex-wrap gap-2 ps-6">
 															{blockType.versions.map((version) => (
 																<span key={version.version} className="text-xs text-kumo-subtle">
 																	{version.active
@@ -1569,6 +1601,7 @@ export function FieldEditor({
 																type: "string",
 																label: "",
 																required: false,
+																options: "",
 															},
 														],
 													}))
@@ -1670,12 +1703,28 @@ export function FieldEditor({
 																integer: t`Integer`,
 																boolean: t`Boolean`,
 																datetime: t`Date & Time`,
-																select: t`Select`,
+																select: t({ message: "Select", context: "field type" }),
 																url: t`URL`,
 																image: t`Image`,
 															}}
 														/>
 													</div>
+													{sf.type === "select" && (
+														<InputArea
+															label={t`Options (one per line)`}
+															value={sf.options}
+															onChange={(e) => {
+																const updated = [...formState.subFields];
+																updated[i] = { ...sf, options: e.target.value };
+																setFormState((prev) => ({ ...prev, subFields: updated }));
+															}}
+															placeholder={t`Option 1\nOption 2\nOption 3`}
+															rows={3}
+															required={needsOptions(sf) || undefined}
+															error={subFieldErrorsAt.options}
+															aria-invalid={subFieldErrorsAt.options ? true : undefined}
+														/>
+													)}
 													<Switch
 														label={t`Required`}
 														checked={sf.required ?? false}

@@ -75,6 +75,10 @@ A manual run from a branch requests approval the first time that branch is used.
 
 The Action accepts an existing `bundle-file`, or builds `plugin-directory` with the project's installed `emdash-plugin` command. Pass the raw `bundle-path` output from `actions/attest-build-provenance` as `provenance-file`. Before uploading either file, the Action confirms that the workflow is authorised and that the signed package profile links the same canonical repository. The service verifies the checksums and provenance before publishing.
 
+The Action reads `release.artifacts` from `emdash-plugin.jsonc` in `plugin-directory` and uploads the icon, banner, and screenshots through the same authorised workflow. Image paths are relative to the manifest directory. Images must be PNG, JPEG, or WebP, at most 1 MiB each and 8192 pixels per dimension; a release can include up to eight screenshots. Screenshot order and each image's `lang` are preserved. The service verifies each image's checksum and dimensions before publishing it to the publisher's PDS. Required package provenance still applies.
+
+When passing `bundle-file`, also pass the selected `plugin-directory`, especially in repositories containing multiple plugins. For workflows using `release prepare`, use `plugin-directory: ${{ steps.prepare.outputs.plugin-directory }}`. If the directory has no manifest, the Action publishes only the bundle and provenance. For bundle-only workflows using the default directory, a root manifest for a different plugin is ignored; pass the selected plugin directory to include its images. A declared image that cannot be read or validated fails the release before any upload.
+
 `release-file` remains available for custom URL-source integrations. Do not combine it with bundle or provenance inputs.
 
 ## Custom workflow usage
@@ -90,6 +94,7 @@ The following step uses the bundle and provenance outputs created earlier in the
     service-url: https://releases.emdashcms.com
     publisher-did: did:plc:examplepublisher
     bundle-file: ${{ steps.bundle.outputs.path }}
+    plugin-directory: packages/gallery
     provenance-file: ${{ steps.attest.outputs.bundle-path }}
 ```
 
@@ -101,7 +106,7 @@ The following step uses the bundle and provenance outputs created earlier in the
 | `publisher-did`         | Yes         | —              | DID that owns the package profile and release records.                                                |
 | `connection-invitation` | No          | —              | Legacy package-bound invitation accepted from workflows generated before repository connections.      |
 | `bundle-file`           | No          | —              | Existing plugin tarball inside `GITHUB_WORKSPACE`. The Action builds `plugin-directory` when omitted. |
-| `plugin-directory`      | No          | `.`            | Plugin source directory inside `GITHUB_WORKSPACE`.                                                    |
+| `plugin-directory`      | No          | `.`            | Plugin source and listing-media directory inside `GITHUB_WORKSPACE`, also used with `bundle-file`.    |
 | `provenance-file`       | Conditional | —              | Raw Sigstore bundle under `RUNNER_TEMP`; required with a bundle or plugin directory.                  |
 | `release-file`          | No          | —              | Compatibility input for a URL-source release record inside `GITHUB_WORKSPACE`.                        |
 | `repository-visibility` | No          | From the event | Visibility of the repository running the workflow. Only public repositories can publish.              |
@@ -135,6 +140,8 @@ With the default `wait-for-approval: false`, an intent awaiting approval returns
 | `awaiting_approval`                                       | The release needs a passkey decision. This is a successful Action result unless `wait-for-approval` is `true`.                     | Open `approval-url` or use the release dashboard.                   |
 | `POLL_TIMEOUT`                                            | Workflow approval, release approval, or publication exceeded `timeout-minutes`.                                                    | Inspect the intent in the release dashboard before rerunning.       |
 | `invalid`, `failed`, `rejected`, `expired`, or `conflict` | The release reached a terminal state.                                                                                              | Read `reason-code` and the release-service activity entry.          |
+
+When releasing many plugins in a matrix, stagger jobs to stay within the service's upload rate limits. A release with eight screenshots, an icon, and a banner makes 12 upload requests plus the release-intent request. A `WORKLOAD_RATE_LIMITED` response fails the Action; rerun after the rate-limit window.
 
 ## Security boundary
 

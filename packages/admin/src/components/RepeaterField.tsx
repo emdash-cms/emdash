@@ -31,11 +31,15 @@ interface RepeaterSubFieldDef {
 	label: string;
 	required?: boolean;
 	options?: string[];
+	validation?: { allowedMimeTypes?: string[] };
 }
 
 export interface RepeaterFieldProps {
 	label: string;
 	id: string;
+	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
 	value: unknown;
 	onChange: (value: unknown[]) => void;
 	required?: boolean;
@@ -61,6 +65,9 @@ function stripKeys(items: RepeaterItem[]): Record<string, unknown>[] {
 export function RepeaterField({
 	label,
 	id,
+	fieldId,
+	blockType,
+	blockVersion,
 	value,
 	onChange,
 	subFields,
@@ -108,7 +115,9 @@ export function RepeaterField({
 					: sf.type === "number" ||
 						  sf.type === "integer" ||
 						  sf.type === "image" ||
-						  sf.type === "datetime"
+						  sf.type === "datetime" ||
+						  sf.type === "select" ||
+						  sf.type === "url"
 						? null
 						: "";
 		}
@@ -193,6 +202,9 @@ export function RepeaterField({
 									item={item}
 									index={index}
 									pathPrefix={id}
+									fieldId={fieldId}
+									blockType={blockType}
+									blockVersion={blockVersion}
 									subFields={subFields}
 									isCollapsed={collapsedItems.has(item._key)}
 									onToggleCollapse={() => toggleCollapse(item._key)}
@@ -215,6 +227,9 @@ interface SortableRepeaterItemProps {
 	item: RepeaterItem;
 	index: number;
 	pathPrefix: string;
+	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
 	subFields: RepeaterSubFieldDef[];
 	isCollapsed: boolean;
 	onToggleCollapse: () => void;
@@ -227,6 +242,9 @@ function SortableRepeaterItem({
 	item,
 	index,
 	pathPrefix,
+	fieldId,
+	blockType,
+	blockVersion,
 	subFields,
 	isCollapsed,
 	onToggleCollapse,
@@ -298,6 +316,9 @@ function SortableRepeaterItem({
 							key={sf.slug}
 							id={`${pathPrefix}.${index}.${sf.slug}`}
 							subField={sf}
+							fieldId={fieldId ? `${fieldId}.${sf.slug}` : undefined}
+							blockType={blockType}
+							blockVersion={blockVersion}
 							value={item[sf.slug]}
 							onChange={(v) => onChange(sf.slug, v)}
 							timezone={timezone}
@@ -311,13 +332,25 @@ function SortableRepeaterItem({
 
 interface SubFieldInputProps {
 	id: string;
+	fieldId?: string;
+	blockType?: string;
+	blockVersion?: number;
 	subField: RepeaterSubFieldDef;
 	value: unknown;
 	onChange: (value: unknown) => void;
 	timezone: string;
 }
 
-function SubFieldInput({ id, subField, value, onChange, timezone }: SubFieldInputProps) {
+function SubFieldInput({
+	id,
+	fieldId,
+	blockType,
+	blockVersion,
+	subField,
+	value,
+	onChange,
+	timezone,
+}: SubFieldInputProps) {
 	const { t } = useLingui();
 	switch (subField.type) {
 		case "string":
@@ -392,7 +425,7 @@ function SubFieldInput({ id, subField, value, onChange, timezone }: SubFieldInpu
 					id={id}
 					label={subField.label}
 					value={typeof value === "string" && value ? value : null}
-					onValueChange={(v) => onChange(typeof v === "string" ? v : "")}
+					onValueChange={(v) => onChange(typeof v === "string" ? v : null)}
 					items={options}
 					required={subField.required}
 				>
@@ -414,7 +447,10 @@ function SubFieldInput({ id, subField, value, onChange, timezone }: SubFieldInpu
 			return (
 				<ImageFieldRenderer
 					id={id}
-					fieldId={id}
+					fieldId={fieldId}
+					blockType={blockType}
+					blockVersion={blockVersion}
+					allowedMimeTypes={subField.validation?.allowedMimeTypes}
 					label={subField.label}
 					// Same backwards-compat contract as top-level image fields:
 					// objects are MediaValues, strings are legacy URLs.
@@ -435,7 +471,7 @@ function SubFieldInput({ id, subField, value, onChange, timezone }: SubFieldInpu
 					id={id}
 					label={subField.label}
 					value={typeof value === "string" ? value : ""}
-					onChange={(e) => onChange(e.target.value)}
+					onChange={(e) => onChange(e.target.value || null)}
 				/>
 			);
 	}

@@ -60,6 +60,7 @@ interface StubItem {
 	version: number;
 	locale: string | null;
 	translationGroup: string | null;
+	liveData?: Record<string, unknown>;
 }
 
 function makeItem(partial: Partial<StubItem> & { id: string; status: string }): StubItem {
@@ -142,6 +143,10 @@ function buildEmdash(
 		data: { deleted: true as const },
 	}));
 
+	const handleContentGetForWrite = vi.fn(async (_collection: string, id: string) => ({
+		success: true as const,
+		data: { item: { id: id === "hello" ? "resolved-id" : id }, _rev: "rev1" },
+	}));
 	return {
 		// Routes treat a missing db as "runtime not initialized" (500 before any
 		// permission check), so the mock carries one to exercise the authz path.
@@ -153,6 +158,7 @@ function buildEmdash(
 		handleRevisionList,
 		handleContentCompare,
 		handleContentPermanentDelete,
+		handleContentGetForWrite,
 	};
 }
 
@@ -229,6 +235,36 @@ describe("GET /content/:collection — subscriber drafts leak", () => {
 		expect(call?.status).toBeUndefined();
 	});
 
+	it("hides a published item's pending draft from SUBSCRIBER", async () => {
+		const pending = makeItem({
+			id: "pub-2",
+			status: "published",
+			draftRevisionId: "rev-2",
+			version: 3,
+		});
+		const emdash = buildEmdash({ listItems: [pending] });
+		const res = await getList(ctx({ user: subscriber, emdash }));
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: { items: StubItem[] } };
+		expect(body.data.items.map((i) => i.id)).toEqual(["pub-2"]);
+		expect(body.data.items[0]).not.toHaveProperty("draftRevisionId");
+		expect(body.data.items[0]).not.toHaveProperty("version");
+	});
+
+	it("lists a published item's pending draft for CONTRIBUTOR", async () => {
+		const pending = makeItem({
+			id: "pub-2",
+			status: "published",
+			draftRevisionId: "rev-2",
+			version: 3,
+		});
+		const emdash = buildEmdash({ listItems: [pending] });
+		const res = await getList(ctx({ user: contributor, emdash }));
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: { items: StubItem[] } };
+		expect(body.data.items[0]).toMatchObject({ draftRevisionId: "rev-2", version: 3 });
+	});
+
 	it("parses indexed field filters before calling the runtime", async () => {
 		const emdash = buildEmdash({ listItems: items });
 		const fieldFilters = encodeURIComponent(
@@ -287,6 +323,50 @@ describe("GET /content/:collection/:id — subscriber drafts leak", () => {
 			ctx({ user: contributor, emdash, params: { collection: "post", id: "p1" } }),
 		);
 		expect(res.status).toBe(200);
+	});
+
+	it("serves SUBSCRIBER the published values of an item with a pending draft", async () => {
+		const emdash = buildEmdash({
+			getItem: makeItem({
+				id: "p1",
+				status: "published",
+				data: { title: "Unpublished edit" },
+				liveData: { title: "Published title" },
+				draftRevisionId: "rev-draft",
+			}),
+		});
+		const res = await getItem(
+			ctx({ user: subscriber, emdash, params: { collection: "post", id: "p1" } }),
+		);
+		expect(res.status).toBe(200);
+		const body = (await res.json()) as { data: { item: Record<string, unknown>; _rev?: string } };
+		expect(body.data.item.data).toEqual({ title: "Published title" });
+		expect(body.data.item).not.toHaveProperty("liveData");
+		expect(body.data.item).not.toHaveProperty("draftRevisionId");
+		// Saving or discarding a draft advances `version`, and `_rev` encodes it.
+		expect(body.data.item).not.toHaveProperty("version");
+		expect(body.data).not.toHaveProperty("_rev");
+	});
+
+	it("serves CONTRIBUTOR the pending draft of a published item", async () => {
+		const emdash = buildEmdash({
+			getItem: makeItem({
+				id: "p1",
+				status: "published",
+				data: { title: "Unpublished edit" },
+				liveData: { title: "Published title" },
+				draftRevisionId: "rev-draft",
+			}),
+		});
+		const res = await getItem(
+			ctx({ user: contributor, emdash, params: { collection: "post", id: "p1" } }),
+		);
+		const body = (await res.json()) as { data: { item: Record<string, unknown>; _rev?: string } };
+		expect(body.data.item.data).toEqual({ title: "Unpublished edit" });
+		expect(body.data.item.liveData).toEqual({ title: "Published title" });
+		expect(body.data.item.draftRevisionId).toBe("rev-draft");
+		expect(body.data.item.version).toBe(1);
+		expect(body.data._rev).toBe("rev1");
 	});
 });
 
@@ -443,6 +523,25 @@ describe("DELETE /content/:collection/:id/permanent", () => {
 		expect(emdash.handleContentPermanentDelete).toHaveBeenCalledWith("post", "p1");
 	});
 
+	it("resolves a slug in the requested locale and deletes the resolved entry", async () => {
+		const emdash = buildEmdash();
+		const url = "http://localhost/?locale=de";
+		const res = await deletePermanent(
+			ctx({
+				user: admin,
+				emdash,
+				params: { collection: "post", id: "hello" },
+				url,
+				request: new Request(url, { method: "DELETE" }),
+			}),
+		);
+		expect(res.status).toBe(200);
+		expect(emdash.handleContentGetForWrite).toHaveBeenCalledWith("post", "hello", "de", {
+			includeTrashed: true,
+		});
+		expect(emdash.handleContentPermanentDelete).toHaveBeenCalledWith("post", "resolved-id");
+	});
+
 	it("denies EDITOR (handler must not be called)", async () => {
 		const emdash = buildEmdash();
 		const res = await deletePermanent(permanentCtx(editor, emdash));
@@ -509,7 +608,7 @@ describe("uninitialized runtime returns NOT_CONFIGURED, not UNAUTHORIZED", () =>
 		expect(res.status).toBe(500);
 	});
 
-	// A requireDb-gated route (references) — the guard style differs from the
+	// A db-gated route (references) — the guard style differs from the
 	// handler-presence checks above, so pin it separately.
 	it("GET …/references/:relation/parents → 500 NOT_CONFIGURED", async () => {
 		const url = "http://localhost/";

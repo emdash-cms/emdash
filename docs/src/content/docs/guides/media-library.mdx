@@ -18,6 +18,14 @@ If the site has external media providers, each provider appears as another sourc
 capabilities vary: a source may support browsing and selecting but not folders, local image editing,
 or deletion.
 
+Open a video to preview it in the detail panel. Cloudflare Stream videos use the hosted player;
+other providers can also supply a hosted player, or use the browser's native video player.
+
+If you enable [Astro's content security policy](https://docs.astro.build/en/reference/configuration-reference/#securitycsp),
+allow the hosted player's origin in `frame-src`. For Cloudflare Stream, this is the
+`https://customer-<code>.cloudflarestream.com` origin from the video's preview URL. EmDash's default
+admin policy already allows HTTPS frames.
+
 ## Upload files
 
 ### Upload from the library
@@ -58,7 +66,7 @@ finishes.
 
 The local Media Library accepts these file groups by default:
 
-- PNG, JPEG, GIF, WebP, and AVIF images;
+- PNG, JPEG, GIF, WebP, AVIF, and BMP images;
 - common video formats such as MP4, WebM, and QuickTime video;
 - common audio formats such as MP3, WAV, and Ogg audio; and
 - PDF documents.
@@ -75,9 +83,17 @@ format or size limit and will report that failure in the upload row.
 
 ## Find and organize files
 
-Search matches partial filenames. The type filter limits results to images, documents, video, or
-audio. A filename search covers the whole local library, even while a folder is open; browsing a
-folder without a search shows only the files assigned to that folder.
+In the local Media Library and media picker, search matches parts of filenames, storage keys, and
+media IDs case-insensitively. Short terms may match a key or ID even when the filename does not
+contain the term. The type filter limits results to images, documents, video, or audio. A search
+covers the whole local library, even while a folder is open; browsing a folder without a search
+shows only the files assigned to that folder.
+
+To find a file from a copied link, paste its relative or full media URL into search. For example,
+`https://example.com/_emdash/api/media/file/01M66PYKARAMWV7H63E8S28HYA.01M66PYM1K0Y37FSW9F9XXMP3F.jpg?download=1#preview`
+searches for `01M66PYKARAMWV7H63E8S28HYA.01M66PYM1K0Y37FSW9F9XXMP3F.jpg`. For any term containing `/`,
+search removes the query string and fragment and uses the last path segment. A path ending in `/`
+leaves no search term and applies no search filter.
 
 Editors can select **Add new folder** in the Main library. Move a local file by dragging its card or
 row onto a visible folder, or open the file, change **Location**, and select **Save**. Use **Main
@@ -234,15 +250,37 @@ settings that select the file: **Logo**, **Favicon**, or **Default Social Image*
 **Used in** checks these references:
 
 - image and file fields
-- image fields inside repeaters
-- image, file, and Portable Text fields inside `blocks` fields
+- image, string, and URL fields inside repeaters
+- image, file, string, URL, and Portable Text fields inside `blocks` fields
 - image, gallery, and video blocks in Portable Text fields, including blocks that refer to the file by
   its `/_emdash/api/media/file/` URL instead of its media ID, as Markdown images written through MCP
   or the CLI do
+- links to a local file's `/_emdash/api/media/file/` URL in Portable Text paragraph link marks, `href` or
+  `src` attributes in HTML blocks, and whole string or URL field values; query strings and fragments
+  do not change which file is counted
 - the site logo, favicon, and default social image
+
+Both root-relative media URLs and full same-site URLs from **Copy URL** are tracked. Full URLs must
+match the site's origin: `siteUrl` configuration or `EMDASH_SITE_URL`/`SITE_URL`, then the **Site URL**
+setting, then the URL recorded during setup if neither is set. A different host, port, or protocol is
+not treated as local. The **Site URL** setting is used only for HTTPS or loopback HTTP addresses
+(`localhost`, `127.0.0.1`, or `[::1]`); for other HTTP sites, set `siteUrl` instead (or `EMDASH_SITE_URL` on Node.js).
+After moving a site, update its origin and repair usage to recount its links.
+Copying from an alternate admin origin does not make that origin local: full URLs on
+`allowedOrigins` or `EMDASH_ALLOWED_ORIGINS` are not counted unless they also match the site origin.
+Use the primary site address or a root-relative media URL for those links.
+
+Links in other Portable Text structures, such as file or button blocks, table cells, and nested
+column or cover content, are not tracked. Check those uses separately before deleting files.
 
 When usage coverage is complete and the file has none of these references, the list shows **No
 tracked references found**. Until coverage is complete, an empty list shows **No usage to show yet**.
+
+If tracking was enabled before media URL links were supported, existing entries need a
+[`media repair-usage` repair](/reference/cli/#media-repair-usage) or a re-save to index those links.
+Until then, coverage can still report complete and a linked file can show **No tracked references
+found**. Follow the [media URL link upgrade instructions](/deployment/updating/#fixed-media-url-link-usage)
+before relying on the list when reviewing files for deletion.
 
 Media usage tracking must be active before the content results can be complete. Site settings are
 listed whether or not tracking is active. An administrator turns tracking on once for the site:
@@ -292,7 +330,7 @@ import { getEmDashEntry } from "emdash";
 import { Image } from "emdash/ui";
 
 const { entry: post, error } = await getEmDashEntry("posts", Astro.params.slug);
-if (error) return new Response("Unable to load post", { status: 500 });
+if (error) throw error;
 if (!post) return Astro.rewrite("/404");
 ---
 
@@ -358,7 +396,7 @@ The following page renders a video stored in a `video` file field:
 import { getEmDashEntry } from "emdash";
 
 const { entry, error } = await getEmDashEntry("videos", Astro.params.slug);
-if (error) return new Response("Unable to load video", { status: 500 });
+if (error) throw error;
 if (!entry) return Astro.rewrite("/404");
 
 const file = entry.data.video;

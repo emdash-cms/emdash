@@ -106,6 +106,7 @@ function mockApiFetch({
 	createTermRequest,
 	unresolved = [],
 	saveEntryTerms,
+	otherEntryTerms = [],
 }: {
 	taxonomies?: TestTaxonomy[];
 	terms?: TestTerm[];
@@ -116,8 +117,11 @@ function mockApiFetch({
 	createTermRequest?: (label: string) => Promise<Response>;
 	unresolved?: TestUnresolvedAssignment[];
 	saveEntryTerms?: (init?: RequestInit) => Promise<Response>;
+	/** The terms of `entry_2`, which no test saves. */
+	otherEntryTerms?: TestTerm[];
 } = {}) {
 	let currentTerms = terms;
+	let currentEntryTerms = entryTerms;
 	vi.mocked(apiFetch).mockImplementation((url: string | URL | Request, init?: RequestInit) => {
 		const urlString = requestUrl(url);
 		const path = new URL(urlString, "http://localhost").pathname;
@@ -141,8 +145,18 @@ function mockApiFetch({
 				path === "/_emdash/api/content/products/entry_1/terms/categories")
 		) {
 			return dataResponse({
-				terms: entryTerms,
+				terms: currentEntryTerms,
 				unresolved,
+				entryLocale: "fr",
+				defaultLocale: "en",
+				implicitDefaultLocale: false,
+			});
+		}
+
+		if (method === "GET" && path === "/_emdash/api/content/products/entry_2/terms/tags") {
+			return dataResponse({
+				terms: otherEntryTerms,
+				unresolved: [],
 				entryLocale: "fr",
 				defaultLocale: "en",
 				implicitDefaultLocale: false,
@@ -154,7 +168,15 @@ function mockApiFetch({
 			(path === "/_emdash/api/content/products/entry_1/terms/tags" ||
 				path === "/_emdash/api/content/products/entry_1/terms/categories")
 		) {
-			return saveEntryTerms?.(init) ?? dataResponse({});
+			const body = typeof init?.body === "string" ? JSON.parse(init.body) : null;
+			return (saveEntryTerms?.(init) ?? dataResponse({})).then((response) => {
+				// The entry keeps what a successful save sent.
+				if (response.ok && Array.isArray(body?.termIds)) {
+					const known = new Map([...currentTerms, ...entryTerms].map((term) => [term.id, term]));
+					currentEntryTerms = body.termIds.flatMap((id: string) => known.get(id) ?? []);
+				}
+				return response;
+			});
 		}
 
 		if (method === "POST" && path === "/_emdash/api/taxonomies/tags/terms/nyusu/translations") {
@@ -191,6 +213,12 @@ function mockApiFetch({
 
 		return dataResponse({});
 	});
+	return {
+		/** Another editor's change to the entry's terms. */
+		setEntryTerms(next: TestTerm[]) {
+			currentEntryTerms = next;
+		},
+	};
 }
 
 function Wrapper({ children }: { children: React.ReactNode }) {
@@ -226,6 +254,137 @@ describe("TaxonomySidebar", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		mockApiFetch();
+	});
+
+	describe.each([tagsTaxonomy, categoriesTaxonomy])("$label IME input", (taxonomy) => {
+		describe.each([
+			{ name: "active composition", eventInit: { isComposing: true } },
+			{
+				name: "composition ending with keyCode 229",
+				eventInit: { isComposing: false, keyCode: 229 },
+			},
+		])("$name", ({ eventInit }) => {
+			async function composeKey(input: Element, key: string) {
+				const event = new KeyboardEvent("keydown", {
+					key,
+					...eventInit,
+					bubbles: true,
+					cancelable: true,
+				});
+				input.dispatchEvent(new CompositionEvent("compositionstart", { bubbles: true }));
+				if (!eventInit.isComposing) {
+					input.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
+				}
+				input.dispatchEvent(event);
+				if (eventInit.isComposing) {
+					input.dispatchEvent(new CompositionEvent("compositionend", { bubbles: true }));
+				}
+				await new Promise(requestAnimationFrame);
+				return event;
+			}
+
+			it("waits for Enter after composition before creating and assigning a term", async () => {
+				const term = makeTerm("term_japanese", "日本語");
+				const createTermRequests = () =>
+					vi
+						.mocked(apiFetch)
+						.mock.calls.filter(
+							([url, init]) =>
+								requestUrl(url).endsWith(`/taxonomies/${taxonomy.name}/terms`) &&
+								init?.method === "POST",
+						);
+				const saveEntryTerms = vi.fn(() => dataResponse({}));
+				mockApiFetch({ taxonomies: [taxonomy], terms: [], createdTerm: term, saveEntryTerms });
+				const screen = await render(
+					<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
+					{ wrapper: Wrapper },
+				);
+				const input = await openPicker(screen, taxonomy.label);
+				await input.fill(term.label);
+
+				const event = await composeKey(input.element(), "Enter");
+				expect(createTermRequests()).toHaveLength(0);
+				expect(saveEntryTerms).not.toHaveBeenCalled();
+				expect(event.defaultPrevented).toBe(false);
+				await expect.element(input).toHaveValue(term.label);
+				await expect.element(input).toHaveFocus();
+
+				await userEvent.keyboard("{Enter}");
+				await vi.waitFor(() => {
+					expect(createTermRequests()).toEqual([
+						[
+							expect.anything(),
+							expect.objectContaining({ body: JSON.stringify({ label: term.label }) }),
+						],
+					]);
+					expect(saveEntryTerms).toHaveBeenCalledExactlyOnceWith(
+						expect.objectContaining({ body: JSON.stringify({ termIds: [term.id], expected: [] }) }),
+					);
+				});
+				await expect.element(screen.getByLabelText(`Remove ${term.label}`)).toBeInTheDocument();
+			});
+
+			it("waits for Enter after composition before selecting an existing term", async () => {
+				const term = makeTerm("term_japanese", "日本語");
+				const saveEntryTerms = vi.fn(() => dataResponse({}));
+				mockApiFetch({ taxonomies: [taxonomy], terms: [term], saveEntryTerms });
+				const screen = await render(
+					<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
+					{ wrapper: Wrapper },
+				);
+				const input = await openPicker(screen, taxonomy.label);
+				await input.fill(term.label);
+				const option = screen.getByRole("checkbox", { name: term.label });
+				await expect.element(option).not.toBeChecked();
+
+				await composeKey(input.element(), "Enter");
+				expect(saveEntryTerms).not.toHaveBeenCalled();
+				await expect.element(option).not.toBeChecked();
+				await expect.element(input).toHaveValue(term.label);
+
+				await userEvent.keyboard("{Enter}");
+				await expect.element(option).toBeChecked();
+				await vi.waitFor(() =>
+					expect(saveEntryTerms).toHaveBeenCalledExactlyOnceWith(
+						expect.objectContaining({ body: JSON.stringify({ termIds: [term.id], expected: [] }) }),
+					),
+				);
+			});
+
+			it.each(["ArrowDown", "ArrowUp", "Escape"])(
+				"keeps the input focused when composition uses %s",
+				async (key) => {
+					mockApiFetch({ taxonomies: [taxonomy] });
+					const screen = await render(
+						<TaxonomySidebar collection="products" canManageTaxonomies />,
+						{ wrapper: Wrapper },
+					);
+					const input = await openPicker(screen, taxonomy.label);
+					await input.fill("Alpha");
+
+					const event = await composeKey(input.element(), key);
+					expect(event.defaultPrevented).toBe(false);
+					await expect.element(input).toHaveFocus();
+					await expect.element(input).toHaveValue("Alpha");
+					await expect.element(screen.getByRole("checkbox", { name: "Alpha" })).toBeVisible();
+				},
+			);
+
+			it("keeps the assigned term when composition uses Backspace in an empty input", async () => {
+				const saveEntryTerms = vi.fn(() => dataResponse({}));
+				mockApiFetch({ taxonomies: [taxonomy], entryTerms: [alphaTerm], saveEntryTerms });
+				const screen = await render(
+					<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
+					{ wrapper: Wrapper },
+				);
+				await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
+				const input = await openPicker(screen, taxonomy.label);
+
+				await composeKey(input.element(), "Backspace");
+				expect(saveEntryTerms).not.toHaveBeenCalled();
+				await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
+			});
+		});
 	});
 
 	it("shows flat terms in the shared searchable picker", async () => {
@@ -549,7 +708,89 @@ describe("TaxonomySidebar", () => {
 		const requestBodies = saveEntryTerms.mock.calls.map(([init]) =>
 			typeof init?.body === "string" ? JSON.parse(init.body) : null,
 		);
-		expect(requestBodies).toEqual([{ termIds: [] }, { termIds: ["term_beta"] }]);
+		expect(requestBodies).toEqual([
+			{ termIds: [], expected: ["term_alpha"] },
+			{ termIds: ["term_beta"], expected: [] },
+		]);
+	});
+
+	it("sends a change queued on one entry with that entry's terms after switching to another", async () => {
+		let resolveFirstSave: (response: Response) => void = () => undefined;
+		const firstSave = new Promise<Response>((resolve) => {
+			resolveFirstSave = resolve;
+		});
+		const gamma = makeTerm("term_gamma", "Gamma");
+		const saveEntryTerms = vi.fn((init?: RequestInit) => dataResponse({ init }));
+		saveEntryTerms.mockImplementationOnce(() => firstSave);
+		mockApiFetch({
+			terms: [alphaTerm, betaTerm, gamma],
+			entryTerms: [alphaTerm],
+			otherEntryTerms: [gamma],
+			saveEntryTerms,
+		});
+
+		const screen = await render(
+			<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
+			{ wrapper: Wrapper },
+		);
+		await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
+		const input = await openPicker(screen, "Tags");
+		await userEvent.keyboard("{Backspace}");
+		await input.fill("Beta");
+		await userEvent.keyboard("{Enter}");
+		await vi.waitFor(() => expect(saveEntryTerms).toHaveBeenCalledTimes(1));
+
+		await screen.rerender(
+			<TaxonomySidebar collection="products" entryId="entry_2" canManageTaxonomies />,
+		);
+		await expect.element(screen.getByLabelText("Remove Gamma")).toBeInTheDocument();
+		resolveFirstSave(new Response(null, { status: 200 }));
+
+		await vi.waitFor(() => expect(saveEntryTerms).toHaveBeenCalledTimes(2));
+		const requestBodies = saveEntryTerms.mock.calls.map(([init]) =>
+			typeof init?.body === "string" ? JSON.parse(init.body) : null,
+		);
+		expect(requestBodies[1]).toEqual({ termIds: ["term_beta"], expected: [] });
+	});
+
+	it("keeps another editor's term when that editor's change arrives first", async () => {
+		const gamma = makeTerm("term_gamma", "Gamma");
+		const bodies: unknown[] = [];
+		const server = mockApiFetch({
+			terms: [alphaTerm, betaTerm, gamma],
+			entryTerms: [alphaTerm],
+			saveEntryTerms: (init) => {
+				bodies.push(typeof init?.body === "string" ? JSON.parse(init.body) : null);
+				if (bodies.length > 1) return dataResponse({});
+				server.setEntryTerms([alphaTerm, gamma]);
+				return Promise.resolve(
+					new Response(
+						JSON.stringify({ error: { code: "LIST_CONFLICT", message: "The terms changed" } }),
+						{ status: 409, headers: { "Content-Type": "application/json" } },
+					),
+				);
+			},
+		});
+		const screen = await render(
+			<TaxonomySidebar collection="products" entryId="entry_1" canManageTaxonomies />,
+			{ wrapper: Wrapper },
+		);
+		await expect.element(screen.getByLabelText("Remove Alpha")).toBeInTheDocument();
+
+		await (await openPicker(screen, "Tags")).fill("Beta");
+		await userEvent.keyboard("{Enter}");
+
+		await vi.waitFor(() => expect(bodies).toHaveLength(2));
+		expect(bodies).toEqual([
+			{ termIds: ["term_alpha", "term_beta"], expected: ["term_alpha"] },
+			{
+				termIds: ["term_alpha", "term_gamma", "term_beta"],
+				expected: ["term_alpha", "term_gamma"],
+			},
+		]);
+		await expect.element(screen.getByLabelText("Remove Gamma")).toBeInTheDocument();
+		await expect.element(screen.getByLabelText("Remove Beta")).toBeInTheDocument();
+		expect(screen.getByText("The terms changed").query()).toBeNull();
 	});
 
 	it("creates a flat term from the tag input", async () => {
@@ -988,6 +1229,7 @@ describe("TaxonomySidebar", () => {
 			if (typeof body !== "string") throw new Error("Expected a JSON request body");
 			expect(JSON.parse(body)).toEqual({
 				termIds: expect.arrayContaining(["term_beta", "term_ja"]),
+				expected: ["term_ja"],
 			});
 		});
 	});

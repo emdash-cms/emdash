@@ -91,15 +91,20 @@ Translations have different database IDs because each locale is a separate row. 
 
 Pass `Astro.currentLocale` to `getEmDashEntry` on a multilingual route. Astro knows the locale selected by its router, while EmDash needs the explicit value to disambiguate slugs that can exist in more than one locale. Do the same for collection queries.
 
+Without a locale, a slug that exists in more than one locale resolves to the default locale's published entry. When the default locale has no published entry with that slug, the lowest locale code wins.
+
 ```astro title="src/pages/[...slug].astro"
 ---
-import { getEmDashEntry } from "emdash";
+import { decodeSlug, getEmDashEntry } from "emdash";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.rewrite("/404");
+
 const { entry: post, error } = await getEmDashEntry("posts", slug, {
   locale: Astro.currentLocale,
 });
 
+if (error) throw error;
 if (!post) return Astro.rewrite("/404");
 ---
 
@@ -468,7 +473,7 @@ import { getEmDashEntry, getHreflangAlternates } from "emdash";
 const { entry, error } = await getEmDashEntry("posts", Astro.params.slug, {
 	locale: Astro.currentLocale,
 });
-if (error) return new Response("Server error", { status: 500 });
+if (error) throw error;
 if (!entry) return Astro.rewrite("/404");
 
 const alternates = await getHreflangAlternates("posts", entry.data.id, {
@@ -490,7 +495,7 @@ Behaviour matches the sitemap:
 - **Untranslated entries** still get a self-referencing alternate and `x-default` when i18n is enabled, mirroring the sitemap.
 - With **i18n disabled**, the result is empty and no queries run.
 
-URLs are built from the collection's `urlPattern` and localized through the Astro i18n configuration. `getHreflangAlternates()` needs an absolute site URL. It uses `siteUrl` from the call or the site settings URL; without either, it returns an empty array because `hreflang` links must be absolute.
+URLs are built from the collection's `urlPattern` and localized through the Astro i18n configuration. `getHreflangAlternates()` needs an absolute site URL. It uses `siteUrl` from the call or the site settings URL; without either, it returns an empty array because `hreflang` links must be absolute. When Astro's `base` is set, it is appended to the site URL unless that URL already ends with it.
 
 ## Import multilingual content
 

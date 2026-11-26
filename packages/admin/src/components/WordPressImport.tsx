@@ -31,6 +31,7 @@ import {
 	User,
 } from "@phosphor-icons/react";
 import { useMutation } from "@tanstack/react-query";
+import { Link } from "@tanstack/react-router";
 import * as React from "react";
 
 import {
@@ -57,6 +58,7 @@ import {
 	type AttachmentInfo,
 	type ProbeResult,
 	type AuthorMapping,
+	type NavMenu,
 	type UserListItem,
 } from "../lib/api";
 import { cn } from "../lib/utils";
@@ -232,8 +234,8 @@ export function WordPressImport() {
 		const error = params.get("error");
 
 		if (error === "auth_rejected") {
-			setImportError(t`WordPress authorization was rejected`);
-			setStep("probe-result");
+			setImportError(t`WordPress did not approve the connection, or the approval expired.`);
+			setStep("choose");
 			// Clean up URL
 			window.history.replaceState({}, "", window.location.pathname);
 			return;
@@ -494,6 +496,7 @@ export function WordPressImport() {
 		// A pasted migration key skips probing entirely -- it carries the
 		// site URL and credentials.
 		if (handleMigrationKey(input)) return;
+		setImportError(null);
 		setStep("probing");
 		probeMutation.mutate(input);
 	};
@@ -545,7 +548,14 @@ export function WordPressImport() {
 
 		// Build the WordPress Application Password authorization URL
 		const wpUrl = probeResult.url.replace(TRAILING_SLASH_REGEX, "");
-		const callbackUrl = `${window.location.origin}/_emdash/api/import/wordpress-plugin/callback`;
+		// The callback compares `state` with this cookie. WordPress keeps the
+		// existing query string when it appends its parameters to `success_url`.
+		const state = Array.from(crypto.getRandomValues(new Uint32Array(4)), (n) =>
+			n.toString(36),
+		).join("");
+		const secure = window.location.protocol === "https:" ? "; secure" : "";
+		document.cookie = `emdash_wp_auth_state=${state}; path=/_emdash/; max-age=600; samesite=lax${secure}`;
+		const callbackUrl = `${window.location.origin}/_emdash/api/import/wordpress-plugin/callback?state=${state}`;
 
 		// WordPress requires a valid UUID for app_id
 		const appId = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
@@ -803,6 +813,15 @@ export function WordPressImport() {
 			</div>
 
 			{/* Choose step - URL input or file upload */}
+			{step === "choose" && importError && (
+				<div
+					role="alert"
+					className="mb-6 flex gap-3 rounded-lg border border-kumo-danger/50 bg-kumo-danger/10 p-4"
+				>
+					<WarningCircle className="h-5 w-5 shrink-0 text-kumo-danger" aria-hidden="true" />
+					<p className="text-sm text-kumo-danger">{importError}</p>
+				</div>
+			)}
 			{step === "choose" && (
 				<ChooseStep
 					urlInput={urlInput}
@@ -1664,13 +1683,7 @@ function UploadStep({
 // Menu Info (Type-safe helper for navMenus)
 // =============================================================================
 
-interface NavMenuItem {
-	name: string;
-	slug: string;
-	count: number;
-}
-
-function getNavMenus(analysis: ImportAnalysis): NavMenuItem[] | undefined {
+function getNavMenus(analysis: ImportAnalysis): NavMenu[] | undefined {
 	if ("navMenus" in analysis && Array.isArray(analysis.navMenus)) {
 		return analysis.navMenus;
 	}
@@ -1810,27 +1823,24 @@ function ReviewStep({
 						<p className="text-sm text-kumo-subtle mt-1">{t`Additional data to import.`}</p>
 					</div>
 					<div className="divide-y">
-						{/* Menus — only the plugin import can import them; for WXR the
-						    entries are informational */}
-						{isPluginSource && (
-							<div className="p-4">
-								<Switch
-									checked={importMenus}
-									onCheckedChange={(checked) => onImportMenusChange(checked)}
-									label={
-										<div className="flex items-center gap-2">
-											<List className="h-4 w-4 text-kumo-subtle" />
-											<div>
-												<p className="font-medium">{t`Menus (${navMenus.length})`}</p>
-												<p className="text-sm text-kumo-subtle">
-													{navMenus.map((m) => m.name).join(", ")}
-												</p>
-											</div>
+						{/* Menus — both the WXR and the plugin import bring them in */}
+						<div className="p-4">
+							<Switch
+								checked={importMenus}
+								onCheckedChange={(checked) => onImportMenusChange(checked)}
+								label={
+									<div className="flex items-center gap-2">
+										<List className="h-4 w-4 text-kumo-subtle" />
+										<div>
+											<p className="font-medium">{t`Menus (${navMenus.length})`}</p>
+											<p className="text-sm text-kumo-subtle">
+												{navMenus.map((m) => m.label || m.name).join(", ")}
+											</p>
 										</div>
-									}
-								/>
-							</div>
-						)}
+									</div>
+								}
+							/>
+						</div>
 
 						{/* Categories count */}
 						{analysis.categories > 0 && (
@@ -1897,7 +1907,7 @@ function ReviewStep({
 								onCheckedChange={(checked) => onImportSeoChange(checked)}
 								label={
 									<div>
-										<p className="font-medium">{t`SEO settings (Yoast)`}</p>
+										<p className="font-medium">{t`SEO settings`}</p>
 										<p className="text-sm text-kumo-subtle">
 											{t`Meta titles, descriptions, and social images`}
 										</p>
@@ -2307,13 +2317,23 @@ function CompleteStep({
 				}),
 			);
 		}
-		if (result.menus && result.menus.created > 0) {
-			parts.push(
-				plural(result.menus.created, {
-					one: "# menu imported",
-					other: "# menus imported",
-				}),
-			);
+		if (result.menus && (result.menus.created > 0 || result.menus.skipped > 0)) {
+			if (result.menus.created > 0) {
+				parts.push(
+					plural(result.menus.created, {
+						one: "# menu imported",
+						other: "# menus imported",
+					}),
+				);
+			}
+			if (result.menus.skipped > 0) {
+				parts.push(
+					plural(result.menus.skipped, {
+						one: "# menu skipped (already exists)",
+						other: "# menus skipped (already exist)",
+					}),
+				);
+			}
 		}
 		if (result.comments && result.comments.imported > 0) {
 			parts.push(
@@ -2407,6 +2427,36 @@ function CompleteStep({
 								<span className="text-kumo-subtle">
 									{plural(count, { one: "# item", other: "# items" })}
 								</span>
+							</div>
+						))}
+					</div>
+				</div>
+			)}
+
+			{result.passwordProtected && result.passwordProtected.length > 0 && (
+				<div className="rounded-lg border border-kumo-warning/50 bg-kumo-warning-tint">
+					<div className="border-b border-kumo-warning/50 p-4">
+						<h3 className="font-medium">
+							{t`Password-Protected Entries (${result.passwordProtected.length})`}
+						</h3>
+						<p className="mt-1 text-sm text-kumo-subtle">
+							{t`These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it.`}
+						</p>
+					</div>
+					<div className="divide-y divide-kumo-warning/50 max-h-64 overflow-y-auto">
+						{result.passwordProtected.map((entry) => (
+							<div
+								key={`${entry.collection}-${entry.id}`}
+								className="flex items-center justify-between gap-4 p-4"
+							>
+								<Link
+									to="/content/$collection/$id"
+									params={{ collection: entry.collection, id: entry.id }}
+									className="min-w-0 truncate font-medium text-kumo-link hover:underline"
+								>
+									{entry.title}
+								</Link>
+								<span className="shrink-0 text-sm text-kumo-subtle">{entry.collection}</span>
 							</div>
 						))}
 					</div>

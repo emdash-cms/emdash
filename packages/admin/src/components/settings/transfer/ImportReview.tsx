@@ -303,7 +303,7 @@ export function PlanReview({
 			{plan.principals.length > 0 ? (
 				<SettingRow>
 					<div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between">
-						<h4 className="text-sm font-medium leading-5">{t`Authors`}</h4>
+						<h4 className="text-sm font-medium leading-5">{recordKindLabel(i18n, "principal")}</h4>
 						<span className="text-sm text-kumo-subtle">
 							{t`${i18n.number(matched)} of ${i18n.number(plan.principals.length)} matched by email`}
 						</span>

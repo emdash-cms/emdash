@@ -31,8 +31,8 @@ async function renderHref(props: Record<string, unknown>): Promise<string> {
 }
 
 describe("RecentPosts link URLs", () => {
-	it("keeps the locale-prefixed default without a template", async () => {
-		expect(await renderHref({})).toBe("/posts/en/hello-world");
+	it("links the bare slug, not the locale-prefixed entry id, without a template", async () => {
+		expect(await renderHref({})).toBe("/posts/hello-world");
 	});
 
 	it("substitutes the bare slug into :slug", async () => {

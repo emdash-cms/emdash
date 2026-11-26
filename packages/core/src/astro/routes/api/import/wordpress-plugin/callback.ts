@@ -7,13 +7,33 @@
  * We receive the credentials and redirect to the admin import UI with a token.
  */
 
+import { secureCompare } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
+import { requirePerm } from "#api/authorize.js";
 import { encodeBase64 } from "#utils/base64.js";
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ url, cookies, redirect }) => {
+/**
+ * The import wizard sets this cookie before sending the browser to WordPress
+ * and passes the same value in `success_url`, so it comes back as `state`.
+ */
+const STATE_COOKIE = "emdash_wp_auth_state";
+
+export const GET: APIRoute = async ({ url, cookies, redirect, locals }) => {
+	const denied = requirePerm(locals.user, "import:execute");
+	if (denied) return denied;
+
+	// A GET is reachable by cross-site navigation, so only accept credentials
+	// for an authorization this browser started. The state is single use.
+	const state = url.searchParams.get("state");
+	const expectedState = cookies.get(STATE_COOKIE)?.value;
+	cookies.delete(STATE_COOKIE, { path: "/_emdash/" });
+	if (!state || !expectedState || !secureCompare(state, expectedState)) {
+		return redirect("/_emdash/admin/import/wordpress?error=auth_rejected");
+	}
+
 	// WordPress sends these params on success:
 	// - site_url: The WordPress site URL
 	// - user_login: The username

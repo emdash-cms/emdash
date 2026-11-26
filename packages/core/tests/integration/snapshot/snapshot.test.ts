@@ -253,4 +253,41 @@ describe("generateSnapshot", () => {
 		expect(snapshot.schema.ec_page.columns).toContain("title");
 		expect(snapshot.schema.ec_page.columns).toContain("content");
 	});
+
+	it("splits table reads when a result exceeds D1's response size limit", async () => {
+		const rowCount = 40;
+		const resultLimitChars = 10_000_000;
+		for (let i = 0; i < rowCount; i++) {
+			await sql`
+				INSERT INTO ec_post (id, slug, status, title, content, created_at, updated_at, version)
+				VALUES (
+					${`post${String(i).padStart(2, "0")}`}, ${`post-${i}`}, 'published', 'Large',
+					replace(hex(zeroblob(500000)), '0', 'x'), datetime('now'), datetime('now'), 1
+				)
+			`.execute(db);
+		}
+
+		const limited = db.withPlugin({
+			transformQuery: (args) => args.node,
+			transformResult: async ({ result }) => {
+				let chars = 0;
+				for (const row of result.rows) {
+					for (const value of Object.values(row as Record<string, unknown>)) {
+						if (typeof value === "string") chars += value.length;
+					}
+				}
+				if (chars > resultLimitChars) {
+					throw new Error("D1 query result exceeded the maximum response size limit of 50 MB");
+				}
+				return result;
+			},
+		});
+
+		const snapshot = await generateSnapshot(limited, { includeDrafts: true });
+
+		expect(snapshot.tables.ec_post?.map((row) => row.id)).toEqual(
+			Array.from({ length: rowCount }, (_, i) => `post${String(i).padStart(2, "0")}`),
+		);
+		expect(snapshot.tables.ec_post?.[0]).not.toHaveProperty("__emdash_snapshot_rowid");
+	});
 });

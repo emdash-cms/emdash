@@ -6,11 +6,16 @@
  */
 
 import type { APIRoute } from "astro";
+import { getPublicOrigin } from "emdash/api/route-utils";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 export const prerender = false;
 
-export const GET: APIRoute = async ({ request }) => {
-	const baseUrl = new URL(request.url).origin;
+export const GET: APIRoute = async ({ url, locals }) => {
+	// Must match the origin login.ts sends to the PDS as `client_id`. The
+	// middleware skips runtime init for this route, so `locals.emdash` may be unset.
+	const baseUrl = getPublicOrigin(url, locals.emdash?.config ?? virtualConfig);
 
 	// Build metadata statically — no keyset or OAuthClient needed.
 	// This must be fast because PDS authorization servers fetch it

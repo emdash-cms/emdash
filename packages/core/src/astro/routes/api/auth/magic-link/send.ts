@@ -19,10 +19,13 @@ import { resolveEmailLocale } from "#api/email-locale.js";
 import { apiError, apiSuccess } from "#api/error.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { magicLinkSendBody } from "#api/schemas.js";
+import { resolveSiteTitle } from "#api/site-title.js";
 import { getSiteBaseUrl } from "#api/site-url.js";
-import { checkRateLimit, getClientIp } from "#auth/rate-limit.js";
+import { checkRateLimit, getClientNetwork } from "#auth/rate-limit.js";
 import { getTrustedProxyHeaders } from "#auth/trusted-proxy.js";
 import { OptionsRepository } from "#db/repositories/options.js";
+
+import { after, canRunAfterResponse } from "../../../../../after.js";
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash } = locals;
@@ -39,8 +42,8 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		if (isParseError(body)) return body;
 
 		// Rate limit: 3 requests per 300 seconds (5 minutes) per IP
-		const ip = getClientIp(request, getTrustedProxyHeaders(emdash.config));
-		const rateLimit = await checkRateLimit(emdash.db, ip, "magic-link/send", 3, 300);
+		const client = getClientNetwork(request, getTrustedProxyHeaders(emdash.config));
+		const rateLimit = await checkRateLimit(emdash.db, client, "magic-link/send", 3, 300);
 		if (!rateLimit.allowed) {
 			// Return success-shaped response to avoid revealing rate limit
 			// (which could leak information about email enumeration attempts)
@@ -62,23 +65,47 @@ export const POST: APIRoute = async ({ request, locals }) => {
 		// Build magic link config using the configured site URL, stored option as fallback (not request Host header)
 		const options = new OptionsRepository(emdash.db);
 		const baseUrl = await getSiteBaseUrl(emdash.db, request, emdash.config);
-		const siteOptions = await options.getMany<string>(["emdash:site_title", "emdash:locale"]);
-		const siteName = siteOptions.get("emdash:site_title") ?? "EmDash";
+		const siteOptions = await options.getMany<string>([
+			"site:title",
+			"emdash:site_title",
+			"emdash:locale",
+		]);
+		const siteName =
+			resolveSiteTitle(siteOptions.get("site:title"), siteOptions.get("emdash:site_title")) ??
+			"EmDash";
 
 		// Localized copy following the site locale; the locale also
 		// drives lang/dir on the email HTML so RTL copy renders correctly.
 		const emailLocale = resolveEmailLocale(siteOptions.get("emdash:locale"), request);
+		// Deferred, the response time doesn't depend on whether the email has
+		// an account (only then are a token and email created). Hosts that may
+		// stop the process after the response send inline behind a pause.
+		const deferred = await canRunAfterResponse();
 		const config: MagicLinkConfig = {
 			baseUrl,
 			siteName,
 			email: (message) => emdash.email!.send(message, "system"),
 			emailStrings: await getMagicLinkEmailStrings(emailLocale, siteName),
 			emailLocale,
+			delayWhenUnsent: !deferred,
 		};
 
-		// Send magic link (silently fails if user doesn't exist)
 		const adapter = createKyselyAdapter(emdash.db);
-		await sendMagicLink(config, adapter, body.email.toLowerCase());
+		const email = body.email.toLowerCase();
+		if (deferred) {
+			after(async () => {
+				try {
+					// Yield a macrotask: a synchronous driver (SQLite) would otherwise
+					// run the lookup before the response is written.
+					await new Promise((resolve) => setTimeout(resolve, 0));
+					await sendMagicLink(config, adapter, email);
+				} catch (error) {
+					console.error("Magic link send error:", error);
+				}
+			});
+		} else {
+			await sendMagicLink(config, adapter, email);
+		}
 
 		// Always return success to avoid revealing if email exists
 		return apiSuccess({

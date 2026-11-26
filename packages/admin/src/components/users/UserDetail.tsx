@@ -15,6 +15,7 @@ import * as React from "react";
 import type { UserDetail as UserDetailType, UpdateUserInput } from "../../lib/api";
 import { useStableCallback } from "../../lib/hooks";
 import { cn, formatDate, isolate } from "../../lib/utils.js";
+import { UserAvatar } from "../UserAvatar.js";
 import { useRolesConfig } from "./useRolesConfig.js";
 
 export interface UserDetailProps {
@@ -135,17 +136,7 @@ export function UserDetail({
 							<form id="user-edit-form" onSubmit={handleSubmit} className="space-y-6">
 								{/* Avatar + editable fields */}
 								<div className="flex items-start gap-4">
-									{user.avatarUrl ? (
-										<img
-											src={user.avatarUrl}
-											alt=""
-											className="h-16 w-16 shrink-0 rounded-full object-cover"
-										/>
-									) : (
-										<div className="h-16 w-16 shrink-0 rounded-full bg-kumo-tint flex items-center justify-center text-2xl font-medium">
-											{(name || email)?.[0]?.toUpperCase() ?? "?"}
-										</div>
-									)}
+									<UserAvatar user={{ id: user.id, name, avatarUrl: user.avatarUrl }} size={64} />
 									<div className="flex-1 min-w-0 space-y-3">
 										{providerManagedName ? (
 											<Input

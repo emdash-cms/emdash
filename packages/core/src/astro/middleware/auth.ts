@@ -10,7 +10,7 @@
  * we know setup is complete and users exist.
  */
 
-import type { User, RoleLevel } from "@emdash-cms/auth";
+import { toRoleLevel, type User, type RoleLevel } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { defineMiddleware } from "astro:middleware";
 import { ulid } from "ulidx";
@@ -23,6 +23,7 @@ import virtualConfig from "virtual:emdash/config";
 import { checkPublicCsrf } from "../../api/csrf.js";
 import { apiError } from "../../api/error.js";
 import { getPublicOrigin } from "../../api/public-url.js";
+import { createFirstAdmin } from "../../api/setup-complete.js";
 
 /** Cache headers for middleware error responses (matches API_CACHE_HEADERS in api/error.ts) */
 const MW_CACHE_HEADERS = {
@@ -35,7 +36,8 @@ import {
 } from "../../api/handlers/api-tokens.js";
 import { hasScope, TRANSFER_SCOPES } from "../../auth/api-tokens.js";
 import { getAuthMode, type ExternalAuthMode } from "../../auth/mode.js";
-import type { ExternalAuthConfig } from "../../auth/types.js";
+import { startUserSession } from "../../auth/start-user-session.js";
+import type { AuthResult, ExternalAuthConfig } from "../../auth/types.js";
 import { getRegistryConfigInput } from "../../registry/config.js";
 import { resolveSessionUser } from "../session-user.js";
 import type { EmDashHandlers } from "../types.js";
@@ -50,6 +52,8 @@ declare global {
 			/** Id of the API or OAuth token the request authenticated with. Undefined for session auth. */
 			tokenId?: string;
 			emdash?: EmDashHandlers;
+			/** Per-session playground database, set by the `@emdash-cms/cloudflare` playground middleware. */
+			__playgroundDb?: unknown;
 		}
 		interface SessionData {
 			user: { id: string };
@@ -89,7 +93,7 @@ function mcpUnauthorizedResponse(
  * API routes that skip auth — each handles its own access control.
  *
  * Prefix entries match any path starting with that prefix.
- * Entries in PUBLIC_API_EXACT match that path only.
+ * Entries in PUBLIC_API_EXACT match that path with or without a trailing slash.
  */
 const PUBLIC_API_PREFIXES = [
 	"/_emdash/api/setup",
@@ -111,11 +115,8 @@ const PUBLIC_API_PREFIXES = [
 const PUBLIC_API_EXACT = new Set([
 	// Invite creation requires auth; only the token-based acceptance flow is public.
 	"/_emdash/api/auth/invite/accept",
-	"/_emdash/api/auth/invite/accept/",
 	"/_emdash/api/auth/invite/register-options",
-	"/_emdash/api/auth/invite/register-options/",
 	"/_emdash/api/auth/invite/complete",
-	"/_emdash/api/auth/invite/complete/",
 	"/_emdash/api/auth/passkey/options",
 	"/_emdash/api/auth/passkey/verify",
 	"/_emdash/api/auth/mode",
@@ -174,17 +175,22 @@ const CSRF_EXEMPT_PUBLIC_ROUTES = new Set([
 	"/_emdash/api/oauth/device/token",
 ]);
 
+function stripTrailingSlash(pathname: string): string {
+	return pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+}
+
 function isPublicEmDashRoute(pathname: string): boolean {
-	if (PUBLIC_API_EXACT.has(pathname)) return true;
+	const exactPathname = stripTrailingSlash(pathname);
+	if (PUBLIC_API_EXACT.has(exactPathname)) return true;
 	if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) return true;
-	if (_providerExactRoutes.has(pathname)) return true;
+	if (_providerExactRoutes.has(exactPathname)) return true;
 	if (_providerPrefixRoutes.some((p) => pathname.startsWith(p))) return true;
-	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(pathname)) return true;
+	if (import.meta.env.DEV && DEV_PUBLIC_API_EXACT.has(exactPathname)) return true;
 	return false;
 }
 
 function isCsrfExemptPublicRoute(pathname: string): boolean {
-	return CSRF_EXEMPT_PUBLIC_ROUTES.has(pathname);
+	return CSRF_EXEMPT_PUBLIC_ROUTES.has(stripTrailingSlash(pathname));
 }
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -218,7 +224,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		// one exists; anonymous callers skip the user DB lookup. Bearer tokens
 		// are not resolved on public routes; token callers continue to receive
 		// published results only.
-		if (url.pathname === "/_emdash/api/search") {
+		if (stripTrailingSlash(url.pathname) === "/_emdash/api/search") {
 			return handlePublicRouteAuth(context, next);
 		}
 		return next();
@@ -393,11 +399,11 @@ async function handleEmDashAuth(
 				return next();
 			}
 
-			return handlePasskeyAuth(context, next, isApiRoute);
+			return handlePasskeyAuth(context, next, emdash, isApiRoute);
 		}
 
 		// External auth provider (Cloudflare Access, etc.)
-		return handleExternalAuth(context, next, authMode, isApiRoute);
+		return handleExternalAuth(context, next, emdash, authMode, isApiRoute);
 	}
 
 	// Passkey authentication (default)
@@ -405,7 +411,7 @@ async function handleEmDashAuth(
 		return next();
 	}
 
-	return handlePasskeyAuth(context, next, isApiRoute);
+	return handlePasskeyAuth(context, next, emdash, isApiRoute);
 }
 
 /**
@@ -452,11 +458,12 @@ async function handlePluginRouteAuth(
 
 	const authMode = getAuthMode(emdash?.config);
 	if (
+		emdash &&
 		authMode.type === "external" &&
 		!import.meta.env.DEV &&
 		!isPublicPluginApiRoute(url.pathname, emdash)
 	) {
-		return handleExternalAuth(context, next, authMode, true);
+		return handleExternalAuth(context, next, emdash, authMode, true);
 	}
 
 	try {
@@ -497,6 +504,12 @@ async function handlePublicRouteAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
 ): Promise<Response> {
+	if (
+		context.isPrerendered ||
+		context.cookies.get(virtualConfig?.sessionCookieName ?? "astro-session") === undefined
+	)
+		return next();
+
 	const { locals, session } = context;
 	const { emdash } = locals;
 
@@ -522,12 +535,13 @@ async function handlePublicRouteAuth(
 async function handleExternalAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
+	emdash: EmDashHandlers,
 	authMode: ExternalAuthMode,
 	_isApiRoute: boolean,
 ): Promise<Response> {
 	const { locals, request } = context;
-	const { emdash } = locals;
 
+	let authResult: AuthResult;
 	try {
 		// Use the authenticate function from the virtual module
 		// (statically imported at build time to work with Cloudflare Workers)
@@ -537,9 +551,18 @@ async function handleExternalAuth(
 			);
 		}
 
-		// Authenticate via the provider
-		const authResult = await virtualAuthenticate(request, authMode.config);
+		authResult = await virtualAuthenticate(request, authMode.config);
+	} catch (error) {
+		console.error("[external-auth] Auth error:", error);
 
+		return new Response("Authentication failed", {
+			status: 401,
+			headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+		});
+	}
+
+	// Identity is verified; failures below are server-side.
+	try {
 		// Get external auth config for auto-provision settings
 		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowing AuthModeConfig to ExternalAuthConfig after provider check
 		const externalConfig = authMode.config as ExternalAuthConfig;
@@ -557,28 +580,31 @@ async function handleExternalAuth(
 				});
 			}
 
-			// Check if this is the first user (they become admin)
-			const userCount = await emdash.db
-				.selectFrom("users")
-				.select(emdash.db.fn.count("id").as("count"))
-				.executeTakeFirst();
-
-			const isFirstUser = Number(userCount?.count ?? 0) === 0;
-			const role = isFirstUser ? ROLE_ADMIN : authResult.role;
-
-			// Create user
-			const now = new Date().toISOString();
-			const newUser = {
-				id: ulid(),
+			// The first user becomes admin; the conditional insert makes sure
+			// only one of several concurrent first sign-ins gets that role.
+			const firstAdmin = await createFirstAdmin(emdash.db, {
 				email: authResult.email,
 				name: authResult.name,
-				role,
-				email_verified: 1,
-				created_at: now,
-				updated_at: now,
-			};
+				emailVerified: true,
+			});
+			const isFirstUser = firstAdmin !== null;
+			const role = isFirstUser ? ROLE_ADMIN : toRoleLevel(authResult.role);
 
-			await emdash.db.insertInto("users").values(newUser).execute();
+			if (!isFirstUser) {
+				const now = new Date().toISOString();
+				await emdash.db
+					.insertInto("users")
+					.values({
+						id: ulid(),
+						email: authResult.email.toLowerCase(),
+						name: authResult.name,
+						role,
+						email_verified: 1,
+						created_at: now,
+						updated_at: now,
+					})
+					.execute();
+			}
 
 			user = await adapter.getUserByEmail(authResult.email);
 
@@ -598,7 +624,7 @@ async function handleExternalAuth(
 
 			// Sync role if enabled
 			if (externalConfig.syncRoles && user.role !== authResult.role) {
-				newRole = authResult.role;
+				newRole = toRoleLevel(authResult.role);
 				updates.role = newRole;
 			}
 
@@ -647,18 +673,18 @@ async function handleExternalAuth(
 		const { session } = context;
 		if (session) {
 			const sessionUser = await resolveSessionUser(session);
-			if (sessionUser?.id !== user.id) session.set("user", { id: user.id });
+			if (sessionUser?.id !== user.id) await startUserSession(emdash.db, session, user.id);
 		}
-
-		return next();
 	} catch (error) {
-		console.error("[external-auth] Auth error:", error);
+		console.error("[external-auth] User lookup error:", error);
 
-		return new Response("Authentication failed", {
-			status: 401,
-			headers: { "Content-Type": "text/plain", ...MW_CACHE_HEADERS },
+		return new Response("Service temporarily unavailable", {
+			status: 503,
+			headers: { "Content-Type": "text/plain", "Retry-After": "60", ...MW_CACHE_HEADERS },
 		});
 	}
+
+	return next();
 }
 
 /**
@@ -716,10 +742,10 @@ async function handleBearerAuth(
 async function handlePasskeyAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
+	emdash: EmDashHandlers,
 	isApiRoute: boolean,
 ): Promise<Response> {
 	const { url, locals, session } = context;
-	const { emdash } = locals;
 
 	try {
 		// Check session for user (session.get returns a Promise)
@@ -826,6 +852,13 @@ const SCOPE_RULES: Array<[prefix: string, method: string, scope: string | readon
 	["/_emdash/api/import", "*", "admin"],
 	["/_emdash/api/admin", "*", "admin"],
 	["/_emdash/api/plugins", "*", "admin"],
+
+	// Redirects. The 404 log holds visitor IP addresses, so it must precede the
+	// generic redirects rules and reading it takes settings:read.
+	["/_emdash/api/redirects/404s", "GET", "settings:read"],
+	["/_emdash/api/redirects/404s", "WRITE", "settings:manage"],
+	["/_emdash/api/redirects", "GET", "content:read"],
+	["/_emdash/api/redirects", "WRITE", "settings:manage"],
 
 	// Backups are a full-site content export and must precede the generic
 	// settings rules, which would otherwise let a settings:read token through.

@@ -28,6 +28,7 @@ import {
 	compilePattern,
 	interpolateDestination,
 	matchPattern,
+	normalizeSourcePath,
 	validatePattern,
 } from "./patterns.js";
 
@@ -108,7 +109,7 @@ export function invalidateRedirectCache(): void {
 /** Compile a rule set into the in-memory lookup structures. */
 function compileRedirects(rules: RedirectRuleSet): CachedRedirects {
 	const exact = new Map<string, RedirectRule>();
-	for (const rule of rules.exact) exact.set(rule.source, rule);
+	for (const rule of rules.exact) exact.set(normalizeSourcePath(rule.source), rule);
 	const patterns: CachedRedirectRule[] = [];
 	for (const rule of rules.patterns) {
 		const patternError = validatePattern(rule.source);
@@ -116,7 +117,7 @@ function compileRedirects(rules: RedirectRuleSet): CachedRedirects {
 			console.warn(`[emdash:redirects] Skipping redirect ${rule.id}: ${patternError}`);
 			continue;
 		}
-		patterns.push({ redirect: rule, compiled: compilePattern(rule.source) });
+		patterns.push({ redirect: rule, compiled: compilePattern(normalizeSourcePath(rule.source)) });
 	}
 	return { version: rules.version, exact, patterns };
 }

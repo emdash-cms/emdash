@@ -7,6 +7,7 @@
 
 import type { APIRoute } from "astro";
 
+import { getSiteTitle } from "#api/site-title.js";
 import { getAuthMode } from "#auth/mode.js";
 import { OptionsRepository } from "#db/repositories/options.js";
 
@@ -26,7 +27,7 @@ export const GET: APIRoute = async ({ locals }) => {
 	if (emdash?.db) {
 		try {
 			const options = new OptionsRepository(emdash.db);
-			siteName = (await options.get<string>("emdash:site_title")) || "EmDash";
+			siteName = (await getSiteTitle(options)) || "EmDash";
 		} catch {
 			// DB may not be initialized yet
 		}

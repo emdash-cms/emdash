@@ -102,6 +102,8 @@ export function extractPlainText(blocks: PortableTextBlock[] | string | null | u
 	const toolkitBlocks = parsedBlocks.map((b) => {
 		const obj: Record<string, unknown> & { _type: string } = { _type: b._type };
 		for (const [key, val] of Object.entries(b)) {
+			// Assigning a stored `__proto__` key would replace the copy's prototype.
+			if (key === "__proto__") continue;
 			obj[key] = val;
 		}
 		return obj;

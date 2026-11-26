@@ -288,6 +288,7 @@ const deleteCommand = defineCommand({
 			description: "Content item ID or slug",
 			required: true,
 		},
+		locale: { type: "string", description: "Locale for slug resolution" },
 		"override-lock": {
 			type: "boolean",
 			description: "Write even though another editor holds this entry's edit lock",
@@ -298,7 +299,10 @@ const deleteCommand = defineCommand({
 		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
-			await client.delete(args.collection, args.id, { overrideLock: args["override-lock"] });
+			await client.delete(args.collection, args.id, {
+				overrideLock: args["override-lock"],
+				locale: args.locale,
+			});
 			output({ success: true }, args);
 			consola.success(`Deleted ${args.collection}/${args.id}`);
 		} catch (error) {
@@ -321,6 +325,7 @@ const publishCommand = defineCommand({
 			description: "Content item ID or slug",
 			required: true,
 		},
+		locale: { type: "string", description: "Locale for slug resolution" },
 		"override-lock": {
 			type: "boolean",
 			description: "Write even though another editor holds this entry's edit lock",
@@ -331,7 +336,10 @@ const publishCommand = defineCommand({
 		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
-			await client.publish(args.collection, args.id, { overrideLock: args["override-lock"] });
+			await client.publish(args.collection, args.id, {
+				overrideLock: args["override-lock"],
+				locale: args.locale,
+			});
 			output({ success: true }, args);
 			consola.success(`Published ${args.collection}/${args.id}`);
 		} catch (error) {
@@ -354,6 +362,7 @@ const unpublishCommand = defineCommand({
 			description: "Content item ID or slug",
 			required: true,
 		},
+		locale: { type: "string", description: "Locale for slug resolution" },
 		"override-lock": {
 			type: "boolean",
 			description: "Write even though another editor holds this entry's edit lock",
@@ -364,7 +373,10 @@ const unpublishCommand = defineCommand({
 		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
-			await client.unpublish(args.collection, args.id, { overrideLock: args["override-lock"] });
+			await client.unpublish(args.collection, args.id, {
+				overrideLock: args["override-lock"],
+				locale: args.locale,
+			});
 			output({ success: true }, args);
 			consola.success(`Unpublished ${args.collection}/${args.id}`);
 		} catch (error) {
@@ -392,6 +404,7 @@ const scheduleCommand = defineCommand({
 			description: "ISO 8601 datetime with Z or an explicit UTC offset to publish at",
 			required: true,
 		},
+		locale: { type: "string", description: "Locale for slug resolution" },
 		"override-lock": {
 			type: "boolean",
 			description: "Write even though another editor holds this entry's edit lock",
@@ -405,6 +418,7 @@ const scheduleCommand = defineCommand({
 			await client.schedule(args.collection, args.id, {
 				at: args.at,
 				overrideLock: args["override-lock"],
+				locale: args.locale,
 			});
 			output({ success: true }, args);
 			consola.success(`Scheduled ${args.collection}/${args.id} for ${args.at}`);
@@ -428,13 +442,14 @@ const restoreCommand = defineCommand({
 			description: "Content item ID or slug",
 			required: true,
 		},
+		locale: { type: "string", description: "Locale for slug resolution" },
 		...connectionArgs,
 	},
 	async run({ args }) {
 		configureOutputMode(args);
 		try {
 			const client = createClientFromArgs(args);
-			await client.restore(args.collection, args.id);
+			await client.restore(args.collection, args.id, { locale: args.locale });
 			output({ success: true }, args);
 			consola.success(`Restored ${args.collection}/${args.id}`);
 		} catch (error) {

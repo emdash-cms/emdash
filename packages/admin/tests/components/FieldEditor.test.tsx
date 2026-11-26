@@ -1,3 +1,5 @@
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import {
 	RouterProvider,
 	createMemoryHistory,
@@ -53,6 +55,7 @@ const SHORT_TEXT_REGEX = /Short Text/;
 const LONG_TEXT_REGEX = /Long Text/;
 const BOOLEAN_REGEX = /Boolean/;
 const RICH_TEXT_REGEX = /Rich Text Rich text editor/;
+const TRANSLATED_SELECT_FIELD_TYPE_REGEX = /^Lista wyboru/;
 const DUPLICATE_SUB_FIELD_SLUG = "Another sub-field already uses this slug. Enter a different one.";
 
 function makeField(overrides: Partial<SchemaField> = {}): SchemaField {
@@ -123,6 +126,23 @@ describe("FieldEditor", () => {
 			// Each type renders as a button with label and description
 			for (const name of FIELD_TYPE_REGEXES) {
 				await expect.element(screen.getByRole("button", { name })).toBeInTheDocument();
+			}
+		});
+
+		it("translates the Select field type separately from the Select action", async () => {
+			const selectAction = msg`Select`;
+			const selectFieldType = msg({ message: "Select", context: "field type" });
+			i18n.loadAndActivate({
+				locale: "pl",
+				messages: { [selectAction.id]: "Wybierz", [selectFieldType.id]: "Lista wyboru" },
+			});
+			try {
+				const screen = await renderInRouter(<FieldEditor {...defaultProps} />);
+				await expect
+					.element(screen.getByRole("button", { name: TRANSLATED_SELECT_FIELD_TYPE_REGEX }))
+					.toBeInTheDocument();
+			} finally {
+				i18n.loadAndActivate({ locale: "en", messages: {} });
 			}
 		});
 
@@ -1001,6 +1021,41 @@ describe("FieldEditor", () => {
 			]);
 		});
 
+		it("preserves sub-field validation when an existing repeater is edited", async () => {
+			const onSave = vi.fn();
+			const field = makeField({
+				slug: "logo_cards",
+				label: "Logo cards",
+				type: "repeater",
+				validation: {
+					subFields: [
+						{
+							slug: "logo",
+							label: "Logo",
+							type: "image",
+							validation: { allowedMimeTypes: ["image/svg+xml"] },
+						},
+					],
+				} as SchemaField["validation"],
+			});
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={field} onSave={onSave} />,
+			);
+
+			await screen.getByLabelText("Label", { exact: true }).nth(1).fill("Partner logo");
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{
+					slug: "logo",
+					label: "Partner logo",
+					type: "image",
+					required: undefined,
+					validation: { allowedMimeTypes: ["image/svg+xml"] },
+				},
+			]);
+		});
+
 		it("allows a new sub-field in an existing repeater to use a manual key", async () => {
 			const onSave = vi.fn();
 			const screen = await renderInRouter(
@@ -1048,6 +1103,124 @@ describe("FieldEditor", () => {
 			expect(
 				onSave.mock.calls[0]?.[0].validation.subFields.map((sf: { slug: string }) => sf.slug),
 			).toEqual(["groesse", "summary"]);
+		});
+	});
+
+	describe("repeater select sub-field options", () => {
+		it("saves the options typed for a new select sub-field", async () => {
+			const onSave = vi.fn();
+			const screen = await renderInRouter(<FieldEditor {...defaultProps} onSave={onSave} />);
+			screen
+				.getByRole("button", { name: /^Repeater/ })
+				.element()
+				.click();
+			await screen.getByLabelText("Label", { exact: true }).fill("Gallery");
+			screen.getByRole("button", { name: "Add Sub-Field" }).element().click();
+			await screen.getByLabelText("Label", { exact: true }).nth(1).fill("Layout");
+			await screen.getByRole("combobox", { name: "Type" }).click();
+			await screen.getByRole("option", { name: "Select" }).click();
+			await screen.getByLabelText("Options (one per line)").fill("Grid\n Masonry \n\nCarousel");
+			screen.getByRole("button", { name: "Add Field" }).element().click();
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{
+					slug: "layout",
+					label: "Layout",
+					type: "select",
+					required: undefined,
+					options: ["Grid", "Masonry", "Carousel"],
+				},
+			]);
+		});
+
+		it("asks for an option before a new select sub-field can be saved", async () => {
+			const onSave = vi.fn();
+			const screen = await renderInRouter(<FieldEditor {...defaultProps} onSave={onSave} />);
+			screen
+				.getByRole("button", { name: /^Repeater/ })
+				.element()
+				.click();
+			await screen.getByLabelText("Label", { exact: true }).fill("Gallery");
+			screen.getByRole("button", { name: "Add Sub-Field" }).element().click();
+			await screen.getByLabelText("Label", { exact: true }).nth(1).fill("Layout");
+			await screen.getByRole("combobox", { name: "Type" }).click();
+			await screen.getByRole("option", { name: "Select" }).click();
+			screen.getByRole("button", { name: "Add Field" }).element().click();
+			const options = screen.getByLabelText("Options (one per line)");
+			await expect.element(options).toHaveAttribute("aria-invalid", "true");
+			await expect.element(options).toHaveFocus();
+			expect(onSave).not.toHaveBeenCalled();
+		});
+
+		it("keeps and edits the options of an existing select sub-field", async () => {
+			const onSave = vi.fn();
+			const field = makeField({
+				slug: "gallery",
+				label: "Gallery",
+				type: "repeater",
+				validation: {
+					subFields: [
+						{ slug: "layout", label: "Layout", type: "select", options: ["Grid", "Masonry"] },
+					],
+				} as SchemaField["validation"],
+			});
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={field} onSave={onSave} />,
+			);
+			const options = screen.getByLabelText("Options (one per line)");
+			await expect.element(options).toHaveValue("Grid\nMasonry");
+			await options.fill("Grid\nMasonry\nCarousel");
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{
+					slug: "layout",
+					label: "Layout",
+					type: "select",
+					required: undefined,
+					options: ["Grid", "Masonry", "Carousel"],
+				},
+			]);
+		});
+		it("asks for an option when a saved sub-field is switched to select", async () => {
+			const onSave = vi.fn();
+			const field = makeField({
+				slug: "gallery",
+				label: "Gallery",
+				type: "repeater",
+				validation: {
+					subFields: [{ slug: "layout", label: "Layout", type: "string" }],
+				} as SchemaField["validation"],
+			});
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={field} onSave={onSave} />,
+			);
+			await screen.getByRole("combobox", { name: "Type" }).click();
+			await screen.getByRole("option", { name: "Select" }).click();
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+			await expect
+				.element(screen.getByLabelText("Options (one per line)"))
+				.toHaveAttribute("aria-invalid", "true");
+			expect(onSave).not.toHaveBeenCalled();
+		});
+
+		it("drops the options of a sub-field switched away from select", async () => {
+			const onSave = vi.fn();
+			const field = makeField({
+				slug: "gallery",
+				label: "Gallery",
+				type: "repeater",
+				validation: {
+					subFields: [{ slug: "layout", label: "Layout", type: "select", options: ["Grid"] }],
+				} as SchemaField["validation"],
+			});
+			const screen = await renderInRouter(
+				<FieldEditor {...defaultProps} field={field} onSave={onSave} />,
+			);
+			await screen.getByRole("combobox", { name: "Type" }).click();
+			await screen.getByRole("option", { name: "Short Text" }).click();
+			screen.getByRole("button", { name: "Update Field" }).element().click();
+			expect(onSave.mock.calls[0]?.[0].validation.subFields).toEqual([
+				{ slug: "layout", label: "Layout", type: "string", required: undefined },
+			]);
 		});
 	});
 

@@ -11,6 +11,7 @@ import type { SeedFile } from "./types.js";
 interface SeedModule {
 	seed: SeedFile;
 	userSeed: SeedFile | null;
+	mediaBasePath?: string;
 }
 
 async function getSeedModule(): Promise<SeedModule> {
@@ -32,4 +33,12 @@ export async function loadSeed(): Promise<SeedFile> {
 export async function loadUserSeed(): Promise<SeedFile | null> {
 	const { userSeed } = await getSeedModule();
 	return userSeed ?? null;
+}
+
+/**
+ * Load the directory containing the user's seed file, if one was found.
+ */
+export async function loadSeedMediaBasePath(): Promise<string | undefined> {
+	const { mediaBasePath } = await getSeedModule();
+	return mediaBasePath;
 }

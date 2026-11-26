@@ -39,6 +39,7 @@ vi.mock("virtual:emdash/seed", () => {
 			),
 		},
 		userSeed: null,
+		mediaBasePath: undefined,
 	};
 });
 
