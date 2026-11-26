@@ -265,3 +265,21 @@ describe("a stored count that is already wrong", () => {
 		expect((await forms.get("apply"))?.submissionCount).toBe(1);
 	});
 });
+
+describe("saving a form while another save is in flight", () => {
+	it("keeps a pause the editor's save did not send", async () => {
+		await forms.put("apply", form());
+
+		await updateForm(
+			{ id: "apply", name: "Apply now", settings: { submitLabel: "Apply" } },
+			formsWith(async () => {
+				await updateForm({ id: "apply", status: "paused" });
+			}),
+		);
+
+		const after = await forms.get("apply");
+		expect(after?.status).toBe("paused");
+		expect(after?.name).toBe("Apply now");
+		expect(after?.settings.submitLabel).toBe("Apply");
+	});
+});
