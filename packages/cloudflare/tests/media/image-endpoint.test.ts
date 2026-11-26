@@ -25,20 +25,22 @@ const sourceBytes = new TextEncoder().encode("source");
 const transformedBytes = new TextEncoder().encode("transformed");
 
 function context(query: string, contentType = "image/jpeg") {
-	const input = {
-		body: new ReadableStream({
+	const sourceStream = () =>
+		new ReadableStream({
 			start(controller) {
 				controller.enqueue(sourceBytes);
 				controller.close();
 			},
-		}),
+		});
+	const input = {
+		body: sourceStream(),
 		contentType,
 		size: sourceBytes.length,
 		downloads: 0,
 	};
 	const storage = {
 		download: vi.fn(async () => {
-			input.downloads++;
+			if (input.downloads++ > 0) input.body = sourceStream();
 			return input;
 		}),
 	};
@@ -237,7 +239,7 @@ describe("Cloudflare image endpoint", () => {
 		expect(ctx.cache.set).not.toHaveBeenCalled();
 	});
 
-	it("does not cache a failed transform", async () => {
+	it("serves the original uncached when the transform fails", async () => {
 		const { output } = installImages();
 		output.mockRejectedValueOnce(new Error("Images unavailable"));
 		vi.spyOn(console, "error").mockImplementation(() => {});
@@ -245,8 +247,25 @@ describe("Cloudflare image endpoint", () => {
 
 		const response = await GET(ctx as never);
 
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("source");
+		expect(ctx.cache.set.mock.calls).toEqual([[false]]);
+	});
+
+	it("does not cache a failed transform when the original can't be read again", async () => {
+		const { output } = installImages();
+		output.mockRejectedValueOnce(new Error("Images unavailable"));
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const { ctx, storage } = context("w=120");
+		const download = storage.download.getMockImplementation()!;
+		storage.download
+			.mockImplementationOnce(download)
+			.mockRejectedValueOnce(new Error("R2 unavailable"));
+
+		const response = await GET(ctx as never);
+
 		expect(response.status).toBe(500);
-		expect(ctx.cache.set).not.toHaveBeenCalled();
+		expect(ctx.cache.set.mock.calls).toEqual([[false]]);
 	});
 
 	it("uses the Images default quality for an omitted q", async () => {
@@ -429,7 +448,8 @@ describe("cloudflare image endpoint storage body", () => {
 			query: "w=100&f=webp",
 		});
 		expect(response.status).toBe(200);
-		expect(cacheSet).not.toHaveBeenCalled();
+		expect(cacheSet.mock.calls).toEqual([[false]]);
+		expect(response.headers.get("Last-Modified")).toBeNull();
 		expect(response.headers.get("Content-Type")).toBe("image/png");
 		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
 		expect(downloads[0]!.cancelled()).toBe(true);

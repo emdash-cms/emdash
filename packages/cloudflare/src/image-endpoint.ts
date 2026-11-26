@@ -118,12 +118,22 @@ export const GET: APIRoute = async (ctx) => {
 		suffix?: string,
 	): Response => {
 		if (isNotModified(ctx.request, source.size, source.lastModified, suffix)) {
-			return notModifiedResponse(source.contentType, source.size, source.lastModified, suffix);
+			const notModified = notModifiedResponse(
+				source.contentType,
+				source.size,
+				source.lastModified,
+				suffix,
+			);
+			if (suffix) notModified.headers.delete("Last-Modified");
+			return notModified;
 		}
-		const headers = {
+		const headers: Record<string, string> = {
 			...originalMediaHeaders(source.contentType, source.size, source.lastModified),
 			...(suffix ? validatorHeaders(source.size, source.lastModified, suffix) : {}),
 		};
+		// The rendition shares this Last-Modified; a date-only revalidation must
+		// not keep the original once transforms work again.
+		if (suffix) delete headers["Last-Modified"];
 		if (ctx.request.method === "HEAD") return new Response(null, { status: 200, headers });
 		unusedBody = undefined;
 		return new Response(source.body, { status: 200, headers });
@@ -172,6 +182,7 @@ export const GET: APIRoute = async (ctx) => {
 			// out; the full-size original keeps the image visible.
 			console.error("[emdash] image transform failed, serving the original:", error);
 			if (unusedBody && !unusedBody.locked) await unusedBody.cancel().catch(() => undefined);
+			ctx.cache?.set(false);
 			const original = await storage.download(key);
 			unusedBody = original.body;
 			return serveOriginal(original, ORIGINAL_FALLBACK);

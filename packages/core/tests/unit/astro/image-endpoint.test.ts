@@ -530,6 +530,7 @@ describe("GET /_image when the image service cannot transform", () => {
 		body: new Response(new Uint8Array([1, 2, 3])).body,
 		contentType: "image/jpeg",
 		size: 3,
+		lastModified: new Date("2026-01-15T12:00:00.000Z"),
 	}));
 	const request = (headers?: HeadersInit) =>
 		new Request(
@@ -557,7 +558,8 @@ describe("GET /_image when the image service cannot transform", () => {
 		const response = await GET(buildContext(request(), { download }, cache));
 
 		expect(response.status).toBe(200);
-		expect(cache.set).not.toHaveBeenCalled();
+		expect(cache.set.mock.calls).toEqual([[false]]);
+		expect(response.headers.get("Last-Modified")).toBeNull();
 		expect(response.headers.get("Content-Type")).toBe("image/jpeg");
 		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
 	});

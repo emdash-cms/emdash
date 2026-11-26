@@ -38,6 +38,8 @@ const ptImage = (url: string) => ({
 	height: 800,
 });
 
+const optimized = (html: string) => /<img\b[^>]*\sdata-image-component=/.test(html);
+
 const imgSrc = (html: string) =>
 	/<img\b[^>]*\ssrc="([^"]*)"/.exec(html)?.[1]?.replaceAll("&amp;", "&");
 
@@ -58,6 +60,7 @@ describe("media from another EmDash site", () => {
 		const html = await render(Image, { node: ptImage(OTHER_SITE) });
 
 		expect(imgSrc(html)).toBe(OTHER_SITE);
+		expect(optimized(html)).toBe(false);
 		expect(getImage).not.toHaveBeenCalledWith(expect.objectContaining({ src: OTHER_SITE }));
 	});
 
@@ -67,6 +70,7 @@ describe("media from another EmDash site", () => {
 		});
 
 		expect(imgSrc(html)).toBe(OTHER_SITE);
+		expect(optimized(html)).toBe(false);
 		expect(getImage).not.toHaveBeenCalledWith(expect.objectContaining({ src: OTHER_SITE }));
 	});
 
@@ -76,12 +80,14 @@ describe("media from another EmDash site", () => {
 		});
 
 		expect(imgSrc(html)).toBe(OTHER_SITE);
+		expect(optimized(html)).toBe(false);
 		expect(getImage).not.toHaveBeenCalledWith(expect.objectContaining({ src: OTHER_SITE }));
 	});
 
 	test("this site's media is still optimized", async () => {
-		await render(Image, { node: ptImage(OWN_MEDIA) });
+		const html = await render(Image, { node: ptImage(OWN_MEDIA) });
 
+		expect(optimized(html)).toBe(true);
 		expect(getImage).toHaveBeenCalledWith(
 			expect.objectContaining({ src: `https://site.example${OWN_MEDIA}` }),
 		);

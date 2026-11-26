@@ -151,21 +151,27 @@ export const GET: APIRoute = async (ctx) => {
 		const serveFallbackOriginal = (
 			body: ReadableStream<Uint8Array> | Uint8Array<ArrayBuffer>,
 		): Response => {
-			const headers = {
+			ctx.cache?.set(false);
+			const headers: Record<string, string> = {
 				...originalMediaHeaders(source.contentType, source.size, source.lastModified),
 				...validatorHeaders(source.size, source.lastModified, ORIGINAL_FALLBACK_SUFFIX),
 			};
+			// The rendition shares this Last-Modified; a date-only revalidation must
+			// not keep the original once transforms work again.
+			delete headers["Last-Modified"];
 			return new Response(ctx.request.method === "HEAD" ? null : body, { status: 200, headers });
 		};
 
 		if (sharpMissing()) {
 			if (isNotModified(ctx.request, source.size, source.lastModified, ORIGINAL_FALLBACK_SUFFIX)) {
-				return notModifiedResponse(
+				const notModified = notModifiedResponse(
 					source.contentType,
 					source.size,
 					source.lastModified,
 					ORIGINAL_FALLBACK_SUFFIX,
 				);
+				notModified.headers.delete("Last-Modified");
+				return notModified;
 			}
 			if (ctx.request.method === "HEAD") return serveFallbackOriginal(new Uint8Array());
 			unusedBody = undefined;
