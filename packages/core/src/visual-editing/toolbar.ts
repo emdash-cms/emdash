@@ -100,7 +100,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     left: 50%;
     transform: translateX(-50%);
     width: max-content;
-    max-width: calc(100% - 2rem);
+    max-width: calc(100% - 32px);
     z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 13px;
@@ -125,7 +125,7 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   @media (max-width: 639px) {
     .emdash-tb-inner {
-      border-radius: .75rem;
+      border-radius: 12px;
     }
   }
 

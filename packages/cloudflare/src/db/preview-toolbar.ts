@@ -54,7 +54,7 @@ export function renderPreviewToolbar(config: PreviewToolbarConfig): string {
     left: 50%;
     transform: translateX(-50%);
     width: max-content;
-    max-width: calc(100% - 2rem);
+    max-width: calc(100% - 32px);
     z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 13px;
@@ -83,7 +83,7 @@ export function renderPreviewToolbar(config: PreviewToolbarConfig): string {
 
   @media (max-width: 639px) {
     .ec-ptb-inner {
-      border-radius: .75rem;
+      border-radius: 12px;
     }
   }
 

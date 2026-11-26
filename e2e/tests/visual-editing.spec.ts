@@ -1069,29 +1069,60 @@ test.describe("Text field editing", () => {
 });
 
 test.describe("Visual editing toolbar", () => {
-	test("keeps its controls on screen on a narrow screen with longer labels", async ({ page }) => {
-		const width = 390;
-		await page.setViewportSize({ width, height: 844 });
-		await enableEditMode(page);
-		await page
-			.context()
-			.addCookies([{ name: "emdash-locale", value: "de", domain: "localhost", path: "/" }]);
-		await gotoWithRetry(page, "/text-fields");
+	for (const { locale, editModeLabel } of [
+		{ locale: "en", editModeLabel: "Edit mode" },
+		{ locale: "de", editModeLabel: "Bearbeitungsmodus" },
+	]) {
+		test(`keeps Publish and all controls on screen at 320px (${locale})`, async ({ page }) => {
+			const width = 320;
+			await page.setViewportSize({ width, height: 800 });
+			await enableEditMode(page);
+			await page
+				.context()
+				.addCookies([{ name: "emdash-locale", value: locale, domain: "localhost", path: "/" }]);
+			await stubSaves(page);
+			await gotoWithRetry(page, "/text-fields");
 
-		const toolbar = page.locator("#emdash-toolbar");
-		await expect(toolbar).toContainText("Bearbeitungsmodus");
-		await expect(toolbar.locator("#emdash-tb-admin")).toBeVisible();
+			const toolbar = page.locator("#emdash-toolbar");
+			await expect(toolbar).toContainText(editModeLabel);
 
-		for (const control of [
-			toolbar.locator(".emdash-tb-toggle"),
-			toolbar.locator("#emdash-tb-status"),
-			toolbar.locator("#emdash-tb-admin"),
-			toolbar.locator("#emdash-tb-dismiss"),
-		]) {
-			const box = await control.boundingBox();
-			expect(box).not.toBeNull();
-			expect(box!.x).toBeGreaterThanOrEqual(0);
-			expect(box!.x + box!.width).toBeLessThanOrEqual(width);
-		}
-	});
+			const field = page.locator("#excerpt");
+			await field.click();
+			await expect(field).toHaveAttribute("data-emdash-editing", "");
+			await page.keyboard.type("X");
+			await page.keyboard.press("Enter");
+
+			await expect(toolbar.locator("#emdash-tb-publish")).toBeVisible();
+			await expect(toolbar.locator(".emdash-tb-badge--saved")).toBeVisible();
+			await expect(toolbar.locator("#emdash-tb-admin")).toBeVisible();
+
+			// Measure all rects in one frame so the 2s Saved badge cannot disappear mid-check.
+			const rects = await page.evaluate(
+				(selectors) => {
+					return selectors.map((selector) => {
+						const el = document.querySelector(selector);
+						if (!el) return { selector, found: false, left: 0, right: 0 };
+						const rect = el.getBoundingClientRect();
+						return { selector, found: true, left: rect.left, right: rect.right };
+					});
+				},
+				[
+					"#emdash-toolbar",
+					".emdash-tb-logo",
+					".emdash-tb-toggle",
+					"#emdash-tb-status",
+					"#emdash-tb-save-status",
+					"#emdash-tb-admin",
+					"#emdash-tb-publish",
+					"#emdash-tb-dismiss",
+				],
+			);
+
+			for (const rect of rects) {
+				expect(rect.found, `${rect.selector} should exist`).toBe(true);
+				expect(rect.left, `${rect.selector} left`).toBeGreaterThanOrEqual(0);
+				expect(rect.right, `${rect.selector} right`).toBeLessThanOrEqual(width);
+			}
+		});
+	}
 });
