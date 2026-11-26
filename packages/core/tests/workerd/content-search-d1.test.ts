@@ -123,7 +123,8 @@ describe("content list search on D1", () => {
 
 	it.each(fallbackCases)("fallback: $name", async ({ query, slugs, total }) => {
 		const result = await list(FALLBACK, query);
-		expect(result.items.map((item) => item.slug).toSorted()).toEqual(slugs.toSorted());
+		expect(result.items.map((item) => item.slug)).toEqual(expect.arrayContaining(slugs));
+		expect(result.items).toHaveLength(slugs.length);
 		expect(result.total).toBe(total);
 	});
 
@@ -158,7 +159,8 @@ describe("content list search on D1", () => {
 
 	it.each(ftsCases)("FTS: $name", async ({ query, slugs, total }) => {
 		const result = await list(FTS, query);
-		expect(result.items.map((item) => item.slug).toSorted()).toEqual(slugs.toSorted());
+		expect(result.items.map((item) => item.slug)).toEqual(expect.arrayContaining(slugs));
+		expect(result.items).toHaveLength(slugs.length);
 		expect(result.total).toBe(total);
 	});
 });
