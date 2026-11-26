@@ -16,8 +16,8 @@ EmDash invalidates the route cache and the object cache when content is written 
 
 - a script that updates D1 with `wrangler d1 execute --remote`, as in issue #2435;
 - a migration, bulk import or external sync job that writes the database directly;
-- byline and media library changes, which the route caching guide says invalidate nothing;
-- a purge that failed or was rate-limited, which also fails without an error in the admin.
+- byline changes, and media library changes that pages display, which the route caching guide says invalidate no pages;
+- a purge that failed or was rate-limited, which also fails without an error in the admin. For a replaced or deleted image, the route caching guide asks site owners to purge its `emdash:media:<storageKey>` tag again, which today needs a hand-written endpoint.
 
 Visitors then see the old page until `maxAge` expires, and EmDash offers no way to refresh it. On Cloudflare, a zone purge from the dashboard or the Cloudflare API doesn't help: only the Worker that owns its [Workers Cache](https://developers.cloudflare.com/workers/cache/purge/) can purge it. What remains is a redeploy, which only empties the cache while `cross_version_cache` is off, or a purge endpoint the site owner writes and protects themselves.
 
@@ -29,10 +29,10 @@ An administrator, or a script holding an API token, asks EmDash to refresh cache
 
 - **Entries**, by collection and ID or slug, with an optional locale. EmDash invalidates the tags it invalidates when that entry is published: the collection name and the entry ID.
 - **Paths**, as exact request paths such as `/blog`. Each path is invalidated with and without a trailing slash, as redirect writes already do.
-- **Tags**, passed through unchanged. This reaches custom tags, including the broad `all` tag the route caching guide recommends adding to every route rule.
-- **All EmDash content**: every collection tag and every settings, menu, taxonomy and widget area tag of the site.
+- **Tags**, passed through unchanged. This reaches custom tags, including the broad `all` tag the route caching guide recommends adding to every route rule, and the `emdash:media:<storageKey>` tag of a cached image.
+- **All EmDash content**: every collection tag and every settings, menu, taxonomy and widget area tag of the site. If the collection entries cache hint proposed in #4996 is accepted, this also includes its `emdash:entries:{collection}` tag for every collection. Media tags are not included, because there is one per stored file; a cached image is refreshed through its tag.
 
-Entry targets also clear the object cache for the entry's collection, bylines and taxonomies, because cached entry reads include byline and term data. "All EmDash content" clears every object-cache namespace and isolate cache that a site import clears, by reusing that routine. Path and tag targets leave the object cache alone, because they don't map to a namespace.
+Entry targets also clear the object cache for the entry's collection, bylines and taxonomies, because cached entry reads include byline and term data. "All EmDash content" clears every object-cache namespace and isolate cache that a site import clears. The import's cache step also detaches the published redirect rules, which is a database write, so the implementation moves only the cache invalidations into a shared helper that both callers use. Path and tag targets leave the object cache alone, because they don't map to a namespace.
 
 Every successful request writes an audit log entry with the actor and the number of targets of each kind.
 
@@ -115,7 +115,7 @@ All changes are additive.
 - **Audit log:** a new `cache_invalidate` audit action.
 - **Client and CLI:** `EmDashClient.invalidateCache()` and the `emdash cache invalidate` command.
 - **Admin:** a Cache settings page. All strings go through Lingui, and the layout uses logical Tailwind classes.
-- **Reuse:** tags go through the existing `invalidateRouteCache` batching in chunks of 100, paths through the existing redirect helper that adds the trailing-slash variant, and "all" object-cache invalidation through the site import's cache routine.
+- **Reuse:** tags go through the existing `invalidateRouteCache` batching in chunks of 100, paths through the existing redirect helper that adds the trailing-slash variant, and "all" object-cache invalidation through a helper extracted from the site import's cache step, without the import's redirect write.
 - **Platform code:** none. `@emdash-cms/cloudflare` doesn't change, and the route works with `memoryCache()` on Node.
 - **Database:** no new tables or migrations. "All EmDash content" reads collection, menu, taxonomy and widget area names with existing queries.
 - **Docs:** the route caching and object cache pages describe the command and route for changes made outside EmDash. The Cloudflare page points to them instead of a hand-written purge endpoint.
@@ -140,7 +140,8 @@ All changes are additive.
   - paths expand to both slash forms, and `/` stays one path;
   - "all EmDash content" sends every collection and chrome tag in batches of at most 100;
   - unknown collections and entries are rejected, and the purge-request limit is enforced;
-  - entry and "all" targets bump the expected object-cache namespaces.
+  - entry and "all" targets bump the expected object-cache namespaces;
+  - an "all" request leaves the published redirect rules in place, and a site import still detaches them.
 - Route tests:
   - Admin sessions and tokens with `settings:manage` succeed;
   - Editors, tokens with only `settings:read` or `content:write`, and session writes without `X-EmDash-Request` get `403`;
@@ -153,4 +154,4 @@ All changes are additive.
 ## Open questions
 
 - Is 10 purge requests per call the right ceiling, or should the limit follow the provider?
-- Should Editors be able to refresh a single path? This plan limits every action to Admins, as #2021 asks.
+- Should Editors be able to refresh a single path or all pages? This plan limits every action to Admins, as #2021 asks. A site moving from WordPress, where editors purged pages themselves, asked for a separate `cache:invalidate` permission granted to Editors. That needs a new permission and token scope in the auth package, and a limit on how often Editors can trigger the expensive "all" request, so it is left to a follow-up proposal.
