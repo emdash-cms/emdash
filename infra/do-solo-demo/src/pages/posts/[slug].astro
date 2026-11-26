@@ -23,7 +23,8 @@ if (!slug) {
 	return Astro.rewrite("/404");
 }
 
-const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
+if (error) throw error;
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 if (!post) {

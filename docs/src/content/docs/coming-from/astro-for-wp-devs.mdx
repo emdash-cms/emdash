@@ -192,9 +192,7 @@ const { entries: posts, error } = await getEmDashCollection("posts", {
   orderBy: { published_at: "desc" },
 });
 
-if (error) {
-  return new Response("Could not load posts", { status: 500 });
-}
+if (error) throw error;
 ---
 
 <Base title="Posts">
@@ -221,7 +219,7 @@ const slug = decodeSlug(Astro.params.slug);
 if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error } = await getEmDashEntry("posts", slug);
-if (error) return new Response("Could not load the post", { status: 500 });
+if (error) throw error;
 if (!post) return Astro.rewrite("/404");
 ---
 

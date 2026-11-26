@@ -23,4 +23,10 @@ describe("decodeSlug", () => {
 		expect(decodeSlug("%zz")).toBeUndefined();
 		expect(decodeSlug("trailing%")).toBeUndefined();
 	});
+
+	it("returns undefined for slugs containing a NUL byte", () => {
+		expect(decodeSlug("%00")).toBeUndefined();
+		expect(decodeSlug("hello%00world")).toBeUndefined();
+		expect(decodeSlug("hello\0world")).toBeUndefined();
+	});
 });
