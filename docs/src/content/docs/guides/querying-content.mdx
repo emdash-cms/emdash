@@ -270,9 +270,12 @@ A [`reference` field](/reference/field-types/#reference) links an entry to entri
 
 ```astro title="src/pages/posts/[slug].astro"
 ---
-import { getEmDashEntry } from "emdash";
+import { decodeSlug, getEmDashEntry } from "emdash";
 
-const { entry: post, error } = await getEmDashEntry("posts", Astro.params.slug, {
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.rewrite("/404");
+
+const { entry: post, error } = await getEmDashEntry("posts", slug, {
   references: { author: true, related_posts: { limit: 6 } },
 });
 
