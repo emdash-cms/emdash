@@ -99,6 +99,8 @@ export function renderToolbar(config: ToolbarConfig): string {
     bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 2rem);
     z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 13px;
@@ -108,6 +110,8 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   .emdash-tb-inner {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     align-items: center;
     gap: 10px;
     padding: 8px 16px;
@@ -117,6 +121,12 @@ export function renderToolbar(config: ToolbarConfig): string {
     box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08);
     white-space: nowrap;
     user-select: none;
+  }
+
+  @media (max-width: 639px) {
+    .emdash-tb-inner {
+      border-radius: .75rem;
+    }
   }
 
   .emdash-tb-logo {
@@ -190,6 +200,9 @@ export function renderToolbar(config: ToolbarConfig): string {
     display: inline-flex;
     gap: 6px;
     align-items: center;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   /* Badges */

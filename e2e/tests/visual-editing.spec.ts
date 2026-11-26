@@ -1067,3 +1067,31 @@ test.describe("Text field editing", () => {
 		await page.keyboard.press("Escape");
 	});
 });
+
+test.describe("Visual editing toolbar", () => {
+	test("keeps its controls on screen on a narrow screen with longer labels", async ({ page }) => {
+		const width = 390;
+		await page.setViewportSize({ width, height: 844 });
+		await enableEditMode(page);
+		await page
+			.context()
+			.addCookies([{ name: "emdash-locale", value: "de", domain: "localhost", path: "/" }]);
+		await gotoWithRetry(page, "/text-fields");
+
+		const toolbar = page.locator("#emdash-toolbar");
+		await expect(toolbar).toContainText("Bearbeitungsmodus");
+		await expect(toolbar.locator("#emdash-tb-admin")).toBeVisible();
+
+		for (const control of [
+			toolbar.locator(".emdash-tb-toggle"),
+			toolbar.locator("#emdash-tb-status"),
+			toolbar.locator("#emdash-tb-admin"),
+			toolbar.locator("#emdash-tb-dismiss"),
+		]) {
+			const box = await control.boundingBox();
+			expect(box).not.toBeNull();
+			expect(box!.x).toBeGreaterThanOrEqual(0);
+			expect(box!.x + box!.width).toBeLessThanOrEqual(width);
+		}
+	});
+});
