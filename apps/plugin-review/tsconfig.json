@@ -1,0 +1,9 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": [],
+		"verbatimModuleSyntax": true,
+		"noEmit": true
+	},
+	"include": ["src/**/*.ts", "test/**/*.ts", "eval/**/*.ts", "worker-configuration.d.ts"]
+}

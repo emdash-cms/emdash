@@ -42,6 +42,14 @@ const unsafeRepositoryValues = [
 	"\\\\evil.example/path",
 ];
 
+// Reads parse stored text that looks like JSON, so each of these comes back as an array.
+const unsafeRepositoryShapes = [
+	{ value: '["javascript:alert(1)"]' },
+	{ value: ' ["javascript:alert(1)"]' },
+	{ value: ["javascript:alert(1)"] },
+	{ value: [["javascript:alert(1)"]] },
+];
+
 const safeUrls = [
 	"https://example.com/page",
 	"http://localhost:4321/path?q=1",
@@ -191,12 +199,46 @@ describeEachDialect("url field scheme restriction", (dialect) => {
 			).rejects.toThrow(EmDashValidationError);
 		});
 
+		it.each(unsafeRepositoryShapes)("create rejects $value", async ({ value }) => {
+			await expect(repo.create({ type: "links", data: { website: value } })).rejects.toThrow(
+				EmDashValidationError,
+			);
+		});
+
+		it.each(unsafeRepositoryShapes)(
+			"create rejects $value in a repeater sub-field",
+			async ({ value }) => {
+				await expect(
+					repo.create({ type: "links", data: { rows: [{ href: value }] } }),
+				).rejects.toThrow(EmDashValidationError);
+			},
+		);
+
+		it.each(unsafeRepositoryShapes)("update rejects $value", async ({ value }) => {
+			const created = await repo.create({ type: "links", data: { title: "Target" } });
+			await expect(repo.update("links", created.id, { data: { website: value } })).rejects.toThrow(
+				EmDashValidationError,
+			);
+		});
+
 		it.each(safeUrls)("create accepts %j", async (website) => {
 			const created = await repo.create({
 				type: "links",
 				data: { website, rows: [{ href: website }] },
 			});
 			expect(created.data.website).toBe(website);
+		});
+
+		it("update accepts null to clear a value", async () => {
+			const created = await repo.create({
+				type: "links",
+				data: { website: "https://example.com", rows: [{ href: "/about" }] },
+			});
+			const updated = await repo.update("links", created.id, {
+				data: { website: null, rows: [{ href: null }] },
+			});
+			expect(updated.data.website ?? null).toBeNull();
+			expect(updated.data.rows).toEqual([{ href: null }]);
 		});
 
 		it("create rejects a repeater sent as a JSON string", async () => {

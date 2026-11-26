@@ -19,6 +19,7 @@ import * as React from "react";
 import { apiFetch, API_BASE, ApiResponseError, parseApiResponse } from "../lib/api";
 import { cn } from "../lib/utils";
 import { API_TOKEN_SCOPE_VALUES } from "./settings/ApiTokenSettings.js";
+import { UserAvatar } from "./UserAvatar.js";
 
 // ============================================================================
 // Types
@@ -247,9 +248,7 @@ export function DeviceAuthorizePage() {
 						<div className="rounded-lg border border-kumo-line bg-kumo-base p-6">
 							{/* User badge */}
 							<div className="flex items-center gap-2 mb-5 pb-4 border-b border-kumo-line">
-								<div className="w-8 h-8 rounded-full bg-kumo-tint flex items-center justify-center text-xs font-medium">
-									{(user.name || user.email).charAt(0).toUpperCase()}
-								</div>
+								<UserAvatar user={user} size={32} />
 								<div className="min-w-0">
 									<p className="text-sm font-medium truncate">{user.name || user.email}</p>
 									<p className="text-xs text-kumo-subtle">{ROLE_NAMES[user.role] || t`User`}</p>

@@ -10,14 +10,17 @@ const MAX_REGISTRY_PAGES = 100;
 
 const registry = new DiscoveryClient(REGISTRY_CLIENT_OPTIONS);
 
-export type CatalogSearchResult = { packages: ValidatedPackageView[] } | { error: Error };
+export type CatalogSearchResult =
+	| { packages: ValidatedPackageView[] }
+	| { error: Error; partial?: ValidatedPackageView[] };
 
 /**
  * Every plugin that matches `query`, following the registry's cursor to the
  * last page, since the registry reports no total. More pages than the walk
  * allows is an error, not a partial list. When the first request fails, the
  * error keeps the registry client's error as its `cause`, as live collection
- * errors do.
+ * errors do. When a later request fails, `partial` holds the plugins already
+ * collected, for a page that can show an incomplete catalog.
  */
 export async function searchCatalog(
 	query: string,
@@ -46,6 +49,7 @@ export async function searchCatalog(
 			error: new Error(`Failed to search the registry: ${message}`, {
 				cause: cursor ? undefined : error,
 			}),
+			...(packages.size > 0 ? { partial: [...packages.values()] } : {}),
 		};
 	}
 	return {
@@ -55,15 +59,17 @@ export async function searchCatalog(
 
 /**
  * Adds each plugin's latest release, which its card needs for the icon and the
- * permission count. A release that fails to load or takes longer than the
- * registry loader's timeout is left out, as the loader does.
+ * permission count, keeping whatever else the item carries. A release that
+ * fails to load or takes longer than the registry loader's timeout is left
+ * out, as the loader does.
  */
-export function withLatestReleases(
-	packages: readonly ValidatedPackageView[],
+export function withLatestReleases<T extends { package: ValidatedPackageView }>(
+	items: readonly T[],
 	client: DiscoveryClient = registry,
-): Promise<RegistryEntryData[]> {
+): Promise<(T & Pick<RegistryEntryData, "latestRelease">)[]> {
 	return Promise.all(
-		packages.map(async (pkg) => {
+		items.map(async (item) => {
+			const pkg = item.package;
 			const latestRelease = pkg.latestVersion
 				? await withTimeout(
 						client.getLatestRelease({ did: pkg.did, package: pkg.slug }),
@@ -78,7 +84,7 @@ export function withLatestReleases(
 						return undefined;
 					})
 				: undefined;
-			return { package: pkg, ...(latestRelease ? { latestRelease } : {}) };
+			return { ...item, ...(latestRelease ? { latestRelease } : {}) };
 		}),
 	);
 }

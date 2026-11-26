@@ -143,7 +143,7 @@ function parseStoredFields(raw: string): ParsedStoredFields {
 		return { ...entry, type } as unknown as BlockFieldDefinition;
 	});
 	return {
-		fields: unsupportedTypes.length === 0 ? validateBlockFields(fields) : fields,
+		fields: unsupportedTypes.length === 0 ? validateBlockFields(fields, { mode: "read" }) : fields,
 		unsupportedTypes,
 	};
 }

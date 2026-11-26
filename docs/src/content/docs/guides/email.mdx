@@ -36,10 +36,10 @@ Configure it in one of two ways:
 
 | Variable                | Example                         | Notes                                                                   |
 | ----------------------- | ------------------------------- | ----------------------------------------------------------------------- |
-| `EMAIL_SMTP_HOST`       | `smtp-relay.brevo.com`          | Required                                                                |
+| `EMAIL_SMTP_HOST`       | `smtp.example.com`              | Required                                                                |
 | `EMAIL_SMTP_PORT`       | `587`                           | Optional; defaults to 587. Use 465 for implicit TLS                     |
 | `EMAIL_SMTP_USER`       | `you@example.com`               | Required; the SMTP login                                                |
-| `EMAIL_SMTP_PASS`       | `xsmtpsib-…`                    | Required; store it as a secret                                          |
+| `EMAIL_SMTP_PASS`       | `your-smtp-password`            | Required; store it as a secret                                          |
 | `EMAIL_SMTP_SECURE`     | `tls` or `starttls`             | Optional; port 465 uses `tls`, every other port uses `starttls`         |
 | `EMAIL_SMTP_FROM`       | `My Site <noreply@example.com>` | Optional default sender                                                 |
 | `EMAIL_SMTP_FROM_NAME`  | `My Site`                       | Optional display name for `EMAIL_SMTP_FROM_EMAIL`                       |

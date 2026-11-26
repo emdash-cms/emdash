@@ -24,6 +24,7 @@
  * import resolves there at typecheck time without our help.
  */
 
+import { primeBylineFieldsVersion } from "./bylines/field-defs-cache.js";
 import type { ContentSeo } from "./database/repositories/types.js";
 import {
 	getFallbackChain,
@@ -41,6 +42,7 @@ import {
 	FOLDED_AUTHOR_BYLINE,
 	FOLDED_BYLINES,
 	FOLDED_BYLINES_EXIST,
+	FOLDED_BYLINE_FIELDS_VERSION,
 	FOLDED_TERMS,
 	loadPublishedDates,
 	type WhereRange,
@@ -1038,6 +1040,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
  *
  * // Simple usage — preview just works via middleware
  * const { entry: post, isPreview, error } = await getEmDashEntry("posts", "my-slug");
+ * if (error) throw error;
  * if (!post) return Astro.rewrite("/404");
  * ```
  *
@@ -1059,8 +1062,19 @@ export async function getEmDashEntry<
 	id: string,
 	options?: { locale?: string; references?: S },
 ): Promise<EntryResult<D, SelectedReferences<T, S>>> {
+	const ctx = getRequestContext();
+	const rawLocale = options?.locale ?? ctx?.locale;
+	const key = `entry:${JSON.stringify([
+		type,
+		id,
+		rawLocale === undefined ? null : resolveConfiguredLocale(rawLocale),
+		options?.references === undefined ? null : stableOrder(options.references),
+		ctx?.editMode ?? false,
+		ctx?.preview?.collection ?? null,
+		ctx?.preview?.id ?? null,
+	])}`;
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the resolver returns one page per field the selection named, which is what SelectedReferences picks out
-	return resolveEmDashEntry<T, D>(type, id, options) as Promise<
+	return requestCached(key, () => resolveEmDashEntry<T, D>(type, id, options)) as Promise<
 		EntryResult<D, SelectedReferences<T, S>>
 	>;
 }
@@ -1231,6 +1245,24 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 	const localeChain =
 		requestedLocale && isI18nEnabled() ? getFallbackChain(requestedLocale) : [requestedLocale];
 
+	const missCacheHint: CacheHint = { tags: [type] };
+
+	/**
+	 * A slug hit stored under another locale spelling, or served from a fallback
+	 * locale, is superseded when a row in the requested locale is published.
+	 */
+	function servedForAnotherLocale(entry: ContentEntry<D>, fallbackLocale?: string): boolean {
+		if (fallbackLocale) return true;
+		if (entryDatabaseId(entry) === id) return false;
+		const stored = dataStr(entryData(entry), "locale");
+		// Without a locale, a slug hit outside the default locale's own spelling
+		// is superseded once a default-locale row with that slug is published.
+		if (!requestedLocale) {
+			return stored !== resolveConfiguredLocale(getI18nConfig()?.defaultLocale ?? "en");
+		}
+		return stored.toLowerCase() !== requestedLocale.toLowerCase();
+	}
+
 	/** Return a successful EntryResult with bylines, taxonomy terms and references hydrated */
 	async function successResult(
 		wrapped: ContentEntry<D>,
@@ -1263,7 +1295,10 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 			entry: wrapped,
 			isPreview: opts.isPreview,
 			fallbackLocale: opts.fallbackLocale,
-			cacheHint: mergeCacheHints(opts.cacheHint, referenceHint),
+			cacheHint: mergeCacheHints(
+				mergeCacheHints(opts.cacheHint, referenceHint),
+				servedForAnotherLocale(wrapped, opts.fallbackLocale) ? missCacheHint : {},
+			),
 		};
 	}
 
@@ -1382,7 +1417,7 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 		}
 
 		// No entry found in any locale
-		return { entry: null, isPreview: serveDrafts, cacheHint: {} };
+		return { entry: null, isPreview: serveDrafts, cacheHint: missCacheHint };
 	}
 
 	// Normal mode: try each locale in the fallback chain, only return published
@@ -1400,9 +1435,7 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 				type,
 				id,
 				locale,
-				...(locale !== undefined && getLocaleCandidates(locale).length > 1
-					? { publishedOnly: true }
-					: {}),
+				publishedOnly: true,
 			});
 			if (error) {
 				// Astro reports a missing entry as an error; try the next locale.
@@ -1419,7 +1452,7 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 			}
 			// Entry not found or not visible in this locale — try next
 		}
-		return { entry: null, isPreview: false, cacheHint: {} };
+		return { entry: null, isPreview: false, cacheHint: missCacheHint };
 	};
 
 	// A snapshot carries whatever references the caller asked for, so both the
@@ -1472,7 +1505,11 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 		entry: revived,
 		isPreview: snapshot.value.isPreview,
 		fallbackLocale: snapshot.value.fallbackLocale,
-		cacheHint: snapshot.value.cacheHint,
+		// Older snapshots can lack the collection tag on misses and fallback or alias hits.
+		cacheHint:
+			revived && !servedForAnotherLocale(revived, snapshot.value.fallbackLocale)
+				? snapshot.value.cacheHint
+				: mergeCacheHints(snapshot.value.cacheHint, missCacheHint),
 	};
 }
 
@@ -1603,6 +1640,11 @@ interface CachedEntryValue {
  */
 async function hydrateEntryBylines<D>(type: string, entries: ContentEntry<D>[]): Promise<void> {
 	if (entries.length === 0) return;
+
+	const foldedVersion = Reflect.get(entryData(entries[0]), FOLDED_BYLINE_FIELDS_VERSION);
+	if (typeof foldedVersion === "number") {
+		primeBylineFieldsVersion(foldedVersion);
+	}
 
 	// Fast path: bylines were folded into the content query. Parse the JSON
 	// (no extra round trip): explicit credits, plus the author-fallback byline

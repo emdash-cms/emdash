@@ -8,6 +8,7 @@ import {
 	CONTENT_MEDIA_USAGE_ADAPTER_ID,
 	CONTENT_MEDIA_USAGE_COLLECTION_SCOPE,
 	deleteContentMediaUsage,
+	deleteContentMediaUsageCollection,
 	markContentMediaUsageCollectionStale,
 	refreshContentMediaUsage,
 } from "../../../src/media/usage/content-refresh.js";
@@ -39,6 +40,27 @@ describeEachDialect("content media usage refresh", (dialect) => {
 
 	afterEach(async () => {
 		await teardownForDialect(ctx);
+	});
+
+	it("finishes an in-flight refresh before deleting the collection's usage", async () => {
+		const item = await insertPost(ctx, {
+			slug: "concurrent-refresh-delete",
+			status: "published",
+			data: {
+				title: "Concurrent refresh and deletion",
+				hero: { id: "media-concurrent", provider: "local", mimeType: "image/webp" },
+			},
+		});
+
+		const [refresh, deletion] = await Promise.all([
+			refreshContentMediaUsage(ctx.db, "posts", item.id),
+			deleteContentMediaUsageCollection(ctx.db, "posts"),
+		]);
+
+		expect(refresh).toEqual(expect.objectContaining({ success: true, refreshedSourceCount: 1 }));
+		expect(deletion).toEqual(expect.objectContaining({ success: true, deletedSourceCount: 1 }));
+		expect(await usageRepo.findSource(sourceKey(item.id, "columns"))).toBeNull();
+		expect(await usageRepo.findCurrentUsageByMediaId("media-concurrent")).toEqual([]);
 	});
 
 	it("refreshes a columns source and replaces its current usage", async () => {

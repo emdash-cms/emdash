@@ -5,10 +5,11 @@ import PageView from "../components/PageView.astro";
 import { heroSeoDefaults } from "../utils/page";
 import { resolveSiteIdentity } from "../utils/site";
 
-const [{ entry: page, cacheHint }, settings] = await Promise.all([
+const [{ entry: page, error, cacheHint }, settings] = await Promise.all([
 	getEmDashEntry("pages", "home"),
 	getSiteSettings(),
 ]);
+if (error) throw error;
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 

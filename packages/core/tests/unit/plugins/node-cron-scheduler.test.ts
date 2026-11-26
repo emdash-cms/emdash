@@ -13,7 +13,7 @@ describe("NodeCronScheduler", () => {
 
 	beforeEach(async () => {
 		vi.useFakeTimers();
-		vi.setSystemTime(new Date("2026-08-17T12:00:00.000Z"));
+		vi.setSystemTime(new Date("2026-08-17T12:00:30.000Z"));
 		db = await setupTestDatabase();
 		executor = new CronExecutor(db, async () => {});
 		vi.spyOn(executor, "getNextDueTime").mockResolvedValue(null);
@@ -42,10 +42,30 @@ describe("NodeCronScheduler", () => {
 		expect(cleanup).toHaveBeenCalledOnce();
 	});
 
-	it("uses the one-minute heartbeat when no task is due", async () => {
+	it("wakes just after the next minute starts when no task is due", async () => {
 		scheduler.start();
 
-		await vi.advanceTimersByTimeAsync(59_999);
+		await vi.advanceTimersByTimeAsync(30_024);
+		expect(executor.tick).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+		expect(executor.tick).toHaveBeenCalledOnce();
+	});
+
+	it("wakes at the next minute boundary when started mid-minute", async () => {
+		vi.setSystemTime(new Date("2026-08-17T12:00:20.000Z"));
+		scheduler.start();
+
+		await vi.advanceTimersByTimeAsync(40_024);
+		expect(executor.tick).not.toHaveBeenCalled();
+		await vi.advanceTimersByTimeAsync(1);
+		expect(executor.tick).toHaveBeenCalledOnce();
+	});
+
+	it("still wakes for the current minute when armed just after it starts", async () => {
+		vi.setSystemTime(new Date("2026-08-17T12:01:00.005Z"));
+		scheduler.start();
+
+		await vi.advanceTimersByTimeAsync(19);
 		expect(executor.tick).not.toHaveBeenCalled();
 		await vi.advanceTimersByTimeAsync(1);
 		expect(executor.tick).toHaveBeenCalledOnce();
@@ -82,7 +102,7 @@ describe("NodeCronScheduler", () => {
 
 		const heartbeat = timeout.mock.results.find(
 			(result, index) =>
-				timeout.mock.calls[index]?.[1] === 60_000 && isUnreferencedTimer(result.value),
+				timeout.mock.calls[index]?.[1] === 30_025 && isUnreferencedTimer(result.value),
 		);
 		expect(heartbeat).toBeDefined();
 	});
@@ -96,7 +116,7 @@ describe("NodeCronScheduler", () => {
 		});
 		scheduler.start();
 
-		await vi.advanceTimersByTimeAsync(60_000);
+		await vi.advanceTimersByTimeAsync(30_025);
 
 		expect(error).toHaveBeenCalledTimes(3);
 		expect(executor.getNextDueTime).toHaveBeenCalledTimes(2);

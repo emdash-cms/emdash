@@ -83,11 +83,15 @@ export function hasUnsafeUrlScheme(value: string): boolean {
 /**
  * Returns true when a repository write may keep the value. Repository callers
  * preserve legacy scheme-less values, but reject anything a browser resolves
- * off-site or to a script-capable scheme.
+ * off-site or to a script-capable scheme, and anything that does not read
+ * back as the string checked here: a value of another type, or text that
+ * looks like JSON, which reads parse into an array or object.
  */
-export function isSafeUrlFieldWriteValue(value: string): boolean {
+export function isSafeUrlFieldWriteValue(value: unknown): boolean {
+	if (typeof value !== "string") return false;
 	if (containsHrefControl(value) || hasUnsafeUrlScheme(value)) return false;
 	const candidate = value.trimStart();
+	if (candidate.startsWith("[") || candidate.startsWith("{")) return false;
 	const scheme = URL_SCHEME_RE.exec(candidate)?.[1];
 	if (scheme !== undefined) return ALLOWED_URL_SCHEMES.has(scheme.toLowerCase());
 	return resolvesOnSite(candidate);
@@ -100,4 +104,17 @@ export function isSafeUrlFieldWriteValue(value: string): boolean {
  */
 export function isSafeUrlFieldValue(value: string): boolean {
 	return isSafeHref(value);
+}
+
+const ALLOWED_MEDIA_URL_SCHEMES = new Set(["http", "https"]);
+
+/**
+ * Returns true if the value may be stored as a URL of an `image` or `file`
+ * value (`src`, `url`, `previewUrl`): an http or https URL, or a value without
+ * a scheme, such as a site-relative path or a legacy relative path.
+ */
+export function isSafeMediaUrl(value: string): boolean {
+	if (containsHrefControl(value)) return false;
+	const scheme = URL_SCHEME_RE.exec(value.trimStart())?.[1];
+	return scheme === undefined || ALLOWED_MEDIA_URL_SCHEMES.has(scheme.toLowerCase());
 }

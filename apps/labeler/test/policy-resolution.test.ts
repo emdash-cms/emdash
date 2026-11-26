@@ -80,7 +80,22 @@ describe("assessment policy resolution", () => {
 		expect(resolveAssessmentPolicy(input)).toMatchObject({
 			outcome: "review",
 			reasonCodes: ["policy-finding"],
+			findings: [{ category: "material-impersonation", source: "candidate" }],
 		});
+	});
+
+	it("names the link check and the problems it found", () => {
+		const input = cleanInput();
+		input.checkedLinks = [
+			{ ...input.checkedLinks[0]!, issues: ["embedded-credentials", "unicode-host"] },
+		];
+		expect(resolveAssessmentPolicy(input).findings).toMatchObject([
+			{
+				source: "link-check",
+				summary: "Displayed link failed the link check: embedded-credentials, unicode-host.",
+				evidenceRefs: ["profile.authors[0].url"],
+			},
+		]);
 	});
 
 	it("fails closed when required inference is unavailable", () => {

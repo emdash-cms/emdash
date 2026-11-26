@@ -1,5 +1,15 @@
 # @emdash-cms/plugin-atproto
 
+## 0.2.5
+
+### Patch Changes
+
+- [#4707](https://github.com/emdash-cms/emdash/pull/4707) [`ecf3013`](https://github.com/emdash-cms/emdash/commit/ecf3013cadfeac5dcd6b292ee1a4d4cc04a361aa) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes missing standard.site cover images and Bluesky link-card thumbnails for posts using `data.featured_image`. Local media is read directly from storage rather than fetched from the site's public URL. The plugin now requests the `media:bytes:read` permission; approve it when updating the plugin.
+  
+  Skipped images now show a warning in Recent Syncs on the AT Protocol settings page without preventing text syndication. Images must be no larger than 1,000,000 bytes; automatic resizing is not available.
+
+- [#4704](https://github.com/emdash-cms/emdash/pull/4704) [`2510461`](https://github.com/emdash-cms/emdash/commit/2510461177f7a8483484fe18629a2725af6f7c6c) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes AT Protocol re-syndication to update or recreate the document before updating its Bluesky cross-post. If the document cannot be saved, the Bluesky post is no longer updated.
+
 ## 0.2.4
 
 ### Patch Changes

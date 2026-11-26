@@ -2,8 +2,8 @@
  * Dialect-specific SQL helpers
  *
  * Every function takes a Kysely `db` instance and detects the dialect from
- * the adapter class. No module-level state, no globals, no heuristics —
- * the adapter is the source of truth.
+ * the adapter class. No module-level state or globals — the adapter is
+ * the source of truth.
  *
  * This is NOT an ORM abstraction — just targeted helpers for the ~15 places
  * that use raw dialect-specific SQL. Most Kysely schema builder code already
@@ -14,6 +14,7 @@ import type {
 	ColumnDataType,
 	Compilable,
 	CompiledQuery,
+	Expression,
 	Kysely,
 	QueryResult,
 	RawBuilder,
@@ -31,7 +32,12 @@ export type { DatabaseDialectType };
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function detectDialect(db: Kysely<any>): DatabaseDialectType {
-	if (db.getExecutor().adapter instanceof PostgresAdapter) return "postgres";
+	const adapter = db.getExecutor().adapter;
+	// instanceof survives minification; the name fallback handles separate
+	// Kysely module copies loaded by Vite's dev SSR dependency optimizer.
+	if (adapter instanceof PostgresAdapter || adapter.constructor.name === "PostgresAdapter") {
+		return "postgres";
+	}
 	return "sqlite";
 }
 
@@ -43,6 +49,15 @@ export function isSqlite(db: Kysely<any>): boolean {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
 export function isPostgres(db: Kysely<any>): boolean {
 	return detectDialect(db) === "postgres";
+}
+
+/** Literal substring position, avoiding D1's 50-byte LIKE pattern limit. */
+export function textPosition<DB>(
+	db: Kysely<DB>,
+	value: Expression<string>,
+	term: Expression<string>,
+): RawBuilder<number> {
+	return isPostgres(db) ? sql`strpos(${value}, ${term})` : sql`instr(${value}, ${term})`;
 }
 
 /**
@@ -441,6 +456,63 @@ export function pluginDataWriteExpr(
 		return sql<string>`(${expr})::text`;
 	}
 	return sql<string>`${expr}`;
+}
+
+/**
+ * A text column holding a JSON object, as a JSON value. `NULL` and non-object
+ * values read as `{}`, so a key write always produces an object.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+function jsonObjectBaseExpr(db: Kysely<any>, column: string): RawBuilder<unknown> {
+	validateIdentifier(column, "JSON column name");
+	const ref = sql.ref(column);
+	if (isPostgres(db)) {
+		return sql`CASE WHEN jsonb_typeof(${ref}::jsonb) = 'object' THEN ${ref}::jsonb ELSE '{}'::jsonb END`;
+	}
+	return sql`CASE WHEN json_type(${ref}) = 'object' THEN ${ref} ELSE '{}' END`;
+}
+
+/**
+ * New value of a text JSON-object column with one top-level key set to the
+ * serialized `valueJson`. Every other stored key keeps its value, so writers
+ * of different keys never overwrite each other and need no fresh read.
+ *
+ * sqlite:   json_set(<base>, '$.key', json(?))
+ * postgres: (jsonb_set(<base>, '{key}', ?::jsonb))::text
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export function jsonObjectSetKeyExpr(
+	db: Kysely<any>,
+	column: string,
+	key: string,
+	valueJson: string,
+): RawBuilder<string> {
+	validateJsonFieldName(key, "JSON object key");
+	const base = jsonObjectBaseExpr(db, column);
+	if (isPostgres(db)) {
+		return sql<string>`(jsonb_set(${base}, ${sql.lit(`{${key}}`)}, ${valueJson}::jsonb))::text`;
+	}
+	return sql<string>`json_set(${base}, ${sql.lit(`$.${key}`)}, json(${valueJson}))`;
+}
+
+/**
+ * New value of a text JSON-object column without one top-level key.
+ *
+ * sqlite:   json_remove(<base>, '$.key')
+ * postgres: (<base> - 'key')::text
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- accepts any Kysely instance
+export function jsonObjectRemoveKeyExpr(
+	db: Kysely<any>,
+	column: string,
+	key: string,
+): RawBuilder<string> {
+	validateJsonFieldName(key, "JSON object key");
+	const base = jsonObjectBaseExpr(db, column);
+	if (isPostgres(db)) {
+		return sql<string>`(${base} - ${sql.lit(key)})::text`;
+	}
+	return sql<string>`json_remove(${base}, ${sql.lit(`$.${key}`)})`;
 }
 
 export function pluginDataUpdateGuard(

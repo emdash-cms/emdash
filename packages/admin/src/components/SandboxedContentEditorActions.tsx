@@ -242,6 +242,7 @@ export function SandboxedContentEditorActions({
 								variant="ghost"
 								shape="square"
 								aria-label={t`Plugin actions`}
+								className="max-sm:w-full"
 								disabled={allActionsDisabled}
 								title={
 									allActionsDisabled ? t`Save changes before running plugin actions` : undefined

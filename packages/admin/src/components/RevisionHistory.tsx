@@ -12,16 +12,10 @@ import { RevisionList } from "./revisions/RevisionList.js";
 interface RevisionHistoryProps {
 	collection: string;
 	entryId: string;
-	/** Reserve the inline end of the disclosure header for an external control. */
-	reserveHeaderEnd?: boolean;
 }
 
 /** The Revisions section of the content settings sidebar: the entry's saved versions by day. */
-export function RevisionHistory({
-	collection,
-	entryId,
-	reserveHeaderEnd = false,
-}: RevisionHistoryProps) {
+export function RevisionHistory({ collection, entryId }: RevisionHistoryProps) {
 	const { t } = useLingui();
 	const view = useRevisionViewContext();
 	const [isExpanded, setIsExpanded] = React.useState(false);
@@ -46,7 +40,7 @@ export function RevisionHistory({
 						variant="ghost"
 						className="relative justify-between"
 						style={{
-							width: reserveHeaderEnd ? "calc(100% - 1.5rem)" : "calc(100% + 1.5rem)",
+							width: "calc(100% + 1.5rem)",
 							insetInlineStart: "-0.75rem",
 						}}
 					/>

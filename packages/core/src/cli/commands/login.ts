@@ -30,6 +30,7 @@ import {
 	resolveCredentialKey,
 	saveCredentials,
 } from "../credentials.js";
+import { openBrowser } from "../open-browser.js";
 import { configureOutputMode } from "../output.js";
 
 // ---------------------------------------------------------------------------
@@ -238,6 +239,10 @@ export const loginCommand = defineCommand({
 						});
 						if (bypassRes.status === 302 || bypassRes.ok) {
 							consola.success("Dev bypass available. Client will authenticate automatically.");
+						} else if (bypassRes.status === 409) {
+							consola.error(
+								"Setup is required. Finish setup at /_emdash/admin/setup, or explicitly skip it at /_emdash/api/setup/dev-bypass?content=0.",
+							);
 						} else {
 							consola.error("Could not authenticate. Is the dev server running?");
 						}
@@ -306,18 +311,7 @@ export const loginCommand = defineCommand({
 			console.log();
 
 			// Try to open browser (best-effort)
-			try {
-				const { execFile } = await import("node:child_process");
-				if (process.platform === "darwin") {
-					execFile("open", [deviceCode.verification_uri]);
-				} else if (process.platform === "win32") {
-					execFile("cmd", ["/c", "start", "", deviceCode.verification_uri]);
-				} else {
-					execFile("xdg-open", [deviceCode.verification_uri]);
-				}
-			} catch {
-				// Ignore — user can open manually
-			}
+			openBrowser(deviceCode.verification_uri);
 
 			// Step 4: Poll for token
 			consola.start("Waiting for authorization...");
@@ -515,6 +509,12 @@ export const whoamiCommand = defineCommand({
 				}
 				if (!token && meRes.status === 404) {
 					consola.error("The dev bypass is not available on this site. Run: emdash login");
+					process.exit(1);
+				}
+				if (!token && meRes.status === 409) {
+					consola.error(
+						"Setup is required. Finish setup at /_emdash/admin/setup, or explicitly skip it at /_emdash/api/setup/dev-bypass?content=0.",
+					);
 					process.exit(1);
 				}
 				consola.error(`Failed to fetch user info: ${meRes.status}`);

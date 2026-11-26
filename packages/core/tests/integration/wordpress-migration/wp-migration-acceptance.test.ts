@@ -278,11 +278,12 @@ describe("WordPress migration acceptance (#1691)", () => {
 
 		const draft = await rowBySlug(db, "ec_post", "work-in-progress");
 		expect(draft.status).toBe("draft");
-		expect(draft.published_at).toBeNull();
+		expect(draft.published_at).toBe("2026-02-20T08:00:00.000Z");
 
 		// WP `pending` has no EmDash equivalent and degrades to draft.
 		const pending = await rowBySlug(db, "ec_post", "pending-review");
 		expect(pending.status).toBe("draft");
+		expect(pending.published_at).toBe("2026-02-25T08:00:00.000Z");
 	});
 
 	it("converts Gutenberg blocks to Portable Text", async () => {

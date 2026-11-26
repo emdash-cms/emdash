@@ -45,3 +45,16 @@ export function storedLocaleOrder(column: string) {
 		sql` `,
 	)} ELSE 0 END`;
 }
+
+/**
+ * Rank rows stored under the site's default locale first, the configured path
+ * ahead of its Astro codes. The comparison is case-sensitive so a row stored as
+ * `EN` does not rank level with `en`.
+ */
+export function defaultLocaleFirst(column: string) {
+	const candidates = getLocaleCandidates(getI18nConfig()?.defaultLocale ?? "en");
+	return sql<number>`CASE ${sql.ref(column)} ${sql.join(
+		candidates.map((candidate, rank) => sql`WHEN ${candidate} THEN ${sql.lit(rank)}`),
+		sql` `,
+	)} ELSE ${sql.lit(candidates.length)} END`;
+}

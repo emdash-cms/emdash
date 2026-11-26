@@ -18,6 +18,9 @@ export const prerender = false;
 
 export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const db = emdash.db;
 	const { name } = params;
 
@@ -65,7 +68,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 				db.updateTable("_emdash_widgets").set({ sort_order: index }).where("id", "=", id).execute(),
 			),
 		);
-		invalidateWidgetObjectCache();
+		await invalidateWidgetObjectCache({ waitForPersist: true });
 		const failed = results.find((result) => result.status === "rejected");
 		if (failed) throw failed.reason;
 

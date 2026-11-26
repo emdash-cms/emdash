@@ -15,11 +15,10 @@ import {
 	putRecord,
 	deleteRecord,
 	rkeyFromUri,
-	uploadBlob,
-	requireHttp,
 	normalizePdsHost,
 } from "./atproto.js";
 import { buildBskyPost } from "./bluesky.js";
+import { uploadCoverImage } from "./cover-image.js";
 import { buildPublication, buildDocument } from "./standard-site.js";
 
 // ── Types ───────────────────────────────────────────────────────
@@ -35,6 +34,7 @@ interface SyndicationRecord {
 	lastSyncedAt: string;
 	status: "synced" | "error" | "pending";
 	errorMessage?: string;
+	imageWarning?: string;
 	retryCount?: number;
 }
 
@@ -77,29 +77,13 @@ async function syndicateContent(
 
 	const { accessJwt, did, pdsHost } = await ensureSession(ctx);
 
-	// Upload cover image if present
-	let coverImageBlob;
-	const rawCoverImage = content.cover_image as string | undefined;
-	if (rawCoverImage) {
-		let imageUrl = rawCoverImage;
-		if (imageUrl.startsWith("/")) imageUrl = `${siteUrl}${imageUrl}`;
-
-		if (imageUrl.startsWith("http://") || imageUrl.startsWith("https://")) {
-			try {
-				const http = requireHttp(ctx);
-				const imageRes = await http.fetch(imageUrl);
-				if (imageRes.ok) {
-					const bytes = await imageRes.arrayBuffer();
-					if (bytes.byteLength <= 1_000_000) {
-						const mimeType = imageRes.headers.get("content-type") || "image/jpeg";
-						coverImageBlob = await uploadBlob(ctx, pdsHost, accessJwt, bytes, mimeType);
-					}
-				}
-			} catch (error) {
-				ctx.log.warn("Failed to upload cover image, skipping", error);
-			}
-		}
-	}
+	const { blob: coverImageBlob, warning: imageWarning } = await uploadCoverImage(
+		ctx,
+		content,
+		siteUrl,
+		pdsHost,
+		accessJwt,
+	);
 
 	let bskyPostRef: { uri: string; cid: string } | undefined;
 
@@ -109,6 +93,16 @@ async function syndicateContent(
 			existing.bskyPostUri && existing.bskyPostCid
 				? { uri: existing.bskyPostUri, cid: existing.bskyPostCid }
 				: undefined;
+
+		const doc = buildDocument({
+			publicationUri,
+			collection,
+			content,
+			coverImageBlob,
+			bskyPostRef,
+		});
+
+		let result = await putRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", rkey, doc);
 
 		const enableCrosspost = (await ctx.kv.get<boolean>("settings:enableBskyCrosspost")) ?? true;
 		if (enableCrosspost && existing.bskyPostUri) {
@@ -144,23 +138,13 @@ async function syndicateContent(
 			}
 		}
 
-		const doc = buildDocument({
-			publicationUri,
-			collection,
-			content,
-			coverImageBlob,
-			bskyPostRef,
-		});
-
-		const result = await putRecord(
-			ctx,
-			pdsHost,
-			accessJwt,
-			did,
-			"site.standard.document",
-			rkey,
-			doc,
-		);
+		if (
+			bskyPostRef &&
+			(doc.bskyPostRef?.uri !== bskyPostRef.uri || doc.bskyPostRef?.cid !== bskyPostRef.cid)
+		) {
+			doc.bskyPostRef = bskyPostRef;
+			result = await putRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", rkey, doc);
+		}
 
 		await ctx.storage.records!.put(storageKey, {
 			collection: existing.collection,
@@ -172,6 +156,7 @@ async function syndicateContent(
 			publishedAt: existing.publishedAt,
 			lastSyncedAt: new Date().toISOString(),
 			status: "synced",
+			...(imageWarning ? { imageWarning } : {}),
 			retryCount: 0,
 		} satisfies SyndicationRecord);
 
@@ -236,6 +221,7 @@ async function syndicateContent(
 			publishedAt: (content.published_at as string) || new Date().toISOString(),
 			lastSyncedAt: new Date().toISOString(),
 			status: "synced",
+			...(imageWarning ? { imageWarning } : {}),
 		} satisfies SyndicationRecord);
 
 		ctx.log.info(`Created AT Protocol document for ${collection}/${contentId}`);
@@ -324,6 +310,42 @@ async function syndicatePublishedContent(
 	}
 }
 
+async function deleteSyndicatedRecords(
+	ctx: PluginContext,
+	collection: string,
+	id: string,
+): Promise<void> {
+	const deleteOnUnpublish = (await ctx.kv.get<boolean>("settings:deleteOnUnpublish")) ?? true;
+	if (!deleteOnUnpublish) return;
+
+	const storageKey = `${collection}:${id}`;
+	const existing = (await ctx.storage.records!.get(storageKey)) as SyndicationRecord | null;
+	if (!existing || !existing.atUri) return;
+
+	try {
+		const { accessJwt, did, pdsHost } = await ensureSession(ctx);
+		const rkey = rkeyFromUri(existing.atUri);
+		await deleteRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", rkey);
+
+		if (existing.bskyPostUri) {
+			const postRkey = rkeyFromUri(existing.bskyPostUri);
+			await deleteRecord(ctx, pdsHost, accessJwt, did, "app.bsky.feed.post", postRkey);
+		}
+
+		await ctx.storage.records!.delete(storageKey);
+		ctx.log.info(`Deleted AT Protocol records for ${collection}/${id}`);
+	} catch (error) {
+		ctx.log.error(`Failed to delete AT Protocol records for ${collection}/${id}`, error);
+		await ctx.storage.records!.put(storageKey, {
+			...existing,
+			status: "error",
+			lastSyncedAt: new Date().toISOString(),
+			errorMessage: `Could not remove the published records: ${error instanceof Error ? error.message : String(error)}`,
+			retryCount: (existing.retryCount || 0) + 1,
+		});
+	}
+}
+
 // ── Plugin definition ───────────────────────────────────────────
 
 export default {
@@ -352,31 +374,19 @@ export default {
 			},
 		},
 
+		"content:afterUnpublish": {
+			handler: async (
+				event: { content: Record<string, unknown>; collection: string },
+				ctx: PluginContext,
+			) => {
+				if (typeof event.content.id !== "string") return;
+				await deleteSyndicatedRecords(ctx, event.collection, event.content.id);
+			},
+		},
+
 		"content:afterDelete": {
 			handler: async (event: { id: string; collection: string }, ctx: PluginContext) => {
-				const { id, collection } = event;
-				const deleteOnUnpublish = (await ctx.kv.get<boolean>("settings:deleteOnUnpublish")) ?? true;
-				if (!deleteOnUnpublish) return;
-
-				const storageKey = `${collection}:${id}`;
-				const existing = (await ctx.storage.records!.get(storageKey)) as SyndicationRecord | null;
-				if (!existing || !existing.atUri) return;
-
-				try {
-					const { accessJwt, did, pdsHost } = await ensureSession(ctx);
-					const rkey = rkeyFromUri(existing.atUri);
-					await deleteRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", rkey);
-
-					if (existing.bskyPostUri) {
-						const postRkey = rkeyFromUri(existing.bskyPostUri);
-						await deleteRecord(ctx, pdsHost, accessJwt, did, "app.bsky.feed.post", postRkey);
-					}
-
-					await ctx.storage.records!.delete(storageKey);
-					ctx.log.info(`Deleted AT Protocol records for ${collection}/${id}`);
-				} catch (error) {
-					ctx.log.error(`Failed to delete AT Protocol records for ${collection}/${id}`, error);
-				}
+				await deleteSyndicatedRecords(ctx, event.collection, event.id);
 			},
 		},
 
@@ -688,12 +698,14 @@ async function buildStatusPage(ctx: PluginContext) {
 							{ key: "contentId", label: "Content", format: "code" },
 							{ key: "status", label: "Status", format: "badge" },
 							{ key: "lastSyncedAt", label: "Synced", format: "relative_time" },
+							{ key: "imageWarning", label: "Image warning", format: "text" },
 						],
 						rows: items.map((r: SyndicationRecord & { id: string }) => ({
 							collection: r.collection,
 							contentId: r.contentId,
 							status: r.status,
 							lastSyncedAt: r.lastSyncedAt,
+							imageWarning: r.imageWarning ?? "",
 						})),
 						emptyText: "No syncs yet",
 					},

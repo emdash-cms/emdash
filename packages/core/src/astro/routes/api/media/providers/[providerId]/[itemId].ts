@@ -9,6 +9,8 @@ import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { invalidateRouteCache } from "#cache/route-cache.js";
+import { isRouteCachedMedia, mediaCacheTag } from "#media/image-endpoint.js";
 
 export const prerender = false;
 
@@ -58,7 +60,7 @@ export const GET: APIRoute = async ({ params, locals }) => {
 /**
  * Delete a media item from a provider
  */
-export const DELETE: APIRoute = async ({ params, locals }) => {
+export const DELETE: APIRoute = async ({ params, locals, cache }) => {
 	const { emdash, user } = locals;
 	const denied = requirePerm(user, "media:delete_any");
 	if (denied) return denied;
@@ -82,7 +84,21 @@ export const DELETE: APIRoute = async ({ params, locals }) => {
 	}
 
 	try {
-		await provider.delete(itemId);
+		if (providerId === "local") {
+			const result = await emdash.handleMediaDelete(itemId);
+			if (!result.success && result.error.code !== "NOT_FOUND") {
+				throw new Error(result.error.message);
+			}
+			if (
+				result.success &&
+				result.data.storageDeleted &&
+				isRouteCachedMedia(result.data.storageKey, result.data.mimeType)
+			) {
+				await invalidateRouteCache(cache, [mediaCacheTag(result.data.storageKey)]);
+			}
+		} else {
+			await provider.delete(itemId);
+		}
 
 		return apiSuccess({ deleted: true });
 	} catch (error) {

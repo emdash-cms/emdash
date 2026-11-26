@@ -68,6 +68,24 @@ describe("D1 request scoping bookmark persistence", () => {
 		);
 	});
 
+	it("persists nothing when the credential the request arrived with was never verified", () => {
+		// Core sets isAuthenticated for any `Authorization: Bearer` header, before
+		// anything resolves the token; endedAuthenticated reports the verified state.
+		const cookies = { get: vi.fn(), set: vi.fn() };
+		const scoped = createRequestScopedDb({
+			config,
+			isAuthenticated: true,
+			endedAuthenticated: () => false,
+			isWrite: true,
+			cookies,
+			url: new URL("https://example.com/_emdash/api/auth/magic-link/verify"),
+		});
+
+		expect(scoped).not.toBeNull();
+		scoped!.commit();
+		expect(cookies.set).not.toHaveBeenCalled();
+	});
+
 	it("persists nothing for a request that stays anonymous", () => {
 		const cookies = { get: vi.fn(), set: vi.fn() };
 		const scoped = createRequestScopedDb({

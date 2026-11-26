@@ -52,7 +52,7 @@ test.describe("HTML block", () => {
 			expect(published.ok(), await published.text()).toBe(true);
 
 			await page.goto(`/posts/${slug}`);
-			const frame = page.frameLocator("iframe[data-emdash-html-block]");
+			const frame = page.frameLocator("iframe[data-emdash-html-block]").frameLocator("iframe");
 			await expect(frame.locator("#out")).toHaveText("isolated");
 			await expect(frame.locator("#out")).toHaveCSS("color", "rgb(200, 0, 0)");
 			await expect
