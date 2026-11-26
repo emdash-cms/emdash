@@ -5638,6 +5638,45 @@ describe("editorial comments", () => {
 			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
 		});
 
+		it("doesn't suggest people again with the caret in a picked mention", async () => {
+			const ANN = { id: "u-ann", name: "Ann", avatarUrl: null };
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([ANN]);
+			const { composer } = await openComposer();
+			await userEvent.keyboard("@an");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+			await userEvent.keyboard("{Enter}");
+			await expect.element(composer).toHaveValue("@Ann ");
+
+			await userEvent.keyboard("{Backspace}");
+			await new Promise((resolve) => setTimeout(resolve, 300));
+
+			await expect.element(composer).toHaveAttribute("aria-expanded", "false");
+		});
+
+		it("suggests people for an @ straight after CJK text or a bracket", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
+			const { composer } = await openComposer();
+
+			await userEvent.keyboard("谢谢@sa");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+			await userEvent.keyboard("{Escape} (@sa");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+			await userEvent.keyboard("{Escape} mail@sa");
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			await expect.element(composer).toHaveAttribute("aria-expanded", "false");
+		});
+
+		it("leaves Shift+Enter to add a line while people are suggested", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
+			const { composer } = await openComposer();
+			await userEvent.keyboard("@sa");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+
+			await userEvent.keyboard("{Shift>}{Enter}{/Shift}");
+
+			await expect.element(composer).toHaveValue("@sa\n");
+		});
+
 		function threadMentioning(body: string, mentions: EditorialThread["mentions"]) {
 			const thread = fieldThread("body");
 			return {

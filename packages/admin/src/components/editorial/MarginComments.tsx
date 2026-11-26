@@ -309,7 +309,9 @@ class UnsentText {
  * Text held for `key` across remounts; `undefined` once it is cleared or sent.
  * A request that finishes after its card has moved clears the card shown now.
  */
-function useUnsentText(key: string): [MentionDraft | undefined, (value: MentionDraft | undefined) => void] {
+function useUnsentText(
+	key: string,
+): [MentionDraft | undefined, (value: MentionDraft | undefined) => void] {
 	const store = React.useContext(UnsentTextContext);
 	if (!store) throw new Error("useUnsentText needs an UnsentTextContext provider");
 	const subscribe = React.useCallback(
@@ -1000,7 +1002,11 @@ function CommentItem({
 	const body = edit ?? EMPTY_DRAFT;
 	const setBody = (value: MentionDraft) => setEdit(value);
 	const setEditing = (value: boolean) =>
-		setEdit(value ? bodyToDraft(comment.body, people, t`Unknown user`) : undefined);
+		setEdit(
+			value
+				? bodyToDraft(comment.body, people, { unknown: t`Unknown user`, unnamed: t`Unnamed user` })
+				: undefined,
+		);
 	const deleted = comment.deletedAt !== null;
 	const name = comment.author?.name ?? (comment.author ? t`Unnamed user` : t`Deleted user`);
 

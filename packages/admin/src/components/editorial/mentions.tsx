@@ -12,10 +12,12 @@ import { cn } from "../../lib/utils.js";
 
 const MENTION_TOKEN = /<@([^<>\s]{1,64})>/g;
 const SEARCH_DEBOUNCE_MS = 200;
-const MENTION_TRIGGER = /(?:^|\s)@([^\s@]{0,30})$/;
+const MENTION_TRIGGER = /(?<![A-Za-z0-9])@([^\s@]{0,30})$/;
+const TYPED_TOKEN_START = /<@/g;
+const WORD_START = /^[\p{L}\p{N}]/u;
 
-export function mentionLabel(person: Pick<EditorialPerson, "id" | "name">): string {
-	return person.name?.trim() || person.id;
+export function mentionLabel(person: Pick<EditorialPerson, "name">, unnamedLabel: string): string {
+	return person.name?.trim() || unnamedLabel;
 }
 
 /** A picked person, shown as `@Name` in `text.slice(from, to)`. */
@@ -38,7 +40,7 @@ export interface MentionDraft {
 export function bodyToDraft(
 	body: string,
 	people: EditorialPerson[],
-	unknownLabel: string,
+	labels: { unknown: string; unnamed: string },
 ): MentionDraft {
 	const byId = new Map(people.map((person) => [person.id, person]));
 	const mentions: DraftMention[] = [];
@@ -48,7 +50,7 @@ export function bodyToDraft(
 		text += body.slice(last, match.index);
 		const id = match[1]!;
 		const person = byId.get(id);
-		const label = `@${person ? mentionLabel(person) : unknownLabel}`;
+		const label = `@${person ? mentionLabel(person, labels.unnamed) : labels.unknown}`;
 		mentions.push({ id, from: text.length, to: text.length + label.length });
 		text += label;
 		last = match.index + match[0].length;
@@ -57,21 +59,27 @@ export function bodyToDraft(
 	return { text, mentions };
 }
 
-/** The stored body for a draft: each remembered mention range becomes its person's token. */
+/**
+ * The stored body for a draft: each remembered mention range becomes its
+ * person's token. A `<@` typed as text gets a zero-width space so it can't be
+ * read as a token.
+ */
 export function draftToBody(draft: MentionDraft): string {
+	const typed = (text: string) => text.replace(TYPED_TOKEN_START, "<\u200B@");
 	let body = "";
 	let last = 0;
 	for (const mention of draft.mentions.toSorted((a, b) => a.from - b.from)) {
-		body += `${draft.text.slice(last, mention.from)}<@${mention.id}>`;
+		body += `${typed(draft.text.slice(last, mention.from))}<@${mention.id}>`;
 		last = mention.to;
 	}
-	body += draft.text.slice(last);
+	body += typed(draft.text.slice(last));
 	return body.trim();
 }
 
 /**
  * Replaces `text.slice(from, to)` with `insert`. Mentions after the change
- * move with their text; a mention the change touches is no longer a mention.
+ * move with their text; a mention the change touches, or that a letter or
+ * digit is typed straight after, is no longer a mention.
  */
 export function editDraft(
 	draft: MentionDraft,
@@ -81,7 +89,7 @@ export function editDraft(
 ): MentionDraft {
 	const shift = insert.length - (to - from);
 	const mentions = draft.mentions.flatMap((mention) => {
-		if (mention.to <= from) return [mention];
+		if (mention.to < from || (mention.to === from && !WORD_START.test(insert))) return [mention];
 		if (mention.from >= to) {
 			return [{ ...mention, from: mention.from + shift, to: mention.to + shift }];
 		}
@@ -122,7 +130,7 @@ export function MentionText({ body, people }: { body: string; people: EditorialP
 		const person = byId.get(match[1]!);
 		parts.push(
 			<span key={match.index} className="font-medium text-kumo-brand">
-				@<bdi>{person ? mentionLabel(person) : t`Unknown user`}</bdi>
+				@<bdi>{person ? mentionLabel(person, t`Unnamed user`) : t`Unknown user`}</bdi>
 			</span>,
 		);
 		last = match.index + match[0].length;
@@ -153,6 +161,7 @@ export function useMentionPicker({
 	onDraftChange: (draft: MentionDraft) => void;
 	textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }) {
+	const { t } = useLingui();
 	const listboxId = React.useId();
 	const [caret, setCaret] = React.useState(0);
 	const pendingCaret = React.useRef<number | null>(null);
@@ -164,7 +173,12 @@ export function useMentionPicker({
 	});
 	const [activeIndex, setActiveIndex] = React.useState(0);
 	const [dismissedAt, setDismissedAt] = React.useState<number | null>(null);
-	const trigger = findTrigger(draft.text, caret);
+	const found = findTrigger(draft.text, caret);
+	const trigger =
+		found &&
+		!draft.mentions.some((mention) => found.from >= mention.from && found.from < mention.to)
+			? found
+			: null;
 	const open = trigger !== null && trigger.from !== dismissedAt && entry !== null;
 
 	React.useEffect(() => {
@@ -196,7 +210,7 @@ export function useMentionPicker({
 
 	const pick = (person: EditorialPerson) => {
 		if (!trigger) return;
-		const label = `@${mentionLabel(person)}`;
+		const label = `@${mentionLabel(person, t`Unnamed user`)}`;
 		const inserted = `${label} `;
 		const next = editDraft(draft, trigger.from, caret, inserted);
 		onDraftChange({
@@ -226,7 +240,7 @@ export function useMentionPicker({
 				break;
 			case "Enter":
 			case "Tab":
-				if (event.metaKey || event.ctrlKey) return false;
+				if (event.metaKey || event.ctrlKey || event.shiftKey) return false;
 				pick(people[active]!);
 				break;
 			case "Escape":
@@ -280,8 +294,13 @@ function MentionListbox({
 	onPick: (person: EditorialPerson) => void;
 }) {
 	const { t } = useLingui();
+	const listRef = React.useRef<HTMLUListElement>(null);
+	React.useEffect(() => {
+		if (!hidden) listRef.current?.children[activeIndex]?.scrollIntoView({ block: "nearest" });
+	}, [hidden, activeIndex]);
 	return (
 		<ul
+			ref={listRef}
 			id={id}
 			role="listbox"
 			aria-label={t`People to mention`}
@@ -308,7 +327,7 @@ function MentionListbox({
 					{person.avatarUrl ? (
 						<img src={person.avatarUrl} alt="" className="size-5 rounded-full object-cover" />
 					) : null}
-					<span className="truncate">{mentionLabel(person)}</span>
+					<span className="truncate">{mentionLabel(person, t`Unnamed user`)}</span>
 				</li>
 			))}
 		</ul>
