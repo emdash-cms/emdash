@@ -50,11 +50,11 @@ Reporting the suffix contribution as a number rather than quoting the literal si
 
 Worked example (`siteTitle` = `"Daily Gazette"`, `titleSeparator` = `" · "` → 16-character suffix):
 
-| SEO Title input | Entry `defaultTitle` | Estimated `<title>` | Helper line |
-| --- | --- | --- | --- |
-| *(empty)* | 69-character article headline | 69 + 16 = 85 chars | `85 characters (includes 16 from site title and separator)` |
-| 42-character shorter override | 69-character article headline | 42 + 16 = 58 chars | `58 characters (includes 16 from site title and separator)` |
-| *(empty)* | *(empty)* | 0 chars | `0 characters` |
+| SEO Title input               | Entry `defaultTitle`          | Estimated `<title>` | Helper line                                                 |
+| ----------------------------- | ----------------------------- | ------------------- | ----------------------------------------------------------- |
+| _(empty)_                     | 69-character article headline | 69 + 16 = 85 chars  | `85 characters (includes 16 from site title and separator)` |
+| 42-character shorter override | 69-character article headline | 42 + 16 = 58 chars  | `58 characters (includes 16 from site title and separator)` |
+| _(empty)_                     | _(empty)_                     | 0 chars             | `0 characters`                                              |
 
 Because search engines truncate title links by rendered pixel width rather than a fixed character cap (and may rewrite titles), the counter does not enforce a hard limit or color-code a fixed threshold; it stays purely informational, like **Meta Description**.
 
