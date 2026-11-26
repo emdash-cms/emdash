@@ -37,11 +37,10 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 
 	try {
 		// Salted voter hash from request IP (same primitive as comment ip_hash).
-		// Behind Cloudflare (CF-Connecting-IP) or a configured trusted proxy this
-		// is per-visitor. Without a trusted IP it collapses to a shared "unknown"
-		// bucket, so reaction dedup degrades for those visitors — a real
-		// per-visitor token is Tier 2 (visitor identity). Operators should set
-		// trustedProxyHeaders; see the comment ingest route for the same note.
+		// Behind Cloudflare (CF-Connecting-IP) or a configured trusted proxy it
+		// identifies one IPv4 address or one IPv6 /64 network. Without a trusted
+		// IP every visitor shares the "unknown" voter, so reaction dedup does not
+		// tell those visitors apart.
 		const meta = extractRequestMeta(request, emdash.config);
 		let voterHash = "unknown";
 		if (meta.ip) {

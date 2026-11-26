@@ -131,7 +131,7 @@ msgstr "（新しいウィンドウで開く）"
 msgid "-- Select --"
 msgstr "選択してください"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:163
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:159
 msgctxt "Read aloud between a version's author and status"
 msgid ", "
 msgstr "、"
@@ -213,12 +213,12 @@ msgid "{0, plural, one {# collection} other {# collections}}"
 msgstr "{0, plural, one {#件のコンテンツタイプ} other {#件のコンテンツタイプ}}"
 
 #. placeholder {0}: result.comments.imported
-#: packages/admin/src/components/WordPressImport.tsx:2313
+#: packages/admin/src/components/WordPressImport.tsx:2340
 msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {#件のコメントをインポート} other {#件のコメントをインポート}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:3141
+#: packages/admin/src/router.tsx:3148
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {#件のコメントを更新} other {#件のコメントを更新}}"
 
@@ -228,12 +228,12 @@ msgid "{0, plural, one {# comment} other {# comments}}"
 msgstr "{0, plural, one {#件のコメント} other {#件のコメント}}"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2324
+#: packages/admin/src/components/WordPressImport.tsx:2351
 msgid "{0, plural, one {# content error} other {# content errors}}"
 msgstr "{0, plural, one {#件のコンテンツエラー} other {#件のコンテンツエラー}}"
 
 #. placeholder {0}: result.imported
-#: packages/admin/src/components/WordPressImport.tsx:2265
+#: packages/admin/src/components/WordPressImport.tsx:2282
 msgid "{0, plural, one {# content item imported} other {# content items imported}}"
 msgstr "{0, plural, one {#件のコンテンツをインポート} other {#件のコンテンツをインポート}}"
 
@@ -272,7 +272,7 @@ msgstr "{0, plural, one {#件のフォルダーを読み込みました} other {
 #. placeholder {0}: item.count
 #. placeholder {0}: redirect.hits
 #: packages/admin/src/components/Redirects.tsx:382
-#: packages/admin/src/components/Redirects.tsx:494
+#: packages/admin/src/components/Redirects.tsx:505
 msgid "{0, plural, one {# hit} other {# hits}}"
 msgstr "{0, plural, other {#回のアクセス}}"
 
@@ -299,27 +299,32 @@ msgid "{0, plural, one {# MCP tool} other {# MCP tools}}"
 msgstr "{0, plural, one {#個のMCPツール} other {#個のMCPツール}}"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2329
+#: packages/admin/src/components/WordPressImport.tsx:2356
 msgid "{0, plural, one {# media error} other {# media errors}}"
 msgstr "{0, plural, one {#件のメディアエラー} other {#件のメディアエラー}}"
 
 #. placeholder {0}: mediaResult.imported.length
-#: packages/admin/src/components/WordPressImport.tsx:2281
+#: packages/admin/src/components/WordPressImport.tsx:2298
 msgid "{0, plural, one {# media file imported} other {# media files imported}}"
 msgstr "{0, plural, one {#件のメディアファイルをインポート} other {#件のメディアファイルをインポート}}"
 
 #. placeholder {0}: result.menus.created
-#: packages/admin/src/components/WordPressImport.tsx:2305
+#: packages/admin/src/components/WordPressImport.tsx:2323
 msgid "{0, plural, one {# menu imported} other {# menus imported}}"
 msgstr "{0, plural, one {#件のメニューをインポート} other {#件のメニューをインポート}}"
 
+#. placeholder {0}: result.menus.skipped
+#: packages/admin/src/components/WordPressImport.tsx:2331
+msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
+msgstr ""
+
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1953
+#: packages/admin/src/components/WordPressImport.tsx:1970
 msgid "{0, plural, one {# menu will be imported} other {# menus will be imported}}"
 msgstr "{0, plural, one {#件のメニューがインポートされます} other {#件のメニューがインポートされます}}"
 
 #. placeholder {0}: users.length
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:69
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:67
 msgid "{0, plural, one {# other person here} other {# other people here}}"
 msgstr "{0, plural, one {ほかに#人が参加しています} other {ほかに#人が参加しています}}"
 
@@ -340,12 +345,12 @@ msgid "{0, plural, one {# plugin} other {# plugins}}"
 msgstr "{0, plural, one {#件のプラグイン} other {#件のプラグイン}}"
 
 #. placeholder {0}: mapping.postCount
-#: packages/admin/src/components/WordPressImport.tsx:2568
+#: packages/admin/src/components/WordPressImport.tsx:2595
 msgid "{0, plural, one {# post} other {# posts}}"
 msgstr "{0, plural, one {#件の投稿} other {#件の投稿}}"
 
 #. placeholder {0}: loopRedirectIds.size
-#: packages/admin/src/components/Redirects.tsx:776
+#: packages/admin/src/components/Redirects.tsx:792
 msgid "{0, plural, one {# redirect is part of a loop.} other {# redirects are part of a loop.}}"
 msgstr "{0, plural, one {#件のリダイレクトがループしています。} other {#件のリダイレクトがループしています。}}"
 
@@ -365,22 +370,22 @@ msgstr "{0, plural, one {このコンテンツタイプに関わる#件の関連
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:4256
+#: packages/admin/src/components/PortableTextEditor.tsx:4257
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "{0, plural, one {#行} other {#行}} × {1, plural, one {#列} other {#列}}を選択中"
 
 #. placeholder {0}: result.skipped
-#: packages/admin/src/components/WordPressImport.tsx:2273
+#: packages/admin/src/components/WordPressImport.tsx:2290
 msgid "{0, plural, one {# skipped (already exists)} other {# skipped (already exist)}}"
 msgstr "{0, plural, one {#件をスキップ（既に存在）} other {#件をスキップ（既に存在）}}"
 
 #. placeholder {0}: result.taxonomyAssignments
-#: packages/admin/src/components/WordPressImport.tsx:2297
+#: packages/admin/src/components/WordPressImport.tsx:2314
 msgid "{0, plural, one {# taxonomy assignment} other {# taxonomy assignments}}"
 msgstr "{0, plural, one {#件の分類項目を割り当て} other {#件の分類項目を割り当て}}"
 
 #. placeholder {0}: result.taxonomiesCreated.length
-#: packages/admin/src/components/WordPressImport.tsx:2289
+#: packages/admin/src/components/WordPressImport.tsx:2306
 msgid "{0, plural, one {# taxonomy created} other {# taxonomies created}}"
 msgstr "{0, plural, one {#件の分類グループを作成} other {#件の分類グループを作成}}"
 
@@ -455,7 +460,7 @@ msgid "{0, plural, one {Show # more} other {Show # more}}"
 msgstr "{0, plural, one {さらに#件表示} other {さらに#件表示}}"
 
 #. placeholder {0}: users.length
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:156
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:152
 msgid "{0, plural, one {Show the # person here} other {Show the # people here}}"
 msgstr "{0, plural, one {参加者#人を表示} other {参加者#人を表示}}"
 
@@ -487,7 +492,7 @@ msgid "{0} can't be moved here — its parent has no translation in this locale,
 msgstr "{0}はここに移動できません。親項目にこの言語の翻訳がないため、この一覧は所属先のグループではありません。"
 
 #. placeholder {0}: bestMatch?.detected.siteTitle || "WordPress site"
-#: packages/admin/src/components/WordPressImport.tsx:1359
+#: packages/admin/src/components/WordPressImport.tsx:1376
 msgid "{0} detected"
 msgstr "{0}を検出"
 
@@ -523,12 +528,12 @@ msgstr "{0}が有効になりました"
 
 #. placeholder {0}: postType.count
 #. placeholder {1}: postType.suggestedCollection
-#: packages/admin/src/components/WordPressImport.tsx:2023
+#: packages/admin/src/components/WordPressImport.tsx:2040
 msgid "{0} items → {1}"
 msgstr "{0}件 → {1}"
 
 #. placeholder {0}: analysis.postTypes .filter((pt) => selections[pt.name]?.enabled) .reduce((sum, pt) => sum + pt.count, 0)
-#: packages/admin/src/components/WordPressImport.tsx:1946
+#: packages/admin/src/components/WordPressImport.tsx:1963
 msgid "{0} items will be imported"
 msgstr "{0}件がインポートされます"
 
@@ -671,17 +676,17 @@ msgstr "{count, plural, one {#ブロック} other {#ブロック}}"
 msgid "{count, plural, one {# entry} other {# entries}}"
 msgstr "{count, plural, one {#件} other {#件}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2122
+#: packages/admin/src/components/WordPressImport.tsx:2139
 msgid "{count, plural, one {# file} other {# files}}"
 msgstr "{count, plural, one {#件のファイル} other {#件のファイル}}"
 
 #: packages/admin/src/components/BlockListField.tsx:167
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:421
-#: packages/admin/src/components/WordPressImport.tsx:2401
+#: packages/admin/src/components/WordPressImport.tsx:2428
 msgid "{count, plural, one {# item} other {# items}}"
 msgstr "{count, plural, one {#件} other {#件}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2193
+#: packages/admin/src/components/WordPressImport.tsx:2210
 msgid "{current} of {total}"
 msgstr "{current}/{total}"
 
@@ -689,7 +694,7 @@ msgstr "{current}/{total}"
 msgid "{dayLabel}, {entries}"
 msgstr "{dayLabel}、{entries}"
 
-#: packages/admin/src/components/revisions/revision-format.ts:111
+#: packages/admin/src/components/revisions/revision-format.ts:97
 msgid "{dayLabel}, {timeLabel}"
 msgstr "{dayLabel} {timeLabel}"
 
@@ -723,7 +728,7 @@ msgstr "{hidden, plural, one {{date}にはさらに#件あります} other {{dat
 msgid "{hidden, plural, one {+# more} other {+# more}}"
 msgstr "{hidden, plural, one {ほか#件} other {ほか#件}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:394
+#: packages/admin/src/components/revisions/RevisionList.tsx:392
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {さらに#件を表示} other {さらに#件を表示}}"
 
@@ -743,7 +748,7 @@ msgstr "{label}（翻訳なし）"
 msgid "{label} — view translation"
 msgstr "{label}（翻訳を表示）"
 
-#: packages/admin/src/components/BlocksField.tsx:1758
+#: packages/admin/src/components/BlocksField.tsx:1755
 msgid "{label} · version {versionNumber}"
 msgstr "{label} · バージョン{versionNumber}"
 
@@ -753,7 +758,7 @@ msgid "{label} {position}"
 msgstr "{label} {position}"
 
 #: packages/admin/src/components/BlockListField.tsx:1037
-#: packages/admin/src/components/BlocksField.tsx:1709
+#: packages/admin/src/components/BlocksField.tsx:1706
 msgid "{label} actions"
 msgstr "{label}の操作"
 
@@ -785,11 +790,11 @@ msgstr "{label}を全{count}件中{position}番目に移動しました。"
 msgid "{label} options"
 msgstr "{label}の選択肢"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:247
+#: packages/admin/src/components/revisions/RevisionList.tsx:245
 msgid "{label}, {restored}"
 msgstr "{label}、{restored}"
 
-#: packages/admin/src/components/BlocksField.tsx:2393
+#: packages/admin/src/components/BlocksField.tsx:2390
 msgid "{label}: {value}"
 msgstr "{label}：{value}"
 
@@ -797,7 +802,7 @@ msgstr "{label}：{value}"
 msgid "{lateness} late"
 msgstr "{lateness}の遅れ"
 
-#: packages/admin/src/components/BlocksField.tsx:1337
+#: packages/admin/src/components/BlocksField.tsx:1334
 msgid "{list} +{more}"
 msgstr "{list} ほか{more}件"
 
@@ -805,11 +810,11 @@ msgstr "{list} ほか{more}件"
 msgid "{matchCount, plural, one {# item matching \"{searchQuery}\"} other {# items matching \"{searchQuery}\"}}"
 msgstr "{matchCount, plural, one {「{searchQuery}」に一致：#件} other {「{searchQuery}」に一致：#件}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2555
+#: packages/admin/src/components/WordPressImport.tsx:2582
 msgid "{matchedCount} of {totalCount} assigned"
 msgstr "{totalCount}件中{matchedCount}件を割り当て済み"
 
-#: packages/admin/src/components/WordPressImport.tsx:2543
+#: packages/admin/src/components/WordPressImport.tsx:2570
 msgid "{matchedCount} of {totalCount} authors matched by email"
 msgstr "{totalCount}人中{matchedCount}人の投稿者をメールアドレスで照合"
 
@@ -849,7 +854,7 @@ msgstr "{minimum, plural, one {#件以上追加してください} other {#件�
 msgid "{minimum, plural, one {Use at least # character} other {Use at least # characters}}"
 msgstr "{minimum, plural, one {#文字以上にしてください} other {#文字以上にしてください}}"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:155
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:151
 msgid "{more, plural, one {Show # more person} other {Show # more people}}"
 msgstr "{more, plural, one {ほかの#人を表示} other {ほかの#人を表示}}"
 
@@ -863,11 +868,11 @@ msgstr "{moved}はすでに先頭です"
 msgid "{moved} is already last"
 msgstr "{moved}はすでに末尾です"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:64
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:62
 msgid "{name} · Editing {field}"
 msgstr "{name} · {field}を編集中"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:62
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:60
 msgid "{name} · Viewing"
 msgstr "{name} · 閲覧中"
 
@@ -923,11 +928,11 @@ msgstr "{name}を移動しませんでした"
 msgid "{name}: this site already has some"
 msgstr "{name}：このサイトにすでに存在します"
 
-#: packages/admin/src/components/WordPressImport.tsx:1929
+#: packages/admin/src/components/WordPressImport.tsx:1946
 msgid "{needsNewCollections, plural, one {# new collection will be created} other {# new collections will be created}}"
 msgstr "{needsNewCollections, plural, one {#件のコンテンツタイプが作成されます} other {#件のコンテンツタイプが作成されます}}"
 
-#: packages/admin/src/components/WordPressImport.tsx:1938
+#: packages/admin/src/components/WordPressImport.tsx:1955
 msgid "{needsNewFields, plural, one {Fields will be added to # existing collection} other {Fields will be added to # existing collections}}"
 msgstr "{needsNewFields, plural, one {既存のコンテンツタイプ#件にフィールドを追加します} other {既存のコンテンツタイプ#件にフィールドを追加します}}"
 
@@ -939,7 +944,7 @@ msgstr "{origin}は別の場所にリダイレクトされます"
 msgid "{origin} redirects to {target}. Enter that address instead."
 msgstr "{origin}は{target}にリダイレクトされます。代わりにそちらのアドレスを入力してください。"
 
-#: packages/admin/src/components/revisions/revision-format.ts:131
+#: packages/admin/src/components/revisions/revision-format.ts:117
 msgid "{others, plural, one {# other person} other {# other people}}"
 msgstr "{others, plural, one {ほか#人} other {ほか#人}}"
 
@@ -1115,19 +1120,19 @@ msgstr "{totalDrafts, plural, one {下書き} other {下書き}}"
 msgid "{totalScheduled, plural, one {Scheduled} other {Scheduled}}"
 msgstr "{totalScheduled, plural, one {公開予定} other {公開予定}}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:240
+#: packages/admin/src/components/revisions/RevisionList.tsx:238
 msgid "{when}, {author}"
 msgstr "{when}、{author}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:237
+#: packages/admin/src/components/revisions/RevisionList.tsx:235
 msgid "{when}, Current version, {author}"
 msgstr "{when}、現在の版、{author}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:235
+#: packages/admin/src/components/revisions/RevisionList.tsx:233
 msgid "{when}, Current version, Published, {author}"
 msgstr "{when}、現在の版、公開済み、{author}"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:239
+#: packages/admin/src/components/revisions/RevisionList.tsx:237
 msgid "{when}, Published, {author}"
 msgstr "{when}、公開済み、{author}"
 
@@ -1148,26 +1153,26 @@ msgstr "/new-page または /articles/[slug]"
 msgid "/old-page or /blog/[slug]"
 msgstr "/old-page または /blog/[slug]"
 
-#: packages/admin/src/components/WordPressImport.tsx:2143
+#: packages/admin/src/components/WordPressImport.tsx:2160
 msgid "• Files are downloaded from your WordPress site"
 msgstr "• WordPressサイトからファイルをダウンロード"
 
-#: packages/admin/src/components/WordPressImport.tsx:2144
+#: packages/admin/src/components/WordPressImport.tsx:2161
 msgid "• Uploaded to your EmDash media storage"
 msgstr "• EmDashのメディアストレージにアップロード"
 
-#: packages/admin/src/components/WordPressImport.tsx:2145
+#: packages/admin/src/components/WordPressImport.tsx:2162
 msgid "• URLs in your content are updated automatically"
 msgstr "• コンテンツ内のURLが自動的に更新されます"
 
 #: packages/admin/src/components/SetupWizard.tsx:290
 #: packages/admin/src/components/SetupWizard.tsx:341
-#: packages/admin/src/components/WordPressImport.tsx:1658
+#: packages/admin/src/components/WordPressImport.tsx:1675
 msgid "← Back"
 msgstr "← 戻る"
 
-#: packages/admin/src/components/presence/FieldPresence.tsx:48
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:152
+#: packages/admin/src/components/presence/FieldPresence.tsx:49
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:148
 msgid "+{more}"
 msgstr "+{more}"
 
@@ -1187,7 +1192,7 @@ msgstr "<0>{name}</0>がこのコンテンツを編集中です。閲覧のみ�
 msgid "<0>{name}</0> now holds this entry, so your changes are no longer being saved. Take it back to carry on."
 msgstr "<0>{name}</0>が編集を引き継いだため、あなたの変更は保存されなくなりました。続けるには、編集を引き継ぎ直してください。"
 
-#: packages/admin/src/components/BlocksField.tsx:1518
+#: packages/admin/src/components/BlocksField.tsx:1515
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
 msgid "<0>Alt-click</0> to add above"
 msgstr "<0>Alt＋クリック</0>で上に追加"
@@ -1196,12 +1201,12 @@ msgstr "<0>Alt＋クリック</0>で上に追加"
 msgid "<0>Click</0> to add below"
 msgstr "<0>クリック</0>で下に追加"
 
-#: packages/admin/src/components/BlocksField.tsx:1564
+#: packages/admin/src/components/BlocksField.tsx:1561
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
 msgid "<0>Click</0> to open menu"
 msgstr "<0>クリック</0>でメニューを開く"
 
-#: packages/admin/src/components/BlocksField.tsx:1560
+#: packages/admin/src/components/BlocksField.tsx:1557
 #: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
 msgid "<0>Drag</0> to move"
 msgstr "<0>ドラッグ</0>で移動"
@@ -1214,11 +1219,11 @@ msgstr "1件の投稿を更新しました"
 msgid "1 year"
 msgstr "1年"
 
-#: packages/admin/src/components/WordPressImport.tsx:1579
+#: packages/admin/src/components/WordPressImport.tsx:1596
 msgid "1. Log into your WordPress admin"
 msgstr "1. WordPress管理画面にログイン"
 
-#: packages/admin/src/components/WordPressImport.tsx:1331
+#: packages/admin/src/components/WordPressImport.tsx:1348
 msgid "1. Log into your WordPress admin dashboard"
 msgstr "1. WordPress管理画面にログイン"
 
@@ -1230,7 +1235,7 @@ msgstr "16:9"
 msgid "2. Go to <0>Tools → Export</0>"
 msgstr "2. <0>ツール → エクスポート</0>を開く"
 
-#: packages/admin/src/components/WordPressImport.tsx:1580
+#: packages/admin/src/components/WordPressImport.tsx:1597
 msgid "2. Go to Users → Profile"
 msgstr "2. ユーザー → プロフィールへ移動"
 
@@ -1238,11 +1243,11 @@ msgstr "2. ユーザー → プロフィールへ移動"
 msgid "3:2"
 msgstr "3:2"
 
-#: packages/admin/src/components/WordPressImport.tsx:1581
+#: packages/admin/src/components/WordPressImport.tsx:1598
 msgid "3. Scroll to \"Application Passwords\""
 msgstr "3. 「アプリケーションパスワード」までスクロール"
 
-#: packages/admin/src/components/WordPressImport.tsx:1335
+#: packages/admin/src/components/WordPressImport.tsx:1352
 msgid "3. Select \"All content\""
 msgstr "3. 「すべてのコンテンツ」を選択"
 
@@ -1270,15 +1275,15 @@ msgstr "308 恒久的（厳密）"
 msgid "4:3"
 msgstr "4:3"
 
-#: packages/admin/src/components/WordPressImport.tsx:1336
+#: packages/admin/src/components/WordPressImport.tsx:1353
 msgid "4. Click \"Download Export File\""
 msgstr "4. 「エクスポートファイルをダウンロード」をクリック"
 
-#: packages/admin/src/components/WordPressImport.tsx:1582
+#: packages/admin/src/components/WordPressImport.tsx:1599
 msgid "4. Enter \"EmDash\" and click \"Add New\""
 msgstr "4. 「EmDash」と入力し「新規追加」をクリック"
 
-#: packages/admin/src/components/Redirects.tsx:751
+#: packages/admin/src/components/Redirects.tsx:767
 msgid "404 Errors"
 msgstr "404エラー"
 
@@ -1290,11 +1295,11 @@ msgstr "410 削除済み（Gone）"
 msgid "451 Unavailable for legal reasons"
 msgstr "451 法的理由により利用不可"
 
-#: packages/admin/src/components/WordPressImport.tsx:1583
+#: packages/admin/src/components/WordPressImport.tsx:1600
 msgid "5. Copy the generated password"
 msgstr "5. 生成されたパスワードをコピー"
 
-#: packages/admin/src/components/WordPressImport.tsx:1337
+#: packages/admin/src/components/WordPressImport.tsx:1354
 msgid "5. Upload the file here"
 msgstr "5. ここにファイルをアップロード"
 
@@ -1394,7 +1399,7 @@ msgid "A slug cannot be generated from this label. Type one manually using lower
 msgstr "このラベルからスラッグを生成できません。半角英小文字・数字・アンダースコアを使って入力してください。"
 
 #: packages/admin/src/components/FieldEditor.tsx:484
-#: packages/admin/src/components/FieldEditor.tsx:1681
+#: packages/admin/src/components/FieldEditor.tsx:1685
 msgid "A slug cannot be generated from this label. Type one manually."
 msgstr "このラベルからスラッグを生成できません。手動で入力してください。"
 
@@ -1460,7 +1465,7 @@ msgstr "招待を承諾"
 msgid "Access denied"
 msgstr "アクセスが拒否されました"
 
-#: packages/admin/src/router.tsx:3163
+#: packages/admin/src/router.tsx:3170
 msgid "Access Denied"
 msgstr "アクセスが拒否されました"
 
@@ -1485,7 +1490,7 @@ msgstr "アカウントは既に存在します"
 msgid "Account Info"
 msgstr "アカウント情報"
 
-#: packages/admin/src/components/WordPressImport.tsx:1210
+#: packages/admin/src/components/WordPressImport.tsx:1227
 msgid "ACF Fields"
 msgstr "ACFフィールド"
 
@@ -1495,7 +1500,7 @@ msgstr "ACFフィールド"
 #: packages/admin/src/components/ContentList.tsx:980
 #: packages/admin/src/components/ContentTypeList.tsx:227
 #: packages/admin/src/components/Redirects.tsx:362
-#: packages/admin/src/components/Redirects.tsx:827
+#: packages/admin/src/components/Redirects.tsx:843
 #: packages/admin/src/components/RelationList.tsx:99
 #: packages/admin/src/components/TaxonomyManager.tsx:1325
 #: packages/admin/src/routes/byline-schema.tsx:238
@@ -1524,7 +1529,7 @@ msgid "Actions for comment by {author}"
 msgstr "{author}のコメントの操作"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:514
+#: packages/admin/src/components/Redirects.tsx:525
 msgid "Actions for redirect {0}"
 msgstr "リダイレクト「{0}」の操作"
 
@@ -1540,7 +1545,7 @@ msgstr "有効"
 #. placeholder {0}: blockType.currentVersion
 #. placeholder {0}: version.version
 #: packages/admin/src/components/BlockTypeList.tsx:81
-#: packages/admin/src/components/FieldEditor.tsx:1534
+#: packages/admin/src/components/FieldEditor.tsx:1538
 msgid "Active v{0}"
 msgstr "有効なバージョン：v{0}"
 
@@ -1573,7 +1578,7 @@ msgstr "1件の投稿に{singularLower}を追加"
 msgid "Add {singularLower} to posts"
 msgstr "投稿に{singularLower}を追加"
 
-#: packages/admin/src/components/BlocksField.tsx:2332
+#: packages/admin/src/components/BlocksField.tsx:2329
 msgid "Add a caption"
 msgstr "キャプションを追加"
 
@@ -1598,7 +1603,7 @@ msgstr "コンテンツに執筆者として表示する個人やチームを追
 msgid "Add another byline"
 msgstr "別の執筆者を追加"
 
-#: packages/admin/src/components/BlocksField.tsx:1166
+#: packages/admin/src/components/BlocksField.tsx:1163
 msgid "Add at least {minItems} blocks."
 msgstr "ブロックを{minItems}個以上追加してください。"
 
@@ -1608,7 +1613,7 @@ msgid "Add at least one option."
 msgstr "選択肢を1つ以上追加してください。"
 
 #: packages/admin/src/components/FieldEditor.tsx:475
-#: packages/admin/src/components/FieldEditor.tsx:1619
+#: packages/admin/src/components/FieldEditor.tsx:1623
 msgid "Add at least one sub-field to define the repeater structure."
 msgstr "リピーター構造を定義するには、少なくとも1つのサブフィールドを追加してください。"
 
@@ -1617,16 +1622,16 @@ msgstr "リピーター構造を定義するには、少なくとも1つのサ�
 msgid "Add block"
 msgstr "ブロックを追加"
 
-#: packages/admin/src/components/BlocksField.tsx:1739
+#: packages/admin/src/components/BlocksField.tsx:1736
 msgid "Add block above"
 msgstr "上にブロックを追加"
 
-#: packages/admin/src/components/BlocksField.tsx:1516
-#: packages/admin/src/components/BlocksField.tsx:1740
+#: packages/admin/src/components/BlocksField.tsx:1513
+#: packages/admin/src/components/BlocksField.tsx:1737
 msgid "Add block below"
 msgstr "下にブロックを追加"
 
-#: packages/admin/src/components/BlocksField.tsx:1535
+#: packages/admin/src/components/BlocksField.tsx:1532
 msgid "Add block below {label}"
 msgstr "{label}の下にブロックを追加"
 
@@ -1636,12 +1641,12 @@ msgstr "執筆者を追加"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:321
 #: packages/admin/src/components/editor/VideoNode.tsx:323
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
+#: packages/admin/src/components/PortableTextEditor.tsx:4719
 msgid "Add caption"
 msgstr "キャプションを追加"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:4269
+#: packages/admin/src/components/PortableTextEditor.tsx:4270
 msgid "Add column after"
 msgstr "後に列を追加"
 
@@ -1671,11 +1676,11 @@ msgstr "ドメインを追加"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:808
 #: packages/admin/src/components/FieldEditor.tsx:1010
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Add Field"
 msgstr "フィールドを追加"
 
-#: packages/admin/src/components/WordPressImport.tsx:2034
+#: packages/admin/src/components/WordPressImport.tsx:2051
 msgid "Add fields"
 msgstr "フィールドを追加"
 
@@ -1724,9 +1729,9 @@ msgstr "下に項目を追加"
 msgid "Add item to {label}"
 msgstr "{label}に項目を追加"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3893
-#: packages/admin/src/components/PortableTextEditor.tsx:4711
-#: packages/admin/src/components/PortableTextEditor.tsx:5160
+#: packages/admin/src/components/PortableTextEditor.tsx:3894
+#: packages/admin/src/components/PortableTextEditor.tsx:4712
+#: packages/admin/src/components/PortableTextEditor.tsx:5161
 msgid "Add link"
 msgstr "リンクを追加"
 
@@ -1774,7 +1779,7 @@ msgid "Add row above"
 msgstr "上に行を追加"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:4262
+#: packages/admin/src/components/PortableTextEditor.tsx:4263
 msgid "Add row below"
 msgstr "下に行を追加"
 
@@ -1791,7 +1796,7 @@ msgstr "選択した項目を追加"
 msgid "Add SEO metadata fields (title, description, image) and include in sitemap"
 msgstr "SEOメタデータフィールド（タイトル、説明、画像）を追加し、サイトマップに含めます"
 
-#: packages/admin/src/components/FieldEditor.tsx:1606
+#: packages/admin/src/components/FieldEditor.tsx:1610
 msgid "Add Sub-Field"
 msgstr "サブフィールドを追加"
 
@@ -1895,7 +1900,7 @@ msgstr "追加中…"
 msgid "Adding…"
 msgstr "追加中…"
 
-#: packages/admin/src/components/WordPressImport.tsx:1806
+#: packages/admin/src/components/WordPressImport.tsx:1823
 msgid "Additional data to import."
 msgstr "インポートする追加データ。"
 
@@ -1907,15 +1912,19 @@ msgstr "追加情報"
 msgid "Adds rules to robots.txt that ask AI crawlers not to use this site for training. Search engines can still index it."
 msgstr "AIクローラーにこのサイトを学習に使用しないよう求めるルールをrobots.txtに追加します。検索エンジンによるインデックス登録は引き続き可能です。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1540
+#: packages/admin/src/components/WordPressImport.tsx:1557
 msgid "admin"
 msgstr "管理者"
 
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:117
-#: packages/admin/src/components/Sidebar.tsx:461
 #: packages/admin/src/components/users/roleDefinitions.ts:42
 msgid "Admin"
 msgstr "管理者"
+
+#: packages/admin/src/components/Sidebar.tsx:461
+msgctxt "navigation group"
+msgid "Admin"
+msgstr ""
 
 #: packages/admin/src/components/Sidebar.tsx:742
 msgid "Admin navigation"
@@ -1925,16 +1934,16 @@ msgstr "管理ナビゲーション"
 msgid "Administrator"
 msgstr "管理者"
 
-#: packages/admin/src/components/BlocksField.tsx:2454
+#: packages/admin/src/components/BlocksField.tsx:2451
 #: packages/admin/src/components/PortableTextEditor.tsx:501
 msgid "Advanced"
 msgstr "高度なブロック"
 
-#: packages/admin/src/components/BlocksField.tsx:2437
+#: packages/admin/src/components/BlocksField.tsx:2434
 msgid "Advanced: {blockLabel}"
 msgstr "詳細設定：{blockLabel}"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:75
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:115
 msgid "After"
 msgstr "変更後"
 
@@ -1969,25 +1978,25 @@ msgid "Agent-callable MCP tools"
 msgstr "エージェントから呼び出し可能なMCPツール"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:4157
+#: packages/admin/src/components/PortableTextEditor.tsx:4158
 msgid "Align"
 msgstr "配置"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5334
+#: packages/admin/src/components/PortableTextEditor.tsx:5335
 msgid "Align center"
 msgstr "中央揃え"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5326
+#: packages/admin/src/components/PortableTextEditor.tsx:5327
 msgid "Align left"
 msgstr "左揃え"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5342
+#: packages/admin/src/components/PortableTextEditor.tsx:5343
 msgid "Align right"
 msgstr "右揃え"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:726
-#: packages/admin/src/components/PortableTextEditor.tsx:4692
+#: packages/admin/src/components/PortableTextEditor.tsx:4693
 msgid "Alignment"
 msgstr "配置"
 
@@ -2017,7 +2026,7 @@ msgstr "すべてのコンテンツタイプ"
 msgid "All comments require approval"
 msgstr "すべてのコメントを承認待ちにする"
 
-#: packages/admin/src/components/WordPressImport.tsx:2600
+#: packages/admin/src/components/WordPressImport.tsx:2627
 msgid "All imported content will be unassigned. You can reassign authors later from the content editor."
 msgstr "インポートされたコンテンツはすべて未割り当てになります。後からコンテンツエディターで投稿者を再割り当てできます。"
 
@@ -2035,13 +2044,13 @@ msgid "All sources"
 msgstr "すべてのソース"
 
 #: packages/admin/src/components/ContentList.tsx:1071
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 msgid "All statuses"
 msgstr "すべてのステータス"
 
 #: packages/admin/src/components/MediaLibrary.tsx:921
 #: packages/admin/src/components/MediaPickerModal.tsx:404
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "All types"
 msgstr "すべての種類"
 
@@ -2072,7 +2081,7 @@ msgid "Allowed block types"
 msgstr "使用できるブロックタイプ"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:3251
+#: packages/admin/src/router.tsx:3258
 msgid "Allowed Domains"
 msgstr "許可ドメイン"
 
@@ -2113,8 +2122,8 @@ msgstr "代替テキスト"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:520
 #: packages/admin/src/components/MediaLibrary.tsx:1153
-#: packages/admin/src/components/PortableTextEditor.tsx:4623
-#: packages/admin/src/components/PortableTextEditor.tsx:4689
+#: packages/admin/src/components/PortableTextEditor.tsx:4624
+#: packages/admin/src/components/PortableTextEditor.tsx:4690
 msgid "Alt text"
 msgstr "代替テキスト"
 
@@ -2132,7 +2141,7 @@ msgstr "フォルダーには代替テキストを設定できません"
 msgid "Alt text set"
 msgstr "代替テキスト設定済み"
 
-#: packages/admin/src/components/WordPressImport.tsx:1451
+#: packages/admin/src/components/WordPressImport.tsx:1468
 msgid "Alternatively, you can export from WordPress (Tools → Export) and upload the file."
 msgstr "または、WordPressからエクスポート（ツール → エクスポート）してファイルをアップロードすることもできます。"
 
@@ -2192,15 +2201,15 @@ msgstr "指紋、顔、PIN、またはデバイスのパスワードでロック
 #: packages/admin/src/router.tsx:1224
 #: packages/admin/src/router.tsx:1390
 #: packages/admin/src/router.tsx:1458
-#: packages/admin/src/router.tsx:1812
-#: packages/admin/src/router.tsx:1990
-#: packages/admin/src/router.tsx:2015
-#: packages/admin/src/router.tsx:2102
-#: packages/admin/src/router.tsx:2134
-#: packages/admin/src/router.tsx:3113
-#: packages/admin/src/router.tsx:3149
-#: packages/admin/src/router.tsx:3684
-#: packages/admin/src/router.tsx:3878
+#: packages/admin/src/router.tsx:1817
+#: packages/admin/src/router.tsx:1995
+#: packages/admin/src/router.tsx:2020
+#: packages/admin/src/router.tsx:2107
+#: packages/admin/src/router.tsx:2139
+#: packages/admin/src/router.tsx:3120
+#: packages/admin/src/router.tsx:3156
+#: packages/admin/src/router.tsx:3691
+#: packages/admin/src/router.tsx:3885
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "エラーが発生しました"
@@ -2217,11 +2226,11 @@ msgstr "予期しないエラーが発生しました。"
 msgid "An unknown error occurred"
 msgstr "不明なエラーが発生しました"
 
-#: packages/admin/src/components/WordPressImport.tsx:1632
+#: packages/admin/src/components/WordPressImport.tsx:1649
 msgid "Analyzing export file..."
 msgstr "エクスポートファイルを解析中…"
 
-#: packages/admin/src/components/WordPressImport.tsx:857
+#: packages/admin/src/components/WordPressImport.tsx:874
 msgid "Analyzing WordPress site..."
 msgstr "WordPressサイトを解析中…"
 
@@ -2303,7 +2312,7 @@ msgstr "復元中に変更対象のフィールドに入力した内容は失わ
 #: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:3265
+#: packages/admin/src/router.tsx:3272
 msgid "API Tokens"
 msgstr "APIトークン"
 
@@ -2311,7 +2320,7 @@ msgstr "APIトークン"
 msgid "Appears on posts and pages"
 msgstr "投稿とページに表示されます"
 
-#: packages/admin/src/components/WordPressImport.tsx:1547
+#: packages/admin/src/components/WordPressImport.tsx:1564
 msgid "Application Password"
 msgstr "アプリケーションパスワード"
 
@@ -2320,16 +2329,16 @@ msgid "Applies to every collection. Sections a collection doesn't use are skippe
 msgstr "すべてのコレクションに適用されます。コレクションで使用しないセクションは表示されません。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:611
-#: packages/admin/src/components/PortableTextEditor.tsx:5425
+#: packages/admin/src/components/PortableTextEditor.tsx:5426
 msgid "Apply"
 msgstr "適用"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:86
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:129
 msgid "Apply changes"
 msgstr "変更を適用"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3867
-#: packages/admin/src/components/PortableTextEditor.tsx:4664
+#: packages/admin/src/components/PortableTextEditor.tsx:3868
+#: packages/admin/src/components/PortableTextEditor.tsx:4665
 msgid "Apply link"
 msgstr "リンクを設定"
 
@@ -2422,7 +2431,7 @@ msgstr "管理者にこの設定を完了するよう依頼してください。
 msgid "Aspect ratio"
 msgstr "アスペクト比"
 
-#: packages/admin/src/components/WordPressImport.tsx:2538
+#: packages/admin/src/components/WordPressImport.tsx:2565
 msgid "Assign WordPress authors to EmDash users. Posts will be attributed to the selected user."
 msgstr "WordPressの投稿者をEmDashユーザーに割り当てます。選択したユーザーが投稿者として設定されます。"
 
@@ -2492,7 +2501,7 @@ msgstr "認証がキャンセルされたかタイムアウトしました。も
 msgid "Author"
 msgstr "投稿者"
 
-#: packages/admin/src/components/WordPressImport.tsx:2553
+#: packages/admin/src/components/WordPressImport.tsx:2580
 msgid "Author Mapping"
 msgstr "投稿者の割り当て"
 
@@ -2526,20 +2535,23 @@ msgstr "承認しています…"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:769
 #: packages/admin/src/components/RelationForm.tsx:386
-#: packages/admin/src/components/settings/transfer/ImportReview.tsx:306
-#: packages/admin/src/components/settings/transfer/labels.ts:8
 msgid "Authors"
 msgstr "著者"
+
+#: packages/admin/src/components/settings/transfer/labels.ts:8
+msgctxt "site transfer record kind: user accounts"
+msgid "Authors"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:170
 msgid "Authors will be assigned to users on this site"
 msgstr "投稿者をこのサイトのユーザーに割り当てます"
 
-#: packages/admin/src/components/Redirects.tsx:467
+#: packages/admin/src/components/Redirects.tsx:478
 msgid "auto"
 msgstr "自動"
 
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "Auto (slug change)"
 msgstr "自動（スラッグ変更）"
 
@@ -2569,7 +2581,7 @@ msgstr "自動バックアップ"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "自動バックアップにはストレージバックエンド（R2、S3、またはローカルストレージ）が必要です。有効にするにはEmDashの設定でストレージを構成してください。"
 
-#: packages/admin/src/router.tsx:1957
+#: packages/admin/src/router.tsx:1962
 msgid "Autosave failed"
 msgstr "自動保存に失敗しました"
 
@@ -2609,10 +2621,10 @@ msgstr "戻る"
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:702
 #: packages/admin/src/components/auth/PasskeyRegistration.tsx:748
 #: packages/admin/src/components/BulkTagDialog.tsx:501
-#: packages/admin/src/components/FieldEditor.tsx:1816
+#: packages/admin/src/components/FieldEditor.tsx:1820
 #: packages/admin/src/components/MediaDetailPanel.tsx:1797
-#: packages/admin/src/components/WordPressImport.tsx:1567
-#: packages/admin/src/components/WordPressImport.tsx:2609
+#: packages/admin/src/components/WordPressImport.tsx:1584
+#: packages/admin/src/components/WordPressImport.tsx:2636
 msgid "Back"
 msgstr "戻る"
 
@@ -2620,15 +2632,15 @@ msgstr "戻る"
 msgid "Back to {collectionLabel} list"
 msgstr "{collectionLabel}一覧へ戻る"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:213
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:209
 msgid "Back to editing"
 msgstr "編集に戻る"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:203
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:199
 msgid "Back to editing (Esc)"
 msgstr "編集に戻る（Esc）"
 
-#: packages/admin/src/components/revisions/useRevisionView.ts:393
+#: packages/admin/src/components/revisions/useRevisionView.ts:391
 msgid "Back to editing."
 msgstr "編集に戻りました。"
 
@@ -2674,7 +2686,7 @@ msgstr "バックアップ設定を保存しました"
 
 #: packages/admin/src/components/Settings.tsx:126
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:3292
+#: packages/admin/src/router.tsx:3299
 msgid "Backups"
 msgstr "バックアップ"
 
@@ -2690,7 +2702,7 @@ msgstr "Bash"
 msgid "Basic blocks"
 msgstr "基本ブロック"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:69
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:109
 msgid "Before"
 msgstr "変更前"
 
@@ -2754,18 +2766,18 @@ msgstr "インポートを妨げる問題"
 msgid "Blocks"
 msgstr "ブロック"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3644
-#: packages/admin/src/components/PortableTextEditor.tsx:5194
+#: packages/admin/src/components/PortableTextEditor.tsx:3645
+#: packages/admin/src/components/PortableTextEditor.tsx:5195
 msgid "Bold"
 msgstr "太字"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:58
 #: packages/admin/src/components/FieldEditor.tsx:681
-#: packages/admin/src/components/FieldEditor.tsx:1700
+#: packages/admin/src/components/FieldEditor.tsx:1704
 msgid "Boolean"
 msgstr "ブール値（true / false）"
 
-#: packages/admin/src/components/WordPressImport.tsx:1316
+#: packages/admin/src/components/WordPressImport.tsx:1333
 msgid "Bot protection blocked the connection"
 msgstr "ボット対策により接続がブロックされました"
 
@@ -2797,8 +2809,8 @@ msgstr "プラグインを探してインストールし、サイトの機能を
 msgid "Browse files"
 msgstr "ファイルを選択"
 
-#: packages/admin/src/components/WordPressImport.tsx:1176
-#: packages/admin/src/components/WordPressImport.tsx:1651
+#: packages/admin/src/components/WordPressImport.tsx:1193
+#: packages/admin/src/components/WordPressImport.tsx:1668
 msgid "Browse Files"
 msgstr "ファイルを選択"
 
@@ -2820,7 +2832,7 @@ msgstr "ビルド来歴を検証済み"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
 #: packages/admin/src/components/PortableTextEditor.tsx:542
-#: packages/admin/src/components/PortableTextEditor.tsx:5251
+#: packages/admin/src/components/PortableTextEditor.tsx:5252
 msgid "Bullet List"
 msgstr "箇条書きリスト"
 
@@ -2876,7 +2888,7 @@ msgid "Byline schema"
 msgstr "執筆者情報に追加する項目"
 
 #: packages/admin/src/components/Sidebar.tsx:584
-#: packages/admin/src/router.tsx:3621
+#: packages/admin/src/router.tsx:3628
 msgid "Byline Schema"
 msgstr "執筆者情報に追加する項目"
 
@@ -2891,7 +2903,7 @@ msgstr "執筆者を更新しました"
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:550
 #: packages/admin/src/lib/editor-sections.ts:34
-#: packages/admin/src/router.tsx:3610
+#: packages/admin/src/router.tsx:3617
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "執筆者"
@@ -2946,8 +2958,8 @@ msgstr "EmDashに接続できません"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:608
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:85
-#: packages/admin/src/components/FieldEditor.tsx:1821
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:128
+#: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
@@ -2956,9 +2968,9 @@ msgstr "EmDashに接続できません"
 #: packages/admin/src/components/MenuEditor.tsx:894
 #: packages/admin/src/components/MenuList.tsx:238
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
-#: packages/admin/src/components/PortableTextEditor.tsx:4635
-#: packages/admin/src/components/PortableTextEditor.tsx:4661
-#: packages/admin/src/components/PortableTextEditor.tsx:5409
+#: packages/admin/src/components/PortableTextEditor.tsx:4636
+#: packages/admin/src/components/PortableTextEditor.tsx:4662
+#: packages/admin/src/components/PortableTextEditor.tsx:5410
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:384
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
@@ -2974,7 +2986,7 @@ msgstr "EmDashに接続できません"
 #: packages/admin/src/components/TaxonomyManager.tsx:1021
 #: packages/admin/src/components/users/InviteUserModal.tsx:232
 #: packages/admin/src/components/Widgets.tsx:524
-#: packages/admin/src/components/WordPressImport.tsx:1967
+#: packages/admin/src/components/WordPressImport.tsx:1984
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:14
 msgid "Cancel"
 msgstr "キャンセル"
@@ -3049,11 +3061,11 @@ msgid "Categories"
 msgstr "カテゴリー"
 
 #. placeholder {0}: analysis.categories
-#: packages/admin/src/components/WordPressImport.tsx:1835
+#: packages/admin/src/components/WordPressImport.tsx:1852
 msgid "Categories ({0})"
 msgstr "カテゴリー（{0}）"
 
-#: packages/admin/src/components/WordPressImport.tsx:1198
+#: packages/admin/src/components/WordPressImport.tsx:1215
 msgid "Categories & Tags"
 msgstr "カテゴリーとタグ"
 
@@ -3071,8 +3083,8 @@ msgstr "セルを結合しました"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:54
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:4161
-#: packages/admin/src/components/PortableTextEditor.tsx:4282
+#: packages/admin/src/components/PortableTextEditor.tsx:4162
+#: packages/admin/src/components/PortableTextEditor.tsx:4283
 msgid "Center"
 msgstr "中央"
 
@@ -3204,11 +3216,11 @@ msgstr "更新履歴"
 msgid "Changes apply everywhere this byline appears."
 msgstr "変更は、この執筆者が表示されるすべての箇所に反映されます。"
 
-#: packages/admin/src/router.tsx:2033
+#: packages/admin/src/router.tsx:2038
 msgid "Changes discarded"
 msgstr "変更を破棄しました"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:351
+#: packages/admin/src/components/revisions/RevisionList.tsx:349
 msgid "Changes in this version"
 msgstr "この版の変更内容"
 
@@ -3244,7 +3256,7 @@ msgstr "astro.config.mjsのregistry.policy.minimumReleaseAgeを確認し、EmDas
 msgid "Check registry.policy.minimumReleaseAgeExclude in astro.config.mjs, then restart EmDash."
 msgstr "astro.config.mjsのregistry.policy.minimumReleaseAgeExcludeを確認し、EmDashを再起動してください。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1147
+#: packages/admin/src/components/WordPressImport.tsx:1164
 msgid "Check Site"
 msgstr "サイトを確認"
 
@@ -3266,7 +3278,7 @@ msgstr "接続を確認して、もう一度お試しください。"
 msgid "Check your email"
 msgstr "メールを確認してください"
 
-#: packages/admin/src/components/WordPressImport.tsx:823
+#: packages/admin/src/components/WordPressImport.tsx:840
 msgid "Checking {urlInput}..."
 msgstr "{urlInput}を確認中…"
 
@@ -3486,7 +3498,7 @@ msgstr "完了した項目を一覧から削除"
 msgid "Clear filters"
 msgstr "フィルターをクリア"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4171
+#: packages/admin/src/components/PortableTextEditor.tsx:4172
 msgid "Clear formatting"
 msgstr "書式をクリア"
 
@@ -3589,13 +3601,13 @@ msgstr "Cloudflareのボット対策がチャレンジページを返したた�
 
 #: packages/admin/src/components/ContentTypeList.tsx:406
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:41
-#: packages/admin/src/components/Redirects.tsx:820
+#: packages/admin/src/components/Redirects.tsx:836
 msgid "Code"
 msgstr "コード"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
 #: packages/admin/src/components/PortableTextEditor.tsx:572
-#: packages/admin/src/components/PortableTextEditor.tsx:5293
+#: packages/admin/src/components/PortableTextEditor.tsx:5294
 msgid "Code Block"
 msgstr "コードブロック"
 
@@ -3633,7 +3645,7 @@ msgstr "コンテンツタイプ「{0}」はこのサイトで作成されまし
 
 #: packages/admin/src/router.tsx:865
 #: packages/admin/src/router.tsx:1068
-#: packages/admin/src/router.tsx:2555
+#: packages/admin/src/router.tsx:2560
 msgid "Collection \"{collection}\" not found"
 msgstr "コンテンツタイプ「{collection}」が見つかりません"
 
@@ -3654,12 +3666,12 @@ msgstr "コンテンツタイプ"
 msgid "Collections and fields, all content with drafts, revisions, scheduled posts, and trash, translations, taxonomies, bylines, media files, menus, widgets, sections, redirects, SEO, and site settings."
 msgstr "コンテンツタイプとフィールド、下書き・変更履歴・予約投稿・ゴミ箱を含むすべてのコンテンツ、翻訳、分類グループ、執筆者、メディアファイル、メニュー、ウィジェット、セクション、リダイレクト、SEO、サイト設定。"
 
-#: packages/admin/src/components/WordPressImport.tsx:2377
+#: packages/admin/src/components/WordPressImport.tsx:2404
 msgid "Collections created:"
 msgstr "作成したコンテンツタイプ："
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:4267
+#: packages/admin/src/components/PortableTextEditor.tsx:4268
 msgid "Column added after"
 msgstr "後に列を追加しました"
 
@@ -3716,7 +3728,7 @@ msgstr "コメントへのリアクション"
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:514
-#: packages/admin/src/router.tsx:3038
+#: packages/admin/src/router.tsx:3045
 msgid "Comments"
 msgstr "コメント"
 
@@ -3768,17 +3780,17 @@ msgstr "Face ID、Touch ID、またはデバイスのパスコードで確認し
 msgid "Confirm with your fingerprint, face, or PIN."
 msgstr "指紋、顔、またはPINで確認してください。"
 
-#: packages/admin/src/components/WordPressImport.tsx:748
-#: packages/admin/src/components/WordPressImport.tsx:1104
+#: packages/admin/src/components/WordPressImport.tsx:756
+#: packages/admin/src/components/WordPressImport.tsx:1121
 msgid "Connect"
 msgstr "接続"
 
-#: packages/admin/src/components/WordPressImport.tsx:1564
+#: packages/admin/src/components/WordPressImport.tsx:1581
 msgid "Connect & Analyze"
 msgstr "接続して解析"
 
 #. placeholder {0}: siteTitle || "WordPress"
-#: packages/admin/src/components/WordPressImport.tsx:1513
+#: packages/admin/src/components/WordPressImport.tsx:1530
 msgid "Connect to {0}"
 msgstr "{0}に接続"
 
@@ -3792,7 +3804,7 @@ msgstr "任意のネットワークホストへの接続と、プラグイン管
 msgid "Connect to network hosts and load external plugin admin images"
 msgstr "ネットワークホストへの接続と、プラグイン管理画面の外部画像の読み込み"
 
-#: packages/admin/src/components/WordPressImport.tsx:1429
+#: packages/admin/src/components/WordPressImport.tsx:1446
 msgid "Connect with WordPress"
 msgstr "WordPressに接続"
 
@@ -3838,15 +3850,15 @@ msgid "Content digest"
 msgstr "コンテンツのダイジェスト"
 
 #. placeholder {0}: result.errors.length
-#: packages/admin/src/components/WordPressImport.tsx:2462
+#: packages/admin/src/components/WordPressImport.tsx:2489
 msgid "Content Errors ({0})"
 msgstr "コンテンツエラー（{0}）"
 
-#: packages/admin/src/components/WordPressImport.tsx:1373
+#: packages/admin/src/components/WordPressImport.tsx:1390
 msgid "Content found:"
 msgstr "検出されたコンテンツ："
 
-#: packages/admin/src/router.tsx:2083
+#: packages/admin/src/router.tsx:2088
 msgid "Content has been scheduled for publishing"
 msgstr "コンテンツの公開を予約しました"
 
@@ -3854,7 +3866,7 @@ msgstr "コンテンツの公開を予約しました"
 msgid "Content ID:"
 msgstr "コンテンツID："
 
-#: packages/admin/src/router.tsx:1984
+#: packages/admin/src/router.tsx:1989
 msgid "Content is now live"
 msgstr "コンテンツを公開しました"
 
@@ -3879,11 +3891,11 @@ msgstr "コンテンツがメディアを無効な形式で参照しています
 msgid "Content refers to media that is not in the package"
 msgstr "コンテンツがパッケージに含まれないメディアを参照しています"
 
-#: packages/admin/src/router.tsx:2009
+#: packages/admin/src/router.tsx:2014
 msgid "Content removed from public view"
 msgstr "コンテンツを公開表示から外しました"
 
-#: packages/admin/src/router.tsx:2095
+#: packages/admin/src/router.tsx:2100
 msgid "Content reverted to draft"
 msgstr "コンテンツを下書きに戻しました"
 
@@ -3899,7 +3911,7 @@ msgstr "コンテンツの検索結果"
 msgid "Content that credits this byline loses the credit."
 msgstr "この執筆者が表記されているコンテンツから、その執筆者表記が削除されます。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1784
+#: packages/admin/src/components/WordPressImport.tsx:1801
 msgid "Content to Import"
 msgstr "インポートするコンテンツ"
 
@@ -3910,7 +3922,7 @@ msgstr "コンテンツタイプ"
 #: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:580
-#: packages/admin/src/router.tsx:3629
+#: packages/admin/src/router.tsx:3636
 msgid "Content Types"
 msgstr "コンテンツタイプ"
 
@@ -3922,7 +3934,7 @@ msgstr "同じグループのコンテンツタイプは、サイドバーで同
 msgid "Content using this media item may show a broken reference."
 msgstr "このメディアを使用しているコンテンツで、参照先が見つからなくなる場合があります。"
 
-#: packages/admin/src/components/WordPressImport.tsx:2360
+#: packages/admin/src/components/WordPressImport.tsx:2387
 msgid "Content was skipped because it already exists"
 msgstr "既に存在するためスキップされました"
 
@@ -3941,12 +3953,12 @@ msgstr "続行"
 msgid "Continue →"
 msgstr "続行 →"
 
-#: packages/admin/src/components/WordPressImport.tsx:2611
+#: packages/admin/src/components/WordPressImport.tsx:2638
 msgid "Continue Import"
 msgstr "インポートを続行"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:5268
+#: packages/admin/src/components/PortableTextEditor.tsx:5269
 msgid "Continue numbering"
 msgstr "番号を継続"
 
@@ -4065,7 +4077,7 @@ msgstr "自動的にコピーできませんでした。上のURLを選択して
 msgid "Could not create {singularLower}"
 msgstr "{singularLower}を作成できませんでした"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3433
+#: packages/admin/src/components/PortableTextEditor.tsx:3434
 msgid "Could not insert section"
 msgstr "セクションを挿入できませんでした"
 
@@ -4129,7 +4141,7 @@ msgstr "メディア項目または選択したフォルダーがまだ存在す
 msgid "Couldn’t copy. Select the text on the page and copy it instead."
 msgstr "コピーできませんでした。ページ上のテキストを選択してコピーしてください。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1317
+#: packages/admin/src/components/WordPressImport.tsx:1334
 msgid "Couldn't detect WordPress"
 msgstr "WordPressを検出できませんでした"
 
@@ -4177,7 +4189,7 @@ msgstr "使用状況を追加で読み込めませんでした。"
 msgid "Couldn’t load the import plan"
 msgstr "インポート計画を読み込めませんでした"
 
-#: packages/admin/src/components/revisions/useRevisionView.ts:565
+#: packages/admin/src/components/revisions/useRevisionView.ts:563
 msgid "Couldn't load this version. Back to editing."
 msgstr "この版を読み込めませんでした。編集に戻ります。"
 
@@ -4333,7 +4345,7 @@ msgstr "新しい{singularLower}を作成"
 msgid "Create New Token"
 msgstr "APIトークンを作成"
 
-#: packages/admin/src/components/WordPressImport.tsx:1558
+#: packages/admin/src/components/WordPressImport.tsx:1575
 msgid "Create one in WordPress: Users → Profile → Application Passwords"
 msgstr "WordPressで作成：ユーザー → プロフィール → アプリケーションパスワード"
 
@@ -4361,7 +4373,7 @@ msgstr "{0}のリダイレクトを作成"
 msgid "Create redirect for this path"
 msgstr "このパスのリダイレクトを作成"
 
-#: packages/admin/src/components/Redirects.tsx:798
+#: packages/admin/src/components/Redirects.tsx:814
 msgid "Create redirect rules to manage URL changes."
 msgstr "URLを変更した際の転送ルールを作成できます。"
 
@@ -4373,7 +4385,7 @@ msgstr "関連付けを作成"
 msgid "Create Relation"
 msgstr "関連付けを作成"
 
-#: packages/admin/src/components/WordPressImport.tsx:1971
+#: packages/admin/src/components/WordPressImport.tsx:1988
 msgid "Create Schema & Import"
 msgstr "スキーマを作成してインポート"
 
@@ -4461,7 +4473,7 @@ msgid "Created {0}"
 msgstr "作成日時：{0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:2126
+#: packages/admin/src/router.tsx:2131
 msgid "Created {0} translation"
 msgstr "{0}の翻訳を作成しました"
 
@@ -4477,7 +4489,7 @@ msgstr "作成日時"
 msgid "Creating collections and fields"
 msgstr "コンテンツタイプとフィールドを作成中"
 
-#: packages/admin/src/components/WordPressImport.tsx:934
+#: packages/admin/src/components/WordPressImport.tsx:951
 msgid "Creating collections and fields..."
 msgstr "コンテンツタイプとフィールドを作成中…"
 
@@ -4546,8 +4558,8 @@ msgstr "現在"
 msgid "Current cell"
 msgstr "現在のセル"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:269
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:91
+#: packages/admin/src/components/revisions/RevisionList.tsx:267
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:87
 msgid "Current version"
 msgstr "現在の版"
 
@@ -4571,7 +4583,7 @@ msgstr "独自のrobots.txtを設定できます。デフォルトを使用す�
 msgid "Custom Section"
 msgstr "カスタムセクション"
 
-#: packages/admin/src/components/WordPressImport.tsx:1199
+#: packages/admin/src/components/WordPressImport.tsx:1216
 msgid "Custom Taxonomies"
 msgstr "独自の分類グループ"
 
@@ -4584,8 +4596,8 @@ msgstr "サイドバーをカスタマイズ"
 msgid "Daily automatic backups"
 msgstr "毎日自動でバックアップする"
 
-#: packages/admin/src/components/FieldEditor.tsx:1794
-#: packages/admin/src/components/FieldEditor.tsx:1797
+#: packages/admin/src/components/FieldEditor.tsx:1798
+#: packages/admin/src/components/FieldEditor.tsx:1801
 #: packages/admin/src/components/ImageFieldRenderer.tsx:562
 msgid "Dark mode variant"
 msgstr "ダークモード用の画像"
@@ -4610,7 +4622,7 @@ msgid "Date"
 msgstr "日付"
 
 #: packages/admin/src/components/FieldEditor.tsx:687
-#: packages/admin/src/components/FieldEditor.tsx:1701
+#: packages/admin/src/components/FieldEditor.tsx:1705
 msgid "Date & Time"
 msgstr "日時"
 
@@ -4689,7 +4701,7 @@ msgstr "コンテンツの構造を定義"
 msgid "Defined in code"
 msgstr "コードで定義"
 
-#: packages/admin/src/components/BlocksField.tsx:1196
+#: packages/admin/src/components/BlocksField.tsx:1193
 #: packages/admin/src/components/BylineFormDialog.tsx:549
 #: packages/admin/src/components/comments/CommentInbox.tsx:337
 #: packages/admin/src/components/comments/CommentInbox.tsx:463
@@ -4705,8 +4717,8 @@ msgstr "コードで定義"
 #: packages/admin/src/components/MenuEditor.tsx:790
 #: packages/admin/src/components/MenuEditor.tsx:808
 #: packages/admin/src/components/MenuList.tsx:291
-#: packages/admin/src/components/Redirects.tsx:528
-#: packages/admin/src/components/Redirects.tsx:886
+#: packages/admin/src/components/Redirects.tsx:539
+#: packages/admin/src/components/Redirects.tsx:902
 #: packages/admin/src/components/RelationDeleteDialog.tsx:40
 #: packages/admin/src/components/RelationList.tsx:239
 #: packages/admin/src/components/RowMenuItems.tsx:106
@@ -4769,7 +4781,7 @@ msgstr "ウィジェットエリア「{0}」を削除"
 msgid "Delete {0}?"
 msgstr "{0}を削除しますか？"
 
-#: packages/admin/src/components/BlocksField.tsx:1194
+#: packages/admin/src/components/BlocksField.tsx:1191
 msgid "Delete {confirmName}?"
 msgstr "{confirmName}を削除しますか？"
 
@@ -4833,7 +4845,7 @@ msgstr "フォルダーを削除"
 msgid "Delete gallery"
 msgstr "ギャラリーを削除"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4730
+#: packages/admin/src/components/PortableTextEditor.tsx:4731
 msgid "Delete image"
 msgstr "画像を削除"
 
@@ -4865,11 +4877,11 @@ msgid "Delete Permanently?"
 msgstr "完全に削除しますか？"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:525
+#: packages/admin/src/components/Redirects.tsx:536
 msgid "Delete redirect {0}"
 msgstr "リダイレクト{0}を削除"
 
-#: packages/admin/src/components/Redirects.tsx:884
+#: packages/admin/src/components/Redirects.tsx:900
 msgid "Delete Redirect?"
 msgstr "リダイレクトを削除しますか？"
 
@@ -4934,7 +4946,7 @@ msgstr "「{0}」を削除すると、その中のすべての言語の分類項
 msgid "Deleting \"{0}\" will also remove {1, plural, one {# stored value} other {# stored values}} across all bylines. This cannot be undone."
 msgstr "「{0}」を削除すると、すべての執筆者から{1, plural, one {#件の保存済み値} other {#件の保存済み値}}も削除されます。この操作は取り消せません。"
 
-#: packages/admin/src/components/BlocksField.tsx:1197
+#: packages/admin/src/components/BlocksField.tsx:1194
 #: packages/admin/src/components/comments/CommentInbox.tsx:464
 #: packages/admin/src/components/comments/CommentInbox.tsx:490
 #: packages/admin/src/components/ContentList.tsx:1853
@@ -4945,7 +4957,7 @@ msgstr "「{0}」を削除すると、すべての執筆者から{1, plural, one
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
 #: packages/admin/src/components/MenuEditor.tsx:809
 #: packages/admin/src/components/MenuList.tsx:292
-#: packages/admin/src/components/Redirects.tsx:887
+#: packages/admin/src/components/Redirects.tsx:903
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
 #: packages/admin/src/components/Sections.tsx:424
 #: packages/admin/src/components/settings/BackupSettings.tsx:370
@@ -5003,7 +5015,7 @@ msgid "visualEditing.altTextPlaceholder"
 msgstr "画像の内容を説明"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:523
-#: packages/admin/src/components/PortableTextEditor.tsx:4624
+#: packages/admin/src/components/PortableTextEditor.tsx:4625
 msgid "Describe the image"
 msgstr "画像の内容を説明"
 
@@ -5036,7 +5048,7 @@ msgstr "説明"
 msgid "Description (optional)"
 msgstr "説明（任意）"
 
-#: packages/admin/src/components/Redirects.tsx:811
+#: packages/admin/src/components/Redirects.tsx:827
 msgid "Destination"
 msgstr "転送先"
 
@@ -5099,7 +5111,7 @@ msgid "Disable plugin MCP tools"
 msgstr "プラグインのMCPツールを無効化"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:508
+#: packages/admin/src/components/Redirects.tsx:519
 msgid "Disable redirect {0}"
 msgstr "リダイレクト「{0}」を無効化"
 
@@ -5112,7 +5124,7 @@ msgid "Disable User?"
 msgstr "ユーザーを無効化しますか？"
 
 #: packages/admin/src/components/PluginManager.tsx:461
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 #: packages/admin/src/components/users/UserDetail.tsx:205
 #: packages/admin/src/components/users/UserList.tsx:179
 msgid "Disabled"
@@ -5178,11 +5190,11 @@ msgstr "インポートの案内を閉じる"
 msgid "Dismiss save error"
 msgstr "保存エラーを閉じる"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3454
+#: packages/admin/src/components/PortableTextEditor.tsx:3455
 msgid "Dismiss section error"
 msgstr "セクションエラーを閉じる"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3421
+#: packages/admin/src/components/PortableTextEditor.tsx:3422
 msgid "Dismiss table paste error"
 msgstr "テーブルの貼り付けエラーを閉じる"
 
@@ -5275,7 +5287,7 @@ msgstr "割り当てない"
 #: packages/admin/src/components/ContentList.tsx:1280
 #: packages/admin/src/components/MediaUploadDialog.tsx:338
 #: packages/admin/src/components/users/InviteUserModal.tsx:225
-#: packages/admin/src/components/WordPressImport.tsx:2178
+#: packages/admin/src/components/WordPressImport.tsx:2195
 msgid "Done"
 msgstr "完了"
 
@@ -5337,7 +5349,7 @@ msgstr "別のEmDashサイトにインポートできる単一の.emdashパッ�
 msgid "Downloaded"
 msgstr "ダウンロード済み"
 
-#: packages/admin/src/components/WordPressImport.tsx:2176
+#: packages/admin/src/components/WordPressImport.tsx:2193
 msgid "Downloading"
 msgstr "ダウンロード中"
 
@@ -5374,7 +5386,7 @@ msgstr "下書き、公開済み、またはアーカイブ済み"
 msgid "Drafts"
 msgstr "下書き"
 
-#: packages/admin/src/components/WordPressImport.tsx:1218
+#: packages/admin/src/components/WordPressImport.tsx:1235
 msgid "Drafts & Private"
 msgstr "下書きと非公開"
 
@@ -5382,7 +5394,7 @@ msgstr "下書きと非公開"
 msgid "Drag and drop files here"
 msgstr "ここにファイルをドラッグ＆ドロップ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1171
+#: packages/admin/src/components/WordPressImport.tsx:1188
 msgid "Drag and drop or click to browse (.xml)"
 msgstr "XMLファイルをドラッグ＆ドロップするか、クリックして選択してください。"
 
@@ -5433,7 +5445,7 @@ msgstr "画像は1枚ずつドロップしてください。"
 msgid "Drop to add widget"
 msgstr "ドロップしてウィジェットを追加"
 
-#: packages/admin/src/components/WordPressImport.tsx:1645
+#: packages/admin/src/components/WordPressImport.tsx:1662
 msgid "Drop your WordPress export file here"
 msgstr "WordPressのエクスポートファイルをここにドロップ"
 
@@ -5502,7 +5514,7 @@ msgstr "保存されている最も古い版"
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:785
-#: packages/admin/src/components/Redirects.tsx:519
+#: packages/admin/src/components/Redirects.tsx:530
 #: packages/admin/src/components/RelationList.tsx:230
 #: packages/admin/src/components/Sections.tsx:513
 #: packages/admin/src/components/Shell.tsx:131
@@ -5571,7 +5583,7 @@ msgstr "執筆者情報の項目を編集"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:321
 #: packages/admin/src/components/editor/VideoNode.tsx:323
-#: packages/admin/src/components/PortableTextEditor.tsx:4718
+#: packages/admin/src/components/PortableTextEditor.tsx:4719
 msgid "Edit caption"
 msgstr "キャプションを編集"
 
@@ -5579,8 +5591,8 @@ msgstr "キャプションを編集"
 msgid "Edit content"
 msgstr "コンテンツを編集"
 
-#: packages/admin/src/router.tsx:3824
-#: packages/admin/src/router.tsx:3843
+#: packages/admin/src/router.tsx:3831
+#: packages/admin/src/router.tsx:3850
 msgid "Edit content type"
 msgstr "コンテンツタイプを編集"
 
@@ -5616,10 +5628,10 @@ msgstr "画像を編集"
 msgid "Edit image {0}"
 msgstr "画像{0}を編集"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3893
-#: packages/admin/src/components/PortableTextEditor.tsx:4002
-#: packages/admin/src/components/PortableTextEditor.tsx:4711
-#: packages/admin/src/components/PortableTextEditor.tsx:5159
+#: packages/admin/src/components/PortableTextEditor.tsx:3894
+#: packages/admin/src/components/PortableTextEditor.tsx:4003
+#: packages/admin/src/components/PortableTextEditor.tsx:4712
+#: packages/admin/src/components/PortableTextEditor.tsx:5160
 msgid "Edit link"
 msgstr "リンクを編集"
 
@@ -5632,7 +5644,7 @@ msgid "Edit media alt text, captions, and focal points"
 msgstr "メディアの代替テキスト、キャプション、画像の焦点を編集"
 
 #: packages/admin/src/components/MenuEditor.tsx:186
-#: packages/admin/src/router.tsx:3524
+#: packages/admin/src/router.tsx:3531
 msgid "Edit menu"
 msgstr "メニューを編集"
 
@@ -5654,7 +5666,7 @@ msgid "Edit Redirect"
 msgstr "リダイレクトを編集"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:451
+#: packages/admin/src/components/Redirects.tsx:462
 msgid "Edit redirect {0}"
 msgstr "リダイレクト{0}を編集"
 
@@ -5663,7 +5675,7 @@ msgid "Edit role"
 msgstr "役割を編集"
 
 #: packages/admin/src/components/SectionEditor.tsx:50
-#: packages/admin/src/router.tsx:3574
+#: packages/admin/src/router.tsx:3581
 msgid "Edit section"
 msgstr "セクションを編集"
 
@@ -5720,7 +5732,7 @@ msgstr "画像の代替テキストを編集しました"
 msgid "Edited by <0>{people}</0>"
 msgstr "<0>{people}</0>が編集"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:311
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:292
 msgid "Editing {field}"
 msgstr "{field}を編集中"
 
@@ -5768,11 +5780,11 @@ msgstr "エディターのサイドバーをリセットしました"
 msgid "Editor sidebar sections"
 msgstr "エディターのサイドバーのセクション"
 
-#: packages/admin/src/components/FieldEditor.tsx:1792
+#: packages/admin/src/components/FieldEditor.tsx:1796
 msgid "Editors can select a second image that the site shows in dark mode."
 msgstr "編集者は、サイトのダークモードで表示する別の画像を選択できます。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1094
+#: packages/admin/src/components/WordPressImport.tsx:1111
 msgid "em1.…"
 msgstr "em1.…"
 
@@ -5780,7 +5792,7 @@ msgstr "em1.…"
 #: packages/admin/src/components/Settings.tsx:120
 #: packages/admin/src/components/SignupPage.tsx:220
 #: packages/admin/src/components/users/UserDetail.tsx:158
-#: packages/admin/src/router.tsx:3279
+#: packages/admin/src/router.tsx:3286
 msgid "Email"
 msgstr "メール"
 
@@ -5821,7 +5833,7 @@ msgstr "メール送信サービスは有効です"
 
 #: packages/admin/src/components/Settings.tsx:116
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:3278
+#: packages/admin/src/router.tsx:3285
 msgid "Email Settings"
 msgstr "メール設定"
 
@@ -5897,7 +5909,7 @@ msgstr "EmDashには置き換え前の画像は保存されません。"
 msgid "EmDash does not keep the uncropped image."
 msgstr "EmDashには切り抜き前の画像は保存されません。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1363
+#: packages/admin/src/components/WordPressImport.tsx:1380
 msgid "EmDash Exporter plugin detected! You can import directly."
 msgstr "EmDash Exporterプラグインを検出しました！直接インポートできます。"
 
@@ -5909,7 +5921,7 @@ msgstr "EmDashが既存コンテンツを確認しています。"
 msgid "EmDash never receives your PIN, password, or biometric information."
 msgstr "PIN、パスワード、生体認証情報がEmDashに送信されることはありません。"
 
-#: packages/admin/src/router.tsx:2597
+#: packages/admin/src/router.tsx:2602
 msgid "EmDash or this entry’s fields changed since you opened it."
 msgstr "開いた後に、EmDashまたはこのコンテンツのフィールドが変更されました。"
 
@@ -5960,7 +5972,7 @@ msgid "Enable plugin MCP tools"
 msgstr "プラグインのMCPツールを有効化"
 
 #. placeholder {0}: redirect.source
-#: packages/admin/src/components/Redirects.tsx:509
+#: packages/admin/src/components/Redirects.tsx:520
 msgid "Enable redirect {0}"
 msgstr "リダイレクト「{0}」を有効化"
 
@@ -5973,7 +5985,7 @@ msgid "Enable tracking to index existing content and keep references up to date.
 msgstr "有効にすると、既存コンテンツ内でのメディアの使用状況を確認し、その後も自動的に最新の状態に保ちます。"
 
 #: packages/admin/src/components/Redirects.tsx:301
-#: packages/admin/src/components/Redirects.tsx:706
+#: packages/admin/src/components/Redirects.tsx:722
 msgid "Enabled"
 msgstr "有効"
 
@@ -6144,7 +6156,7 @@ msgstr "2以上の整数を入力してください。"
 msgid "Enter an email address."
 msgstr "メールアドレスを入力してください。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1436
+#: packages/admin/src/components/WordPressImport.tsx:1453
 msgid "Enter credentials manually"
 msgstr "認証情報を手動で入力"
 
@@ -6182,12 +6194,12 @@ msgstr "URLを入力…"
 msgid "Enter your handle to sign in."
 msgstr "ハンドル名を入力してログインしてください。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1515
+#: packages/admin/src/components/WordPressImport.tsx:1532
 msgid "Enter your WordPress credentials to import content directly."
 msgstr "WordPressの認証情報を入力して直接コンテンツをインポートします。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1132
-#: packages/admin/src/components/WordPressImport.tsx:1144
+#: packages/admin/src/components/WordPressImport.tsx:1149
+#: packages/admin/src/components/WordPressImport.tsx:1161
 msgid "Enter your WordPress site URL"
 msgstr "WordPressサイトのURLを入力"
 
@@ -6217,7 +6229,7 @@ msgstr "参照元のコンテンツ"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:4164
+#: packages/admin/src/router.tsx:4171
 msgid "Error"
 msgstr "エラー"
 
@@ -6273,7 +6285,7 @@ msgstr "このコンテンツタイプが含まれるすべての関連付けも
 msgid "Everything is shown again, in the default order."
 msgstr "すべての項目が標準の順序で再び表示されます。"
 
-#: packages/admin/src/components/Redirects.tsx:695
+#: packages/admin/src/components/Redirects.tsx:711
 msgid "Exact group name..."
 msgstr "グループ名を完全一致で指定..."
 
@@ -6294,7 +6306,7 @@ msgstr "既存の{pluralLower}はそのまま残ります。"
 msgid "Existing content is indexed. New changes are tracked automatically."
 msgstr "既存コンテンツの確認が完了しました。今後、メディアの使用状況は自動的に記録されます。"
 
-#: packages/admin/src/components/WordPressImport.tsx:2060
+#: packages/admin/src/components/WordPressImport.tsx:2077
 msgid "Exists"
 msgstr "既存"
 
@@ -6325,7 +6337,7 @@ msgstr "有効期限"
 msgid "Export"
 msgstr "エクスポート"
 
-#: packages/admin/src/components/WordPressImport.tsx:1329
+#: packages/admin/src/components/WordPressImport.tsx:1346
 msgid "Export from WordPress manually"
 msgstr "WordPressから手動でエクスポート"
 
@@ -6341,7 +6353,7 @@ msgstr "{requester}からのエクスポートリクエスト"
 msgid "Export site"
 msgstr "サイトをエクスポート"
 
-#: packages/admin/src/components/WordPressImport.tsx:1453
+#: packages/admin/src/components/WordPressImport.tsx:1470
 msgid "Export your content from WordPress to import everything including drafts."
 msgstr "下書きを含むすべてのコンテンツをインポートするには、WordPressからエクスポートしてください。"
 
@@ -6375,7 +6387,7 @@ msgstr "不合格"
 
 #: packages/admin/src/components/BulkTagDialog.tsx:70
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:306
-#: packages/admin/src/components/WordPressImport.tsx:2180
+#: packages/admin/src/components/WordPressImport.tsx:2197
 msgid "Failed"
 msgstr "失敗"
 
@@ -6436,7 +6448,7 @@ msgstr "更新の確認に失敗しました"
 msgid "Failed to communicate with plugin"
 msgstr "プラグインとの通信に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:599
+#: packages/admin/src/lib/api/content.ts:600
 msgid "Failed to compare revisions"
 msgstr "版の比較に失敗しました"
 
@@ -6499,7 +6511,7 @@ msgstr "執筆者の翻訳の作成に失敗しました"
 msgid "Failed to create collection"
 msgstr "コンテンツタイプの作成に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:311
+#: packages/admin/src/lib/api/content.ts:312
 msgid "Failed to create content"
 msgstr "コンテンツの作成に失敗しました"
 
@@ -6535,7 +6547,7 @@ msgstr "関連付けの作成に失敗しました"
 msgid "Failed to create section"
 msgstr "セクションの作成に失敗しました"
 
-#: packages/admin/src/components/WordPressImport.tsx:1767
+#: packages/admin/src/components/WordPressImport.tsx:1784
 msgid "Failed to create some collections"
 msgstr "一部のコンテンツタイプの作成に失敗しました"
 
@@ -6553,7 +6565,7 @@ msgid "Failed to create term translation"
 msgstr "分類項目の翻訳の作成に失敗しました"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:874
-#: packages/admin/src/router.tsx:2131
+#: packages/admin/src/router.tsx:2136
 msgid "Failed to create translation"
 msgstr "翻訳の作成に失敗しました"
 
@@ -6593,7 +6605,7 @@ msgstr "コンテンツタイプの削除に失敗しました"
 msgid "Failed to delete comment"
 msgstr "コメントの削除に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:354
+#: packages/admin/src/lib/api/content.ts:355
 msgid "Failed to delete content"
 msgstr "コンテンツの削除に失敗しました"
 
@@ -6670,7 +6682,7 @@ msgstr "検索の無効化に失敗しました"
 msgid "Failed to disable user"
 msgstr "ユーザーの無効化に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:578
+#: packages/admin/src/lib/api/content.ts:579
 msgid "Failed to discard draft"
 msgstr "下書きの破棄に失敗しました"
 
@@ -6691,7 +6703,7 @@ msgstr "パッケージ内のファイルのダウンロードに失敗しまし
 msgid "Failed to duplicate"
 msgstr "複製に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:414
+#: packages/admin/src/lib/api/content.ts:415
 msgid "Failed to duplicate content"
 msgstr "コンテンツの複製に失敗しました"
 
@@ -6778,11 +6790,11 @@ msgid "Failed to fetch comments"
 msgstr "コメント一覧の取得に失敗しました"
 
 #: packages/admin/src/lib/api/content.ts:242
-#: packages/admin/src/lib/api/content.ts:282
+#: packages/admin/src/lib/api/content.ts:283
 msgid "Failed to fetch content"
 msgstr "コンテンツの取得に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:263
+#: packages/admin/src/lib/api/content.ts:264
 msgid "Failed to fetch content authors"
 msgstr "コンテンツの投稿者の取得に失敗しました"
 
@@ -6888,16 +6900,16 @@ msgstr "関連付けの取得に失敗しました"
 msgid "Failed to fetch relations"
 msgstr "関連付け一覧の取得に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:684
-#: packages/admin/src/lib/api/content.ts:689
+#: packages/admin/src/lib/api/content.ts:685
+#: packages/admin/src/lib/api/content.ts:690
 msgid "Failed to fetch revision"
 msgstr "版の取得に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:669
+#: packages/admin/src/lib/api/content.ts:670
 msgid "Failed to fetch revision editors"
 msgstr "版の編集者の取得に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:649
+#: packages/admin/src/lib/api/content.ts:650
 msgid "Failed to fetch revisions"
 msgstr "変更履歴の取得に失敗しました"
 
@@ -6942,7 +6954,7 @@ msgstr "テーマの取得に失敗しました"
 msgid "Failed to fetch translations"
 msgstr "翻訳の取得に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:380
+#: packages/admin/src/lib/api/content.ts:381
 msgid "Failed to fetch trashed content"
 msgstr "ゴミ箱のコンテンツの取得に失敗しました"
 
@@ -6953,7 +6965,7 @@ msgstr "更新状況の取得に失敗しました"
 #: packages/admin/src/lib/api/current-user.ts:30
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:3059
+#: packages/admin/src/router.tsx:3066
 msgid "Failed to fetch user"
 msgstr "ユーザーの取得に失敗しました"
 
@@ -7142,11 +7154,11 @@ msgid "Failed to lock the entry"
 msgstr "コンテンツのロックに失敗しました"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:3148
+#: packages/admin/src/router.tsx:3155
 msgid "Failed to perform bulk action"
 msgstr "一括操作に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:402
+#: packages/admin/src/lib/api/content.ts:403
 msgid "Failed to permanently delete content"
 msgstr "コンテンツの完全削除に失敗しました"
 
@@ -7160,12 +7172,12 @@ msgid "Failed to probe URL"
 msgstr "URLの確認に失敗しました"
 
 #: packages/admin/src/router.tsx:800
-#: packages/admin/src/router.tsx:1989
-#: packages/admin/src/router.tsx:2341
+#: packages/admin/src/router.tsx:1994
+#: packages/admin/src/router.tsx:2346
 msgid "Failed to publish"
 msgstr "公開に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:534
+#: packages/admin/src/lib/api/content.ts:535
 msgid "Failed to publish content"
 msgstr "コンテンツの公開に失敗しました"
 
@@ -7173,7 +7185,7 @@ msgstr "コンテンツの公開に失敗しました"
 msgid "Failed to read byline field usage"
 msgstr "執筆者情報の項目の使用状況を取得できませんでした"
 
-#: packages/admin/src/router.tsx:3683
+#: packages/admin/src/router.tsx:3690
 msgid "Failed to register {slug}"
 msgstr "{slug}の登録に失敗しました"
 
@@ -7232,12 +7244,12 @@ msgstr "メディアの画像の置き換えに失敗しました"
 msgid "Failed to restore"
 msgstr "復元に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:391
+#: packages/admin/src/lib/api/content.ts:392
 msgid "Failed to restore content"
 msgstr "コンテンツの復元に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:706
-#: packages/admin/src/lib/api/content.ts:711
+#: packages/admin/src/lib/api/content.ts:707
+#: packages/admin/src/lib/api/content.ts:712
 msgid "Failed to restore revision"
 msgstr "版の復元に失敗しました"
 
@@ -7253,8 +7265,8 @@ msgstr "URLの書き換えに失敗しました"
 #: packages/admin/src/components/ContentEditor.tsx:3275
 #: packages/admin/src/components/ContentEditor.tsx:3527
 #: packages/admin/src/router.tsx:996
-#: packages/admin/src/router.tsx:1807
-#: packages/admin/src/router.tsx:3877
+#: packages/admin/src/router.tsx:1812
+#: packages/admin/src/router.tsx:3884
 msgid "Failed to save"
 msgstr "保存に失敗しました"
 
@@ -7283,7 +7295,7 @@ msgstr "設定の保存に失敗しました"
 msgid "Failed to save sidebar layout"
 msgstr "サイドバーのレイアウトの保存に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:438
+#: packages/admin/src/lib/api/content.ts:439
 msgid "Failed to schedule content"
 msgstr "コンテンツの予約公開に失敗しました"
 
@@ -7330,21 +7342,21 @@ msgstr "インポートの開始に失敗しました"
 msgid "Failed to uninstall plugin"
 msgstr "プラグインのアンインストールに失敗しました"
 
-#: packages/admin/src/router.tsx:2014
-#: packages/admin/src/router.tsx:2388
+#: packages/admin/src/router.tsx:2019
+#: packages/admin/src/router.tsx:2393
 msgid "Failed to unpublish"
 msgstr "非公開化に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:557
+#: packages/admin/src/lib/api/content.ts:558
 msgid "Failed to unpublish content"
 msgstr "コンテンツの非公開化に失敗しました"
 
-#: packages/admin/src/router.tsx:2101
-#: packages/admin/src/router.tsx:2482
+#: packages/admin/src/router.tsx:2106
+#: packages/admin/src/router.tsx:2487
 msgid "Failed to unschedule"
 msgstr "公開予約の解除に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:459
+#: packages/admin/src/lib/api/content.ts:460
 msgid "Failed to unschedule content"
 msgstr "コンテンツの公開予約の解除に失敗しました"
 
@@ -7385,7 +7397,7 @@ msgstr "コンテンツタイプの更新に失敗しました"
 msgid "Failed to update comment status"
 msgstr "コメントのステータスの更新に失敗しました"
 
-#: packages/admin/src/lib/api/content.ts:335
+#: packages/admin/src/lib/api/content.ts:336
 msgid "Failed to update content"
 msgstr "コンテンツの更新に失敗しました"
 
@@ -7439,7 +7451,7 @@ msgstr "セクションの更新に失敗しました"
 msgid "Failed to update settings"
 msgstr "設定の更新に失敗しました"
 
-#: packages/admin/src/router.tsx:3112
+#: packages/admin/src/router.tsx:3119
 msgid "Failed to update status"
 msgstr "ステータスの更新に失敗しました"
 
@@ -7493,11 +7505,11 @@ msgstr "よくある質問"
 msgid "Favicon"
 msgstr "ファビコン"
 
-#: packages/admin/src/components/WordPressImport.tsx:1232
+#: packages/admin/src/components/WordPressImport.tsx:1249
 msgid "Feature"
 msgstr "機能"
 
-#: packages/admin/src/components/WordPressImport.tsx:1200
+#: packages/admin/src/components/WordPressImport.tsx:1217
 msgid "Featured Images"
 msgstr "アイキャッチ画像"
 
@@ -7506,7 +7518,7 @@ msgstr "アイキャッチ画像"
 msgid "Features"
 msgstr "機能"
 
-#: packages/admin/src/components/WordPressImport.tsx:858
+#: packages/admin/src/components/WordPressImport.tsx:875
 msgid "Fetching content from the EmDash Exporter API."
 msgstr "EmDash Exporter APIからコンテンツを取得中…"
 
@@ -7518,7 +7530,7 @@ msgstr "項目を作成しました"
 msgid "Field deleted"
 msgstr "項目を削除しました"
 
-#: packages/admin/src/components/FieldEditor.tsx:1646
+#: packages/admin/src/components/FieldEditor.tsx:1650
 msgid "Field label"
 msgstr "フィールドラベル"
 
@@ -7538,7 +7550,7 @@ msgstr "作成後にフィールドタイプを変更することはできませ
 msgid "Field updated"
 msgstr "項目を更新しました"
 
-#: packages/admin/src/components/FieldEditor.tsx:1677
+#: packages/admin/src/components/FieldEditor.tsx:1681
 msgid "field_slug"
 msgstr "field_slug"
 
@@ -7548,7 +7560,7 @@ msgstr "field_slug"
 msgid "Fields"
 msgstr "フィールド"
 
-#: packages/admin/src/components/WordPressImport.tsx:2383
+#: packages/admin/src/components/WordPressImport.tsx:2410
 msgid "Fields created:"
 msgstr "作成されたフィールド："
 
@@ -7557,7 +7569,7 @@ msgid "File"
 msgstr "ファイル"
 
 #. placeholder {0}: progress.current
-#: packages/admin/src/components/WordPressImport.tsx:2208
+#: packages/admin/src/components/WordPressImport.tsx:2225
 msgid "File {0}"
 msgstr "ファイル {0}"
 
@@ -7620,7 +7632,7 @@ msgstr "コンテンツタイプで絞り込む"
 msgid "Filter by date range: {rangeLabel}"
 msgstr "期間で絞り込む：{rangeLabel}"
 
-#: packages/admin/src/components/Redirects.tsx:694
+#: packages/admin/src/components/Redirects.tsx:710
 msgid "Filter by group"
 msgstr "グループで絞り込む"
 
@@ -7633,13 +7645,13 @@ msgid "Filter by source"
 msgstr "ソースで絞り込む"
 
 #: packages/admin/src/components/ContentList.tsx:1110
-#: packages/admin/src/components/Redirects.tsx:707
+#: packages/admin/src/components/Redirects.tsx:723
 msgid "Filter by status"
 msgstr "ステータスで絞り込む"
 
 #: packages/admin/src/components/MediaLibrary.tsx:927
 #: packages/admin/src/components/MediaPickerModal.tsx:1327
-#: packages/admin/src/components/Redirects.tsx:714
+#: packages/admin/src/components/Redirects.tsx:730
 msgid "Filter by type"
 msgstr "種類で絞り込む"
 
@@ -7706,7 +7718,7 @@ msgid "Focal point. Use arrow keys to move it."
 msgstr "焦点位置。矢印キーで移動できます。"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1247
-#: packages/admin/src/router.tsx:2969
+#: packages/admin/src/router.tsx:2976
 msgid "Folder"
 msgstr "フォルダー"
 
@@ -7714,7 +7726,7 @@ msgstr "フォルダー"
 msgid "Folder deleted"
 msgstr "フォルダーを削除しました"
 
-#: packages/admin/src/router.tsx:2762
+#: packages/admin/src/router.tsx:2769
 msgid "Folder no longer exists"
 msgstr "フォルダーが見つかりません"
 
@@ -7750,7 +7762,7 @@ msgstr "フォルダーを読み込めませんでした。"
 msgid "Fonts"
 msgstr "フォント"
 
-#: packages/admin/src/components/WordPressImport.tsx:1454
+#: packages/admin/src/components/WordPressImport.tsx:1471
 msgid "For a complete import including drafts and all content, export from WordPress."
 msgstr "下書きを含むすべてのコンテンツを完全にインポートするには、WordPressからエクスポートしてください。"
 
@@ -7758,7 +7770,7 @@ msgstr "下書きを含むすべてのコンテンツを完全にインポート
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "よりスムーズにインポートするには、WordPressサイトに<0>EmDash Exporter</0>プラグインをインストールしてください。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3845
+#: packages/admin/src/components/PortableTextEditor.tsx:3846
 msgid "Format selection"
 msgstr "選択範囲の書式"
 
@@ -7792,7 +7804,7 @@ msgid "From URL"
 msgstr "URLから"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:280
-#: packages/admin/src/components/WordPressImport.tsx:1207
+#: packages/admin/src/components/WordPressImport.tsx:1224
 msgid "Full"
 msgstr "フル"
 
@@ -7817,12 +7829,12 @@ msgid "Gallery settings"
 msgstr "ギャラリー設定"
 
 #: packages/admin/src/components/Settings.tsx:56
-#: packages/admin/src/router.tsx:3334
+#: packages/admin/src/router.tsx:3341
 msgid "General"
 msgstr "一般"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:3333
+#: packages/admin/src/router.tsx:3340
 msgid "General Settings"
 msgstr "一般設定"
 
@@ -7866,8 +7878,8 @@ msgstr "サイトを公開"
 msgid "Go live {countdown}"
 msgstr "{countdown}に公開"
 
-#: packages/admin/src/components/WordPressImport.tsx:2500
-#: packages/admin/src/router.tsx:4184
+#: packages/admin/src/components/WordPressImport.tsx:2527
+#: packages/admin/src/router.tsx:4191
 msgid "Go to Dashboard"
 msgstr "ダッシュボードへ"
 
@@ -7901,8 +7913,8 @@ msgid "Grid view"
 msgstr "グリッド表示"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:583
-#: packages/admin/src/components/Redirects.tsx:484
-#: packages/admin/src/components/Redirects.tsx:815
+#: packages/admin/src/components/Redirects.tsx:495
+#: packages/admin/src/components/Redirects.tsx:831
 msgid "Group"
 msgstr "グループ"
 
@@ -8061,7 +8073,7 @@ msgid "Hierarchical (like categories, with parent/child relationships)"
 msgstr "階層構造を使用する（カテゴリーのように親子関係を設定できます）"
 
 #: packages/admin/src/components/Redirects.tsx:356
-#: packages/admin/src/components/Redirects.tsx:823
+#: packages/admin/src/components/Redirects.tsx:839
 msgid "Hits"
 msgstr "アクセス数"
 
@@ -8119,7 +8131,7 @@ msgstr "スラッグはどのように生成されますか？"
 msgid "How many"
 msgstr "件数の制限"
 
-#: packages/admin/src/components/WordPressImport.tsx:1577
+#: packages/admin/src/components/WordPressImport.tsx:1594
 msgid "How to create an Application Password"
 msgstr "アプリケーションパスワードの作成方法"
 
@@ -8135,7 +8147,7 @@ msgstr "HTML"
 msgid "HTML block options"
 msgstr "HTMLブロックのオプション"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:193
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:103
 msgid "HTML block preview"
 msgstr "HTMLブロックのプレビュー"
 
@@ -8168,7 +8180,7 @@ msgstr "https://example.com/blog/my-post"
 msgid "https://example.com/image.jpg"
 msgstr "https://example.com/image.jpg"
 
-#: packages/admin/src/components/WordPressImport.tsx:1140
+#: packages/admin/src/components/WordPressImport.tsx:1157
 msgid "https://yoursite.com"
 msgstr "https://yoursite.com"
 
@@ -8221,7 +8233,7 @@ msgstr "画像"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:42
 #: packages/admin/src/components/FieldEditor.tsx:711
-#: packages/admin/src/components/FieldEditor.tsx:1704
+#: packages/admin/src/components/FieldEditor.tsx:1708
 #: packages/admin/src/components/PortableTextEditor.tsx:2474
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
@@ -8244,7 +8256,7 @@ msgstr "画像{0}"
 msgid "Image actions"
 msgstr "画像の操作"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4589
+#: packages/admin/src/components/PortableTextEditor.tsx:4590
 msgid "Image controls"
 msgstr "画像の操作"
 
@@ -8252,7 +8264,7 @@ msgstr "画像の操作"
 msgid "Image from media library"
 msgstr "メディアライブラリから画像"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5157
+#: packages/admin/src/components/PortableTextEditor.tsx:5158
 msgid "Image link"
 msgstr "画像のリンク"
 
@@ -8274,7 +8286,7 @@ msgid "Image replaced."
 msgstr "画像を置き換えました。"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:392
-#: packages/admin/src/components/PortableTextEditor.tsx:4723
+#: packages/admin/src/components/PortableTextEditor.tsx:4724
 msgid "Image settings"
 msgstr "画像設定"
 
@@ -8314,12 +8326,12 @@ msgstr "Implicit TLS（ポート465）"
 #: packages/admin/src/components/AdminCommandPalette.tsx:239
 #: packages/admin/src/components/settings/transfer/ImportSection.tsx:210
 #: packages/admin/src/components/Sidebar.tsx:606
-#: packages/admin/src/components/WordPressImport.tsx:785
+#: packages/admin/src/components/WordPressImport.tsx:793
 msgid "Import"
 msgstr "インポート"
 
 #. placeholder {0}: postType.name
-#: packages/admin/src/components/WordPressImport.tsx:2008
+#: packages/admin/src/components/WordPressImport.tsx:2025
 msgid "Import {0}"
 msgstr "{0}をインポート"
 
@@ -8331,7 +8343,7 @@ msgstr "サイトパッケージをインポート"
 msgid "Import a site package into this site while it is empty, overwriting its initial setup. Admin includes this; choose it instead of Admin to give an agent narrower access."
 msgstr "このサイトが空の状態でサイトパッケージをインポートし、初期設定を上書きします。管理者権限にも含まれています。エージェントのアクセス範囲を制限するには、管理者権限の代わりにこの権限を選択してください。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1422
+#: packages/admin/src/components/WordPressImport.tsx:1439
 msgid "Import all content directly including drafts, custom post types, ACF fields, and SEO data. No file download needed."
 msgstr "下書き、カスタム投稿タイプ、ACFフィールド、SEOデータを含むすべてのコンテンツを直接インポートします。ファイルのダウンロードは不要です。"
 
@@ -8339,11 +8351,11 @@ msgstr "下書き、カスタム投稿タイプ、ACFフィールド、SEOデー
 msgid "Import an existing EmDash site"
 msgstr "既存のEmDashサイトをインポート"
 
-#: packages/admin/src/components/WordPressImport.tsx:2498
+#: packages/admin/src/components/WordPressImport.tsx:2525
 msgid "Import Another File"
 msgstr "別のファイルをインポート"
 
-#: packages/admin/src/components/WordPressImport.tsx:1226
+#: packages/admin/src/components/WordPressImport.tsx:1243
 msgid "Import Capabilities"
 msgstr "インポート対応状況"
 
@@ -8352,32 +8364,32 @@ msgstr "インポート対応状況"
 msgid "Import complete"
 msgstr "インポート完了"
 
-#: packages/admin/src/components/WordPressImport.tsx:2354
+#: packages/admin/src/components/WordPressImport.tsx:2381
 msgid "Import Complete"
 msgstr "インポート完了"
 
-#: packages/admin/src/components/WordPressImport.tsx:2355
+#: packages/admin/src/components/WordPressImport.tsx:2382
 msgid "Import Completed with Errors"
 msgstr "エラーが発生しましたが、インポートは完了しました"
 
-#: packages/admin/src/components/WordPressImport.tsx:1752
+#: packages/admin/src/components/WordPressImport.tsx:1769
 msgid "Import failed"
 msgstr "インポート失敗"
 
-#: packages/admin/src/components/WordPressImport.tsx:738
-#: packages/admin/src/router.tsx:3509
+#: packages/admin/src/components/WordPressImport.tsx:746
+#: packages/admin/src/router.tsx:3516
 msgid "Import from WordPress"
 msgstr "WordPressからインポート"
 
-#: packages/admin/src/components/WordPressImport.tsx:2157
+#: packages/admin/src/components/WordPressImport.tsx:2174
 msgid "Import Media"
 msgstr "メディアをインポート"
 
-#: packages/admin/src/components/WordPressImport.tsx:2110
+#: packages/admin/src/components/WordPressImport.tsx:2127
 msgid "Import Media Files"
 msgstr "メディアファイルをインポート"
 
-#: packages/admin/src/components/WordPressImport.tsx:740
+#: packages/admin/src/components/WordPressImport.tsx:748
 msgid "Import posts, pages, and custom post types from WordPress."
 msgstr "WordPressから投稿、ページ、カスタム投稿タイプをインポートします。"
 
@@ -8385,7 +8397,7 @@ msgstr "WordPressから投稿、ページ、カスタム投稿タイプをイン
 msgid "Import requested by {requester}"
 msgstr "{requester}からのインポートリクエスト"
 
-#: packages/admin/src/components/WordPressImport.tsx:1864
+#: packages/admin/src/components/WordPressImport.tsx:1881
 msgid "Import site configuration from WordPress."
 msgstr "WordPressからサイト設定をインポートします。"
 
@@ -8393,7 +8405,7 @@ msgstr "WordPressからサイト設定をインポートします。"
 msgid "Import this package?"
 msgstr "このパッケージをインポートしますか？"
 
-#: packages/admin/src/components/WordPressImport.tsx:1420
+#: packages/admin/src/components/WordPressImport.tsx:1437
 msgid "Import via EmDash Exporter"
 msgstr "EmDash Exporterでインポート"
 
@@ -8401,7 +8413,7 @@ msgstr "EmDash Exporterでインポート"
 msgid "Imported"
 msgstr "インポート済み"
 
-#: packages/admin/src/components/WordPressImport.tsx:2394
+#: packages/admin/src/components/WordPressImport.tsx:2421
 msgid "Imported by Collection"
 msgstr "コンテンツタイプ別のインポート件数"
 
@@ -8410,7 +8422,7 @@ msgid "Importing"
 msgstr "インポート中"
 
 #. placeholder {0}: wpImportProgress.comments
-#: packages/admin/src/components/WordPressImport.tsx:951
+#: packages/admin/src/components/WordPressImport.tsx:968
 msgid "Importing comments... {0}"
 msgstr "コメントをインポート中… {0}"
 
@@ -8418,25 +8430,25 @@ msgstr "コメントをインポート中… {0}"
 msgid "Importing content"
 msgstr "コンテンツをインポート中"
 
-#: packages/admin/src/components/WordPressImport.tsx:969
+#: packages/admin/src/components/WordPressImport.tsx:986
 msgid "Importing content..."
 msgstr "コンテンツをインポート中…"
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:949
+#: packages/admin/src/components/WordPressImport.tsx:966
 msgid "Importing content... {0}"
 msgstr "コンテンツをインポート中… {0}"
 
 #. placeholder {0}: wpImportProgress.processed
-#: packages/admin/src/components/WordPressImport.tsx:948
+#: packages/admin/src/components/WordPressImport.tsx:965
 msgid "Importing content... {0} of {totalSelectedPosts}"
 msgstr "コンテンツをインポート中… {0}/{totalSelectedPosts}"
 
-#: packages/admin/src/components/WordPressImport.tsx:2189
+#: packages/admin/src/components/WordPressImport.tsx:2206
 msgid "Importing Media"
 msgstr "メディアをインポート中"
 
-#: packages/admin/src/components/WordPressImport.tsx:952
+#: packages/admin/src/components/WordPressImport.tsx:969
 msgid "Importing menus and site settings..."
 msgstr "メニューとサイト設定をインポート中…"
 
@@ -8444,7 +8456,7 @@ msgstr "メニューとサイト設定をインポート中…"
 msgid "Importing menus, widgets, and settings"
 msgstr "メニュー、ウィジェット、設定をインポート中"
 
-#: packages/admin/src/components/WordPressImport.tsx:953
+#: packages/admin/src/components/WordPressImport.tsx:970
 msgid "Importing reusable blocks..."
 msgstr "再利用可能なブロックをインポートしています..."
 
@@ -8460,7 +8472,7 @@ msgstr "ゴミ箱内"
 msgid "In Windows Settings, open Accounts, then Sign-in options, and set up a PIN. Fingerprint and face recognition are optional."
 msgstr "Windowsの設定で「アカウント」→「サインイン オプション」を開き、PINを設定してください。指紋認証と顔認証の設定は任意です。"
 
-#: packages/admin/src/components/BlocksField.tsx:1365
+#: packages/admin/src/components/BlocksField.tsx:1362
 msgid "Inactive version"
 msgstr "非アクティブなバージョン"
 
@@ -8473,7 +8485,7 @@ msgstr "コメントを含める"
 msgid "Include inferred bylines"
 msgstr "投稿者に紐づく執筆者も含める"
 
-#: packages/admin/src/components/WordPressImport.tsx:2030
+#: packages/admin/src/components/WordPressImport.tsx:2047
 msgid "Incompatible"
 msgstr "非互換"
 
@@ -8502,12 +8514,12 @@ msgstr "既存コンテンツを確認中"
 msgid "Inline"
 msgstr "インライン"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:128
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:129
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "インラインのブロックには、サイトのスタイルが適用されます。サイト側でスクリプト・styleタグ・style属性を取り除き、YouTubeとVimeo以外のiframeは空にします。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3648
-#: packages/admin/src/components/PortableTextEditor.tsx:5226
+#: packages/admin/src/components/PortableTextEditor.tsx:3649
+#: packages/admin/src/components/PortableTextEditor.tsx:5227
 msgid "Inline Code"
 msgstr "インラインコード"
 
@@ -8552,8 +8564,8 @@ msgstr "画像ギャラリーを挿入"
 msgid "Insert block"
 msgstr "ブロックを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5173
-#: packages/admin/src/components/PortableTextEditor.tsx:5183
+#: packages/admin/src/components/PortableTextEditor.tsx:5174
+#: packages/admin/src/components/PortableTextEditor.tsx:5184
 msgid "Insert block after current block"
 msgstr "現在のブロックの後にブロックを挿入"
 
@@ -8561,12 +8573,12 @@ msgstr "現在のブロックの後にブロックを挿入"
 msgid "Insert block below"
 msgstr "下にブロックを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5307
+#: packages/admin/src/components/PortableTextEditor.tsx:5308
 msgid "Insert HTML"
 msgstr "HTMLを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3554
-#: packages/admin/src/components/PortableTextEditor.tsx:5300
+#: packages/admin/src/components/PortableTextEditor.tsx:3555
+#: packages/admin/src/components/PortableTextEditor.tsx:5301
 msgid "Insert image"
 msgstr "画像を挿入"
 
@@ -8595,7 +8607,7 @@ msgstr "セクションを挿入"
 msgid "Insert table"
 msgstr "テーブルを挿入"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3568
+#: packages/admin/src/components/PortableTextEditor.tsx:3569
 msgid "Insert video"
 msgstr "動画を挿入"
 
@@ -8612,7 +8624,7 @@ msgstr "インストール"
 msgid "Install blocked"
 msgstr "インストールがブロックされました"
 
-#: packages/admin/src/components/WordPressImport.tsx:1088
+#: packages/admin/src/components/WordPressImport.tsx:1105
 msgid "Install the EmDash Exporter plugin on your WordPress site and generate a key under Tools → EmDash Migration."
 msgstr "WordPressサイトにEmDash Exporterプラグインをインストールし、［ツール］→［EmDash Migration］でキーを生成してください。"
 
@@ -8645,7 +8657,7 @@ msgid "Installing..."
 msgstr "インストール中…"
 
 #: packages/admin/src/components/FieldEditor.tsx:675
-#: packages/admin/src/components/FieldEditor.tsx:1699
+#: packages/admin/src/components/FieldEditor.tsx:1703
 msgid "Integer"
 msgstr "整数"
 
@@ -8727,12 +8739,12 @@ msgstr "システムの安全な確認画面で選択した認証器または認
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "別の場所から開始されたため、計画は変更できなくなりました。進捗はここに表示されます。"
 
-#: packages/admin/src/router.tsx:2618
+#: packages/admin/src/router.tsx:2623
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
 msgstr "閲覧のみで表示しています。ゴミ箱にあるコンテンツは、ゴミ箱から復元できます。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3645
-#: packages/admin/src/components/PortableTextEditor.tsx:5202
+#: packages/admin/src/components/PortableTextEditor.tsx:3646
+#: packages/admin/src/components/PortableTextEditor.tsx:5203
 msgid "Italic"
 msgstr "斜体"
 
@@ -8857,7 +8869,7 @@ msgstr "このサイトの値を維持（空）"
 msgid "Keep this site’s: “{targetValue}”"
 msgstr "このサイトの値を維持：「{targetValue}」"
 
-#: packages/admin/src/components/WordPressImport.tsx:965
+#: packages/admin/src/components/WordPressImport.tsx:982
 msgid "Keep this tab open. The import runs in small steps and can be safely re-run if interrupted."
 msgstr "このタブを開いたままにしてください。インポートは段階的に進み、中断した場合も再実行できます。"
 
@@ -8885,7 +8897,7 @@ msgstr "Kotlin"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:341
 #: packages/admin/src/components/FieldEditor.tsx:1153
-#: packages/admin/src/components/FieldEditor.tsx:1632
+#: packages/admin/src/components/FieldEditor.tsx:1636
 #: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/MenuEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:615
@@ -8989,7 +9001,7 @@ msgstr "移動する"
 msgid "Leave empty to keep current password"
 msgstr "現在のパスワードを保持する場合は空欄にしてください"
 
-#: packages/admin/src/components/WordPressImport.tsx:2579
+#: packages/admin/src/components/WordPressImport.tsx:2606
 msgid "Leave unassigned"
 msgstr "未割り当てのまま"
 
@@ -8999,8 +9011,8 @@ msgstr "保存せずに移動しますか？"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:53
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:4160
-#: packages/admin/src/components/PortableTextEditor.tsx:4281
+#: packages/admin/src/components/PortableTextEditor.tsx:4161
+#: packages/admin/src/components/PortableTextEditor.tsx:4282
 msgid "Left"
 msgstr "左"
 
@@ -9021,8 +9033,8 @@ msgstr "ライセンス"
 msgid "Limit"
 msgstr "最大表示件数"
 
-#: packages/admin/src/components/BlocksField.tsx:2348
-#: packages/admin/src/components/PortableTextEditor.tsx:5386
+#: packages/admin/src/components/BlocksField.tsx:2345
+#: packages/admin/src/components/PortableTextEditor.tsx:5387
 msgid "Link"
 msgstr "リンク"
 
@@ -9030,7 +9042,7 @@ msgstr "リンク"
 msgid "Link expired"
 msgstr "リンクの有効期限が切れました"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3980
+#: packages/admin/src/components/PortableTextEditor.tsx:3981
 msgid "Link options"
 msgstr "リンクの設定"
 
@@ -9150,7 +9162,7 @@ msgstr "ライブビュー"
 #: packages/admin/src/components/ContentPickerModal.tsx:374
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
-#: packages/admin/src/components/Redirects.tsx:851
+#: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/settings/transfer/ApprovalsSection.tsx:134
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:170
@@ -9178,7 +9190,7 @@ msgstr "プレビューを読み込む"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
 #: packages/admin/src/components/ContentEditor.tsx:3011
-#: packages/admin/src/router.tsx:4139
+#: packages/admin/src/router.tsx:4146
 msgid "Loading"
 msgstr "読み込み中"
 
@@ -9207,8 +9219,8 @@ msgstr "コンテンツタイプを読み込み中…"
 msgid "Loading comments..."
 msgstr "コメントを読み込み中…"
 
-#: packages/admin/src/router.tsx:4141
-#: packages/admin/src/router.tsx:4153
+#: packages/admin/src/router.tsx:4148
+#: packages/admin/src/router.tsx:4160
 msgid "Loading configuration..."
 msgstr "設定を読み込み中…"
 
@@ -9216,7 +9228,7 @@ msgstr "設定を読み込み中…"
 msgid "Loading content..."
 msgstr "コンテンツを読み込み中…"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3384
+#: packages/admin/src/components/PortableTextEditor.tsx:3385
 msgid "Loading editor..."
 msgstr "エディターを読み込み中…"
 
@@ -9262,7 +9274,7 @@ msgstr "プラグインパネルを読み込み中"
 msgid "Loading plugins..."
 msgstr "プラグインを読み込み中…"
 
-#: packages/admin/src/components/Redirects.tsx:788
+#: packages/admin/src/components/Redirects.tsx:804
 msgid "Loading redirects..."
 msgstr "リダイレクトを読み込み中…"
 
@@ -9320,7 +9332,7 @@ msgstr "ウィジェットを読み込み中…"
 #: packages/admin/src/components/MediaLibrary.tsx:1254
 #: packages/admin/src/components/MediaUsedIn.tsx:245
 #: packages/admin/src/components/PortableTextEditor.tsx:1925
-#: packages/admin/src/components/Redirects.tsx:851
+#: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:230
@@ -9401,7 +9413,7 @@ msgstr "ログアウト"
 msgid "Logo"
 msgstr "ロゴ"
 
-#: packages/admin/src/components/WordPressImport.tsx:1882
+#: packages/admin/src/components/WordPressImport.tsx:1899
 msgid "Logo & favicon"
 msgstr "ロゴとファビコン"
 
@@ -9410,7 +9422,7 @@ msgid "Long text"
 msgstr "長文テキスト"
 
 #: packages/admin/src/components/FieldEditor.tsx:663
-#: packages/admin/src/components/FieldEditor.tsx:1697
+#: packages/admin/src/components/FieldEditor.tsx:1701
 msgid "Long Text"
 msgstr "長文テキスト"
 
@@ -9461,7 +9473,7 @@ msgstr "サイトのナビゲーションメニューを管理"
 msgid "Manage the people and teams credited on your content."
 msgstr "コンテンツに執筆者として表示する個人やチームを管理します。"
 
-#: packages/admin/src/components/Redirects.tsx:673
+#: packages/admin/src/components/Redirects.tsx:689
 msgid "Manage URL redirects and view 404 errors."
 msgstr "URLリダイレクトの管理と404エラーの確認"
 
@@ -9482,16 +9494,16 @@ msgstr "外部メディアサービスで管理"
 msgid "Managed by your identity provider. Change the name there."
 msgstr "IDプロバイダーが管理しています。名前はそちらで変更してください。"
 
-#: packages/admin/src/components/Redirects.tsx:713
+#: packages/admin/src/components/Redirects.tsx:729
 msgid "Manual"
 msgstr "手動"
 
-#: packages/admin/src/components/WordPressImport.tsx:2536
+#: packages/admin/src/components/WordPressImport.tsx:2563
 msgid "Map Authors"
 msgstr "投稿者を割り当て"
 
 #. placeholder {0}: mapping.wpLogin
-#: packages/admin/src/components/WordPressImport.tsx:2584
+#: packages/admin/src/components/WordPressImport.tsx:2611
 msgid "Map WordPress user {0} to EmDash user"
 msgstr "WordPressユーザー{0}をEmDashユーザーに割り当て"
 
@@ -9517,11 +9529,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "マーケットプレイス"
 
-#: packages/admin/src/router.tsx:3497
+#: packages/admin/src/router.tsx:3504
 msgid "Marketplace browsing is no longer available."
 msgstr "マーケットプレイスの閲覧は終了しました。"
 
-#: packages/admin/src/router.tsx:3470
+#: packages/admin/src/router.tsx:3477
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "マーケットプレイスの閲覧は終了しました。インストール済みのプラグインは「プラグイン」で管理できます。"
 
@@ -9537,7 +9549,7 @@ msgstr "マーケットプレイスの検索に失敗しました"
 msgid "Matched by email"
 msgstr "メールアドレスで照合済み"
 
-#: packages/admin/src/components/FieldEditor.tsx:1763
+#: packages/admin/src/components/FieldEditor.tsx:1767
 msgid "Max Items"
 msgstr "最大項目数"
 
@@ -9553,7 +9565,7 @@ msgstr "最大値"
 msgid "Maximum"
 msgstr "上限"
 
-#: packages/admin/src/components/FieldEditor.tsx:1563
+#: packages/admin/src/components/FieldEditor.tsx:1567
 msgid "Maximum blocks"
 msgstr "ブロック数の上限"
 
@@ -9570,10 +9582,10 @@ msgstr "MDX"
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
 #: packages/admin/src/components/Sidebar.tsx:501
-#: packages/admin/src/components/WordPressImport.tsx:799
-#: packages/admin/src/components/WordPressImport.tsx:1197
-#: packages/admin/src/components/WordPressImport.tsx:1390
-#: packages/admin/src/router.tsx:2721
+#: packages/admin/src/components/WordPressImport.tsx:807
+#: packages/admin/src/components/WordPressImport.tsx:1214
+#: packages/admin/src/components/WordPressImport.tsx:1407
+#: packages/admin/src/router.tsx:2728
 msgid "Media"
 msgstr "メディア"
 
@@ -9582,7 +9594,7 @@ msgid "Media details"
 msgstr "メディアの詳細"
 
 #. placeholder {0}: mediaResult.failed.length
-#: packages/admin/src/components/WordPressImport.tsx:2480
+#: packages/admin/src/components/WordPressImport.tsx:2507
 msgid "Media Errors ({0})"
 msgstr "メディアエラー（{0}）"
 
@@ -9591,15 +9603,15 @@ msgstr "メディアエラー（{0}）"
 msgid "Media folders"
 msgstr "メディアフォルダー"
 
-#: packages/admin/src/components/WordPressImport.tsx:2442
+#: packages/admin/src/components/WordPressImport.tsx:2469
 msgid "Media Import"
 msgstr "メディアインポート"
 
-#: packages/admin/src/components/WordPressImport.tsx:2353
+#: packages/admin/src/components/WordPressImport.tsx:2380
 msgid "Media Import Complete"
 msgstr "メディアインポート完了"
 
-#: packages/admin/src/components/WordPressImport.tsx:2364
+#: packages/admin/src/components/WordPressImport.tsx:2391
 msgid "Media import was skipped"
 msgstr "メディアのインポートをスキップしました"
 
@@ -9635,13 +9647,13 @@ msgstr "メディア読み取り"
 msgid "Media results"
 msgstr "メディアの検索結果"
 
-#: packages/admin/src/router.tsx:3216
+#: packages/admin/src/router.tsx:3223
 msgid "Media Usage"
 msgstr "メディアの使用状況"
 
 #: packages/admin/src/components/Settings.tsx:79
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
-#: packages/admin/src/router.tsx:3217
+#: packages/admin/src/router.tsx:3224
 msgid "Media usage tracking"
 msgstr "メディアの使用状況"
 
@@ -9731,13 +9743,13 @@ msgstr "メニューの名前を変更しました"
 #: packages/admin/src/components/MenuList.tsx:159
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:522
-#: packages/admin/src/components/WordPressImport.tsx:1201
-#: packages/admin/src/router.tsx:3517
+#: packages/admin/src/components/WordPressImport.tsx:1218
+#: packages/admin/src/router.tsx:3524
 msgid "Menus"
 msgstr "メニュー"
 
 #. placeholder {0}: navMenus.length
-#: packages/admin/src/components/WordPressImport.tsx:1818
+#: packages/admin/src/components/WordPressImport.tsx:1835
 msgid "Menus ({0})"
 msgstr "メニュー（{0}）"
 
@@ -9763,7 +9775,7 @@ msgstr "Bing Webmaster Tools に表示される所有権確認用のメタタグ
 msgid "Meta tag content for Google Search Console verification"
 msgstr "Google Search Console に表示される所有権確認用のメタタグから、content属性の値を入力してください。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1895
+#: packages/admin/src/components/WordPressImport.tsx:1912
 msgid "Meta titles, descriptions, and social images"
 msgstr "メタタイトル、ディスクリプション、ソーシャル画像"
 
@@ -9771,11 +9783,11 @@ msgstr "メタタイトル、ディスクリプション、ソーシャル画像
 msgid "Migration guide"
 msgstr "移行ガイド"
 
-#: packages/admin/src/components/WordPressImport.tsx:1101
+#: packages/admin/src/components/WordPressImport.tsx:1118
 msgid "Migration key"
 msgstr "移行キー"
 
-#: packages/admin/src/components/FieldEditor.tsx:1753
+#: packages/admin/src/components/FieldEditor.tsx:1757
 msgid "Min Items"
 msgstr "最小項目数"
 
@@ -9787,7 +9799,7 @@ msgstr "最小文字数"
 msgid "Min Value"
 msgstr "最小値"
 
-#: packages/admin/src/components/FieldEditor.tsx:1552
+#: packages/admin/src/components/FieldEditor.tsx:1556
 msgid "Minimum blocks"
 msgstr "ブロック数の下限"
 
@@ -9840,7 +9852,7 @@ msgstr "月別・年別のアーカイブを表示"
 msgid "More actions for {0}"
 msgstr "{0}のその他の操作"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4127
+#: packages/admin/src/components/PortableTextEditor.tsx:4128
 msgid "More formatting"
 msgstr "その他の書式"
 
@@ -9885,7 +9897,7 @@ msgstr "「{title}」をゴミ箱に移動しますか？後で復元できま�
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4690
-#: packages/admin/src/components/FieldEditor.tsx:1523
+#: packages/admin/src/components/FieldEditor.tsx:1527
 msgid "Move {0} down"
 msgstr "{0}を下へ移動"
 
@@ -9902,7 +9914,7 @@ msgstr "{0}を後ろへ移動"
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
 #: packages/admin/src/components/ContentEditor.tsx:4679
-#: packages/admin/src/components/FieldEditor.tsx:1506
+#: packages/admin/src/components/FieldEditor.tsx:1508
 msgid "Move {0} up"
 msgstr "{0}を上へ移動"
 
@@ -10139,7 +10151,7 @@ msgstr "対応が必要"
 msgid "Never"
 msgstr "ログイン履歴なし"
 
-#: packages/admin/src/router.tsx:2126
+#: packages/admin/src/router.tsx:2131
 msgid "new"
 msgstr "新規"
 
@@ -10166,7 +10178,7 @@ msgstr "新しい執筆者"
 msgid "New byline field"
 msgstr "新しい執筆者情報の項目"
 
-#: packages/admin/src/components/WordPressImport.tsx:2032
+#: packages/admin/src/components/WordPressImport.tsx:2049
 msgid "New collection"
 msgstr "新しいコンテンツタイプ"
 
@@ -10174,7 +10186,7 @@ msgstr "新しいコンテンツタイプ"
 msgid "New content"
 msgstr "新しいコンテンツ"
 
-#: packages/admin/src/router.tsx:3726
+#: packages/admin/src/router.tsx:3733
 msgid "New content type"
 msgstr "新しいコンテンツタイプ"
 
@@ -10204,7 +10216,7 @@ msgid "New public routes"
 msgstr "新しい公開ルート"
 
 #: packages/admin/src/components/Redirects.tsx:243
-#: packages/admin/src/components/Redirects.tsx:680
+#: packages/admin/src/components/Redirects.tsx:696
 msgid "New Redirect"
 msgstr "リダイレクト設定を追加"
 
@@ -10241,7 +10253,7 @@ msgstr "分類グループを追加"
 msgid "New window"
 msgstr "新しいウィンドウ"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:195
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:191
 msgid "Newer version"
 msgstr "新しい版"
 
@@ -10254,7 +10266,7 @@ msgstr "新しい順"
 msgid "News"
 msgstr "ニュース"
 
-#: packages/admin/src/components/FieldEditor.tsx:1824
+#: packages/admin/src/components/FieldEditor.tsx:1828
 #: packages/admin/src/components/ThemeMarketplaceDetail.tsx:315
 msgid "Next"
 msgstr "次へ"
@@ -10328,7 +10340,7 @@ msgstr "承認済みのコメントはまだありません。"
 msgid "No block types defined"
 msgstr "ブロックタイプが定義されていません"
 
-#: packages/admin/src/components/BlocksField.tsx:1159
+#: packages/admin/src/components/BlocksField.tsx:1156
 msgid "No blocks yet"
 msgstr "ブロックはまだありません"
 
@@ -10400,7 +10412,7 @@ msgstr "コンテンツタイプはまだありません。"
 msgid "No custom fields yet"
 msgstr "カスタムフィールドはまだありません"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4685
+#: packages/admin/src/components/PortableTextEditor.tsx:4686
 msgid "No description yet"
 msgstr "説明はまだありません"
 
@@ -10428,7 +10440,7 @@ msgstr "メール送信サービスが設定されていません"
 msgid "No email provider configured. Share this link manually."
 msgstr "メール送信サービスが設定されていません。このリンクを手動で共有してください。"
 
-#: packages/admin/src/components/WordPressImport.tsx:2598
+#: packages/admin/src/components/WordPressImport.tsx:2625
 msgid "No EmDash users found"
 msgstr "EmDashユーザーが見つかりません"
 
@@ -10462,7 +10474,7 @@ msgstr "ファイルが選択されていません"
 msgid "No folders found"
 msgstr "フォルダーが見つかりません"
 
-#: packages/admin/src/components/Redirects.tsx:489
+#: packages/admin/src/components/Redirects.tsx:500
 msgid "No group"
 msgstr "グループなし"
 
@@ -10503,7 +10515,7 @@ msgstr "招待トークンが指定されていません"
 msgid "No items yet"
 msgstr "項目はまだありません"
 
-#: packages/admin/src/components/FieldEditor.tsx:1768
+#: packages/admin/src/components/FieldEditor.tsx:1772
 msgid "No limit"
 msgstr "制限なし"
 
@@ -10628,11 +10640,11 @@ msgstr "利用可能な公開URLがありません"
 msgid "No recent activity"
 msgstr "最近の更新はありません"
 
-#: packages/admin/src/components/Redirects.tsx:793
+#: packages/admin/src/components/Redirects.tsx:809
 msgid "No redirects match these filters"
 msgstr "条件に一致するリダイレクトはありません"
 
-#: packages/admin/src/components/Redirects.tsx:793
+#: packages/admin/src/components/Redirects.tsx:809
 msgid "No redirects yet"
 msgstr "リダイレクトはまだありません"
 
@@ -10722,7 +10734,7 @@ msgid "Non-guest"
 msgstr "ゲスト以外"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:4280
+#: packages/admin/src/components/PortableTextEditor.tsx:4281
 msgid "None"
 msgstr "なし"
 
@@ -10783,7 +10795,7 @@ msgstr "このサイトへの変更はありません。"
 msgid "Nothing published or scheduled in {monthTitle}"
 msgstr "{monthTitle}に公開済み・公開予約済みのコンテンツはありません"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:110
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:111
 #: packages/admin/src/components/editor/IframeBlockNode.tsx:234
 msgid "Nothing to preview yet."
 msgstr "プレビューする内容はまだありません。"
@@ -10798,7 +10810,7 @@ msgid "Now · {time}"
 msgstr "現在 · {time}"
 
 #: packages/admin/src/components/FieldEditor.tsx:669
-#: packages/admin/src/components/FieldEditor.tsx:1698
+#: packages/admin/src/components/FieldEditor.tsx:1702
 msgid "Number"
 msgstr "数値"
 
@@ -10812,11 +10824,11 @@ msgstr "一覧表示でページあたりに表示する投稿数"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
 #: packages/admin/src/components/PortableTextEditor.tsx:552
-#: packages/admin/src/components/PortableTextEditor.tsx:5259
+#: packages/admin/src/components/PortableTextEditor.tsx:5260
 msgid "Numbered List"
 msgstr "番号付きリスト"
 
-#: packages/admin/src/components/WordPressImport.tsx:543
+#: packages/admin/src/components/WordPressImport.tsx:544
 msgid "OAuth authorization requires HTTPS. Please use manual credentials."
 msgstr "OAuth接続の承認にはHTTPSが必要です。認証情報を手動で入力してください。"
 
@@ -10834,7 +10846,7 @@ msgstr "オフライン"
 msgid "OG Image"
 msgstr "OG画像"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:185
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:181
 msgid "Older version"
 msgstr "古い版"
 
@@ -10951,12 +10963,12 @@ msgstr "新しいアドレスのログイン画面を開いてください："
 msgid "Open Windows settings"
 msgstr "Windowsの設定を開く"
 
-#: packages/admin/src/components/WordPressImport.tsx:1591
+#: packages/admin/src/components/WordPressImport.tsx:1608
 msgid "Open WordPress Profile"
 msgstr "WordPressプロフィールを開く"
 
 #: packages/admin/src/components/FieldEditor.tsx:1295
-#: packages/admin/src/components/FieldEditor.tsx:1717
+#: packages/admin/src/components/FieldEditor.tsx:1721
 msgid ""
 "Option 1\n"
 "Option 2\n"
@@ -10993,7 +11005,7 @@ msgstr "ホバー時のツールチップ（任意）"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:432
 #: packages/admin/src/components/FieldEditor.tsx:1292
-#: packages/admin/src/components/FieldEditor.tsx:1710
+#: packages/admin/src/components/FieldEditor.tsx:1714
 msgid "Options (one per line)"
 msgstr "選択肢（1行に1つ）"
 
@@ -11001,11 +11013,11 @@ msgstr "選択肢（1行に1つ）"
 msgid "Or browse files from your computer"
 msgstr "またはコンピューターからファイルを選択"
 
-#: packages/admin/src/components/WordPressImport.tsx:1647
+#: packages/admin/src/components/WordPressImport.tsx:1664
 msgid "Or click to browse. Accepts .xml files exported from WordPress."
 msgstr "またはクリックしてファイルを選択できます。WordPressからエクスポートした.xmlファイルを受け付けます。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1121
+#: packages/admin/src/components/WordPressImport.tsx:1138
 msgid "or connect by URL"
 msgstr "またはURLで接続"
 
@@ -11015,11 +11027,11 @@ msgstr "またはURLで接続"
 msgid "Or continue with"
 msgstr "または次の方法で続行"
 
-#: packages/admin/src/components/WordPressImport.tsx:1447
+#: packages/admin/src/components/WordPressImport.tsx:1464
 msgid "Or upload an export file"
 msgstr "またはエクスポートファイルをアップロード"
 
-#: packages/admin/src/components/WordPressImport.tsx:1159
+#: packages/admin/src/components/WordPressImport.tsx:1176
 msgid "or upload directly"
 msgstr "または直接アップロード"
 
@@ -11106,11 +11118,11 @@ msgstr "パッケージのダイジェスト"
 msgid "Package downloaded"
 msgstr "パッケージをダウンロードしました"
 
-#: packages/admin/src/router.tsx:4051
+#: packages/admin/src/router.tsx:4058
 msgid "Page not found"
 msgstr "ページが見つかりません"
 
-#: packages/admin/src/router.tsx:4179
+#: packages/admin/src/router.tsx:4186
 msgid "Page Not Found"
 msgstr "ページが見つかりません"
 
@@ -11125,7 +11137,7 @@ msgid "Page size"
 msgstr "1ページあたりの表示件数"
 
 #: packages/admin/src/components/PluginManager.tsx:488
-#: packages/admin/src/components/WordPressImport.tsx:1384
+#: packages/admin/src/components/WordPressImport.tsx:1401
 msgid "Pages"
 msgstr "ページ"
 
@@ -11147,12 +11159,12 @@ msgstr "テーブルの前に段落を挿入しました"
 msgid "Parent"
 msgstr "親"
 
-#: packages/admin/src/components/Redirects.tsx:457
-#: packages/admin/src/components/Redirects.tsx:463
+#: packages/admin/src/components/Redirects.tsx:468
+#: packages/admin/src/components/Redirects.tsx:474
 msgid "Part of a redirect loop"
 msgstr "リダイレクトループの一部"
 
-#: packages/admin/src/components/WordPressImport.tsx:1205
+#: packages/admin/src/components/WordPressImport.tsx:1222
 msgid "Partial"
 msgstr "一部対応"
 
@@ -11241,7 +11253,7 @@ msgid "Password"
 msgstr "パスワード"
 
 #. placeholder {0}: result.passwordProtected.length
-#: packages/admin/src/components/WordPressImport.tsx:2413
+#: packages/admin/src/components/WordPressImport.tsx:2440
 msgid "Password-Protected Entries ({0})"
 msgstr "パスワード保護されたコンテンツ（{0}件）"
 
@@ -11253,7 +11265,7 @@ msgstr "埋め込みコードまたはhttpsのリンクを貼り付け…"
 msgid "Paste the address of what to embed."
 msgstr "埋め込むコンテンツのアドレスを貼り付けます。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1086
+#: packages/admin/src/components/WordPressImport.tsx:1103
 msgid "Paste your migration key"
 msgstr "移行キーを貼り付け"
 
@@ -11309,7 +11321,7 @@ msgstr "未公開の変更"
 msgid "People are editing this entry together"
 msgstr "このコンテンツは共同編集中です"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:307
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:288
 msgid "People in this entry"
 msgstr "このコンテンツの参加者"
 
@@ -11357,7 +11369,7 @@ msgstr "{label}を選択して移動を開始しました。"
 msgid "Picked up {name}, position {position} of {total}"
 msgstr "{name}をつかみました。全{total}件中{position}番目です"
 
-#: packages/admin/src/components/FieldEditor.tsx:1881
+#: packages/admin/src/components/FieldEditor.tsx:1885
 msgid "Picking entries this one links to lets editors drag them into an order. The other direction lists whatever points at the entry and cannot be reordered."
 msgstr "参照先のコンテンツを選択する場合は、ドラッグして並べ替えられます。逆方向はこのコンテンツを参照するものの一覧で、並べ替えはできません。"
 
@@ -11397,8 +11409,8 @@ msgstr "有効なメールアドレスを入力してください"
 msgid "Please enter a valid URL"
 msgstr "有効なURLを入力してください"
 
-#: packages/admin/src/components/WordPressImport.tsx:1234
-#: packages/admin/src/router.tsx:4027
+#: packages/admin/src/components/WordPressImport.tsx:1251
+#: packages/admin/src/router.tsx:4034
 msgid "Plugin"
 msgstr "プラグイン"
 
@@ -11436,8 +11448,8 @@ msgid "Plugin details"
 msgstr "プラグインの詳細"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:461
-#: packages/admin/src/router.tsx:3439
-#: packages/admin/src/router.tsx:3447
+#: packages/admin/src/router.tsx:3446
+#: packages/admin/src/router.tsx:3454
 msgid "Plugin Details"
 msgstr "プラグインの詳細"
 
@@ -11462,7 +11474,7 @@ msgstr "プラグインエラー（{0}）"
 msgid "Plugin installation requires explicit consent"
 msgstr "プラグインのインストールには明示的な同意が必要です"
 
-#: packages/admin/src/router.tsx:3431
+#: packages/admin/src/router.tsx:3438
 msgid "Plugin Marketplace"
 msgstr "プラグインマーケットプレイス"
 
@@ -11502,7 +11514,7 @@ msgid "Plugin Permissions"
 msgstr "プラグインの権限"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:3388
+#: packages/admin/src/router.tsx:3395
 msgid "Plugin Registry"
 msgstr "プラグインレジストリ"
 
@@ -11511,8 +11523,8 @@ msgstr "プラグインレジストリ"
 msgid "Plugin registry configuration error"
 msgstr "プラグインレジストリの設定エラー"
 
-#: packages/admin/src/router.tsx:3424
-#: packages/admin/src/router.tsx:3461
+#: packages/admin/src/router.tsx:3431
+#: packages/admin/src/router.tsx:3468
 msgid "Plugin registry is not configured."
 msgstr "プラグインレジストリが設定されていません。"
 
@@ -11522,7 +11534,7 @@ msgid "Plugin responded with {0}: {text}"
 msgstr "プラグインから{0}が返されました：{text}"
 
 #: packages/admin/src/components/PluginSettings.tsx:38
-#: packages/admin/src/router.tsx:4012
+#: packages/admin/src/router.tsx:4019
 msgid "Plugin Settings"
 msgstr "プラグイン設定"
 
@@ -11555,7 +11567,7 @@ msgstr "プラグインウィジェットエラー"
 #: packages/admin/src/components/PluginManager.tsx:200
 #: packages/admin/src/components/Sidebar.tsx:462
 #: packages/admin/src/components/Sidebar.tsx:588
-#: packages/admin/src/router.tsx:3373
+#: packages/admin/src/router.tsx:3380
 msgid "Plugins"
 msgstr "プラグイン"
 
@@ -11599,11 +11611,11 @@ msgstr "投稿のURL（1行に1件）"
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:499
 #: packages/admin/src/components/RelationForm.tsx:369
-#: packages/admin/src/components/WordPressImport.tsx:1378
+#: packages/admin/src/components/WordPressImport.tsx:1395
 msgid "Posts"
 msgstr "投稿"
 
-#: packages/admin/src/components/WordPressImport.tsx:1196
+#: packages/admin/src/components/WordPressImport.tsx:1213
 msgid "Posts & Pages"
 msgstr "投稿とページ"
 
@@ -11615,7 +11627,7 @@ msgstr "1ページあたりの投稿数"
 msgid "Pre-release"
 msgstr "プレリリース"
 
-#: packages/admin/src/components/WordPressImport.tsx:945
+#: packages/admin/src/components/WordPressImport.tsx:962
 msgid "Preparing categories and tags..."
 msgstr "カテゴリとタグを準備しています..."
 
@@ -11627,7 +11639,7 @@ msgstr "登録の準備中…"
 msgid "Preparing this site"
 msgstr "このサイトを準備中"
 
-#: packages/admin/src/components/WordPressImport.tsx:2229
+#: packages/admin/src/components/WordPressImport.tsx:2246
 msgid "Preparing to download files from WordPress..."
 msgstr "WordPressからファイルをダウンロードする準備をしています…"
 
@@ -11806,9 +11818,9 @@ msgstr "公開済み"
 #: packages/admin/src/components/ContentStatusBadge.tsx:59
 #: packages/admin/src/components/ContentTypeEditor.tsx:666
 #: packages/admin/src/components/Dashboard.tsx:527
-#: packages/admin/src/components/revisions/RevisionList.tsx:270
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:168
-#: packages/admin/src/router.tsx:1984
+#: packages/admin/src/components/revisions/RevisionList.tsx:268
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:164
+#: packages/admin/src/router.tsx:1989
 msgid "Published"
 msgstr "公開済み"
 
@@ -11885,11 +11897,11 @@ msgstr "簡易作成では、このフィールドとコンテンツタイプに
 #: packages/admin/src/components/editor/blockTypes.ts:109
 #: packages/admin/src/components/PortableTextEditor.tsx:562
 #: packages/admin/src/components/PortableTextEditor.tsx:2251
-#: packages/admin/src/components/PortableTextEditor.tsx:5285
+#: packages/admin/src/components/PortableTextEditor.tsx:5286
 msgid "Quote"
 msgstr "引用"
 
-#: packages/admin/src/components/WordPressImport.tsx:1214
+#: packages/admin/src/components/WordPressImport.tsx:1231
 msgid "Raw meta"
 msgstr "未加工のメタデータ"
 
@@ -11961,7 +11973,7 @@ msgid "Read your taxonomies and terms"
 msgstr "分類グループと分類項目を読み取る"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:96
-#: packages/admin/src/router.tsx:2580
+#: packages/admin/src/router.tsx:2585
 msgid "Read-only"
 msgstr "閲覧のみ"
 
@@ -11981,7 +11993,7 @@ msgstr "パッケージを読み取り中"
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:481
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:492
 #: packages/admin/src/components/settings/transfer/ExportSection.tsx:301
-#: packages/admin/src/components/WordPressImport.tsx:2036
+#: packages/admin/src/components/WordPressImport.tsx:2053
 msgid "Ready"
 msgstr "準備完了"
 
@@ -12039,7 +12051,7 @@ msgstr "親のないレコードを除外しました"
 msgid "Recovery link sent to {0}"
 msgstr "アカウント復旧用リンクを{0}に送信しました"
 
-#: packages/admin/src/components/Redirects.tsx:774
+#: packages/admin/src/components/Redirects.tsx:790
 msgid "Redirect loop detected"
 msgstr "リダイレクトループが検出されました"
 
@@ -12047,12 +12059,12 @@ msgstr "リダイレクトループが検出されました"
 msgid "Redirecting to login..."
 msgstr "ログインにリダイレクト中…"
 
-#: packages/admin/src/components/Redirects.tsx:672
-#: packages/admin/src/components/Redirects.tsx:731
+#: packages/admin/src/components/Redirects.tsx:688
+#: packages/admin/src/components/Redirects.tsx:747
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:529
-#: packages/admin/src/router.tsx:3559
+#: packages/admin/src/router.tsx:3566
 msgid "Redirects"
 msgstr "リダイレクト"
 
@@ -12060,7 +12072,7 @@ msgstr "リダイレクト"
 msgid "Redirects that loop will be imported turned off"
 msgstr "循環するリダイレクトは無効にしてインポートします"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5448
+#: packages/admin/src/components/PortableTextEditor.tsx:5449
 msgid "Redo"
 msgstr "やり直す"
 
@@ -12123,7 +12135,7 @@ msgstr "登録がキャンセルされたかタイムアウトしました。も
 #: packages/admin/src/components/PluginManager.tsx:218
 #: packages/admin/src/components/PluginManager.tsx:463
 #: packages/admin/src/components/Sidebar.tsx:597
-#: packages/admin/src/router.tsx:3388
+#: packages/admin/src/router.tsx:3395
 msgid "Registry"
 msgstr "レジストリ"
 
@@ -12132,7 +12144,7 @@ msgstr "レジストリ"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3762
+#: packages/admin/src/router.tsx:3769
 msgid "Relations"
 msgstr "関連付け"
 
@@ -12156,7 +12168,7 @@ msgid "Release notes"
 msgstr "リリースノート"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:109
-#: packages/admin/src/router.tsx:2605
+#: packages/admin/src/router.tsx:2610
 msgid "Reload"
 msgstr "再読み込み"
 
@@ -12168,7 +12180,7 @@ msgstr "EmDashを更新した後、ページを再読み込みしてからもう
 msgid "Reload page"
 msgstr "ページを再読み込み"
 
-#: packages/admin/src/router.tsx:2596
+#: packages/admin/src/router.tsx:2601
 msgid "Reloading the admin"
 msgstr "管理画面を再読み込みしています"
 
@@ -12192,7 +12204,7 @@ msgstr "削除"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:605
 #: packages/admin/src/components/ImageFieldRenderer.tsx:846
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
-#: packages/admin/src/components/PortableTextEditor.tsx:5421
+#: packages/admin/src/components/PortableTextEditor.tsx:5422
 #: packages/admin/src/components/settings/GeneralSettings.tsx:478
 #: packages/admin/src/components/settings/GeneralSettings.tsx:538
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -12272,9 +12284,9 @@ msgstr "画像を削除しますか？"
 msgid "Remove item {0}"
 msgstr "項目{0}を削除"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3871
-#: packages/admin/src/components/PortableTextEditor.tsx:4014
-#: packages/admin/src/components/PortableTextEditor.tsx:4657
+#: packages/admin/src/components/PortableTextEditor.tsx:3872
+#: packages/admin/src/components/PortableTextEditor.tsx:4015
+#: packages/admin/src/components/PortableTextEditor.tsx:4658
 msgid "Remove link"
 msgstr "リンクを解除"
 
@@ -12291,7 +12303,7 @@ msgstr "パスキーを削除しますか？"
 msgid "Remove schedule"
 msgstr "予約を解除"
 
-#: packages/admin/src/components/FieldEditor.tsx:1743
+#: packages/admin/src/components/FieldEditor.tsx:1747
 msgid "Remove sub-field"
 msgstr "サブフィールドを削除"
 
@@ -12421,7 +12433,7 @@ msgstr "並べ替え"
 #. placeholder {0}: blockType?.label ?? block._type
 #. placeholder {0}: byline.displayName
 #. placeholder {0}: collection.label
-#: packages/admin/src/components/BlocksField.tsx:1577
+#: packages/admin/src/components/BlocksField.tsx:1574
 #: packages/admin/src/components/BylineCreditsEditor.tsx:693
 #: packages/admin/src/components/ContentTypeList.tsx:323
 msgid "Reorder {0}"
@@ -12461,8 +12473,8 @@ msgstr "置き換え"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:739
 #: packages/admin/src/components/ImageFieldRenderer.tsx:742
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
-#: packages/admin/src/components/PortableTextEditor.tsx:4679
-#: packages/admin/src/components/PortableTextEditor.tsx:4761
+#: packages/admin/src/components/PortableTextEditor.tsx:4680
+#: packages/admin/src/components/PortableTextEditor.tsx:4762
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
@@ -12490,7 +12502,7 @@ msgstr "{label}のダークモード用の画像を置き換え"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
 #: packages/admin/src/components/MediaDetailPanel.tsx:1819
 #: packages/admin/src/components/MediaDetailPanel.tsx:1942
-#: packages/admin/src/components/PortableTextEditor.tsx:4760
+#: packages/admin/src/components/PortableTextEditor.tsx:4761
 msgid "Replace image"
 msgstr "画像を置き換え"
 
@@ -12574,12 +12586,12 @@ msgstr "コンテンツを公開するにはスラッグを必須にする"
 #: packages/admin/src/components/BylineFieldEditor.tsx:406
 #: packages/admin/src/components/ContentTypeEditor.tsx:984
 #: packages/admin/src/components/FieldEditor.tsx:1195
-#: packages/admin/src/components/FieldEditor.tsx:1725
+#: packages/admin/src/components/FieldEditor.tsx:1729
 #: packages/admin/src/routes/byline-schema.tsx:235
 msgid "Required"
 msgstr "必須"
 
-#: packages/admin/src/components/WordPressImport.tsx:2049
+#: packages/admin/src/components/WordPressImport.tsx:2066
 msgid "Required fields:"
 msgstr "必要なフィールド："
 
@@ -12680,13 +12692,13 @@ msgid "Resolving publisher handle..."
 msgstr "公開者のハンドルを解決中..."
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:5275
+#: packages/admin/src/components/PortableTextEditor.tsx:5276
 msgid "Restart numbering"
 msgstr "番号を振り直す"
 
 #: packages/admin/src/components/ContentList.tsx:1837
 #: packages/admin/src/components/revisions/RevisionRestoreDialog.tsx:141
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:244
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:240
 msgid "Restore"
 msgstr "復元"
 
@@ -12702,7 +12714,7 @@ msgstr "この版を復元しますか？"
 msgid "Restored an earlier version"
 msgstr "以前の版を復元しました"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:243
+#: packages/admin/src/components/revisions/RevisionList.tsx:241
 msgid "Restored from {restoredDate}"
 msgstr "{restoredDate}の版から復元"
 
@@ -12718,8 +12730,8 @@ msgstr "復元中…"
 msgid "Results"
 msgstr "結果"
 
-#: packages/admin/src/components/BlocksField.tsx:1366
-#: packages/admin/src/components/FieldEditor.tsx:1490
+#: packages/admin/src/components/BlocksField.tsx:1363
+#: packages/admin/src/components/FieldEditor.tsx:1491
 msgid "Retired"
 msgstr "使用終了"
 
@@ -12741,7 +12753,7 @@ msgstr "使用終了"
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:92
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:319
-#: packages/admin/src/router.tsx:4167
+#: packages/admin/src/router.tsx:4174
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12792,11 +12804,11 @@ msgstr "再設定中…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "コンテンツに挿入して再利用できるセクションを管理"
 
-#: packages/admin/src/router.tsx:2034
+#: packages/admin/src/router.tsx:2039
 msgid "Reverted to published version"
 msgstr "公開版に戻しました"
 
-#: packages/admin/src/components/WordPressImport.tsx:771
+#: packages/admin/src/components/WordPressImport.tsx:779
 msgid "Review"
 msgstr "確認"
 
@@ -12817,7 +12829,7 @@ msgstr "新しい権限を確認"
 msgid "Review posts"
 msgstr "投稿を確認"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:58
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:98
 msgid "Review proposed changes"
 msgstr "提案された変更を確認"
 
@@ -12841,8 +12853,8 @@ msgstr "検証済み更新を確認"
 msgid "Reviewing…"
 msgstr "確認中…"
 
-#: packages/admin/src/lib/api/content.ts:682
-#: packages/admin/src/lib/api/content.ts:704
+#: packages/admin/src/lib/api/content.ts:683
+#: packages/admin/src/lib/api/content.ts:705
 msgid "Revision not found: {revisionId}"
 msgstr "リビジョンが見つかりません：{revisionId}"
 
@@ -12888,8 +12900,8 @@ msgstr "リッチテキストエディター"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:55
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:4162
-#: packages/admin/src/components/PortableTextEditor.tsx:4283
+#: packages/admin/src/components/PortableTextEditor.tsx:4163
+#: packages/admin/src/components/PortableTextEditor.tsx:4284
 msgid "Right"
 msgstr "右"
 
@@ -12944,7 +12956,7 @@ msgid "Row added above"
 msgstr "上に行を追加しました"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:4260
+#: packages/admin/src/components/PortableTextEditor.tsx:4261
 msgid "Row added below"
 msgstr "下に行を追加しました"
 
@@ -12957,7 +12969,7 @@ msgstr "行"
 msgid "Ruby"
 msgstr "Ruby"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:120
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:121
 msgid "Run preview"
 msgstr "プレビューを実行"
 
@@ -12969,7 +12981,7 @@ msgstr "サンドボックス内でHTML・CSS・JavaScriptを実行します。"
 msgid "Rust"
 msgstr "Rust"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:93
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:89
 msgid "Same as current version"
 msgstr "現在の版と同じ"
 
@@ -13004,7 +13016,7 @@ msgstr "保存"
 msgid "Save (Enter)"
 msgstr "保存（Enter）"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4638
+#: packages/admin/src/components/PortableTextEditor.tsx:4639
 msgid "Save alt text"
 msgstr "代替テキストを保存"
 
@@ -13100,7 +13112,7 @@ msgstr "保存すると、サイトには表示されない下書きが作成さ
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/ContentEditor.tsx:3268
 #: packages/admin/src/components/ContentEditor.tsx:3273
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
@@ -13166,7 +13178,7 @@ msgstr "公開予約を解除しました"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:420
 #: packages/admin/src/components/ContentList.tsx:1074
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:2082
+#: packages/admin/src/router.tsx:2087
 msgid "Scheduled"
 msgstr "予約済み"
 
@@ -13196,11 +13208,11 @@ msgstr "予約公開"
 msgid "Scheduled publishing needs attention"
 msgstr "公開予約を確認してください"
 
-#: packages/admin/src/components/WordPressImport.tsx:2372
+#: packages/admin/src/components/WordPressImport.tsx:2399
 msgid "Schema Changes"
 msgstr "スキーマの変更"
 
-#: packages/admin/src/components/WordPressImport.tsx:1752
+#: packages/admin/src/components/WordPressImport.tsx:1769
 msgid "Schema preparation failed"
 msgstr "スキーマの準備に失敗しました"
 
@@ -13406,7 +13418,7 @@ msgstr "複数のコンテンツで使える公開プロフィールを検索し
 msgid "Search sections..."
 msgstr "セクションを検索…"
 
-#: packages/admin/src/components/Redirects.tsx:667
+#: packages/admin/src/components/Redirects.tsx:683
 msgid "Search source or destination..."
 msgstr "転送元または転送先を検索…"
 
@@ -13490,7 +13502,7 @@ msgstr "セクションタイトル"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:543
-#: packages/admin/src/router.tsx:3566
+#: packages/admin/src/router.tsx:3573
 msgid "Sections"
 msgstr "セクション"
 
@@ -13506,7 +13518,7 @@ msgstr "アカウントを保護"
 #: packages/admin/src/components/Settings.tsx:90
 #: packages/admin/src/components/settings/EmailSettings.tsx:261
 #: packages/admin/src/components/settings/EmailSettings.tsx:350
-#: packages/admin/src/router.tsx:3228
+#: packages/admin/src/router.tsx:3235
 msgid "Security"
 msgstr "セキュリティ"
 
@@ -13548,7 +13560,7 @@ msgstr "セキュリティ上の問題が発生しました。セキュアな接
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:3227
+#: packages/admin/src/router.tsx:3234
 msgid "Security Settings"
 msgstr "セキュリティ設定"
 
@@ -13556,13 +13568,17 @@ msgstr "セキュリティ設定"
 msgid "See where this file is used."
 msgstr "このファイルの使用箇所を確認できます。"
 
-#: packages/admin/src/components/BylineFieldEditor.tsx:59
-#: packages/admin/src/components/FieldEditor.tsx:693
-#: packages/admin/src/components/FieldEditor.tsx:1702
 #: packages/admin/src/components/MediaPickerModal.tsx:891
 #: packages/admin/src/components/Settings.tsx:172
 msgid "Select"
 msgstr "選択"
+
+#: packages/admin/src/components/BylineFieldEditor.tsx:59
+#: packages/admin/src/components/FieldEditor.tsx:693
+#: packages/admin/src/components/FieldEditor.tsx:1706
+msgctxt "field type"
+msgid "Select"
+msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
 #: packages/admin/src/components/ContentEditor.tsx:5145
@@ -13655,7 +13671,7 @@ msgstr "ファビコンを選択"
 msgid "Select file"
 msgstr "ファイルを選択"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3582
+#: packages/admin/src/components/PortableTextEditor.tsx:3583
 msgid "Select gallery images"
 msgstr "ギャラリーの画像を選択"
 
@@ -13663,7 +13679,7 @@ msgstr "ギャラリーの画像を選択"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
 #: packages/admin/src/components/ImageFieldRenderer.tsx:964
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:3553
+#: packages/admin/src/components/PortableTextEditor.tsx:3554
 msgid "Select image"
 msgstr "画像を選択"
 
@@ -13696,11 +13712,11 @@ msgid "Select up to 50 posts at a time."
 msgstr "一度に選択できるのは50件までです。"
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:3567
+#: packages/admin/src/components/PortableTextEditor.tsx:3568
 msgid "Select video"
 msgstr "動画を選択"
 
-#: packages/admin/src/components/WordPressImport.tsx:1785
+#: packages/admin/src/components/WordPressImport.tsx:1802
 msgid "Select which content types to import."
 msgstr "インポートするコンテンツタイプを選択してください。"
 
@@ -13740,7 +13756,7 @@ msgstr "選択範囲"
 #: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:219
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
-#: packages/admin/src/router.tsx:3252
+#: packages/admin/src/router.tsx:3259
 msgid "Self-Signup Domains"
 msgstr "ユーザー登録を許可するドメイン"
 
@@ -13806,18 +13822,18 @@ msgstr "送信中…"
 #: packages/admin/src/components/ContentTypeEditor.tsx:689
 #: packages/admin/src/components/Settings.tsx:68
 #: packages/admin/src/lib/editor-sections.ts:37
-#: packages/admin/src/router.tsx:3364
+#: packages/admin/src/router.tsx:3371
 msgid "SEO"
 msgstr "SEO"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:27
 #: packages/admin/src/components/settings/transfer/labels.ts:87
-#: packages/admin/src/components/WordPressImport.tsx:1893
+#: packages/admin/src/components/WordPressImport.tsx:1910
 msgid "SEO settings"
 msgstr "SEO設定"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:3363
+#: packages/admin/src/router.tsx:3370
 msgid "SEO Settings"
 msgstr "SEO設定"
 
@@ -13899,8 +13915,8 @@ msgstr "セットアップ中…"
 #: packages/admin/src/components/PluginManager.tsx:546
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:611
-#: packages/admin/src/components/WordPressImport.tsx:1861
-#: packages/admin/src/router.tsx:3208
+#: packages/admin/src/components/WordPressImport.tsx:1878
+#: packages/admin/src/router.tsx:3215
 msgid "Settings"
 msgstr "設定"
 
@@ -13947,7 +13963,7 @@ msgid "Short text"
 msgstr "短いテキスト"
 
 #: packages/admin/src/components/FieldEditor.tsx:657
-#: packages/admin/src/components/FieldEditor.tsx:1696
+#: packages/admin/src/components/FieldEditor.tsx:1700
 msgid "Short Text"
 msgstr "短文テキスト"
 
@@ -13959,7 +13975,7 @@ msgstr "表示"
 msgid "Show {label}"
 msgstr "{label}を表示"
 
-#: packages/admin/src/components/revisions/RevisionViewBar.tsx:230
+#: packages/admin/src/components/revisions/RevisionViewBar.tsx:226
 msgid "Show changes"
 msgstr "変更箇所を表示"
 
@@ -13975,7 +13991,7 @@ msgstr "日付を表示"
 msgid "Show hierarchy"
 msgstr "階層を表示"
 
-#: packages/admin/src/components/revisions/RevisionList.tsx:193
+#: packages/admin/src/components/revisions/RevisionList.tsx:191
 msgid "Show older versions"
 msgstr "古い版を表示"
 
@@ -14022,7 +14038,7 @@ msgstr "新しいコンテンツを作成するボタンを表示します"
 
 #: packages/admin/src/components/Settings.tsx:142
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:80
-#: packages/admin/src/router.tsx:3313
+#: packages/admin/src/router.tsx:3320
 msgid "Sidebars"
 msgstr "サイドバー"
 
@@ -14125,7 +14141,7 @@ msgstr "サイトの基本情報"
 msgid "Site Identity"
 msgstr "サイト情報"
 
-#: packages/admin/src/components/WordPressImport.tsx:2320
+#: packages/admin/src/components/WordPressImport.tsx:2347
 msgid "site identity applied (title, tagline, logo)"
 msgstr "サイト情報を適用しました（タイトル、タグライン、ロゴ）"
 
@@ -14152,7 +14168,7 @@ msgstr "サイト設定"
 
 #: packages/admin/src/components/MediaUsedIn.tsx:298
 #: packages/admin/src/components/SetupWizard.tsx:407
-#: packages/admin/src/components/WordPressImport.tsx:1203
+#: packages/admin/src/components/WordPressImport.tsx:1220
 msgid "Site Settings"
 msgstr "サイト設定"
 
@@ -14173,7 +14189,7 @@ msgstr "サイトのタイトル"
 msgid "Site Title"
 msgstr "サイトタイトル"
 
-#: packages/admin/src/components/WordPressImport.tsx:1873
+#: packages/admin/src/components/WordPressImport.tsx:1890
 msgid "Site title & tagline"
 msgstr "サイトタイトルとキャッチフレーズ"
 
@@ -14214,11 +14230,11 @@ msgstr "フォルダーにはサイズを表示できません"
 msgid "Size:"
 msgstr "サイズ："
 
-#: packages/admin/src/components/WordPressImport.tsx:2154
+#: packages/admin/src/components/WordPressImport.tsx:2171
 msgid "Skip Media Import"
 msgstr "メディアインポートをスキップ"
 
-#: packages/admin/src/components/WordPressImport.tsx:2179
+#: packages/admin/src/components/WordPressImport.tsx:2196
 msgid "Skipped"
 msgstr "スキップ済み"
 
@@ -14237,9 +14253,9 @@ msgstr "スキップ済み"
 #: packages/admin/src/components/FieldEditor.tsx:1166
 #: packages/admin/src/components/FieldEditor.tsx:1169
 #: packages/admin/src/components/FieldEditor.tsx:1172
-#: packages/admin/src/components/FieldEditor.tsx:1658
-#: packages/admin/src/components/FieldEditor.tsx:1661
-#: packages/admin/src/components/FieldEditor.tsx:1664
+#: packages/admin/src/components/FieldEditor.tsx:1662
+#: packages/admin/src/components/FieldEditor.tsx:1665
+#: packages/admin/src/components/FieldEditor.tsx:1668
 #: packages/admin/src/components/RelationForm.tsx:435
 #: packages/admin/src/components/RelationForm.tsx:440
 #: packages/admin/src/components/RelationForm.tsx:444
@@ -14301,7 +14317,7 @@ msgstr "smtp.example.com"
 
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
-#: packages/admin/src/router.tsx:3349
+#: packages/admin/src/router.tsx:3356
 msgid "Social Links"
 msgstr "SNSリンク"
 
@@ -14318,7 +14334,7 @@ msgstr "SNSアカウントへのリンク"
 msgid "Social Profiles"
 msgstr "SNSアカウント"
 
-#: packages/admin/src/router.tsx:3348
+#: packages/admin/src/router.tsx:3355
 msgid "Social Settings"
 msgstr "ソーシャル設定"
 
@@ -14335,7 +14351,7 @@ msgstr "移行元サイトに存在しないメディアファイルへのリン
 msgid "Some content may not appear here yet."
 msgstr "一部のコンテンツはまだ表示されない可能性があります。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1910
+#: packages/admin/src/components/WordPressImport.tsx:1927
 msgid "Some content types cannot be imported"
 msgstr "一部のコンテンツタイプはインポートできません"
 
@@ -14406,7 +14422,7 @@ msgstr "並べ替え可能"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:791
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:236
 #: packages/admin/src/components/PluginManager.tsx:652
-#: packages/admin/src/components/Redirects.tsx:808
+#: packages/admin/src/components/Redirects.tsx:824
 #: packages/admin/src/components/SectionEditor.tsx:298
 msgid "Source"
 msgstr "ソース"
@@ -14467,7 +14483,7 @@ msgstr "新しいインポートを開始"
 msgid "Start import"
 msgstr "インポートを開始"
 
-#: packages/admin/src/components/WordPressImport.tsx:1972
+#: packages/admin/src/components/WordPressImport.tsx:1989
 msgid "Start Import"
 msgstr "インポートを開始"
 
@@ -14522,7 +14538,7 @@ msgstr "状態"
 #: packages/admin/src/components/ContentList.tsx:510
 #: packages/admin/src/components/ContentList.tsx:810
 #: packages/admin/src/components/ContentTypeEditor.tsx:139
-#: packages/admin/src/components/Redirects.tsx:825
+#: packages/admin/src/components/Redirects.tsx:841
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:382
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:613
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:639
@@ -14563,16 +14579,16 @@ msgstr "保存済みのバックアップ"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "言語ごとに保存され、執筆者の翻訳ごとに異なる値を設定できます。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3647
-#: packages/admin/src/components/PortableTextEditor.tsx:5218
+#: packages/admin/src/components/PortableTextEditor.tsx:3648
+#: packages/admin/src/components/PortableTextEditor.tsx:5219
 msgid "Strikethrough"
 msgstr "取り消し線"
 
-#: packages/admin/src/components/WordPressImport.tsx:1805
+#: packages/admin/src/components/WordPressImport.tsx:1822
 msgid "Structure"
 msgstr "構造"
 
-#: packages/admin/src/components/WordPressImport.tsx:1216
+#: packages/admin/src/components/WordPressImport.tsx:1233
 msgid "Structured"
 msgstr "構造化データ"
 
@@ -14585,11 +14601,11 @@ msgstr "スタイル"
 msgid "Style changed:"
 msgstr "スタイルの変更："
 
-#: packages/admin/src/components/FieldEditor.tsx:1656
+#: packages/admin/src/components/FieldEditor.tsx:1660
 msgid "Sub-field slugs cannot be changed after creation."
 msgstr "サブフィールドのスラッグは作成後に変更できません。"
 
-#: packages/admin/src/components/FieldEditor.tsx:1580
+#: packages/admin/src/components/FieldEditor.tsx:1584
 msgid "Sub-Fields"
 msgstr "サブフィールド"
 
@@ -14598,11 +14614,11 @@ msgstr "サブフィールド"
 msgid "Subscriber"
 msgstr "閲覧者"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4141
+#: packages/admin/src/components/PortableTextEditor.tsx:4142
 msgid "Subscript"
 msgstr "下付き文字"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4147
+#: packages/admin/src/components/PortableTextEditor.tsx:4148
 msgid "Superscript"
 msgstr "上付き文字"
 
@@ -14654,11 +14670,11 @@ msgstr "システムフィールド"
 msgid "Table"
 msgstr "テーブル"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3398
+#: packages/admin/src/components/PortableTextEditor.tsx:3399
 msgid "Table cells accept text, links, and formatting only."
 msgstr "テーブルのセルには、テキスト・リンク・書式だけを入れられます。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4250
+#: packages/admin/src/components/PortableTextEditor.tsx:4251
 msgid "Table controls"
 msgstr "テーブル操作"
 
@@ -14667,7 +14683,7 @@ msgid "Table deleted"
 msgstr "テーブルを削除しました"
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:3286
+#: packages/admin/src/components/PortableTextEditor.tsx:3287
 msgid "Table inserted"
 msgstr "テーブルを挿入しました"
 
@@ -14675,7 +14691,7 @@ msgstr "テーブルを挿入しました"
 msgid "Table size"
 msgstr "テーブルのサイズ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3395
+#: packages/admin/src/components/PortableTextEditor.tsx:3396
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "リストや引用の中にはテーブルを貼り付けられません。独立した段落に貼り付けてください。"
 
@@ -14691,7 +14707,7 @@ msgid "Tags"
 msgstr "タグ"
 
 #. placeholder {0}: analysis.tags
-#: packages/admin/src/components/WordPressImport.tsx:1847
+#: packages/admin/src/components/WordPressImport.tsx:1864
 msgid "Tags ({0})"
 msgstr "タグ（{0}）"
 
@@ -14717,7 +14733,7 @@ msgstr "翻訳先の言語"
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:989
 #: packages/admin/src/lib/editor-sections.ts:36
-#: packages/admin/src/router.tsx:3537
+#: packages/admin/src/router.tsx:3544
 msgid "Taxonomies"
 msgstr "分類グループ"
 
@@ -14816,12 +14832,12 @@ msgstr "{to}にテストメールを送信しました"
 msgid "test@example.com"
 msgstr "test@example.com"
 
-#: packages/admin/src/components/BlocksField.tsx:2347
+#: packages/admin/src/components/BlocksField.tsx:2344
 #: packages/admin/src/components/PortableTextEditor.tsx:2428
 msgid "Text"
 msgstr "テキスト"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5462
+#: packages/admin/src/components/PortableTextEditor.tsx:5463
 msgid "Text formatting"
 msgstr "テキスト書式"
 
@@ -14829,7 +14845,7 @@ msgstr "テキスト書式"
 msgid "That time does not exist in your time zone"
 msgstr "その時刻はお使いのタイムゾーンに存在しません"
 
-#: packages/admin/src/components/revisions/useRevisionView.ts:547
+#: packages/admin/src/components/revisions/useRevisionView.ts:545
 msgid "That version is no longer available. Back to editing."
 msgstr "その版は利用できなくなりました。編集に戻ります。"
 
@@ -14849,7 +14865,7 @@ msgstr "「{1}」の「{0}」フィールド（参照先のコンテンツを選
 msgid "The admin was updated"
 msgstr "管理画面が更新されました"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:201
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:204
 msgid "The admin's security policy blocked some resources this block loads, such as external scripts, fonts or frames. Your site may still load them."
 msgstr "管理画面のセキュリティポリシーにより、このブロックが読み込む外部スクリプト・フォント・フレームなどの一部リソースがブロックされました。サイト側では読み込める場合があります。"
 
@@ -14913,7 +14929,7 @@ msgstr "デバイスにはアクセスが許可されません。"
 msgid "The download stopped"
 msgstr "ダウンロードが停止しました"
 
-#: packages/admin/src/components/WordPressImport.tsx:1912
+#: packages/admin/src/components/WordPressImport.tsx:1929
 msgid "The existing collection has fields with incompatible types."
 msgstr "既存のコンテンツタイプに互換性のない型のフィールドがあります。"
 
@@ -15116,7 +15132,7 @@ msgstr "パッケージのコンテンツをこのサイトに書き込みます
 msgid "The package’s file index is not valid."
 msgstr "パッケージのファイルインデックスが無効です。"
 
-#: packages/admin/src/router.tsx:4181
+#: packages/admin/src/router.tsx:4188
 msgid "The page you're looking for doesn't exist."
 msgstr "お探しのページは存在しません。"
 
@@ -15132,7 +15148,7 @@ msgstr "このページに読み込んだ後、コマンドラインやAIアシ�
 msgid "The plugin field widget failed to render."
 msgstr "プラグインのフィールドウィジェットを表示できませんでした。"
 
-#: packages/admin/src/components/EditorDraftPatchPreview.tsx:60
+#: packages/admin/src/components/EditorDraftPatchPreview.tsx:100
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "プラグインはこれらの変更を保存していません。エディターに反映する前に確認してください。"
 
@@ -15271,7 +15287,7 @@ msgstr "テーマ"
 msgid "Theme \"{id}\" not found"
 msgstr "テーマ「{id}」が見つかりません"
 
-#: packages/admin/src/router.tsx:3488
+#: packages/admin/src/router.tsx:3495
 msgid "Theme Details"
 msgstr "テーマの詳細"
 
@@ -15280,7 +15296,7 @@ msgstr "テーマの詳細"
 msgid "Theme ID: {0}"
 msgstr "テーマID：{0}"
 
-#: packages/admin/src/router.tsx:3480
+#: packages/admin/src/router.tsx:3487
 msgid "Theme Marketplace"
 msgstr "テーママーケットプレイス"
 
@@ -15308,7 +15324,7 @@ msgstr "テーマ"
 msgid "There are too many redirects to check them for loops before importing"
 msgstr "リダイレクトが多すぎるため、インポート前に循環を確認できません"
 
-#: packages/admin/src/components/WordPressImport.tsx:2416
+#: packages/admin/src/components/WordPressImport.tsx:2443
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr "これらのコンテンツはWordPressでパスワード保護されています。EmDashにはコンテンツごとのパスワード機能がないため、下書きとしてインポートされました。公開する前に、それぞれの内容を確認してください。"
 
@@ -15324,7 +15340,7 @@ msgstr "公開状態や公開予約が変更されたか、下書きが置き換
 msgid "This also removes:"
 msgstr "次の項目も削除されます："
 
-#: packages/admin/src/components/BlocksField.tsx:1787
+#: packages/admin/src/components/BlocksField.tsx:1784
 msgid "This block cannot be edited because its stored definition is unavailable."
 msgstr "保存された定義を利用できないため、このブロックは編集できません。"
 
@@ -15333,11 +15349,11 @@ msgstr "保存された定義を利用できないため、このブロックは
 msgid "This block embeds a page from {0}."
 msgstr "このブロックには、{0}のページが埋め込まれています。"
 
-#: packages/admin/src/components/BlocksField.tsx:2179
+#: packages/admin/src/components/BlocksField.tsx:2176
 msgid "This block has no fields."
 msgstr "このブロックにはフィールドがありません。"
 
-#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:113
+#: packages/admin/src/components/editor/HtmlBlockPreview.tsx:114
 msgid "This block runs JavaScript."
 msgstr "このブロックはJavaScriptを実行します。"
 
@@ -15349,7 +15365,7 @@ msgstr "このブロックタイプはこのフィールドに追加できなく
 msgid "This block uses an older version of its type, so it can't be restored after you delete it."
 msgstr "このブロックは古いバージョンのブロックタイプを使用しているため、削除すると復元できません。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3221
+#: packages/admin/src/components/PortableTextEditor.tsx:3222
 msgid "This block was deleted, so your changes can't be saved."
 msgstr "このブロックは削除されたため、変更を保存できません。"
 
@@ -15383,7 +15399,7 @@ msgstr "このコードは無効か、すでに使用されています。"
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "このコンテンツタイプはコードで定義されています。一部の設定はここでは変更できません。構造を変更するには、live.config.tsファイルを編集してください。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3370
+#: packages/admin/src/components/PortableTextEditor.tsx:3371
 msgid "This content cannot be edited safely"
 msgstr "このコンテンツは安全に編集できません"
 
@@ -15399,7 +15415,7 @@ msgstr "この日は読み込まれていません。この期間のコンテン
 msgid "This device is requesting permission to use:"
 msgstr "このデバイスは次の権限を要求しています："
 
-#: packages/admin/src/components/WordPressImport.tsx:1109
+#: packages/admin/src/components/WordPressImport.tsx:1126
 msgid "This doesn't look like a valid migration key. Generate a new one in the plugin and paste the full string starting with \"em1.\"."
 msgstr "有効な移行キーではないようです。プラグインで新しいキーを生成し、「em1.」で始まる文字列全体を貼り付けてください。"
 
@@ -15412,15 +15428,15 @@ msgid "This entry changed somewhere else after you opened it."
 msgstr "開いた後に、このコンテンツがほかの場所で変更されました。"
 
 #: packages/admin/src/components/ContentEditor.tsx:2334
-#: packages/admin/src/router.tsx:1578
+#: packages/admin/src/router.tsx:1583
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "このコンテンツはほかの場所で変更されました。このまま保存するか、再読み込みして新しい版を取得してください。"
 
-#: packages/admin/src/router.tsx:2567
+#: packages/admin/src/router.tsx:2572
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "このコンテンツは存在しないか、公開されていません。あなたの権限では公開済みのコンテンツだけを閲覧できます。"
 
-#: packages/admin/src/router.tsx:2568
+#: packages/admin/src/router.tsx:2573
 msgid "This entry doesn't exist or was deleted."
 msgstr "このコンテンツは存在しないか、削除されました。"
 
@@ -15444,7 +15460,7 @@ msgstr "このコンテンツはまだ読み込み中です。"
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "このコンテンツは{lateness}に公開予定でしたが、まだ公開されていません。予約公開の処理が実行されていない可能性があります。"
 
-#: packages/admin/src/router.tsx:2617
+#: packages/admin/src/router.tsx:2622
 msgid "This entry was moved to Trash or deleted"
 msgstr "このコンテンツはゴミ箱に移動されたか、削除されました"
 
@@ -15462,11 +15478,11 @@ msgstr "このエクスポートはサイズが大きくなっています"
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "このバージョンのEmDashでは、このフィールドを編集できません。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3353
+#: packages/admin/src/components/PortableTextEditor.tsx:3354
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "このフィールドには、エディターで保持できないテーブルが含まれています。編集・保存する前に、APIで更新してください。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3372
+#: packages/admin/src/components/PortableTextEditor.tsx:3373
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "このフィールドには、サポートされていないPortable Textマーク<0>{markList}</0>が含まれています。このコンテンツを編集または保存する前に、API経由で削除してください。"
 
@@ -15488,7 +15504,7 @@ msgstr "このフィールドにはリストが必要です。保存されてい
 msgid "This field is required"
 msgstr "この項目は必須です"
 
-#: packages/admin/src/components/FieldEditor.tsx:1851
+#: packages/admin/src/components/FieldEditor.tsx:1855
 msgid "This field lists entries that link to this one."
 msgstr "このフィールドには、このコンテンツを参照するコンテンツが一覧表示されます。"
 
@@ -15497,16 +15513,16 @@ msgstr "このフィールドには、このコンテンツを参照するコン
 msgid "This field picks"
 msgstr "このフィールドの選択対象"
 
-#: packages/admin/src/components/FieldEditor.tsx:1850
+#: packages/admin/src/components/FieldEditor.tsx:1854
 msgid "This field picks entries this one links to."
 msgstr "このフィールドで、このコンテンツの参照先を選択します。"
 
 #. placeholder {0}: relation.childLabel
-#: packages/admin/src/components/FieldEditor.tsx:1862
+#: packages/admin/src/components/FieldEditor.tsx:1866
 msgid "This field will show the <0>{0}</0> this {linkingSide} links to"
 msgstr "このフィールドには、この{linkingSide}が参照する<0>{0}</0>が表示されます"
 
-#: packages/admin/src/components/FieldEditor.tsx:1867
+#: packages/admin/src/components/FieldEditor.tsx:1871
 msgid "This field will show the <0>{linkingSide}</0> linking to this {linkedSide}"
 msgstr "このフィールドには、この{linkedSide}を参照する<0>{linkingSide}</0>が表示されます"
 
@@ -15538,7 +15554,7 @@ msgstr "このインポートはすでに開始されています"
 msgid "This is a custom section."
 msgstr "これはカスタムセクションです。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1364
+#: packages/admin/src/components/WordPressImport.tsx:1381
 msgid "This is a WordPress site."
 msgstr "WordPressサイトを確認しました。"
 
@@ -15562,7 +15578,7 @@ msgstr "このリンクは7日間有効で、1回のみ使用できます。"
 msgid "This link expires in 7 days."
 msgstr "このリンクの有効期限は7日間です。"
 
-#: packages/admin/src/components/WordPressImport.tsx:970
+#: packages/admin/src/components/WordPressImport.tsx:987
 msgid "This may take a while for large exports."
 msgstr "インポートするデータ量が多い場合は、時間がかかることがあります。"
 
@@ -15595,7 +15611,7 @@ msgstr "このパッケージは、より新しいバージョンまたは別の
 msgid "This passkey is already registered on this device."
 msgstr "このパスキーはこのデバイスに既に登録されています。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3391
+#: packages/admin/src/components/PortableTextEditor.tsx:3392
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "貼り付ける内容が大きすぎます。セルやテキストを減らして貼り付けてください。"
 
@@ -15644,11 +15660,11 @@ msgstr "この公開者のハンドルの解決結果が、公開者のIDと一�
 msgid "This range has more than {maxEntries} entries"
 msgstr "この期間には{maxEntries}件を超えるコンテンツがあります"
 
-#: packages/admin/src/components/Redirects.tsx:885
+#: packages/admin/src/components/Redirects.tsx:901
 msgid "This redirect rule will be permanently removed."
 msgstr "このリダイレクトルールは完全に削除されます。"
 
-#: packages/admin/src/components/Redirects.tsx:632
+#: packages/admin/src/components/Redirects.tsx:643
 msgid "This redirect was already deleted."
 msgstr "このリダイレクトはすでに削除されています。"
 
@@ -15672,12 +15688,12 @@ msgstr "公開予約を解除して、今すぐ公開します。"
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "保存されているタイムゾーンは認識できません。日付を正しく表示するには、候補から選択してください。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3436
+#: packages/admin/src/components/PortableTextEditor.tsx:3437
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "このセクションには、エディターで保持できないテーブルが含まれています。挿入する前にセクションを更新してください。"
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3438
+#: packages/admin/src/components/PortableTextEditor.tsx:3439
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "このセクションには、サポートされていないPortable Textマーク<0>{0}</0>が含まれています。挿入する前にセクションを更新してください。"
 
@@ -15735,15 +15751,15 @@ msgstr "このサイトは初期コンテンツ付きでセットアップされ
 msgid "This slug is reserved. Enter a different one."
 msgstr "このスラッグは予約されています。別のスラッグを入力してください。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3393
+#: packages/admin/src/components/PortableTextEditor.tsx:3394
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "表計算データの引用符の使い方が正しくないセルがあります。引用符を直すか、タブ区切りを外してから、もう一度お試しください。"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3351
+#: packages/admin/src/components/PortableTextEditor.tsx:3352
 msgid "This table cannot be edited safely"
 msgstr "このテーブルは安全に編集できません"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3397
+#: packages/admin/src/components/PortableTextEditor.tsx:3398
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "このテーブルには、対応していないセルの書式・結合セル・列幅が含まれています。テキストとして貼り付けるか、テーブルを簡単にしてから、もう一度お試しください。"
 
@@ -15850,7 +15866,7 @@ msgstr "選択"
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:188
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:517
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:125
-#: packages/admin/src/components/revisions/revision-format.ts:94
+#: packages/admin/src/components/revisions/revision-format.ts:80
 msgid "Today"
 msgstr "今日"
 
@@ -15915,7 +15931,7 @@ msgstr "コンテンツ内でメディアが使われている場所を記録し
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:3299
+#: packages/admin/src/router.tsx:3306
 msgid "Transfer"
 msgstr "サイト移行"
 
@@ -15944,7 +15960,7 @@ msgstr "翻訳中…"
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:870
-#: packages/admin/src/router.tsx:2125
+#: packages/admin/src/router.tsx:2130
 msgid "Translation created"
 msgstr "翻訳を作成しました"
 
@@ -16020,7 +16036,7 @@ msgstr "検索条件やフィルターを変更してみてください。"
 msgid "Try again"
 msgstr "もう一度試す"
 
-#: packages/admin/src/components/WordPressImport.tsx:1639
+#: packages/admin/src/components/WordPressImport.tsx:1656
 msgid "Try Again"
 msgstr "再試行"
 
@@ -16049,12 +16065,12 @@ msgstr "別のファイル名で検索するか、検索をクリアしてくだ
 msgid "Try another filename, or clear your search and filters."
 msgstr "別のファイル名で検索するか、検索条件とフィルターを解除してください。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1342
-#: packages/admin/src/components/WordPressImport.tsx:1464
+#: packages/admin/src/components/WordPressImport.tsx:1359
+#: packages/admin/src/components/WordPressImport.tsx:1481
 msgid "Try Another URL"
 msgstr "別のURLを試す"
 
-#: packages/admin/src/components/Redirects.tsx:797
+#: packages/admin/src/components/Redirects.tsx:813
 msgid "Try changing or clearing your filters."
 msgstr "フィルターを変更するか、解除してください。"
 
@@ -16068,9 +16084,9 @@ msgid "TSX"
 msgstr "TSX"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:4064
-#: packages/admin/src/components/PortableTextEditor.tsx:4066
-#: packages/admin/src/components/PortableTextEditor.tsx:4083
+#: packages/admin/src/components/PortableTextEditor.tsx:4065
+#: packages/admin/src/components/PortableTextEditor.tsx:4067
+#: packages/admin/src/components/PortableTextEditor.tsx:4084
 msgid "Turn into"
 msgstr "変換"
 
@@ -16113,7 +16129,7 @@ msgstr "一意である必要がある値が、2つのレコードで重複し�
 #: packages/admin/src/components/BylineFieldEditor.tsx:385
 #: packages/admin/src/components/BylineFieldEditor.tsx:388
 #: packages/admin/src/components/BylineFieldEditor.tsx:391
-#: packages/admin/src/components/FieldEditor.tsx:1688
+#: packages/admin/src/components/FieldEditor.tsx:1692
 #: packages/admin/src/components/MediaLibrary.tsx:1147
 #: packages/admin/src/routes/byline-schema.tsx:229
 #: packages/admin/src/routes/bylines.tsx:359
@@ -16133,7 +16149,7 @@ msgid "Type caption for video (optional)"
 msgstr "動画のキャプションを入力（任意）"
 
 #. placeholder {0}: status.existingType
-#: packages/admin/src/components/WordPressImport.tsx:2068
+#: packages/admin/src/components/WordPressImport.tsx:2085
 msgid "Type mismatch ({0})"
 msgstr "型の不一致（{0}）"
 
@@ -16141,7 +16157,7 @@ msgstr "型の不一致（{0}）"
 msgid "Type to filter"
 msgstr "入力して絞り込み"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3508
+#: packages/admin/src/components/PortableTextEditor.tsx:3509
 msgid "Type to search"
 msgstr "入力して検索"
 
@@ -16163,13 +16179,13 @@ msgstr "マーケットプレイスに接続できません"
 msgid "Unassigned"
 msgstr "未割り当て"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3646
-#: packages/admin/src/components/PortableTextEditor.tsx:5210
+#: packages/admin/src/components/PortableTextEditor.tsx:3647
+#: packages/admin/src/components/PortableTextEditor.tsx:5211
 msgid "Underline"
 msgstr "下線"
 
 #: packages/admin/src/components/block-field-undo.tsx:219
-#: packages/admin/src/components/PortableTextEditor.tsx:5441
+#: packages/admin/src/components/PortableTextEditor.tsx:5442
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:68
 msgid "Undo"
 msgstr "元に戻す"
@@ -16206,7 +16222,7 @@ msgstr "一意の識別子（ULID）"
 msgid "Unknown"
 msgstr "不明"
 
-#: packages/admin/src/components/revisions/revision-format.ts:117
+#: packages/admin/src/components/revisions/revision-format.ts:103
 msgid "Unknown author"
 msgstr "編集者不明"
 
@@ -16228,7 +16244,9 @@ msgstr "アスペクト比を解除"
 msgid "Unnamed passkey"
 msgstr "名前のないパスキー"
 
-#: packages/admin/src/components/revisions/revision-format.ts:117
+#: packages/admin/src/components/ContentList.tsx:1133
+#: packages/admin/src/components/ContentList.tsx:1139
+#: packages/admin/src/components/revisions/revision-format.ts:103
 msgid "Unnamed user"
 msgstr "名前未設定のユーザー"
 
@@ -16245,7 +16263,7 @@ msgstr "{itemLabel}を非公開にする"
 msgid "Unpublish {itemLabel}?"
 msgstr "{itemLabel}を非公開にしますか？"
 
-#: packages/admin/src/router.tsx:2009
+#: packages/admin/src/router.tsx:2014
 msgid "Unpublished"
 msgstr "非公開"
 
@@ -16276,11 +16294,11 @@ msgstr "未保存の変更"
 msgid "Unsaved content may leave your site"
 msgstr "未保存のコンテンツがサイトの外部に送信される可能性があります"
 
-#: packages/admin/src/router.tsx:2094
+#: packages/admin/src/router.tsx:2099
 msgid "Unscheduled"
 msgstr "予約なし"
 
-#: packages/admin/src/components/BlocksField.tsx:1367
+#: packages/admin/src/components/BlocksField.tsx:1364
 #: packages/admin/src/components/ContentTypeEditor.tsx:983
 msgid "Unsupported"
 msgstr "未対応"
@@ -16333,7 +16351,7 @@ msgctxt "A published entry's scheduled changes"
 msgid "Update"
 msgstr "変更の公開"
 
-#: packages/admin/src/components/FieldEditor.tsx:1828
+#: packages/admin/src/components/FieldEditor.tsx:1832
 msgid "Update Field"
 msgstr "フィールドを更新"
 
@@ -16384,7 +16402,7 @@ msgstr "更新日時"
 msgid "Updated At"
 msgstr "更新日時"
 
-#: packages/admin/src/components/WordPressImport.tsx:995
+#: packages/admin/src/components/WordPressImport.tsx:1012
 msgid "Updating content URLs..."
 msgstr "コンテンツURLを更新中…"
 
@@ -16422,7 +16440,7 @@ msgstr "まずファイルをアップロードしてください"
 msgid "Upload a video to get started"
 msgstr "動画をアップロードしてください"
 
-#: packages/admin/src/components/WordPressImport.tsx:1447
+#: packages/admin/src/components/WordPressImport.tsx:1464
 msgid "Upload an export file"
 msgstr "エクスポートファイルをアップロード"
 
@@ -16439,8 +16457,8 @@ msgstr "メディアをアップロード・削除する"
 msgid "Upload and manage media"
 msgstr "メディアをアップロードして管理"
 
-#: packages/admin/src/components/WordPressImport.tsx:1340
-#: packages/admin/src/components/WordPressImport.tsx:1461
+#: packages/admin/src/components/WordPressImport.tsx:1357
+#: packages/admin/src/components/WordPressImport.tsx:1478
 msgid "Upload Export File"
 msgstr "エクスポートファイルをアップロード"
 
@@ -16497,7 +16515,7 @@ msgstr "{0}にアップロード"
 msgid "Upload to {providerName}"
 msgstr "{providerName}にアップロード"
 
-#: packages/admin/src/components/WordPressImport.tsx:1170
+#: packages/admin/src/components/WordPressImport.tsx:1187
 msgid "Upload WordPress export file"
 msgstr "WordPressのエクスポートファイルをアップロード"
 
@@ -16511,7 +16529,7 @@ msgstr "アップロード日時："
 
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:208
 #: packages/admin/src/components/MediaUploadDialog.tsx:60
-#: packages/admin/src/components/WordPressImport.tsx:2177
+#: packages/admin/src/components/WordPressImport.tsx:2194
 msgid "Uploading"
 msgstr "アップロード中"
 
@@ -16536,7 +16554,7 @@ msgstr "動画をアップロード中…"
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:57
 #: packages/admin/src/components/FieldEditor.tsx:741
-#: packages/admin/src/components/FieldEditor.tsx:1703
+#: packages/admin/src/components/FieldEditor.tsx:1707
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/MenuEditor.tsx:847
 #: packages/admin/src/components/PortableTextEditor.tsx:1415
@@ -16744,7 +16762,7 @@ msgstr "ユーザー名"
 #: packages/admin/src/components/AdminCommandPalette.tsx:223
 #: packages/admin/src/components/Sidebar.tsx:585
 #: packages/admin/src/components/users/UserList.tsx:64
-#: packages/admin/src/router.tsx:3588
+#: packages/admin/src/router.tsx:3595
 msgid "Users"
 msgstr "ユーザー"
 
@@ -16761,7 +16779,7 @@ msgid "Users with email addresses from these domains can sign up without an invi
 msgstr "これらのドメインのメールアドレスを持つユーザーは、招待なしで登録できます。登録後、指定した権限が自動的に設定されます。"
 
 #. placeholder {0}: version.version
-#: packages/admin/src/components/FieldEditor.tsx:1535
+#: packages/admin/src/components/FieldEditor.tsx:1539
 msgid "v{0}"
 msgstr "v{0}"
 
@@ -16819,7 +16837,7 @@ msgstr "バージョン"
 #. placeholder {0}: block._version
 #. placeholder {0}: release.version
 #. placeholder {0}: version.version
-#: packages/admin/src/components/BlocksField.tsx:1768
+#: packages/admin/src/components/BlocksField.tsx:1765
 #: packages/admin/src/components/BlockTypeList.tsx:89
 #: packages/admin/src/components/RegistryPluginDetail.tsx:557
 msgid "Version {0}"
@@ -16830,7 +16848,7 @@ msgstr "バージョン{0}"
 msgid "Version {0} (active)"
 msgstr "バージョン{0}（有効）"
 
-#: packages/admin/src/components/revisions/useRevisionView.ts:653
+#: packages/admin/src/components/revisions/useRevisionView.ts:651
 msgid "Version from {when}"
 msgstr "{when}の版"
 
@@ -16898,11 +16916,11 @@ msgstr "ソースを表示"
 msgid "View the {license} license on spdx.org"
 msgstr "spdx.orgで{license}ライセンスを表示"
 
-#: packages/admin/src/components/presence/PresenceAvatars.tsx:311
+#: packages/admin/src/components/presence/PresenceAvatars.tsx:292
 msgid "Viewing"
 msgstr "閲覧中"
 
-#: packages/admin/src/components/revisions/useRevisionView.ts:518
+#: packages/admin/src/components/revisions/useRevisionView.ts:516
 msgid "Viewing the version from {when} by {name}."
 msgstr "{name}による{when}の版を表示しています。"
 
@@ -16914,7 +16932,7 @@ msgstr "検索エンジンに公開"
 msgid "Visitors can open the site, but search engines are asked not to index it. Go live when it's ready to be found."
 msgstr "訪問者はサイトにアクセスできますが、検索エンジンにはインデックスされないように求めます。検索結果に表示する準備ができたら、サイトを公開してください。"
 
-#: packages/admin/src/components/Redirects.tsx:780
+#: packages/admin/src/components/Redirects.tsx:796
 msgid "Visitors hitting these paths will see an error."
 msgstr "これらのパスにアクセスするとエラーが表示されます。"
 
@@ -16974,11 +16992,11 @@ msgid "We checked before opening the browser's passkey prompt so you can choose 
 msgstr "次に行う操作を選べるよう、ブラウザーのパスキー画面を開く前に対応状況を確認しました。"
 
 #. placeholder {0}: result.url
-#: packages/admin/src/components/WordPressImport.tsx:1322
+#: packages/admin/src/components/WordPressImport.tsx:1339
 msgid "We couldn't connect to a WordPress site at {0}. This could mean the site isn't WordPress, the REST API is disabled, or the site isn't accessible."
 msgstr "{0}のWordPressサイトに接続できませんでした。サイトがWordPressでない、REST APIが無効、またはサイトにアクセスできない可能性があります。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1134
+#: packages/admin/src/components/WordPressImport.tsx:1151
 msgid "We'll check what import options are available for your site."
 msgstr "あなたのサイトを確認し、利用できるインポート方法を表示します。"
 
@@ -17033,7 +17051,7 @@ msgstr "各側の名称です。この関連付けを使用するフィールド
 msgid "What happens next?"
 msgstr "次の手順は？"
 
-#: packages/admin/src/components/WordPressImport.tsx:2141
+#: packages/admin/src/components/WordPressImport.tsx:2158
 msgid "What happens when you import:"
 msgstr "インポート時の動作："
 
@@ -17045,7 +17063,7 @@ msgstr "パスキーとは？"
 msgid "What it leaves out"
 msgstr "含まれないもの"
 
-#: packages/admin/src/components/FieldEditor.tsx:1882
+#: packages/admin/src/components/FieldEditor.tsx:1886
 msgid "What the direction changes"
 msgstr "参照の方向による違い"
 
@@ -17057,7 +17075,7 @@ msgstr "パッケージに含まれるもの"
 msgid "What will be imported"
 msgstr "インポートされるもの"
 
-#: packages/admin/src/components/WordPressImport.tsx:1924
+#: packages/admin/src/components/WordPressImport.tsx:1941
 msgid "What will happen when you import"
 msgstr "インポート時の動作"
 
@@ -17177,8 +17195,8 @@ msgstr "ウィジェットを更新しました"
 #: packages/admin/src/components/settings/transfer/labels.ts:91
 #: packages/admin/src/components/Sidebar.tsx:536
 #: packages/admin/src/components/Widgets.tsx:456
-#: packages/admin/src/components/WordPressImport.tsx:1209
-#: packages/admin/src/router.tsx:3551
+#: packages/admin/src/components/WordPressImport.tsx:1226
+#: packages/admin/src/router.tsx:3558
 msgid "Widgets"
 msgstr "ウィジェット"
 
@@ -17195,7 +17213,7 @@ msgstr "列幅"
 msgid "Will be cleared on save"
 msgstr "保存時にクリアされます"
 
-#: packages/admin/src/components/WordPressImport.tsx:2064
+#: packages/admin/src/components/WordPressImport.tsx:2081
 msgid "Will create"
 msgstr "作成予定"
 
@@ -17216,10 +17234,10 @@ msgid "Without an email provider, invite links must be shared manually."
 msgstr "メール送信サービスが設定されていない場合は、招待リンクを手動で共有してください。"
 
 #: packages/admin/src/components/WordPressImport.tsx:237
-msgid "WordPress authorization was rejected"
-msgstr "WordPressとの接続が拒否されました"
+msgid "WordPress did not approve the connection, or the approval expired."
+msgstr ""
 
-#: packages/admin/src/components/WordPressImport.tsx:1532
+#: packages/admin/src/components/WordPressImport.tsx:1549
 msgid "WordPress Username"
 msgstr "WordPressユーザー名"
 
@@ -17255,7 +17273,7 @@ msgstr "ウィジェットの内容を入力…"
 msgid "Writing the file index"
 msgstr "ファイルインデックスを作成中"
 
-#: packages/admin/src/components/WordPressImport.tsx:1233
+#: packages/admin/src/components/WordPressImport.tsx:1250
 msgid "WXR File"
 msgstr "WXRファイル"
 
@@ -17263,7 +17281,7 @@ msgstr "WXRファイル"
 msgid "XML"
 msgstr "XML"
 
-#: packages/admin/src/components/WordPressImport.tsx:1554
+#: packages/admin/src/components/WordPressImport.tsx:1571
 msgid "xxxx xxxx xxxx xxxx xxxx xxxx"
 msgstr "xxxx xxxx xxxx xxxx xxxx xxxx"
 
@@ -17282,11 +17300,11 @@ msgstr "年別"
 msgid "Yes"
 msgstr "はい"
 
-#: packages/admin/src/components/revisions/revision-format.ts:96
+#: packages/admin/src/components/revisions/revision-format.ts:82
 msgid "Yesterday"
 msgstr "昨日"
 
-#: packages/admin/src/components/WordPressImport.tsx:1212
+#: packages/admin/src/components/WordPressImport.tsx:1229
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
 
@@ -17351,7 +17369,7 @@ msgstr "このサイトを移行するには管理者権限が必要です。"
 msgid "You need admin permissions to view this page."
 msgstr "このページを表示するには管理者権限が必要です。"
 
-#: packages/admin/src/router.tsx:3164
+#: packages/admin/src/router.tsx:3171
 msgid "You need Editor permissions to moderate comments."
 msgstr "コメントを管理するには、編集者権限が必要です。"
 
@@ -17381,7 +17399,7 @@ msgstr "<0>{0}</0>として参加します"
 msgid "You'll be prompted to use your device's biometric authentication, security key, or PIN."
 msgstr "デバイスの生体認証、セキュリティキー、またはPINの使用を求められます。"
 
-#: packages/admin/src/components/WordPressImport.tsx:1425
+#: packages/admin/src/components/WordPressImport.tsx:1442
 msgid "You'll be redirected to WordPress to authorize the connection."
 msgstr "WordPressに移動して接続を承認します。"
 
@@ -17533,11 +17551,11 @@ msgstr "名前（任意）"
 msgid "Your Role"
 msgstr "あなたの権限"
 
-#: packages/admin/src/router.tsx:2583
+#: packages/admin/src/router.tsx:2588
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "あなたの権限では、自分のコンテンツを下書きのあいだだけ編集できます。"
 
-#: packages/admin/src/router.tsx:2584
+#: packages/admin/src/router.tsx:2589
 msgid "Your role can't edit this entry."
 msgstr "あなたの権限では、このコンテンツを編集できません。"
 
@@ -17589,7 +17607,7 @@ msgid "Your unsaved media changes will be lost."
 msgstr "保存していないメディアの変更は失われます。"
 
 #. placeholder {0}: attachments.count
-#: packages/admin/src/components/WordPressImport.tsx:2112
+#: packages/admin/src/components/WordPressImport.tsx:2129
 msgid "Your WordPress export contains {0} media files."
 msgstr "WordPressのエクスポートには{0}件のメディアファイルが含まれています。"
 

@@ -108,7 +108,7 @@ The content API and the admin editor reject anything else, including protocol-re
 }
 ```
 
-URL fields are stored as text. Seeds and plugin content updates preserve scheme-less values such as `www.example.com`, but reject unsafe schemes and values that a browser resolves to another site. Site imports apply the same checks to URL fields in entries, revisions, repeaters, and blocks.
+URL fields are stored as text. Seeds and plugin content updates preserve scheme-less values such as `www.example.com`, but reject unsafe schemes and values that a browser resolves to another site. They also reject a value that is not text, and text that starts with `[` or `{`, because queries return stored text that looks like JSON as an array or object. Site imports apply the same checks to URL fields in entries, revisions, repeaters, and blocks, and refuse a block whose block type or version is not in the package.
 
 Entries saved by earlier EmDash releases can hold an unsafe `url` value. Those values stay stored and queries return them unchanged. A write that sends the value again is rejected until the value is corrected. This includes an admin save of that entry and duplicating it. To render such values safely, pass `url` values through [`sanitizeHref()`](/reference/api/#sanitizehref-and-issafehref) before putting them in an `href`.
 
@@ -392,6 +392,12 @@ The value is stored as a provider reference with cached metadata:
 persisted value as-is and do not hydrate it from the media library. See
 [Render a file in a template](/guides/media-library/#render-a-file-in-a-template) for how to
 get the file URL.
+
+### URLs in image and file values
+
+The `src`, `url`, and `previewUrl` of an image or file value, including a `darkVariant`, must each be an `http:` or `https:` URL or a path without a scheme, such as `/_emdash/api/media/file/report.pdf`. The content API rejects a value with any other scheme, such as `javascript:` or `data:`, and a value that contains control characters. Seeds and plugin content writes are checked the same way, except for values inside a `blocks` field.
+
+Entries saved by earlier EmDash releases can hold a media URL with an unsafe scheme. Those values stay stored and queries return them unchanged. A write that sends the value again is rejected until the value is corrected. To render such values safely, pass the URL through [`sanitizeHref()`](/reference/api/#sanitizehref-and-issafehref) before putting it in an `href`.
 
 ## Relational types
 

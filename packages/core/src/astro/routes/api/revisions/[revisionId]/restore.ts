@@ -8,7 +8,7 @@
 
 import type { APIRoute } from "astro";
 
-import { requireOwnerPerm } from "#api/authorize.js";
+import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
@@ -22,9 +22,16 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	const body = await parseOptionalBody(request, revisionRestoreBody, {});
 	if (isParseError(body)) return body;
 
-	if (!emdash?.handleRevisionRestore || !emdash?.handleRevisionGet || !emdash?.handleContentGet) {
+	if (
+		!emdash?.handleRevisionRestore ||
+		!emdash?.handleRevisionGet ||
+		!emdash?.handleContentGetById
+	) {
 		return apiError("NOT_CONFIGURED", "EmDash not configured", 500);
 	}
+
+	const roleDenied = requirePerm(user, "content:edit_own");
+	if (roleDenied) return roleDenied;
 
 	// Fetch the revision to discover which content entry it belongs to
 	const revision = await emdash.handleRevisionGet(revisionId);
@@ -44,7 +51,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 	}
 
 	// Fetch the content entry to check ownership
-	const existing = await emdash.handleContentGet(collection, entryId);
+	const existing = await emdash.handleContentGetById(collection, entryId);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",

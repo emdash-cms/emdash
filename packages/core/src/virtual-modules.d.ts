@@ -63,12 +63,17 @@ declare module "virtual:emdash/dialect" {
 	 */
 	export interface RequestScopedDbOpts {
 		config: unknown;
+		/**
+		 * Request-start state, for choosing a connection: a session user, or an
+		 * `Authorization: Bearer` header that nothing has verified yet.
+		 */
 		isAuthenticated: boolean;
 		/**
 		 * Evaluated at commit() time: whether the request ended authenticated.
 		 * Login/signup/invite requests start unauthenticated and establish a
 		 * session mid-request; `isAuthenticated` captures only the request-start
-		 * state.
+		 * state. Counts verified callers only, so when provided it decides
+		 * whether `commit()` hands per-request state back to the client.
 		 */
 		endedAuthenticated?: () => boolean;
 		isWrite: boolean;
@@ -185,9 +190,11 @@ declare module "virtual:emdash/wait-until" {
 	/**
 	 * Optional host-provided lifetime extender for work deferred past the
 	 * response. Resolves to Cloudflare's `waitUntil` under @astrojs/cloudflare;
-	 * `undefined` on Node (fire-and-forget is safe on a long-lived process).
+	 * `undefined` for other adapters.
 	 */
 	export const waitUntil: ((promise: Promise<unknown>) => void) | undefined;
+	/** True under @astrojs/node, where the process outlives each response. */
+	export const longLivedProcess: boolean;
 }
 
 declare module "virtual:emdash/env" {

@@ -1,3 +1,5 @@
+import { i18n } from "@lingui/core";
+import { msg } from "@lingui/core/macro";
 import { packTar } from "modern-tar";
 import * as React from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -295,6 +297,27 @@ describe("TransferSettings", () => {
 			.element(screen.getByRole("combobox", { name: "User for Bob Author" }))
 			.toHaveTextContent("Don’t map");
 		await expect.element(screen.getByRole("button", { name: "Start import" })).toBeEnabled();
+	});
+
+	it("titles the author mapping with the record kind label, not the plugin authors label", async () => {
+		const pluginAuthors = msg`Authors`;
+		const userAccounts = msg({
+			message: "Authors",
+			context: "site transfer record kind: user accounts",
+		});
+		i18n.loadAndActivate({
+			locale: "pl",
+			messages: { [pluginAuthors.id]: "Autorzy", [userAccounts.id]: "Konta autorów" },
+		});
+		try {
+			setup({ imports: [importOperation()] });
+			const screen = await render(<TransferSettings />);
+			await expect
+				.element(screen.getByRole("heading", { name: "Konta autorów", exact: true }))
+				.toBeVisible();
+		} finally {
+			i18n.loadAndActivate({ locale: "en", messages: {} });
+		}
 	});
 
 	it("lists the starter content the import removes and says so before confirming", async () => {

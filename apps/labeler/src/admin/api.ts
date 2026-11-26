@@ -39,7 +39,11 @@ export interface AssessmentListItem {
 	created_at: string;
 	updated_at: string;
 	completed_at: string | null;
+	code_coverage?: string | null;
+	code_review_count?: number | null;
 }
+
+export type AssessmentFilter = AssessmentState | "all";
 
 export interface AssessmentDetail {
 	assessment: AssessmentListItem & {
@@ -124,7 +128,7 @@ export function getHealth(): Promise<HealthStatus> {
 }
 
 export function getAssessments(
-	state: AssessmentState,
+	state: AssessmentFilter,
 	cursor?: string,
 ): Promise<Page<AssessmentListItem>> {
 	const query = new URLSearchParams({ state, limit: "50" });

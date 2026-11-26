@@ -73,6 +73,8 @@ const {
 			handleContentPermanentDelete: ok,
 			handleContentCountTrashed: ok,
 			handleContentGetIncludingTrashed: ok,
+			handleContentGetForWrite: ok,
+			handleContentGetById: ok,
 			handleContentDuplicate: ok,
 			handleContentPublish: ok,
 			handleContentUnpublish: ok,
@@ -1174,6 +1176,52 @@ describe("astro middleware request-scoped db", () => {
 			isWrite: false,
 		});
 		expect(mockGetLastContentWriteAt).not.toHaveBeenCalled();
+	});
+
+	it("reports a Bearer request as ended authenticated only once the token was verified", async () => {
+		// The header alone is a routing hint; endedAuthenticated must reflect
+		// whether the auth middleware resolved the caller.
+		vi.mocked(createRequestScopedDb).mockReturnValue({
+			db: { _marker: "scoped" } as never,
+			commit: vi.fn(),
+		});
+
+		const run = async (url: string, next: (locals: Record<string, unknown>) => void) => {
+			const locals: Record<string, unknown> = {};
+			const context: Record<string, unknown> = {
+				request: new Request(url, {
+					method: "POST",
+					headers: { authorization: "Bearer x" },
+				}),
+				url: new URL(url),
+				cookies: { get: vi.fn(() => undefined), set: vi.fn(), headers: () => [] },
+				locals,
+				redirect: vi.fn(),
+				isPrerendered: false,
+				session: { get: vi.fn(async () => null) },
+			};
+			await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+				next(locals);
+				return new Response("ok");
+			});
+			return vi.mocked(createRequestScopedDb).mock.lastCall?.[0];
+		};
+
+		const unverified = await run(
+			"https://example.com/_emdash/api/auth/magic-link/verify",
+			() => {},
+		);
+		expect(unverified?.isAuthenticated).toBe(true);
+		expect(unverified?.endedAuthenticated?.()).toBe(false);
+
+		// The anonymous fast path for public pages takes the same flag.
+		const publicPage = await run("https://example.com/", () => {});
+		expect(publicPage?.endedAuthenticated?.()).toBe(false);
+
+		const verified = await run("https://example.com/_emdash/api/content/posts", (locals) => {
+			locals.user = { id: "user_1" };
+		});
+		expect(verified?.endedAuthenticated?.()).toBe(true);
 	});
 
 	it("forces isWrite true for POST requests on public pages", async () => {

@@ -183,6 +183,37 @@ describe("raw plugin route responses", () => {
 		).rejects.toThrow("exceeds");
 	});
 
+	it.each([
+		"http:other.example/landing",
+		"http:/other.example/landing",
+		"http:\\other.example/landing",
+		"https:other.example/landing",
+		"//other.example/landing",
+		"https://other.example/landing",
+	])("rejects public redirect %s whatever the base scheme", async (location) => {
+		for (const publicRequestUrl of [
+			"http://example.com/_emdash/api/plugins/reports/go",
+			"https://example.com/_emdash/api/plugins/reports/go",
+		]) {
+			await expect(
+				pluginRouteResponseToWire(pluginResponse({ status: 302, headers: { location } }), {
+					publicRequestUrl,
+				}),
+			).rejects.toThrow("must stay on the site origin");
+		}
+	});
+
+	it.each(["/thanks", "thanks?sent=1", "https://example.com/thanks"])(
+		"keeps same-origin public redirect %s unchanged",
+		async (location) => {
+			const wire = await pluginRouteResponseToWire(
+				pluginResponse({ status: 302, headers: { location } }),
+				{ publicRequestUrl: "https://example.com/_emdash/api/plugins/reports/go" },
+			);
+			expect(pluginRouteResponseFromWire(wire, "GET").headers.get("location")).toBe(location);
+		},
+	);
+
 	it("suppresses bodies for HEAD and bodyless statuses", async () => {
 		const wire = await pluginRouteResponseToWire(
 			pluginResponse({ body: { kind: "text", value: "hidden" } }),

@@ -1328,7 +1328,8 @@ export interface CommentAfterModerateEvent {
 
 /**
  * Handler type for comment:beforeCreate hooks.
- * Returns modified event, or false to reject the comment.
+ * Returns modified event, or false to reject the comment. Only `authorName`,
+ * `authorEmail`, `body` and `metadata` are taken from a returned event.
  */
 export type CommentBeforeCreateHandler = (
 	event: CommentBeforeCreateEvent,

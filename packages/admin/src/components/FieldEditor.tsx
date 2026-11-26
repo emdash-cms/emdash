@@ -690,7 +690,7 @@ export function FieldEditor({
 		},
 		{
 			type: "select",
-			label: t`Select`,
+			label: t({ message: "Select", context: "field type" }),
 			description: t`Single choice from options`,
 			icon: List,
 		},
@@ -1469,65 +1469,69 @@ export function FieldEditor({
 														className="rounded-lg border border-kumo-line p-3"
 													>
 														<div className="flex items-center gap-2">
-															<Checkbox
-																label={blockType.label}
-																checked={selected}
-																disabled={retired && !selected}
-																onCheckedChange={(checked) => {
-																	setField(
-																		"allowedTypes",
-																		checked
-																			? [...formState.allowedTypes, blockType.slug]
-																			: formState.allowedTypes.filter(
-																					(candidateSlug) => candidateSlug !== blockType.slug,
-																				),
-																	);
-																}}
-															/>
-															<code dir="ltr" className="text-xs text-kumo-subtle">
-																{blockType.slug}
-															</code>
-															{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
-															{selected && (
-																<div className="ms-auto flex gap-1">
-																	<Button
-																		variant="ghost"
-																		shape="square"
-																		size="sm"
-																		disabled={selectedIndex === 0}
-																		onClick={() => {
-																			const next = [...formState.allowedTypes];
-																			[next[selectedIndex - 1], next[selectedIndex]] = [
-																				next[selectedIndex]!,
-																				next[selectedIndex - 1]!,
-																			];
-																			setField("allowedTypes", next);
-																		}}
-																		aria-label={t`Move ${blockType.label} up`}
-																	>
-																		<ArrowUp className="h-4 w-4" />
-																	</Button>
-																	<Button
-																		variant="ghost"
-																		shape="square"
-																		size="sm"
-																		disabled={selectedIndex === formState.allowedTypes.length - 1}
-																		onClick={() => {
-																			const next = [...formState.allowedTypes];
-																			[next[selectedIndex], next[selectedIndex + 1]] = [
-																				next[selectedIndex + 1]!,
-																				next[selectedIndex]!,
-																			];
-																			setField("allowedTypes", next);
-																		}}
-																		aria-label={t`Move ${blockType.label} down`}
-																	>
-																		<ArrowDown className="h-4 w-4" />
-																	</Button>
-																</div>
-															)}
+															<div className="flex min-w-0 items-baseline gap-2">
+																<Checkbox
+																	label={blockType.label}
+																	checked={selected}
+																	disabled={retired && !selected}
+																	onCheckedChange={(checked) => {
+																		setField(
+																			"allowedTypes",
+																			checked
+																				? [...formState.allowedTypes, blockType.slug]
+																				: formState.allowedTypes.filter(
+																						(candidateSlug) => candidateSlug !== blockType.slug,
+																					),
+																		);
+																	}}
+																/>
+																<code dir="ltr" className="text-xs text-kumo-subtle">
+																	{blockType.slug}
+																</code>
+																{retired && <Badge variant="secondary">{t`Retired`}</Badge>}
+															</div>
+															{/* Kept on unticked cards too, so ticking one doesn't make it taller. */}
+															<div className={cn("ms-auto flex gap-1", !selected && "invisible")}>
+																<Button
+																	variant="ghost"
+																	shape="square"
+																	size="sm"
+																	disabled={!selected || selectedIndex === 0}
+																	onClick={() => {
+																		const next = [...formState.allowedTypes];
+																		[next[selectedIndex - 1], next[selectedIndex]] = [
+																			next[selectedIndex]!,
+																			next[selectedIndex - 1]!,
+																		];
+																		setField("allowedTypes", next);
+																	}}
+																	aria-label={t`Move ${blockType.label} up`}
+																>
+																	<ArrowUp className="h-4 w-4" />
+																</Button>
+																<Button
+																	variant="ghost"
+																	shape="square"
+																	size="sm"
+																	disabled={
+																		!selected || selectedIndex === formState.allowedTypes.length - 1
+																	}
+																	onClick={() => {
+																		const next = [...formState.allowedTypes];
+																		[next[selectedIndex], next[selectedIndex + 1]] = [
+																			next[selectedIndex + 1]!,
+																			next[selectedIndex]!,
+																		];
+																		setField("allowedTypes", next);
+																	}}
+																	aria-label={t`Move ${blockType.label} down`}
+																>
+																	<ArrowDown className="h-4 w-4" />
+																</Button>
+															</div>
 														</div>
-														<div className="mt-2 flex flex-wrap gap-2">
+														{/* Past the checkbox, so it starts where the label's text starts. */}
+														<div className="mt-2 flex flex-wrap gap-2 ps-6">
 															{blockType.versions.map((version) => (
 																<span key={version.version} className="text-xs text-kumo-subtle">
 																	{version.active
@@ -1699,7 +1703,7 @@ export function FieldEditor({
 																integer: t`Integer`,
 																boolean: t`Boolean`,
 																datetime: t`Date & Time`,
-																select: t`Select`,
+																select: t({ message: "Select", context: "field type" }),
 																url: t`URL`,
 																image: t`Image`,
 															}}

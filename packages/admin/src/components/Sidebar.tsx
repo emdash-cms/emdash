@@ -458,7 +458,7 @@ const NAV_GROUP_LABELS: Record<NavGroupKey, MessageDescriptor | null> = {
 	top: null,
 	content: msg`Content`,
 	manage: msg`Manage`,
-	admin: msg`Admin`,
+	admin: msg({ message: "Admin", context: "navigation group" }),
 	plugins: msg`Plugins`,
 };
 
