@@ -80,7 +80,7 @@ export async function sendMagicLink(
 		return;
 	}
 
-	const url = await createMagicLinkUrl(adapter, user, config.baseUrl, { type });
+	const url = await issueMagicLinkUrl(adapter, user.id, user.email, config.baseUrl, { type });
 
 	// Send email
 	const message = buildMagicLinkEmail(
@@ -103,7 +103,8 @@ export interface MagicLinkUrlOptions {
 
 /**
  * Create a single-use sign-in link for `user` on `baseUrl`. The link opens
- * the same confirmation page as an emailed sign-in link.
+ * the same confirmation page as an emailed sign-in link. Because the link is
+ * not delivered by email, using it does not verify the user's address.
  */
 export async function createMagicLinkUrl(
 	adapter: AuthAdapter,
@@ -111,11 +112,26 @@ export async function createMagicLinkUrl(
 	baseUrl: string,
 	options: MagicLinkUrlOptions = {},
 ): Promise<string> {
+	return issueMagicLinkUrl(adapter, user.id, null, baseUrl, options);
+}
+
+/**
+ * `deliveredTo` is the address the link is emailed to, or null when it is
+ * handed over some other way. Verifying a link that was emailed to the
+ * user's current address marks that address verified.
+ */
+async function issueMagicLinkUrl(
+	adapter: AuthAdapter,
+	userId: string,
+	deliveredTo: string | null,
+	baseUrl: string,
+	options: MagicLinkUrlOptions,
+): Promise<string> {
 	const { token, hash } = generateTokenWithHash();
 	await adapter.createToken({
 		hash,
-		userId: user.id,
-		email: user.email,
+		userId,
+		email: deliveredTo,
 		type: options.type ?? "magic_link",
 		expiresAt: new Date(Date.now() + (options.expiresInMs ?? TOKEN_EXPIRY_MS)),
 	});
@@ -202,6 +218,15 @@ export async function verifyMagicLink(adapter: AuthAdapter, token: string): Prom
 	const user = await adapter.getUserById(authToken.userId);
 	if (!user) {
 		throw new MagicLinkError("user_not_found", "User not found");
+	}
+
+	if (
+		!user.emailVerified &&
+		authToken.email !== null &&
+		authToken.email.toLowerCase() === user.email.toLowerCase()
+	) {
+		await adapter.updateUser(user.id, { emailVerified: true });
+		return { ...user, emailVerified: true };
 	}
 
 	return user;

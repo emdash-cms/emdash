@@ -379,7 +379,7 @@ export async function findOrCreateOAuthUser(
 		if (!user) {
 			throw new OAuthError("user_not_found", "Linked user not found");
 		}
-		return user;
+		return markEmailVerifiedByProvider(adapter, user, profile);
 	}
 
 	// Check if user with this email exists (auto-link)
@@ -398,7 +398,7 @@ export async function findOrCreateOAuthUser(
 			providerAccountId: profile.id,
 			userId: existingUser.id,
 		});
-		return existingUser;
+		return markEmailVerifiedByProvider(adapter, existingUser, profile);
 	}
 
 	// Check if self-signup is allowed
@@ -441,6 +441,22 @@ export async function findOrCreateOAuthUser(
 	}
 
 	throw new OAuthError("signup_not_allowed", "Self-signup not allowed for this email domain");
+}
+
+async function markEmailVerifiedByProvider(
+	adapter: AuthAdapter,
+	user: User,
+	profile: OAuthProfile,
+): Promise<User> {
+	if (
+		user.emailVerified ||
+		!profile.emailVerified ||
+		profile.email.toLowerCase() !== user.email.toLowerCase()
+	) {
+		return user;
+	}
+	await adapter.updateUser(user.id, { emailVerified: true });
+	return { ...user, emailVerified: true };
 }
 
 function getProvider(
