@@ -472,6 +472,73 @@ describe("validateSeed", () => {
 			}
 		});
 
+		it.each([
+			"bogus",
+			"repeater",
+			"reference",
+			"portableText",
+			"json",
+			"multiSelect",
+			"",
+			null,
+			42,
+			undefined,
+		])("rejects repeater sub-field type %s", (type) => {
+			const result = seedWithRepeater({
+				validation: { subFields: [{ slug: "text", label: "Bullet", type }] },
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toEqual([
+				`collections[0].fields[0].validation.subFields[0].type: must be one of string, text, url, number, integer, boolean, datetime, select, image`,
+			]);
+		});
+
+		it.each([null, "text", 42, []])("rejects malformed repeater sub-field %s", (subField) => {
+			const result = seedWithRepeater({ validation: { subFields: [subField] } });
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toEqual([
+				"collections[0].fields[0].validation.subFields[0]: must be an object",
+			]);
+		});
+
+		it("checks all declared sub-fields even when misplaced fields are also present", () => {
+			const result = seedWithRepeater({
+				fields: [{ slug: "ignored", label: "Ignored", type: "text" }],
+				validation: {
+					subFields: [
+						{ slug: "text", label: "Bullet", type: "text" },
+						{ slug: "bad", label: "Bad", type: "bogus" },
+					],
+				},
+			});
+
+			expect(result.valid).toBe(false);
+			expect(result.errors).toEqual([
+				"collections[0].fields[0].validation.subFields[1].type: must be one of string, text, url, number, integer, boolean, datetime, select, image",
+			]);
+			expect(result.warnings).toHaveLength(1);
+		});
+
+		it.each([
+			"string",
+			"text",
+			"url",
+			"number",
+			"integer",
+			"boolean",
+			"datetime",
+			"select",
+			"image",
+		])("accepts supported repeater sub-field type %s", (type) => {
+			const result = seedWithRepeater({
+				validation: { subFields: [{ slug: "value", label: "Value", type, options: ["one"] }] },
+			});
+
+			expect(result).toEqual({ valid: true, errors: [], warnings: [] });
+		});
+
 		it("accepts a repeater with validation.subFields", () => {
 			const result = seedWithRepeater({
 				validation: { subFields: [{ slug: "title", label: "Title", type: "string" }] },

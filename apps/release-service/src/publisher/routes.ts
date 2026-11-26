@@ -419,7 +419,11 @@ export async function handlePutPublisherWorkload(
 			expectedVersion: body["expectedVersion"],
 		};
 		const current = await publisher.getWorkloadPolicy(session.publisherDid, input.packageSlug);
-		if (current && samePolicy(current, input)) {
+		if (
+			current &&
+			samePolicy(current, input) &&
+			!(await publisher.isWorkloadPolicyDerived(session.publisherDid, input.packageSlug))
+		) {
 			return apiSuccess({ policy: current, replayed: true }, requestId);
 		}
 		const result = await publisher.putWorkloadPolicy(input);

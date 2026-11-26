@@ -10,7 +10,7 @@ import type { APIRoute } from "astro";
 import { sql } from "kysely";
 
 import { requireAnyPerm, requireEntryEditPerm, requirePerm } from "#api/authorize.js";
-import { apiError, apiSuccess, handleError } from "#api/error.js";
+import { apiError, apiSuccess, handleError, mapErrorStatus } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
 import { taxonomyTag } from "#cache/chrome-tags.js";
@@ -32,7 +32,18 @@ export const prerender = false;
 
 const MAX_CACHE_PURGE_TAGS = 100;
 
-function assignmentResponse(assignments: TaxonomyAssignmentResolution[], entryLocale: string) {
+/**
+ * `includeUnresolved` must be false for a caller without `content:read_drafts`.
+ * Assignments span the content translation group, so one with no variant in
+ * this entry's locale chain was made while editing another translation, which
+ * may be unpublished. The site never renders those for this entry; only the
+ * editor's taxonomy sidebar needs them.
+ */
+function assignmentResponse(
+	assignments: TaxonomyAssignmentResolution[],
+	entryLocale: string,
+	includeUnresolved: boolean,
+) {
 	const config = getI18nConfig();
 	const defaultLocale = config?.defaultLocale ?? "en";
 	return {
@@ -51,13 +62,15 @@ function assignmentResponse(assignments: TaxonomyAssignmentResolution[], entryLo
 					]
 				: [],
 		),
-		unresolved: assignments
-			.filter(({ term }) => term === null)
-			.map(({ translationGroup, availableLocales, translations }) => ({
-				translationGroup,
-				availableLocales,
-				translations,
-			})),
+		unresolved: includeUnresolved
+			? assignments
+					.filter(({ term }) => term === null)
+					.map(({ translationGroup, availableLocales, translations }) => ({
+						translationGroup,
+						availableLocales,
+						translations,
+					}))
+			: [],
 		entryLocale,
 		defaultLocale,
 		implicitDefaultLocale: config === null,
@@ -101,7 +114,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 			defaultLocale,
 		);
 
-		return apiSuccess(assignmentResponse(assignments, locale));
+		return apiSuccess(
+			assignmentResponse(assignments, locale, hasPermission(user, "content:read_drafts")),
+		);
 	} catch (error) {
 		return handleError(error, "Failed to get entry terms", "TERMS_GET_ERROR");
 	}
@@ -124,17 +139,17 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const denied = requireAnyPerm(user, ["content:edit_own", "content:edit_own_drafts"]);
 	if (denied) return denied;
 
-	if (!emdash.handleContentGet) {
+	if (!emdash.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
 	// Verify the content exists before modifying its terms
-	const existing = await emdash.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGetForWrite(collection, id);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "NOT_FOUND",
 			existing.error?.message ?? "Content not found",
-			existing.error?.code === "NOT_FOUND" ? 404 : 500,
+			mapErrorStatus(existing.error?.code),
 		);
 	}
 
@@ -251,7 +266,9 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 			getI18nConfig()?.defaultLocale ?? "en",
 		);
 
-		return apiSuccess(assignmentResponse(assignments, entryLocale));
+		return apiSuccess(
+			assignmentResponse(assignments, entryLocale, hasPermission(user, "content:read_drafts")),
+		);
 	} catch (error) {
 		return handleError(error, "Failed to set entry terms", "TERMS_SET_ERROR");
 	}

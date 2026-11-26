@@ -9,7 +9,7 @@
  * The fix applies the baseline headers set-if-absent, matching the existing CSP
  * pattern, so a host that sets a stricter value on its own public routes wins.
  */
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
 
 vi.mock("astro:middleware", () => ({
 	defineMiddleware: (handler: unknown) => handler,
@@ -131,7 +131,9 @@ vi.mock("../../../src/loader.js", () => ({
 
 import { createRequestScopedDb } from "virtual:emdash/dialect";
 
+import { after } from "../../../src/after.js";
 import onRequest from "../../../src/astro/middleware.js";
+import { waitForDeferredTasks } from "../../../src/deferred-tasks.js";
 
 /** Anonymous GET to a public frontend page (the `runAnon` response path). */
 function anonymousPublicPageContext() {
@@ -195,5 +197,133 @@ describe("astro middleware baseline security headers (issue #1393)", () => {
 		expect(response.headers.get("Permissions-Policy")).toBe(
 			"camera=(), microphone=(), geolocation=(), payment=()",
 		);
+	});
+});
+
+/**
+ * Server-Timing carries per-request query counts and durations, which differ
+ * between API requests that otherwise get the same answer.
+ */
+describe("astro middleware Server-Timing exposure", () => {
+	const apiUrl = "https://example.com/_emdash/api/auth/magic-link/send";
+
+	function apiContext() {
+		return {
+			...anonymousPublicPageContext(),
+			request: new Request(apiUrl, { method: "POST" }),
+			url: new URL(apiUrl),
+		};
+	}
+
+	beforeEach(() => {
+		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
+	});
+
+	afterEach(() => {
+		vi.unstubAllEnvs();
+	});
+
+	it("omits Server-Timing on API responses in production", async () => {
+		vi.stubEnv("DEV", false);
+
+		const response = await onRequest(
+			apiContext() as Parameters<typeof onRequest>[0],
+			async () => new Response("{}"),
+		);
+
+		expect(response.status).toBe(200);
+		expect(response.headers.get("Server-Timing")).toBeNull();
+		expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+	});
+
+	it("keeps Server-Timing on API responses in dev", async () => {
+		vi.stubEnv("DEV", true);
+
+		const response = await onRequest(
+			apiContext() as Parameters<typeof onRequest>[0],
+			async () => new Response("{}"),
+		);
+
+		expect(response.headers.get("Server-Timing")).toContain("render");
+	});
+
+	it("keeps Server-Timing on admin and public pages in production", async () => {
+		vi.stubEnv("DEV", false);
+		const adminUrl = "https://example.com/_emdash/admin";
+
+		const admin = await onRequest(
+			{
+				...anonymousPublicPageContext(),
+				request: new Request(adminUrl),
+				url: new URL(adminUrl),
+			} as Parameters<typeof onRequest>[0],
+			async () => new Response("ok"),
+		);
+		const page = await onRequest(
+			anonymousPublicPageContext() as Parameters<typeof onRequest>[0],
+			async () => new Response("ok"),
+		);
+
+		expect(admin.headers.get("Server-Timing")).toContain("render");
+		expect(page.headers.get("Server-Timing")).toContain("render");
+	});
+});
+
+describe("astro middleware host lifetime extender", () => {
+	beforeEach(() => {
+		vi.mocked(createRequestScopedDb).mockReset().mockReturnValue(null);
+	});
+
+	it.each([
+		["a public page", "https://example.com/contact"],
+		["an API route", "https://example.com/_emdash/api/auth/magic-link/send"],
+	])("hands deferred work on %s to Netlify's waitUntil", async (_label, href) => {
+		const netlifyContext = {
+			waitUntil: vi.fn(function (this: unknown) {
+				expect(this).toBe(netlifyContext);
+			}),
+		};
+		const context = {
+			...anonymousPublicPageContext(),
+			request: new Request(href),
+			url: new URL(href),
+			locals: { netlify: { context: netlifyContext } },
+		};
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			after(() => {});
+			return new Response("ok");
+		});
+		await waitForDeferredTasks();
+
+		expect(netlifyContext.waitUntil).toHaveBeenCalled();
+	});
+
+	it("hands deferred work to locals.waitUntil", async () => {
+		const waitUntil = vi.fn();
+		const context = { ...anonymousPublicPageContext(), locals: { waitUntil } };
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			after(() => {});
+			return new Response("ok");
+		});
+		await waitForDeferredTasks();
+
+		expect(waitUntil).toHaveBeenCalled();
+	});
+
+	it("finds a locals.waitUntil that the site's middleware sets after EmDash's", async () => {
+		const waitUntil = vi.fn();
+		const locals: Record<string, unknown> = {};
+		const context = { ...anonymousPublicPageContext(), locals };
+
+		await onRequest(context as Parameters<typeof onRequest>[0], async () => {
+			locals.waitUntil = waitUntil;
+			after(() => {});
+			return new Response("ok");
+		});
+		await waitForDeferredTasks();
+
+		expect(waitUntil).toHaveBeenCalled();
 	});
 });

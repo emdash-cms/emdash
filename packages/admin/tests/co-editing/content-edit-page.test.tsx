@@ -516,6 +516,77 @@ describe("the editor in a room", () => {
 	});
 });
 
+describe("a field link to an entry whose room is slow to join", () => {
+	it("focuses the field once the room arrives, after the entry has shown read-only", async () => {
+		openServer = createServer(entry());
+		const fake = createRoom({ title: "First post", slug: "post-one" });
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const router = createAdminRouter(queryClient);
+		if (!i18n.locale) i18n.loadAndActivate({ locale: "en", messages: {} });
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+			search: { field: "title" },
+		});
+		const screen = await render(
+			<I18nProvider i18n={i18n}>
+				<ThemeProvider defaultTheme="light">
+					<Toasty>
+						<QueryClientProvider client={queryClient}>
+							<RouterProvider router={router} />
+						</QueryClientProvider>
+					</Toasty>
+				</ThemeProvider>
+			</I18nProvider>,
+		);
+		unmount = () => screen.unmount();
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		// The editor shows the stored entry once it has waited a while for the room.
+		await expect.element(title, { timeout: 3000 }).toHaveValue("First post");
+		await new Promise((resolve) => requestIdleCallback(resolve));
+
+		show(roomView(fake));
+
+		await expect.poll(() => document.activeElement?.id).toBe("field-title");
+		await expect.poll(() => router.state.location.search).toEqual({});
+	});
+
+	it("handles the link in the read-only view while a full room is retried, without a later jump", async () => {
+		openServer = createServer(entry());
+		const fake = createRoom({ title: "First post", slug: "post-one" });
+		show({ mode: "pending", waiting: true });
+		const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+		const router = createAdminRouter(queryClient);
+		if (!i18n.locale) i18n.loadAndActivate({ locale: "en", messages: {} });
+		await router.navigate({
+			to: "/content/$collection/$id",
+			params: { collection: "posts", id: "post_1" },
+			search: { field: "title" },
+		});
+		const screen = await render(
+			<I18nProvider i18n={i18n}>
+				<ThemeProvider defaultTheme="light">
+					<Toasty>
+						<QueryClientProvider client={queryClient}>
+							<RouterProvider router={router} />
+						</QueryClientProvider>
+					</Toasty>
+				</ThemeProvider>
+			</I18nProvider>,
+		);
+		unmount = () => screen.unmount();
+		const title = screen.getByRole("textbox", { name: "Title", exact: true });
+		await expect.element(title, { timeout: 3000 }).toHaveValue("First post");
+
+		await expect.poll(() => router.state.location.search).toEqual({});
+
+		show(roomView(fake));
+		await expect.element(title).toBeEnabled();
+		await new Promise((resolve) => requestIdleCallback(resolve));
+		expect(document.activeElement?.id).not.toBe("field-title");
+	});
+});
+
 describe("reloading from a room", () => {
 	/** Whether closing or reloading the tab now would ask first. */
 	function asksBeforeUnload(): boolean {

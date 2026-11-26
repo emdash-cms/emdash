@@ -1040,6 +1040,7 @@ async function getEmDashCollectionUncached<T extends string, D = InferCollection
  *
  * // Simple usage — preview just works via middleware
  * const { entry: post, isPreview, error } = await getEmDashEntry("posts", "my-slug");
+ * if (error) throw error;
  * if (!post) return Astro.rewrite("/404");
  * ```
  *
@@ -1252,8 +1253,13 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 	 */
 	function servedForAnotherLocale(entry: ContentEntry<D>, fallbackLocale?: string): boolean {
 		if (fallbackLocale) return true;
-		if (!requestedLocale || entryDatabaseId(entry) === id) return false;
+		if (entryDatabaseId(entry) === id) return false;
 		const stored = dataStr(entryData(entry), "locale");
+		// Without a locale, a slug hit outside the default locale's own spelling
+		// is superseded once a default-locale row with that slug is published.
+		if (!requestedLocale) {
+			return stored !== resolveConfiguredLocale(getI18nConfig()?.defaultLocale ?? "en");
+		}
 		return stored.toLowerCase() !== requestedLocale.toLowerCase();
 	}
 
@@ -1429,9 +1435,7 @@ async function resolveEmDashEntry<T extends string, D = InferCollectionData<T>>(
 				type,
 				id,
 				locale,
-				...(locale !== undefined && getLocaleCandidates(locale).length > 1
-					? { publishedOnly: true }
-					: {}),
+				publishedOnly: true,
 			});
 			if (error) {
 				// Astro reports a missing entry as an error; try the next locale.

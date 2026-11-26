@@ -128,9 +128,7 @@ const { entries: pagePosts, hasMore } = await getEmDashCollection("posts", {
 
 // Handle errors
 const { entries, error } = await getEmDashCollection("posts");
-if (error) {
-	return new Response("Server error", { status: 500 });
-}
+if (error) throw error;
 ```
 
 ### `getEmDashEntry()`
@@ -142,6 +140,7 @@ import { getEmDashEntry } from "emdash";
 
 const { entry: post, error } = await getEmDashEntry("posts", "my-post-slug");
 
+if (error) throw error;
 if (!post) {
 	return Astro.rewrite("/404");
 }
@@ -188,9 +187,7 @@ const { entry: post } = await getEmDashEntry("posts", "01HXK5MZSN0FVXT2Q3KPRT9M7
 const { entry, isPreview, error } = await getEmDashEntry("posts", slug);
 
 // Handle errors vs not-found
-if (error) {
-	return new Response("Server error", { status: 500 });
-}
+if (error) throw error;
 if (!entry) {
 	return Astro.rewrite("/404");
 }
@@ -308,7 +305,7 @@ The result also carries a `cacheHint` naming the rows the page read. A route tha
 
 ### `decodeSlug()` and `slugify()`
 
-Use `decodeSlug()` on a dynamic route parameter before passing it to a content query. It returns `undefined` for a missing parameter or a malformed percent-encoded string, and otherwise returns the decoded slug:
+Use `decodeSlug()` on a dynamic route parameter before passing it to a content query. It returns `undefined` for a missing parameter, a malformed percent-encoded string, or a slug containing a NUL byte, and otherwise returns the decoded slug:
 
 ```ts
 function decodeSlug(raw: string | undefined): string | undefined;
@@ -774,9 +771,7 @@ Content queries return operational errors in their result instead of throwing. A
 ```ts
 const { entry, error } = await getEmDashEntry("posts", slug);
 
-if (error) {
-	return new Response("Content could not be loaded", { status: 500 });
-}
+if (error) throw error;
 
 if (!entry) {
 	return Astro.rewrite("/404");

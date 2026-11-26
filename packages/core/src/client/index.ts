@@ -66,6 +66,10 @@ function pageQuery(options?: { limit?: number; cursor?: string }): string {
 	return qs ? `?${qs}` : "";
 }
 
+function localeQuery(locale: string | undefined): string {
+	return locale ? `?${new URLSearchParams({ locale })}` : "";
+}
+
 /** Encode a site package path (`records/post/000000.ndjson`) segment by segment */
 function encodePackagePath(path: string): string {
 	return path.split("/").map(encodeURIComponent).join("/");
@@ -122,7 +126,8 @@ export interface ContentItem {
 	publishedAt: string | null;
 	scheduledAt: string | null;
 	liveRevisionId: string | null;
-	draftRevisionId: string | null;
+	/** Omitted for callers without `content:read_drafts`. */
+	draftRevisionId?: string | null;
 	locale: string | null;
 	translationGroup: string | null;
 	_rev?: string;
@@ -956,9 +961,12 @@ export class EmDashClient {
 	async delete(
 		collection: string,
 		id: string,
-		options: { overrideLock?: boolean } = {},
+		options: { overrideLock?: boolean; locale?: string } = {},
 	): Promise<void> {
-		const query = options.overrideLock ? "?overrideLock=true" : "";
+		const params = new URLSearchParams();
+		if (options.overrideLock) params.set("overrideLock", "true");
+		if (options.locale) params.set("locale", options.locale);
+		const query = params.size > 0 ? `?${params}` : "";
 		await this.request<unknown>(
 			"DELETE",
 			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}${query}`,
@@ -973,6 +981,8 @@ export class EmDashClient {
 			overrideLock?: boolean;
 			/** ISO 8601 publication date to record, e.g. when migrating content. Requires `content:publish_any`. */
 			publishedAt?: string;
+			/** Locale to resolve a slug in. */
+			locale?: string;
 		} = {},
 	): Promise<void> {
 		const body = {
@@ -981,7 +991,7 @@ export class EmDashClient {
 		};
 		await this.request<unknown>(
 			"POST",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/publish`,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/publish${localeQuery(options.locale)}`,
 			Object.keys(body).length > 0 ? body : undefined,
 		);
 	}
@@ -990,11 +1000,11 @@ export class EmDashClient {
 	async unpublish(
 		collection: string,
 		id: string,
-		options: { overrideLock?: boolean } = {},
+		options: { overrideLock?: boolean; locale?: string } = {},
 	): Promise<void> {
 		await this.request<unknown>(
 			"POST",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/unpublish`,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/unpublish${localeQuery(options.locale)}`,
 			options.overrideLock ? { overrideLock: true } : undefined,
 		);
 	}
@@ -1003,20 +1013,20 @@ export class EmDashClient {
 	async schedule(
 		collection: string,
 		id: string,
-		options: { at: string; overrideLock?: boolean },
+		options: { at: string; overrideLock?: boolean; locale?: string },
 	): Promise<void> {
 		await this.request<unknown>(
 			"POST",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/schedule`,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/schedule${localeQuery(options.locale)}`,
 			{ scheduledAt: options.at, ...(options.overrideLock ? { overrideLock: true } : {}) },
 		);
 	}
 
 	/** Restore a trashed content item */
-	async restore(collection: string, id: string): Promise<void> {
+	async restore(collection: string, id: string, options: { locale?: string } = {}): Promise<void> {
 		await this.request<unknown>(
 			"POST",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/restore`,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/restore${localeQuery(options.locale)}`,
 		);
 	}
 

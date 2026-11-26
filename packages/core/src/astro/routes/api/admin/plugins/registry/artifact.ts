@@ -85,7 +85,10 @@ const AGGREGATOR_TOTAL_BUDGET_MS = 30_000;
 /** Bound the version search: 20 pages * 50 per page = 1000 releases worth. */
 const MAX_LIST_PAGES = 20;
 
-/** Build a fetch that enforces a per-request and per-budget timeout. Mirrors the install handler. */
+/**
+ * Build a fetch that enforces a per-request and per-budget timeout and does
+ * not follow redirects. Mirrors the install handler.
+ */
 function timedFetch(totalDeadline: number): typeof fetch {
 	return (input: Parameters<typeof fetch>[0], init?: Parameters<typeof fetch>[1]) => {
 		const now = Date.now();
@@ -101,7 +104,7 @@ function timedFetch(totalDeadline: number): typeof fetch {
 			if (callerSignal.aborted) controller.abort(callerSignal.reason);
 			else callerSignal.addEventListener("abort", () => controller.abort(callerSignal.reason));
 		}
-		return fetch(input, { ...init, signal: controller.signal }).finally(() => {
+		return fetch(input, { ...init, redirect: "manual", signal: controller.signal }).finally(() => {
 			clearTimeout(timer);
 		});
 	};

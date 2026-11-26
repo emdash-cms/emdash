@@ -718,6 +718,34 @@ describe("EmDashClient", () => {
 				"POST /_emdash/api/content/posts/abc/restore",
 			]);
 		});
+
+		it("sends the locale for slug resolution", async () => {
+			const calledPaths: string[] = [];
+			const backend: Interceptor = async (req) => {
+				const url = new URL(req.url);
+				calledPaths.push(`${req.method} ${url.pathname}${url.search}`);
+				return jsonResponse({});
+			};
+			const client = new EmDashClient({
+				baseUrl: "http://localhost:4321",
+				token: "test",
+				interceptors: [backend],
+			});
+
+			await client.delete("posts", "hello", { locale: "fr", overrideLock: true });
+			await client.publish("posts", "hello", { locale: "fr" });
+			await client.unpublish("posts", "hello", { locale: "fr" });
+			await client.schedule("posts", "hello", { at: "2026-03-01T00:00:00Z", locale: "fr" });
+			await client.restore("posts", "hello", { locale: "fr" });
+
+			expect(calledPaths).toEqual([
+				"DELETE /_emdash/api/content/posts/hello?overrideLock=true&locale=fr",
+				"POST /_emdash/api/content/posts/hello/publish?locale=fr",
+				"POST /_emdash/api/content/posts/hello/unpublish?locale=fr",
+				"POST /_emdash/api/content/posts/hello/schedule?locale=fr",
+				"POST /_emdash/api/content/posts/hello/restore?locale=fr",
+			]);
+		});
 	});
 
 	describe("schema methods", () => {

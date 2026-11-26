@@ -354,7 +354,10 @@ export interface EmDashHandlers {
 		},
 	) => Promise<HandlerResponse>;
 
-	handleContentAuthors: (collection: string) => Promise<HandlerResponse>;
+	handleContentAuthors: (
+		collection: string,
+		options?: { includeEmail?: boolean },
+	) => Promise<HandlerResponse>;
 
 	handleContentGet: (
 		collection: string,
@@ -441,6 +444,19 @@ export interface EmDashHandlers {
 	) => Promise<HandlerResponse>;
 
 	handleContentGetIncludingTrashed: (collection: string, id: string) => Promise<HandlerResponse>;
+
+	handleContentGetForWrite: (
+		collection: string,
+		id: string,
+		locale?: string,
+		options?: { includeTrashed?: boolean },
+	) => Promise<HandlerResponse<ContentResponse & { item: Record<string, unknown> }>>;
+
+	/** Looks up by id only, never by slug. */
+	handleContentGetById: (
+		collection: string,
+		id: string,
+	) => Promise<HandlerResponse<{ item: { id: string; authorId: string | null } }>>;
 
 	handleContentDuplicate: (
 		collection: string,

@@ -42,7 +42,7 @@ describe("PUT content route — edge cache invalidation", () => {
 		},
 		body: Record<string, unknown> = { data: { title: "Edited" } },
 	) {
-		const handleContentGet = vi.fn().mockResolvedValue(ownedItem);
+		const handleContentGetForWrite = vi.fn().mockResolvedValue(ownedItem);
 		const handleContentUpdate = vi.fn().mockResolvedValue(updateResult);
 		const invalidate = vi.fn().mockResolvedValue(undefined);
 
@@ -57,7 +57,7 @@ describe("PUT content route — edge cache invalidation", () => {
 			request,
 			url: new URL(request.url),
 			locals: {
-				emdash: { handleContentUpdate, handleContentGet, db },
+				emdash: { handleContentUpdate, handleContentGetForWrite, db },
 				user: makeUser(),
 			},
 			cache: { enabled: true, invalidate },

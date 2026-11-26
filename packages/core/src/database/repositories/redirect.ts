@@ -32,6 +32,13 @@ export const REFERRER_MAX_LENGTH = 512;
 /** Max stored length for the `User-Agent` header — truncated on insert. */
 export const USER_AGENT_MAX_LENGTH = 256;
 
+/**
+ * Longest request path the 404 log records. The path is the log's unique key
+ * and the source of a redirect created from an entry, so a longer one is
+ * skipped rather than truncated into a path nobody requested.
+ */
+export const NOT_FOUND_PATH_MAX_LENGTH = 2048;
+
 /** Pattern to escape LIKE wildcards: %, _, and backslash */
 const LIKE_ESCAPE_RE = /[\\%_]/g;
 
@@ -707,7 +714,8 @@ export class RedirectRepository {
 	 * Dedups by path: repeat hits increment `hits` and refresh `last_seen_at`
 	 * on the existing row instead of inserting a new one. Referrer and
 	 * user-agent are truncated to bounded lengths so a malicious client can't
-	 * blow up storage with huge headers. When the table would exceed
+	 * blow up storage with huge headers. A path longer than
+	 * NOT_FOUND_PATH_MAX_LENGTH is not recorded. When the table would exceed
 	 * MAX_404_LOG_ROWS, the oldest entries (by `last_seen_at`) are evicted.
 	 *
 	 * This is called from the public redirect middleware on every 404 and
@@ -720,6 +728,7 @@ export class RedirectRepository {
 		userAgent?: string | null;
 		ip?: string | null;
 	}): Promise<void> {
+		if (entry.path.length > NOT_FOUND_PATH_MAX_LENGTH) return;
 		const now = new Date().toISOString();
 		const referrer = truncateOrNull(entry.referrer, REFERRER_MAX_LENGTH);
 		const userAgent = truncateOrNull(entry.userAgent, USER_AGENT_MAX_LENGTH);

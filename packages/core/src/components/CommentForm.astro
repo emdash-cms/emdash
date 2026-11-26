@@ -100,7 +100,7 @@ const endpoint = `/_emdash/api/comments/${encodeURIComponent(collection)}/${enco
 
 					<label class="ec-comment-form-field">
 						<span>{labels.email}</span>
-						<input type="email" name="authorEmail" required />
+						<input type="email" name="authorEmail" required maxlength="254" />
 					</label>
 				</div>
 			)}

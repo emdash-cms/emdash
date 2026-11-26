@@ -6,7 +6,7 @@
 
 import type { APIRoute } from "astro";
 
-import { requireOwnerPerm } from "#api/authorize.js";
+import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
@@ -20,7 +20,7 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 	const collection = params.collection!;
 	const id = params.id!;
 
-	if (!emdash?.handleContentUnpublish || !emdash?.handleContentGet) {
+	if (!emdash?.handleContentUnpublish || !emdash?.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 	const body = await parseOptionalBody(request, contentRevisionConditionBody, {});
@@ -28,8 +28,11 @@ export const POST: APIRoute = async ({ params, request, locals, url, cache }) =>
 
 	const locale = url.searchParams.get("locale") || undefined;
 
+	const roleDenied = requirePerm(user, "content:publish_own");
+	if (roleDenied) return roleDenied;
+
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id, locale);
+	const existing = await emdash.handleContentGetForWrite(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",

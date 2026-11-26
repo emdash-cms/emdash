@@ -27,6 +27,7 @@ import { validateIdentifier } from "./database/validate.js";
 import { getI18nConfig, getLocaleCandidates, type I18nConfig } from "./i18n/config.js";
 import {
 	canonicalLocaleColumn,
+	defaultLocaleFirst,
 	storedLocaleOrder,
 	localeMatches,
 	localeOrder,
@@ -561,6 +562,10 @@ function normalizeLocalMediaValue(value: unknown): unknown {
 
 	const normalized: Record<string, unknown> = {};
 	for (const [key, child] of Object.entries(value)) {
+		// `JSON.parse` keeps a stored `__proto__` key as an own property, which no
+		// write check reads as a field. Assigning it would make it the copy's
+		// prototype instead and expose its contents as the copy's own fields.
+		if (key === "__proto__") continue;
 		normalized[key] = normalizeLocalMediaValue(child);
 	}
 
@@ -2225,6 +2230,7 @@ export function emdashLoader(): LiveLoader<EntryData, EntryFilter, LoaderCollect
 							FROM ${sql.ref(tableName)} AS c
 							WHERE c.deleted_at IS NULL
 							AND ((c.slug = ${id} ${slugVisibility}) OR c.id = ${id})
+							ORDER BY CASE WHEN c.id = ${id} THEN 0 ELSE 1 END, ${defaultLocaleFirst("c.locale")}, c.locale, c.id
 							LIMIT 1
 						`.execute(db);
 

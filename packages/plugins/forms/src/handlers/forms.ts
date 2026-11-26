@@ -162,7 +162,22 @@ export async function formsUpdateHandler(ctx: RouteContext<FormUpdateInput>) {
 	if (updated.settings.redirectUrl === "") updated.settings.redirectUrl = undefined;
 	if (updated.settings.webhookUrl === "") updated.settings.webhookUrl = undefined;
 
-	await forms(ctx).put(input.id, updated);
+	// Write only the edited fields, so counters recorded since the read above are kept and a form
+	// deleted in the meantime is not recreated
+	const saved = await forms(ctx).updateIf(input.id, {
+		where: {},
+		set: {
+			name: updated.name,
+			slug: updated.slug,
+			pages: updated.pages,
+			settings: updated.settings,
+			status: updated.status,
+			updatedAt: updated.updatedAt,
+		},
+	});
+	if (!saved.applied) {
+		throw PluginRouteError.notFound("Form not found");
+	}
 
 	// Update digest cron if settings changed
 	if (ctx.cron) {
@@ -182,7 +197,7 @@ export async function formsUpdateHandler(ctx: RouteContext<FormUpdateInput>) {
 		}
 	}
 
-	return { id: input.id, ...updated };
+	return { id: input.id, ...saved.data };
 }
 
 // ─── Delete Form ─────────────────────────────────────────────────

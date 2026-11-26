@@ -55,10 +55,7 @@ const { slug } = Astro.params;
 if (!slug) return Astro.rewrite("/404");
 
 const { entry, error, cacheHint } = await getEmDashEntry("posts", slug);
-if (error) {
-	if (Astro.cache?.enabled) Astro.cache.set(false);
-	return new Response("Could not load the post", { status: 500 });
-}
+if (error) throw error;
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 if (!entry) return Astro.rewrite("/404");
 ---
@@ -122,7 +119,7 @@ Route rules match the request path, so they also apply to responses you do not w
 
 ### Preview and edit links are handled automatically
 
-EmDash's middleware opts these responses out of the route cache itself, so no template code is needed: requests carrying a `?_preview=` token (valid or not, because those URLs are per-token and a cached draft would otherwise stay reachable after the token expires), and responses with the editor toolbar injected. With [`toolbar: "client"`](/reference/configuration/#toolbar), the same applies to `?_edit` URLs. Valid preview responses and toolbar-injected responses are additionally marked `Cache-Control: private, no-store` for browsers and downstream CDNs.
+EmDash's middleware opts these responses out of the route cache itself, so no template code is needed: requests carrying a `?_preview=` token (valid or not, because those URLs are per-token and a cached draft would otherwise stay reachable after the token expires), responses rendered in edit mode, and responses with the editor toolbar injected. With [`toolbar: "client"`](/reference/configuration/#toolbar), the same applies to `?_edit` URLs. Valid preview responses, edit-mode responses and toolbar-injected responses are additionally marked `Cache-Control: private, no-store` for browsers and downstream CDNs, whatever their content type, so a feed or JSON route rendered with draft content is not stored either. In edit mode, stored media served through the image endpoint stays cacheable, because it is the same for every visitor.
 
 ### Error responses
 
@@ -134,7 +131,7 @@ Cache hits skip rendering and writing to the 404 log, so the admin's 404 hit cou
 
 URLs that match no Astro route still have no route-cache handle and remain uncached. Internal paths (`/_emdash`, `/_image`) bypass the redirect middleware and do not get this 404 lifetime limit. Paths ending in a file extension match exact redirect rules only; their 404 responses also skip this lifetime limit.
 
-Other error responses, such as a 500 rendered on a cached route, inherit the rule's TTL. Opt them out with `Astro.cache.set(false)`.
+Other error responses, such as a 500 returned from a cached route, inherit the rule's TTL. Opt them out with `Astro.cache.set(false)`. To answer a failed content query with a 500 that is never cached, throw the `error` it returns instead of returning a response for it. With the default request pipeline, a thrown error renders the error page without route cache headers.
 
 ### Redirects in middleware
 

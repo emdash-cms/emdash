@@ -1802,7 +1802,7 @@ const commentsPaths = {
 						},
 					},
 				},
-				...standardErrors(500),
+				...standardErrors(404, 500),
 			},
 		},
 		post: {
@@ -2224,7 +2224,9 @@ const menuPaths = {
 	"/_emdash/api/menus/{name}": {
 		get: {
 			operationId: "getMenu",
-			summary: "Get a menu with all items",
+			summary: "Get a menu with its items",
+			description:
+				"Items that link to unpublished content are omitted for callers without content:read_drafts.",
 			tags: ["Menus"],
 			requestParams: {
 				path: z.object({ name: z.string().meta({ description: "Menu name" }) }),

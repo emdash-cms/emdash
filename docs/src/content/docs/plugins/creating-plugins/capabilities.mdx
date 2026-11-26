@@ -136,7 +136,7 @@ try {
 
 `schedule()` accepts `{ scheduledAt, _rev }`; the other publication methods accept `{ _rev }`. These methods do not accept a `publishedAt` override.
 
-Declare `content:restore` separately to read and restore trashed entries. `getTrashedVersioned()` returns `null` for a live or missing entry. Pass its `_rev` to `restore()` so a concurrent change returns a conflict instead of restoring stale state.
+Declare `content:restore` separately to read and restore trashed entries. `getTrashedVersioned()` returns `null` for a live or missing entry, and `restore()` fails with `NOT_FOUND` for either. Pass its `_rev` to `restore()` so a concurrent change returns a conflict instead of restoring stale state.
 
 ### Creating and assigning taxonomy terms
 

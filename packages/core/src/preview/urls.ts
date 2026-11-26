@@ -87,15 +87,7 @@ export async function getPreviewUrl(options: GetPreviewUrlOptions): Promise<stri
 		secret,
 	});
 
-	// Build the path. `{locale}` may resolve to an empty string (default locale
-	// without a prefix); collapse the resulting double slashes and trim a
-	// trailing slash so the URL stays clean.
-	let path = pathPattern
-		.replace("{collection}", collection)
-		.replace("{id}", id)
-		.replace("{locale}", locale);
-	path = path.replace(REPEATED_SLASHES, "/");
-	if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+	const path = resolvePreviewPath({ collection, id, pathPattern, locale });
 
 	// Add token as query parameter
 	const url = new URL(path, baseUrl || "http://placeholder");
@@ -107,6 +99,32 @@ export async function getPreviewUrl(options: GetPreviewUrlOptions): Promise<stri
 	}
 
 	return url.toString();
+}
+
+/**
+ * Resolve a path pattern to the path of a preview URL.
+ *
+ * `id` only fills the `{id}` placeholder. The entry a preview token
+ * authorizes comes from the token's content ID, not from this path.
+ */
+export function resolvePreviewPath(options: {
+	collection: string;
+	id: string;
+	pathPattern: string;
+	locale: string;
+}): string {
+	const { collection, id, pathPattern, locale } = options;
+
+	// `{locale}` may resolve to an empty string (default locale without a
+	// prefix); collapse the resulting double slashes and trim a trailing slash
+	// so the URL stays clean.
+	let path = pathPattern
+		.replace("{collection}", collection)
+		.replace("{id}", id)
+		.replace("{locale}", locale);
+	path = path.replace(REPEATED_SLASHES, "/");
+	if (path.length > 1 && path.endsWith("/")) path = path.slice(0, -1);
+	return path;
 }
 
 /**

@@ -8,7 +8,11 @@ import { MediaRepository, type MediaItem } from "../../database/repositories/med
 import { InvalidCursorError } from "../../database/repositories/types.js";
 import type { Database } from "../../database/types.js";
 import { isValidFocalPointUpdate, type FocalPointUpdate } from "../../media/focal-point.js";
-import { removeUploadAttempt } from "../../media/upload-attempts.js";
+import {
+	copySignedUpload,
+	removeUploadAttempt,
+	retireSignedUploadKey,
+} from "../../media/upload-attempts.js";
 import type { Storage } from "../../storage/types.js";
 import type { ApiResult } from "../types.js";
 
@@ -217,9 +221,16 @@ export async function handleMediaRegisterUpload(
 			};
 		}
 
-		const storedFile = await storage.download(input.storageKey);
+		// Unless the object was streamed through EmDash to an upload attempt key,
+		// it arrived through a signed upload URL that stays valid after this
+		// call: verify and publish a copy at a key that URL does not write to.
+		const streamed = await repo.hasUploadAttempt(input.storageKey);
+		const storageKey = streamed ? input.storageKey : await copySignedUpload(storage, repo, pending);
+
+		const storedFile = await storage.download(storageKey);
 		try {
 			if (storedFile.size !== pending.size) {
+				if (!streamed) await removeUploadAttempt(storage, repo, storageKey);
 				return {
 					success: false,
 					error: {
@@ -236,10 +247,18 @@ export async function handleMediaRegisterUpload(
 			}
 		}
 
-		const item = await repo.confirmUpload(pending.id, undefined, input.storageKey);
+		if (!streamed) {
+			if (!(await repo.publishPendingStorageKey(pending.id, input.storageKey, storageKey))) {
+				await removeUploadAttempt(storage, repo, storageKey);
+				return invalidKey;
+			}
+			await retireSignedUploadKey(storage, repo, pending.id, input.storageKey);
+		}
+
+		const item = await repo.confirmUpload(pending.id, undefined, storageKey);
 		if (!item) return invalidKey;
 		try {
-			await repo.deleteUploadAttempt(input.storageKey);
+			await repo.deleteUploadAttempt(storageKey);
 		} catch (error) {
 			console.error("[media] upload attempt cleanup failed:", error);
 		}
