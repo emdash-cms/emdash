@@ -358,7 +358,7 @@ describe("editorial comments in Portable Text fields", () => {
 		});
 		const margin = screen.getByRole("complementary", { name: "Comments" });
 		const card = margin.element().querySelector.bind(margin.element());
-		await margin.getByRole("textbox", { name: "Reply" }).fill("Still checking");
+		await margin.getByRole("combobox", { name: "Reply" }).fill("Still checking");
 		await margin.getByRole("button", { name: "Reply", exact: true }).click();
 		await vi.waitFor(() => expect(vi.mocked(replyToEditorialThread)).toHaveBeenCalled());
 		const { editor } = editorFor("Content");
@@ -373,7 +373,7 @@ describe("editorial comments in Portable Text fields", () => {
 		const reply = { ...thread.comments[0]!, id: "thread-brown-c2", body: "Still checking" };
 		finish({ ...thread, comments: [...thread.comments, reply] });
 
-		await expect.element(margin.getByRole("textbox", { name: "Reply" })).toHaveValue("");
+		await expect.element(margin.getByRole("combobox", { name: "Reply" })).toHaveValue("");
 	});
 });
 
