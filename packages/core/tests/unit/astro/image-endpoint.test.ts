@@ -1,6 +1,6 @@
 import type { APIContext } from "astro";
 import sharpService from "astro/assets/services/sharp";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { memoryMediaRequests } from "../../utils/media-route-cache.js";
 
@@ -465,5 +465,148 @@ describe("GET /_image over EmDash media", () => {
 		expect(response.headers.get("Content-Type")).toBe("image/png");
 		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
 		expect(logger.warn).toHaveBeenCalledWith("could not optimize");
+	});
+});
+
+describe("GET /_image outside EmDash storage", () => {
+	const download = vi.fn();
+
+	it.each([
+		"https://attacker.example/_emdash/api/media/file/nested/key.png",
+		"//attacker.example/_emdash/api/media/file/nested/key.png",
+		"http:attacker.example/_emdash/api/media/file/nested/key.png",
+		"http:/attacker.example/_emdash/api/media/file/nested/key.png",
+	])("does not load internal media from another host (%s)", async (href) => {
+		const request = new Request(
+			`https://site.example/_image?href=${encodeURIComponent(href)}&w=150`,
+		);
+
+		const response = await GET(buildContext(request, { download }));
+
+		expect(response.status).toBe(404);
+		expect(await response.text()).not.toBe("generic");
+	});
+
+	it.each([
+		"/_emdash/api/media/file/nested/key.png",
+		"http://127.0.0.1:9000/_emdash/api/media/file/nested/key.png",
+	])("does not fetch internal media it cannot read from storage (%s)", async (href) => {
+		const request = new Request(
+			`http://127.0.0.1:9000/_image?href=${encodeURIComponent(href)}&w=150`,
+		);
+
+		const response = await GET(buildContext(request, { download }));
+
+		expect(response.status).toBe(404);
+		expect(await response.text()).not.toBe("generic");
+	});
+
+	it.each(["https://cdn.example.com/key.png", "/_astro/logo.png"])(
+		"delegates other sources to the stock endpoint (%s)",
+		async (href) => {
+			const request = new Request(`http://localhost/_image?href=${encodeURIComponent(href)}&w=150`);
+
+			const response = await GET(buildContext(request, { download }));
+
+			expect(await response.text()).toBe("generic");
+		},
+	);
+
+	it("does not load cross-host internal media when storage is unavailable", async () => {
+		const request = new Request(
+			`http://localhost/_image?href=${encodeURIComponent("https://attacker.example/_emdash/api/media/file/key.png")}&w=150`,
+		);
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- minimal stub for the endpoint
+		const ctx = { request, url: new URL(request.url), locals: {} } as unknown as Parameters<
+			typeof GET
+		>[0];
+
+		expect((await GET(ctx)).status).toBe(404);
+	});
+});
+
+describe("GET /_image when the image service cannot transform", () => {
+	const download = vi.fn().mockImplementation(async () => ({
+		body: new Response(new Uint8Array([1, 2, 3])).body,
+		contentType: "image/jpeg",
+		size: 3,
+		lastModified: new Date("2026-01-15T12:00:00.000Z"),
+	}));
+	const request = (headers?: HeadersInit) =>
+		new Request(
+			"http://localhost/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fkey.jpg&w=150&f=webp",
+			{
+				headers,
+			},
+		);
+	const missingSharp = () =>
+		Object.assign(new Error("Could not find Sharp"), { name: "MissingSharp" });
+
+	afterEach(() => {
+		delete (globalThis as Record<symbol, unknown>)[
+			Symbol.for("emdash:image-endpoint:missing-sharp")
+		];
+		transform.mockReset();
+		vi.restoreAllMocks();
+	});
+
+	it("serves the stored original when sharp is not installed", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		transform.mockRejectedValueOnce(missingSharp());
+		const cache = routeCache();
+
+		const response = await GET(buildContext(request(), { download }, cache));
+
+		expect(response.status).toBe(200);
+		expect(cache.set.mock.calls).toEqual([[false]]);
+		expect(response.headers.get("Last-Modified")).toBeNull();
+		expect(response.headers.get("Content-Type")).toBe("image/jpeg");
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+	});
+
+	it("revalidates the served original without retrying the transform", async () => {
+		const log = vi.spyOn(console, "error").mockImplementation(() => {});
+		transform.mockRejectedValue(missingSharp());
+
+		const first = await GET(buildContext(request(), { download }));
+		const etag = first.headers.get("ETag");
+		expect(etag).toBeTruthy();
+
+		const cache = routeCache();
+		const second = await GET(
+			buildContext(request({ "If-None-Match": etag! }), { download }, cache),
+		);
+		const third = await GET(buildContext(request(), { download }));
+
+		expect(second.status).toBe(304);
+		expect(second.headers.get("Last-Modified")).toBeNull();
+		expect(cache.set.mock.calls).toEqual([[false]]);
+		expect(third.status).toBe(200);
+		expect(new Uint8Array(await third.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+		expect(transform).toHaveBeenCalledTimes(1);
+		expect(log).toHaveBeenCalledTimes(1);
+	});
+
+	it("leaves a disabled route cache untouched when serving the original", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		transform.mockRejectedValueOnce(missingSharp());
+		const cache = { enabled: false, set: vi.fn() };
+
+		const response = await GET(buildContext(request(), { download }, cache));
+		const repeat = await GET(buildContext(request(), { download }, cache));
+
+		expect(response.status).toBe(200);
+		expect(repeat.status).toBe(200);
+		expect(transform).toHaveBeenCalledTimes(1);
+		expect(cache.set).not.toHaveBeenCalled();
+	});
+
+	it("fails when the image itself cannot be transformed", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		transform.mockRejectedValueOnce(new Error("Input buffer contains unsupported image format"));
+
+		const response = await GET(buildContext(request(), { download }));
+
+		expect(response.status).toBe(500);
 	});
 });
