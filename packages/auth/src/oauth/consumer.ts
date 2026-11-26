@@ -8,7 +8,7 @@ import { z } from "zod";
 
 import { completeInvite, InviteError, validateInvite } from "../invite.js";
 import { hashToken } from "../tokens.js";
-import type { AuthAdapter, User, RoleLevel } from "../types.js";
+import type { AuthAdapter, NewUser, User, RoleLevel } from "../types.js";
 import { github, fetchGitHubEmail } from "./providers/github.js";
 import { google } from "./providers/google.js";
 import { createMicrosoftProvider } from "./providers/microsoft.js";
@@ -32,7 +32,7 @@ export interface OAuthConsumerConfig {
 	/**
 	 * Check if self-signup is allowed for this email domain
 	 */
-	canSelfSignup?: (email: string) => Promise<{ allowed: boolean; role: RoleLevel } | null>;
+	canSelfSignup?: CanSelfSignup;
 }
 
 /**
@@ -339,9 +339,21 @@ async function profileFromIdToken(
  * Signup policy callback.
  * Return `{ allowed: true, role }` to permit signup, or `null` to deny.
  */
-export type CanSelfSignup = (
-	email: string,
-) => Promise<{ allowed: boolean; role: RoleLevel } | null>;
+export type CanSelfSignup = (email: string) => Promise<{
+	allowed: boolean;
+	role: RoleLevel;
+	/**
+	 * Creates the user in place of `adapter.createUser`, before `account` is
+	 * linked to it. It may also return an existing user for `account` to be
+	 * linked to. Return `null` to refuse the signup when the decision no
+	 * longer holds at insert time, such as a role reserved for the first user
+	 * after another request has created one.
+	 */
+	createUser?: (
+		user: NewUser,
+		account: { provider: string; providerAccountId: string },
+	) => Promise<User | null>;
+} | null>;
 
 /**
  * Find existing user or create new one (with auto-linking).
@@ -400,13 +412,22 @@ export async function findOrCreateOAuthUser(
 				);
 			}
 			// Create new user
-			const user = await adapter.createUser({
+			const newUser: NewUser = {
 				email: profile.email,
 				name: profile.name,
 				avatarUrl: profile.avatarUrl,
 				role: signup.role,
 				emailVerified: profile.emailVerified,
-			});
+			};
+			const user = signup.createUser
+				? await signup.createUser(newUser, {
+						provider: providerName,
+						providerAccountId: profile.id,
+					})
+				: await adapter.createUser(newUser);
+			if (!user) {
+				throw new OAuthError("signup_not_allowed", "Self-signup is no longer allowed");
+			}
 
 			// Link OAuth account
 			await adapter.createOAuthAccount({

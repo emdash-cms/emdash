@@ -1,6 +1,6 @@
 {
 	"name": "@emdash-cms/plugin-embeds",
-	"version": "0.1.58",
+	"version": "0.1.60",
 	"description": "Embed blocks for EmDash CMS - YouTube, Vimeo, Twitter, Bluesky, Mastodon, and more",
 	"type": "module",
 	"main": "src/index.ts",
@@ -40,7 +40,7 @@
 	"devDependencies": {
 		"@types/sanitize-html": "^2.16.0",
 		"astro": "catalog:",
-		"playwright": "^1.61.1",
+		"playwright": "^1.64.1",
 		"vitest": "catalog:"
 	},
 	"scripts": {

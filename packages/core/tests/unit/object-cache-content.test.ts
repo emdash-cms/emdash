@@ -10,11 +10,12 @@ vi.mock("astro:content", () => ({
 
 import { getLiveCollection, getLiveEntry } from "astro:content";
 
+import { handleContentCreate } from "../../src/api/index.js";
 import { ContentRepository } from "../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../src/database/repositories/revision.js";
 import { ScheduledNotDueError } from "../../src/database/repositories/types.js";
 import type { Database } from "../../src/database/types.js";
-import { CURSOR_RAW_VALUES } from "../../src/loader.js";
+import { CURSOR_RAW_VALUES, emdashLoader } from "../../src/loader.js";
 import { encode } from "../../src/object-cache/codec.js";
 import {
 	__setObjectCacheBackendForTests,
@@ -26,6 +27,8 @@ import {
 import { peekSeoPanel } from "../../src/page/seo-panel.js";
 import { getEmDashCollection, getEmDashEntry } from "../../src/query.js";
 import { runWithContext } from "../../src/request-context.js";
+import { getSeoMeta } from "../../src/seo/index.js";
+import { setEntryTitleField } from "../../src/seo/title-field.js";
 import { createPostFixture } from "../utils/fixtures.js";
 import { setupTestDatabaseWithCollections, teardownTestDatabase } from "../utils/test-db.js";
 
@@ -167,6 +170,71 @@ describe("object cache: content read-through", () => {
 		expect(getLiveEntry).toHaveBeenCalledTimes(1);
 	});
 
+	it("keeps the getSeoMeta title-field fallback when an entry is served from the object cache", async () => {
+		const [entry] = mockEntries();
+		const data = entry!.data as Record<string, unknown>;
+		data.name = "Ada Lovelace";
+		setEntryTitleField(data, "name");
+		vi.mocked(getLiveEntry).mockResolvedValue({
+			entry,
+			error: undefined,
+			cacheHint: {},
+			// eslint-disable-next-line typescript/no-explicit-any -- mocked loader result
+		} as any);
+
+		await runWithContext({ editMode: false, db }, () => getEmDashEntry("post", "hello"));
+		await flush();
+		const warm = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello"),
+		);
+
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+		expect(getSeoMeta(warm.entry!).title).toBe("Ada Lovelace");
+	});
+
+	it("reloads a cached entry's getSeoMeta title when the collection's titleField changes", async () => {
+		const { handleSchemaCollectionUpdate, handleSchemaFieldCreate } =
+			await import("../../src/api/handlers/schema.js");
+		const field = await handleSchemaFieldCreate(db, "post", {
+			slug: "name",
+			label: "Name",
+			type: "string",
+		});
+		expect(field.success).toBe(true);
+		const created = await handleContentCreate(db, "post", {
+			data: { title: "Senior Engineer", name: "Ada Lovelace" },
+			status: "published",
+		});
+		if (!created.success) throw new Error("create failed");
+		const id = created.data!.item.id;
+		vi.mocked(getLiveEntry).mockImplementation(async (_collection, filter) => {
+			const entry = await emdashLoader().loadEntry!({ filter } as never);
+			// eslint-disable-next-line typescript/no-explicit-any -- loader result in the live entry shape
+			return { entry, error: undefined, cacheHint: {} } as any;
+		});
+		async function seoTitle() {
+			const { entry } = await runWithContext({ editMode: false, db }, () =>
+				getEmDashEntry("post", id),
+			);
+			await flush();
+			return getSeoMeta(entry!).title;
+		}
+
+		expect(await seoTitle()).toBe("Senior Engineer");
+		expect(await seoTitle()).toBe("Senior Engineer");
+		expect(getLiveEntry).toHaveBeenCalledTimes(1);
+
+		expect((await handleSchemaCollectionUpdate(db, "post", { titleField: "name" })).success).toBe(
+			true,
+		);
+		expect(await seoTitle()).toBe("Ada Lovelace");
+
+		expect((await handleSchemaCollectionUpdate(db, "post", { titleField: null })).success).toBe(
+			true,
+		);
+		expect(await seoTitle()).toBe("Senior Engineer");
+	});
+
 	it("omits revision metadata from anonymous entry results", async () => {
 		const [entry] = mockEntries();
 		vi.mocked(getLiveEntry).mockResolvedValue({
@@ -284,6 +352,82 @@ describe("object cache: content read-through", () => {
 		expect(getLiveEntry).not.toHaveBeenCalled();
 		expect(result.entry!.data).not.toHaveProperty("liveRevisionId");
 		expect(result.entry!.data).not.toHaveProperty("draftRevisionId");
+	});
+
+	it("tags a missing entry served from a snapshot without a cache hint", async () => {
+		__setObjectCacheBackendForTests(
+			backendWithCachedValue({ ok: true, value: { entry: null, isPreview: false, cacheHint: {} } }),
+		);
+
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "missing"),
+		);
+
+		expect(getLiveEntry).not.toHaveBeenCalled();
+		expect(result.entry).toBeNull();
+		expect(result.cacheHint.tags).toEqual(["post"]);
+	});
+
+	it("tags a fallback-locale entry served from a snapshot without the collection tag", async () => {
+		__setObjectCacheBackendForTests(
+			backendWithCachedValue({
+				ok: true,
+				value: {
+					entry: { id: "hello", data: { id: "db-hello", title: "Hello", locale: "en" } },
+					isPreview: false,
+					fallbackLocale: "en",
+					cacheHint: { tags: ["db-hello"] },
+				},
+			}),
+		);
+
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello"),
+		);
+
+		expect(getLiveEntry).not.toHaveBeenCalled();
+		expect(result.fallbackLocale).toBe("en");
+		expect(result.cacheHint.tags).toEqual(["db-hello", "post"]);
+	});
+
+	it("tags a legacy-locale-code entry served from a snapshot without the collection tag", async () => {
+		__setObjectCacheBackendForTests(
+			backendWithCachedValue({
+				ok: true,
+				value: {
+					entry: { id: "hello", data: { id: "db-hello", title: "Hello", locale: "en-US" } },
+					isPreview: false,
+					cacheHint: { tags: ["db-hello"] },
+				},
+			}),
+		);
+
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello", { locale: "en" }),
+		);
+
+		expect(getLiveEntry).not.toHaveBeenCalled();
+		expect(result.cacheHint.tags).toEqual(["db-hello", "post"]);
+	});
+
+	it("keeps a requested-locale entry served from a snapshot without the collection tag", async () => {
+		__setObjectCacheBackendForTests(
+			backendWithCachedValue({
+				ok: true,
+				value: {
+					entry: { id: "hello", data: { id: "db-hello", title: "Hello", locale: "en" } },
+					isPreview: false,
+					cacheHint: { tags: ["db-hello"] },
+				},
+			}),
+		);
+
+		const result = await runWithContext({ editMode: false, db }, () =>
+			getEmDashEntry("post", "hello", { locale: "en" }),
+		);
+
+		expect(getLiveEntry).not.toHaveBeenCalled();
+		expect(result.cacheHint.tags).toEqual(["db-hello"]);
 	});
 
 	it("does not read scheduled content cached under the previous namespace", async () => {

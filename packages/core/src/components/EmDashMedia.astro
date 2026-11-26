@@ -3,7 +3,8 @@
  * EmDash Media component
  *
  * Unified component for rendering media from any provider (local, Cloudflare Images, etc.)
- * Calls the provider's getEmbed() method at render time for proper URL generation.
+ * Local media is served from the storage public URL or the media file route;
+ * other providers' getEmbed() runs at render time for proper URL generation.
  *
  * Usage:
  * ```astro
@@ -21,6 +22,7 @@ import type { EmbedResult, EmbedOptions } from "../media/types.js";
 import type { HTMLAttributes } from "astro/types";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { normalizeLegacyExternalMediaValue } from "../media/normalize.js";
+import { buildRenderMediaUrl } from "../media/url.js";
 
 interface Props extends Omit<HTMLAttributes<"img" | "video" | "audio">, "src" | "width" | "height"> {
 	/** Media value from content field */
@@ -51,38 +53,19 @@ let embed: EmbedResult | null = null;
 
 if (media) {
 	const providerId = media.provider ?? "local";
-	
-	// Get provider using lazy-loaded getMediaProvider (loads from virtual module)
-	const provider = await getMediaProvider(providerId);
-	
-	if (provider) {
-		// Call provider's getEmbed to get render instructions
-		const embedOptions: EmbedOptions = { width, height, format };
-		try {
-			const result = provider.getEmbed(media, embedOptions);
-			// Handle both sync and async getEmbed
-			embed = result instanceof Promise ? await result : result;
-		} catch (error) {
-			console.warn(`Failed to get embed for media ${media.id}:`, error);
-		}
-	} else if (media.src) {
-		// Fallback for direct URLs or missing provider
-		embed = {
-			type: "image",
-			src: media.src,
-			width: media.width,
-			height: media.height,
-			alt: media.alt,
-		};
-	} else if (providerId === "local") {
-		// Fallback for local provider without runtime
-		const storageKey = (media.meta?.storageKey as string) || media.id;
-		if (storageKey) {
+
+	if (providerId === "local") {
+		const src = buildRenderMediaUrl(Astro.locals.emdash?.getPublicMediaUrl, {
+			storageKey: typeof media.meta?.storageKey === "string" ? media.meta.storageKey : undefined,
+			url: media.src,
+			id: media.id,
+		});
+		if (src) {
 			const mimeType = media.mimeType || "";
 			if (mimeType.startsWith("video/")) {
 				embed = {
 					type: "video",
-					src: `/_emdash/api/media/file/${storageKey}`,
+					src,
 					width: media.width,
 					height: media.height,
 					controls: true,
@@ -91,19 +74,41 @@ if (media) {
 			} else if (mimeType.startsWith("audio/")) {
 				embed = {
 					type: "audio",
-					src: `/_emdash/api/media/file/${storageKey}`,
+					src,
 					controls: true,
 					preload: "metadata",
 				};
 			} else {
 				embed = {
 					type: "image",
-					src: `/_emdash/api/media/file/${storageKey}`,
+					src,
 					width: media.width,
 					height: media.height,
 					alt: media.alt,
 				};
 			}
+		}
+	} else {
+		const provider = await getMediaProvider(providerId);
+
+		if (provider) {
+			const embedOptions: EmbedOptions = { width, height, format };
+			try {
+				const result = provider.getEmbed(media, embedOptions);
+				// Handle both sync and async getEmbed
+				embed = result instanceof Promise ? await result : result;
+			} catch (error) {
+				console.warn(`Failed to get embed for media ${media.id}:`, error);
+			}
+		} else if (media.src) {
+			// Fallback for direct URLs or missing provider
+			embed = {
+				type: "image",
+				src: media.src,
+				width: media.width,
+				height: media.height,
+				alt: media.alt,
+			};
 		}
 	}
 }

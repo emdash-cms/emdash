@@ -11,6 +11,8 @@
  *     are evicted to make room for new paths.
  *   - Truncates referrer / user_agent to bounded lengths so a malicious client
  *     can't blow up storage by sending huge headers.
+ *   - Skips a path longer than NOT_FOUND_PATH_MAX_LENGTH, which would otherwise
+ *     be stored at any length, in the row and again in the unique index.
  */
 
 import { Kysely, SqliteDialect } from "kysely";
@@ -19,6 +21,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runMigrations } from "../../../src/database/migrations/runner.js";
 import {
 	MAX_404_LOG_ROWS,
+	NOT_FOUND_PATH_MAX_LENGTH,
 	REFERRER_MAX_LENGTH,
 	RedirectRepository,
 	USER_AGENT_MAX_LENGTH,
@@ -251,6 +254,16 @@ describe("RedirectRepository.log404 — bounded logging", () => {
 		// Confirm the truncation actually happened (sanity check on the constants).
 		expect(row.referrer!.length).toBe(REFERRER_MAX_LENGTH);
 		expect(row.user_agent!.length).toBe(USER_AGENT_MAX_LENGTH);
+	});
+
+	it("does not record a path longer than the limit", async () => {
+		const longest = "/" + "a".repeat(NOT_FOUND_PATH_MAX_LENGTH - 1);
+		await repo.log404({ path: longest });
+		await repo.log404({ path: `${longest}a` });
+
+		const rows = await db.selectFrom("_emdash_404_log").select("path").execute();
+
+		expect(rows.map((row) => row.path)).toEqual([longest]);
 	});
 
 	it("preserves null referrer / user_agent without coercing to empty string", async () => {

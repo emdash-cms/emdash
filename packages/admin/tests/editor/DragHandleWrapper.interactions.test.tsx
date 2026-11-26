@@ -104,6 +104,7 @@ describe("DragHandleWrapper interactions", () => {
 	it("uses Kumo buttons for both drag-handle controls", async () => {
 		const editor = {
 			view: { dom: document.createElement("div"), nodeDOM: () => null },
+			commands: { setMeta: () => true },
 		} as unknown as Editor;
 		const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
 
@@ -175,6 +176,7 @@ describe("DragHandleWrapper interactions", () => {
 		editorElement.dir = "ltr";
 		const editor = {
 			view: { dom: editorElement, nodeDOM: () => null },
+			commands: { setMeta: () => true },
 		} as unknown as Editor;
 
 		try {
@@ -215,6 +217,7 @@ describe("DragHandleWrapper interactions", () => {
 		document.body.append(block);
 		const editor = {
 			view: { dom: document.createElement("div"), nodeDOM: () => block },
+			commands: { setMeta: () => true },
 		} as unknown as Editor;
 
 		try {
@@ -277,6 +280,34 @@ describe("DragHandleWrapper interactions", () => {
 			actionsButton.element().closest(".drag-handle")?.getAttribute("data-node-position"),
 		).toBe("1");
 		expect(selectedPositions).toEqual([1]);
+	});
+
+	it("closes its menu, and opens it no more, once the editor is read-only", async () => {
+		const editor = {
+			view: { dom: document.createElement("div"), nodeDOM: () => null },
+			commands: { setMeta: () => true },
+			chain: () => ({
+				setNodeSelection() {
+					return this;
+				},
+				run: () => true,
+			}),
+		} as unknown as Editor;
+		const screen = await render(<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} />);
+		const actionsButton = screen.getByRole("button", {
+			name: "Block actions - drag to reorder, click for menu",
+		});
+		await hoverBlock(editor, { nodeSize: 2 } as PMNode, 1);
+		actionsButton.element().click();
+		await expect.element(screen.getByRole("menu")).toBeInTheDocument();
+
+		await screen.rerender(
+			<DragHandleWrapper editor={editor} onInsertBlock={vi.fn()} editable={false} />,
+		);
+		await expect.element(screen.getByRole("menu")).not.toBeInTheDocument();
+		actionsButton.element().click();
+		await new Promise((resolve) => setTimeout(resolve, 50));
+		expect(screen.getByRole("menu").query()).toBeNull();
 	});
 
 	it("keeps the drag handle pinned until the menu exit completes", async () => {

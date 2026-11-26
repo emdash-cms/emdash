@@ -44,6 +44,13 @@ export function responsiveSizes(width: number | undefined): string {
 /** Column count `Gallery.astro` uses when a gallery block does not set one. */
 export const GALLERY_DEFAULT_COLUMNS = 3;
 
+/** The gallery block's column count: its positive integer `columns`, or the default. */
+export function galleryColumns(columns: unknown): number {
+	return typeof columns === "number" && Number.isInteger(columns) && columns > 0
+		? columns
+		: GALLERY_DEFAULT_COLUMNS;
+}
+
 /**
  * Build the `sizes` attribute for one cell of a Portable Text gallery.
  *
@@ -53,10 +60,7 @@ export const GALLERY_DEFAULT_COLUMNS = 3;
  * renders at; pass `sizes` to `Gallery` when the container width is known.
  */
 export function gallerySizes(columns: number | undefined): string {
-	const count =
-		typeof columns === "number" && Number.isInteger(columns) && columns > 0
-			? columns
-			: GALLERY_DEFAULT_COLUMNS;
+	const count = galleryColumns(columns);
 	return `(max-width: 640px) ${galleryCell(2)}, ${galleryCell(count)}`;
 }
 
@@ -102,8 +106,34 @@ export type GetImage = (options: {
 	height?: number;
 	widths?: number[];
 	sizes?: string;
+	format?: string;
 	quality?: EmbedOptions["quality"];
 }) => Promise<{ src: string; srcSet?: { attribute?: string } | undefined }>;
+
+/** MIME type for a transform output format, for `<source type>`. */
+export function formatContentType(format: string): string {
+	return `image/${format === "jpg" ? "jpeg" : format}`;
+}
+
+/** Return whether the image service rewrites the URL for this transform. */
+export async function canOptimizeImage(
+	getImage: GetImage,
+	opts: {
+		src: string;
+		width: number;
+		height: number;
+		format?: string;
+		quality?: EmbedOptions["quality"];
+	},
+): Promise<boolean> {
+	if (!ABSOLUTE_HTTP_URL.test(opts.src)) return false;
+	try {
+		const result = await getImage(opts);
+		return Boolean(result.src && result.src !== opts.src);
+	} catch {
+		return false;
+	}
+}
 
 export interface ResponsiveImage {
 	src: string;
@@ -135,10 +165,11 @@ export async function buildResponsiveImage(
 		width?: number;
 		height?: number;
 		originalWidth?: number;
+		format?: string;
 		quality?: EmbedOptions["quality"];
 	},
 ): Promise<ResponsiveImage | null> {
-	const { src, width, height, originalWidth, quality } = opts;
+	const { src, width, height, originalWidth, format, quality } = opts;
 	if (!src || !width || !height) return null;
 	if (!ABSOLUTE_HTTP_URL.test(src)) return null;
 	try {
@@ -149,6 +180,7 @@ export async function buildResponsiveImage(
 			height,
 			widths: responsiveWidths(width, originalWidth),
 			sizes,
+			format,
 			...(quality !== undefined ? { quality } : {}),
 		});
 		// Passthrough: the service returned the source unchanged (unauthorized

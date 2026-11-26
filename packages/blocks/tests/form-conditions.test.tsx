@@ -176,7 +176,9 @@ vi.mock("echarts/charts", () => ({
 vi.mock("echarts/components", () => ({
 	AriaComponent: {},
 	AxisPointerComponent: {},
+	BrushComponent: {},
 	GridComponent: {},
+	ToolboxComponent: {},
 	TooltipComponent: {},
 }));
 

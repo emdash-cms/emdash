@@ -4,7 +4,7 @@ import { it, expect, beforeEach, afterEach } from "vitest";
 import { handleContentCreate } from "../../src/api/index.js";
 import { TaxonomyRepository } from "../../src/database/repositories/taxonomy.js";
 import type { Database } from "../../src/database/types.js";
-import { emdashLoader, resetTaxonomyNamesCache } from "../../src/loader.js";
+import { emdashLoader, LARGE_TERM_ASSIGNMENTS, resetTaxonomyNamesCache } from "../../src/loader.js";
 import { runWithContext } from "../../src/request-context.js";
 import { SchemaRegistry } from "../../src/schema/registry.js";
 import {
@@ -70,13 +70,29 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		await new TaxonomyRepository(db).attachToEntry("post", contentId, taxonomyId);
 	}
 
-	function load(where: Record<string, unknown>, locale?: string) {
+	function load(where: Record<string, unknown>, locale?: string, target = db) {
 		const loader = emdashLoader();
-		return runWithContext({ editMode: false, db }, () =>
+		return runWithContext({ editMode: false, db: target }, () =>
 			loader.loadCollection!({
 				filter: { type: "post", where: where as never, ...(locale ? { locale } : {}) },
 			}),
 		);
+	}
+
+	async function captureReads<T>(fn: (target: Kysely<Database>) => Promise<T>) {
+		const queries: Array<{ parameters: readonly unknown[] }> = [];
+		const target = db.withPlugin({
+			transformQuery: (args) => args.node,
+			transformResult: async (args) => args.result,
+		});
+		const executor = target.getExecutor();
+		const execute = executor.executeQuery.bind(executor);
+		executor.executeQuery = ((compiled: { parameters: readonly unknown[] }, ...rest: unknown[]) => {
+			queries.push(compiled);
+			return (execute as (...args: unknown[]) => unknown)(compiled, ...rest);
+		}) as typeof executor.executeQuery;
+		const value = await fn(target);
+		return { value, queries };
 	}
 
 	/**
@@ -221,6 +237,61 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		expect(titles).toContain("Sports + Featured");
 	});
 
+	it("gives the same result whichever taxonomy is written first (#3259)", async () => {
+		const news = await term("category", "news");
+		const featured = await term("tag", "featured");
+
+		// Many posts carry the category and few carry the tag, so the two key orders
+		// drive the pivot from different sides; the answer must not depend on it.
+		const both = await createPost("News + Featured");
+		await tag(both.id, news);
+		await tag(both.id, featured);
+		for (let i = 0; i < 12; i++) {
+			const p = await createPost(`News ${i}`);
+			await tag(p.id, news);
+		}
+
+		const a = await load({ category: ["news"], tag: ["featured"] });
+		const b = await load({ tag: ["featured"], category: ["news"] });
+
+		expect(a.entries.map((e) => e.id)).toEqual(b.entries.map((e) => e.id));
+		expect(a.entries).toHaveLength(1);
+		expect(a.entries[0]!.data.title).toBe("News + Featured");
+	});
+
+	it("drives from the smaller taxonomy without an extra query (#3259)", async () => {
+		const news = await term("category", "news");
+		const featured = await term("tag", "featured");
+		const both = await createPost("News + Featured");
+		await tag(both.id, news);
+		await tag(both.id, featured);
+		for (let i = 0; i < 12; i++) {
+			const p = await createPost(`News ${i}`);
+			await tag(p.id, news);
+		}
+
+		// Warm the per-isolate taxonomy definitions so both reads count the same work.
+		await load({ category: ["news"] });
+		const one = await captureReads((target) => load({ category: ["news"] }, undefined, target));
+		const two = await captureReads((target) =>
+			load({ category: ["news"], tag: ["featured"] }, undefined, target),
+		);
+
+		// The second taxonomy costs its own term lookup and nothing more: the size
+		// count rides in that lookup.
+		expect(two.queries).toHaveLength(one.queries.length + 1);
+		// Both term lookups carry the size count, capped so a large term is not
+		// read in full just to rank it.
+		for (const lookup of two.queries.slice(-3, -1)) {
+			expect(lookup.parameters).toContain(LARGE_TERM_ASSIGNMENTS);
+		}
+		// The content query binds the driving set first, so the tag (1 entry) leads
+		// the category (13 entries) although `category` was written first.
+		const content = two.queries.at(-1)!.parameters;
+		expect(content.indexOf(featured)).toBeGreaterThanOrEqual(0);
+		expect(content.indexOf(featured)).toBeLessThan(content.indexOf(news));
+	});
+
 	it("returns no entries when any one taxonomy filter is an empty array", async () => {
 		const news = await term("category", "news");
 		const post = await createPost("In News");
@@ -231,6 +302,63 @@ describeEachDialect("Loader taxonomy term filter", (dialectName: DialectName) =>
 		const result = await load({ category: ["news"], tag: [] });
 
 		expect(result.entries).toHaveLength(0);
+	});
+
+	it.each([false, true])(
+		"matches more than 100 taxonomy slugs and an unknown slug (field filter: %s)",
+		async (withFieldFilter) => {
+			const slugs: string[] = [];
+			const groups: string[] = [];
+			for (let i = 0; i < 120; i++) {
+				const id = await term("category", `long-${i}`);
+				slugs.push(`long-${i}`);
+				groups.push(id);
+			}
+			const post = await createPost("Long taxonomy match");
+			await new TaxonomyRepository(db).attachGroupsToEntry("post", post.id, groups);
+
+			const { value: result, queries } = await captureReads((target) =>
+				load(
+					{
+						category: [...slugs, "does-not-exist"],
+						...(withFieldFilter ? { title: ["Long taxonomy match"] } : {}),
+					},
+					undefined,
+					target,
+				),
+			);
+
+			expect(result.entries).toHaveLength(1);
+			expect(result.entries[0]!.data.title).toBe("Long taxonomy match");
+			expect(queries.length).toBeGreaterThan(0);
+			expect(queries.every((query) => query.parameters.length < 100)).toBe(true);
+		},
+	);
+
+	it("keeps combined taxonomy and field filters under the parameter budget", async () => {
+		const category: string[] = [];
+		const tagSlugs: string[] = [];
+		const groups: string[] = [];
+		for (let i = 0; i < 48; i++) {
+			category.push(`moderate-category-${i}`);
+			groups.push(await term("category", category[i]!));
+			tagSlugs.push(`moderate-tag-${i}`);
+			groups.push(await term("tag", tagSlugs[i]!));
+		}
+		const post = await createPost("Moderate taxonomy match");
+		await new TaxonomyRepository(db).attachGroupsToEntry("post", post.id, groups);
+
+		const title = [
+			"Moderate taxonomy match",
+			...Array.from({ length: 49 }, (_, i) => `Missing ${i}`),
+		];
+		const { value: result, queries } = await captureReads((target) =>
+			load({ category, tag: tagSlugs, title }, undefined, target),
+		);
+
+		expect(result.entries).toHaveLength(1);
+		expect(result.entries[0]!.data.title).toBe("Moderate taxonomy match");
+		expect(queries.every((query) => query.parameters.length < 100)).toBe(true);
 	});
 
 	it("resolves a taxonomy filter by the localized term slug in the query locale (#1480)", async () => {

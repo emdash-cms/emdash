@@ -10,7 +10,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { apiError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, unwrapResult } from "#api/error.js";
 import { handleImportCreate, handleImportList } from "#api/handlers/transfer.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { transferPaginationQuery } from "#api/schemas/transfer.js";
@@ -26,8 +26,9 @@ const IDEMPOTENCY_KEY_PATTERN = /^[\x21-\x7e]{1,255}$/;
 
 export const GET: APIRoute = async ({ url, locals }) => {
 	const { emdash, user } = locals;
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "transfer:import");
 	if (denied) return denied;
@@ -42,8 +43,9 @@ export const GET: APIRoute = async ({ url, locals }) => {
 
 export const POST: APIRoute = async ({ request, locals }) => {
 	const { emdash, user } = locals;
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	if (!user) return apiError("UNAUTHORIZED", "Authentication required", 401);
 	const denied = requirePerm(user, "transfer:import");

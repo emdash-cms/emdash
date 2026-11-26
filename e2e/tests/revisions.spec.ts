@@ -120,10 +120,8 @@ test.describe("Revisions", () => {
 		).json()) as { data: { item: { id: string } } };
 		postId = created.data.item.id;
 
-		// Creating an entry saves no revision, so each version is a PUT, which
-		// records the token's user as the revision's author.
+		// The first save keeps the created content as the oldest revision.
 		const entryPath = `/content/${collectionSlug}/${postId}`;
-		await api("PUT", entryPath, { data: ORIGINAL });
 		await api("PUT", entryPath, { data: REVISED });
 		await api("POST", `${entryPath}/publish`, {});
 		await api("PUT", entryPath, { data: LATEST });
@@ -263,7 +261,7 @@ test.describe("Revisions", () => {
 		await openEditor(admin);
 		await page.setViewportSize({ width: 390, height: 844 });
 
-		await page.getByRole("button", { name: "Settings", exact: true }).click();
+		await page.getByRole("button", { name: "Show settings", exact: true }).click();
 		const sheet = page.getByRole("navigation", { name: "Settings" });
 		await expect(sheet).toBeVisible();
 		const rows = await expandRevisions(sheet);

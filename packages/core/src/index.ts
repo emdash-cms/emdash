@@ -187,7 +187,7 @@ export type {
 export { getRequestContext, runWithContext } from "./request-context.js";
 export type { EmDashRequestContext } from "./request-context.js";
 
-// Defer work past the response (waitUntil on workerd, fire-and-forget on Node)
+// Defer work past the response, using the host's waitUntil when there is one
 export { after } from "./after.js";
 export type { WaitUntilFn } from "./after.js";
 
@@ -446,6 +446,15 @@ export type {
 	CommentAccess,
 	CommentListOptions,
 	CommentCountOptions,
+
+	// Email hook types
+	EmailMessage,
+	EmailBeforeSendEvent,
+	EmailDeliverEvent,
+	EmailAfterSendEvent,
+	EmailBeforeSendHandler,
+	EmailDeliverHandler,
+	EmailAfterSendHandler,
 
 	// Scheduler types
 	CronScheduler,

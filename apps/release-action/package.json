@@ -5,7 +5,7 @@
 	"description": "GitHub Action for delegated EmDash plugin releases.",
 	"type": "module",
 	"scripts": {
-		"build": "tsdown && node scripts/normalize-dist.mjs",
+		"build": "tsdown && node scripts/normalize-dist.mjs && node scripts/check-dist.mjs",
 		"test": "vitest run",
 		"typecheck": "tsgo --noEmit"
 	},
@@ -13,7 +13,9 @@
 		"@atcute/lexicons": "catalog:",
 		"@emdash-cms/registry-client": "workspace:*",
 		"@emdash-cms/registry-lexicons": "workspace:*",
-		"@emdash-cms/registry-verification": "workspace:*"
+		"@emdash-cms/registry-verification": "workspace:*",
+		"image-size": "catalog:",
+		"jsonc-parser": "catalog:"
 	},
 	"devDependencies": {
 		"@types/node": "catalog:",

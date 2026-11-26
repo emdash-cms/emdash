@@ -11,6 +11,7 @@ import { isSqlite, tableExists as dialectTableExists } from "../database/dialect
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { isStoragelessFieldRow } from "../schema/types.js";
+import { chunks } from "../utils/chunks.js";
 import { normalizeSearchError } from "./errors.js";
 import { SEARCH_TOKENIZERS } from "./types.js";
 import type { SearchConfig, SearchTokenizer } from "./types.js";
@@ -675,17 +676,16 @@ export class FTSManager {
 	/**
 	 * Verify FTS index integrity and rebuild if drift is detected.
 	 *
-	 * Cheap belt-and-braces check, run lazily on the first search request
-	 * per isolate. The expensive cases (corrupted indexes from pre-fix
-	 * EmDash versions, broken legacy triggers) are handled at boot time by
-	 * migration `039_fix_fts5_triggers`, not here. This routine sticks to:
-	 *
-	 *   1. FTS table missing while config says search is enabled -> rebuild.
-	 *   2. Row count mismatch between content table and FTS docsize -> rebuild.
+	 * Rebuilds missing or empty indexes and, by default, indexes whose row
+	 * counts differ from the content table. Request-path callers must disable
+	 * checkRowCounts: counting content and FTS rows scans entire tables on D1.
 	 *
 	 * Returns true if the index was rebuilt, false if it was healthy.
 	 */
-	async verifyAndRepairIndex(collectionSlug: string): Promise<boolean> {
+	async verifyAndRepairIndex(
+		collectionSlug: string,
+		options: { checkRowCounts?: boolean } = {},
+	): Promise<boolean> {
 		if (!isSqlite(this.db)) return false;
 		this.validateInputs(collectionSlug);
 		const ftsTable = this.getFtsTableName(collectionSlug);
@@ -702,6 +702,23 @@ export class FTSManager {
 			console.warn(`FTS index for "${collectionSlug}" is missing. Rebuilding.`);
 			await this.rebuildIndex(collectionSlug, fields, config.weights, config.tokenize);
 			return true;
+		}
+
+		if (options.checkRowCounts === false) {
+			// A rebuild can stop after creating the table but before its atomic
+			// populate statement completes. Probe the docsize table first; the
+			// live-content probe uses the content table's deleted_at index.
+			const emptyIndex = await sql<{ needsRepair: number }>`
+				SELECT EXISTS (
+					SELECT 1 FROM ${sql.ref(contentTable)} WHERE deleted_at IS NULL
+				) AS ${sql.ref("needsRepair")}
+				WHERE NOT EXISTS (SELECT 1 FROM ${sql.ref(ftsDocsizeTable)})
+			`.execute(this.db);
+			if (emptyIndex.rows[0]?.needsRepair && fields.length > 0) {
+				await this.rebuildIndex(collectionSlug, fields, config?.weights, config?.tokenize);
+				return true;
+			}
+			return false;
 		}
 
 		// Row count parity check against the docsize shadow table, which
@@ -734,25 +751,68 @@ export class FTSManager {
 	/**
 	 * Verify and repair FTS indexes for all search-enabled collections.
 	 *
-	 * Intended to run at startup to auto-heal any corruption from
-	 * previous process crashes.
+	 * Set checkRowCounts to false on request paths to repair only missing
+	 * or empty indexes without counting content or FTS rows.
 	 */
-	async verifyAndRepairAll(): Promise<number> {
+	async verifyAndRepairAll(options: { checkRowCounts?: boolean } = {}): Promise<number> {
 		if (!isSqlite(this.db)) return 0;
 
 		const collections = await this.db
-			.selectFrom("_emdash_collections")
-			.select("slug")
-			.where("search_config", "is not", null)
+			.selectFrom("_emdash_collections as c")
+			.select([
+				"c.slug",
+				"c.search_config",
+				"c.title_field",
+				sql<number>`EXISTS (
+					SELECT 1 FROM sqlite_master
+					WHERE type = 'table' AND name = ${"_emdash_fts_"} || c.slug
+				)`.as("has_index"),
+			])
+			.where("c.search_config", "is not", null)
 			.execute();
+		const enabled = collections.filter(
+			(row) => row.search_config && parseSearchConfig(row.search_config, row.title_field)?.enabled,
+		);
+		const healthy = new Set<string>();
+
+		// One result column per collection; stay well under D1's 100-column limit.
+		for (const batch of chunks(
+			enabled.filter((row) => row.has_index),
+			40,
+		)) {
+			try {
+				const probes = batch.map(({ slug }, index) => {
+					const content = sql.ref(this.getContentTableName(slug));
+					const docsize = sql.ref(`${this.getFtsTableName(slug)}_docsize`);
+					const needsRepair =
+						options.checkRowCounts === false
+							? sql`NOT EXISTS (SELECT 1 FROM ${docsize}) AND EXISTS (
+							SELECT 1 FROM ${content} WHERE deleted_at IS NULL
+						)`
+							: sql`(SELECT COUNT(*) FROM ${content} WHERE deleted_at IS NULL)
+							!= (SELECT COUNT(*) FROM ${docsize})`;
+					return needsRepair.as(`probe_${index}`);
+				});
+				const result = await sql<Record<string, number>>`SELECT ${sql.join(probes)}`.execute(
+					this.db,
+				);
+				const row = result.rows[0];
+				if (row) {
+					for (const [index, collection] of batch.entries()) {
+						if (row[`probe_${index}`] === 0) healthy.add(collection.slug);
+					}
+				}
+			} catch {
+				// A missing shadow/content table or concurrent schema change must
+				// not prevent other collections from being verified and repaired.
+			}
+		}
 
 		let repaired = 0;
-		for (const { slug } of collections) {
-			const config = await this.getSearchConfig(slug);
-			if (!config?.enabled) continue;
-
+		for (const { slug } of enabled) {
+			if (healthy.has(slug)) continue;
 			try {
-				const wasRepaired = await this.verifyAndRepairIndex(slug);
+				const wasRepaired = await this.verifyAndRepairIndex(slug, options);
 				if (wasRepaired) repaired++;
 			} catch (error) {
 				console.error(`Failed to verify/repair FTS index for "${slug}":`, error);

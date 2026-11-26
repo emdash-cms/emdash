@@ -7,7 +7,7 @@
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleCommentBulk } from "#api/handlers/comments.js";
 import { isParseError, parseBody } from "#api/parse.js";
 import { commentBulkBody } from "#api/schemas.js";
@@ -22,8 +22,9 @@ const MAX_CACHE_PURGE_TAGS = 100;
 export const POST: APIRoute = async ({ request, locals, cache }) => {
 	const { emdash, user } = locals;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	try {
 		const body = await parseBody(request, commentBulkBody);

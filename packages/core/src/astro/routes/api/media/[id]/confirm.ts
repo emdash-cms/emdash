@@ -16,7 +16,15 @@ import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { mediaConfirmBody } from "#api/schemas.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
+import { readDimensions } from "#media/placeholder.js";
+import { THUMBNAIL_MAX_DIMENSION } from "#media/thumbnail.js";
+import {
+	copySignedUpload,
+	removeUploadAttempt,
+	retireSignedUploadKey,
+} from "#media/upload-attempts.js";
 import type { MediaItem } from "#types";
+import { decodeBase64Bytes } from "#utils/base64.js";
 import { computeContentHash, MAX_CONTENT_HASH_BYTES } from "#utils/hash.js";
 
 import { after } from "../../../../../after.js";
@@ -71,6 +79,25 @@ async function confirmationConflict(repo: MediaRepository, id: string): Promise<
 		return apiError("INVALID_STATE", "Media item changed during confirmation", 409);
 	}
 	return apiError("INVALID_STATE", `Media item is not pending: ${current.status}`, 400);
+}
+
+function decodeThumbnail(thumbnail?: {
+	contentType: string;
+	data: string;
+}): Uint8Array | undefined {
+	if (!thumbnail) return undefined;
+	// An unusable supplied thumbnail must not fall back to decoding the original.
+	try {
+		const bytes = decodeBase64Bytes(thumbnail.data);
+		const dimensions = readDimensions(bytes);
+		return dimensions &&
+			dimensions.width * dimensions.height <= THUMBNAIL_MAX_DIMENSION * THUMBNAIL_MAX_DIMENSION
+			? bytes
+			: new Uint8Array();
+	} catch (error) {
+		console.error("[media] confirm thumbnail decode failed:", error);
+		return new Uint8Array();
+	}
 }
 
 async function consumeDownload(download: DownloadResult): Promise<Uint8Array> {
@@ -161,6 +188,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		let confirmedSize = existing.size ?? body.size;
 		let contentHash = existing.contentHash;
 		let imageBytes: Uint8Array | undefined;
+		// The key the item becomes ready under.
+		let storageKey = existing.storageKey;
 
 		if (emdash.storage) {
 			const exists = await emdash.storage.exists(existing.storageKey);
@@ -170,9 +199,19 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				return apiError("FILE_NOT_FOUND", "File was not uploaded to storage", 400);
 			}
 
-			const storedFile = await emdash.storage.download(existing.storageKey);
+			// Objects streamed through EmDash already sit under an upload attempt
+			// key. Anything else arrived through a signed upload URL, which stays
+			// valid after this request: verify and publish a copy at a key that
+			// URL does not write to.
+			const streamed = await repo.hasUploadAttempt(existing.storageKey);
+			if (!streamed) {
+				storageKey = await copySignedUpload(emdash.storage, repo, existing);
+			}
+
+			const storedFile = await emdash.storage.download(storageKey);
 			if (confirmedSize !== undefined && storedFile.size !== confirmedSize) {
 				await cancelDownload(storedFile);
+				if (!streamed) await removeUploadAttempt(emdash.storage, repo, storageKey);
 				return apiError(
 					"UPLOAD_SIZE_MISMATCH",
 					"Stored file size does not match the pending media item",
@@ -183,8 +222,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 			const isImage = existing.mimeType.startsWith("image/");
 			const canBuffer = storedFile.size <= MAX_PLACEHOLDER_DOWNLOAD_BYTES;
-			const hasServerHash =
-				contentHash !== null && (await repo.hasUploadAttempt(existing.storageKey));
+			const hasServerHash = contentHash !== null && streamed;
 			if (canBuffer && (isImage || !hasServerHash)) {
 				const bytes = await consumeDownload(storedFile);
 				contentHash = bytes.byteLength > 0 ? await computeContentHash(bytes) : null;
@@ -193,27 +231,33 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				if (!hasServerHash) contentHash = null;
 				await cancelDownload(storedFile);
 			}
-
-			if (isImage && !canBuffer) {
-				console.warn(
-					`[media] confirm skipping placeholder: object ${existing.storageKey} reported size ${storedFile.size} bytes (> ${MAX_PLACEHOLDER_DOWNLOAD_BYTES})`,
-				);
-			}
 		}
 
-		// LQIP is best-effort; oversized images skip server-side placeholders.
+		// Original bytes supply dimensions; thumbnail dimensions must not reach the record.
 		let blurhash: string | undefined;
 		let dominantColor: string | undefined;
 		let width = body.width;
 		let height = body.height;
-		if (imageBytes) {
+		const placeholdersEnabled = emdash.config?.imagePlaceholders ?? true;
+		const thumbnail = body.thumbnail;
+		const thumbnailBytes = placeholdersEnabled ? decodeThumbnail(thumbnail) : undefined;
+		if (imageBytes || thumbnailBytes) {
 			try {
-				const enriched = await enrichImageMetadata(imageBytes, existing.mimeType, {
-					knownDimensions:
-						body.width != null && body.height != null
-							? { width: body.width, height: body.height }
-							: undefined,
-				});
+				const enriched = await enrichImageMetadata(
+					imageBytes ?? new Uint8Array(),
+					existing.mimeType,
+					{
+						knownDimensions:
+							body.width != null && body.height != null
+								? { width: body.width, height: body.height }
+								: undefined,
+						placeholder:
+							thumbnail && thumbnailBytes
+								? { bytes: thumbnailBytes, contentType: thumbnail.contentType }
+								: undefined,
+						placeholders: placeholdersEnabled,
+					},
+				);
 				blurhash = enriched.blurhash;
 				dominantColor = enriched.dominantColor;
 				width = width ?? enriched.width;
@@ -221,6 +265,14 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			} catch (error) {
 				console.error("[media] confirm placeholder generation failed:", error);
 			}
+		}
+
+		if (emdash.storage && storageKey !== existing.storageKey) {
+			if (!(await repo.publishPendingStorageKey(id, existing.storageKey, storageKey))) {
+				await removeUploadAttempt(emdash.storage, repo, storageKey);
+				return await confirmationConflict(repo, id);
+			}
+			await retireSignedUploadKey(emdash.storage, repo, id, existing.storageKey);
 		}
 
 		// Confirm the upload
@@ -234,7 +286,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				dominantColor,
 				contentHash,
 			},
-			existing.storageKey,
+			storageKey,
 		);
 
 		if (!item) {

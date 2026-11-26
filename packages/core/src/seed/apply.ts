@@ -350,7 +350,8 @@ async function applySeedWrites(
 		db,
 		storage: storage ?? null,
 		skipMediaDownload,
-		mediaCache: new Map(), // Cache downloaded media by URL to avoid re-downloading
+		mediaBasePath: options.mediaBasePath,
+		mediaCache: new Map(),
 		budget,
 	};
 
@@ -2280,7 +2281,8 @@ interface MediaContext {
 	db: Kysely<Database>;
 	storage: Storage | null;
 	skipMediaDownload: boolean;
-	mediaCache: Map<string, MediaValue>; // URL -> resolved MediaValue
+	mediaBasePath?: string;
+	mediaCache: Map<string, MediaValue>;
 	budget: SeedBudget | null;
 }
 
@@ -2295,8 +2297,8 @@ function isSeedMediaReference(value: unknown): value is SeedMediaReference {
 	return (
 		typeof media === "object" &&
 		media !== null &&
-		"url" in media &&
-		typeof (media as Record<string, unknown>).url === "string"
+		(("url" in media && typeof media.url === "string") ||
+			("file" in media && typeof media.file === "string"))
 	);
 }
 
@@ -2424,18 +2426,27 @@ async function deleteMediaRow(db: Kysely<Database>, id: string): Promise<void> {
 }
 
 /**
- * Resolve a $media reference by downloading and uploading the media
+ * Resolve a $media reference by reading or downloading and uploading the media
  */
 async function resolveMedia(
 	ref: SeedMediaReference,
 	ctx: MediaContext,
 	result: SeedApplyResult,
 ): Promise<MediaValue | null> {
-	const { url, alt, filename, caption, libraryCaption } = ref.$media;
+	const { alt, filename, caption, libraryCaption } = ref.$media;
+	const url = ref.$media.url ?? undefined;
+	const file = ref.$media.file ?? undefined;
+	const source = file ?? url;
+	const cacheKey = file === undefined ? `url:${url}` : `file:${file}`;
+	if ((file !== undefined && url !== undefined) || !source) {
+		console.warn("  ⚠️ $media requires exactly one non-empty url or file");
+		result.media.skipped++;
+		return null;
+	}
 
 	// Check cache first. The cached caption is the library default; a reference's
 	// caption is only an override for the content value being resolved.
-	const cached = ctx.mediaCache.get(url);
+	const cached = ctx.mediaCache.get(cacheKey);
 	if (cached) {
 		result.media.skipped++;
 		return {
@@ -2448,54 +2459,79 @@ async function resolveMedia(
 	// When skipMediaDownload is set, resolve $media to an external URL reference
 	// without downloading or storing anything. Used by playground mode.
 	if (ctx.skipMediaDownload) {
+		if (file !== undefined) {
+			console.warn(`Skipping local $media file (skipMediaDownload is enabled): ${file}`);
+			result.media.skipped++;
+			return null;
+		}
 		const defaultCaption = libraryCaption ?? undefined;
 		const mediaValue: MediaValue = {
 			provider: "external",
 			id: ulid(),
-			src: url,
+			src: source,
 			alt: alt ?? undefined,
 			caption: caption ?? defaultCaption,
 			filename: filename ?? undefined,
 		};
-		ctx.mediaCache.set(url, { ...mediaValue, caption: defaultCaption });
+		ctx.mediaCache.set(cacheKey, { ...mediaValue, caption: defaultCaption });
 		result.media.skipped++;
 		return mediaValue;
 	}
 
 	// Storage is required for $media resolution
 	if (!ctx.storage) {
-		console.warn(`Skipping $media reference (no storage configured): ${url}`);
+		console.warn(`Skipping $media reference (no storage configured): ${source}`);
 		result.media.skipped++;
 		return null;
 	}
 
 	try {
-		// SSRF protection: validate URL before downloading
-		validateExternalUrl(url);
-
-		// Download the media (ssrfSafeFetch re-validates redirect targets)
-		console.log(`  📥 Downloading: ${url}`);
-		ctx.budget?.countMediaDownload();
-		const response = await ssrfSafeFetch(url, {
-			headers: {
-				// Some services like Unsplash require a user-agent
-				"User-Agent": "EmDash-CMS/1.0",
-			},
-		});
-
-		if (!response.ok) {
-			console.warn(`  ⚠️ Failed to download ${url}: ${response.status}`);
-			result.media.skipped++;
-			return null;
+		let body: Uint8Array;
+		let contentType: string;
+		let ext: string;
+		let sourceFilename: string;
+		if (file !== undefined) {
+			if (!ctx.mediaBasePath) {
+				throw new Error("$media.file requires mediaBasePath");
+			}
+			const { readFile, realpath } = await import("node:fs/promises");
+			const { basename, extname, isAbsolute, relative, resolve, sep } = await import("node:path");
+			const base = await realpath(ctx.mediaBasePath);
+			const withinBase = (target: string) => {
+				const path = relative(base, target);
+				return path !== ".." && !path.startsWith(`..${sep}`) && !isAbsolute(path);
+			};
+			const target = resolve(base, file);
+			if (isAbsolute(file) || !withinBase(target)) {
+				throw new Error("$media.file must be relative to and remain within mediaBasePath");
+			}
+			const realTarget = await realpath(target);
+			if (!withinBase(realTarget)) {
+				throw new Error("$media.file must remain within mediaBasePath after resolving symlinks");
+			}
+			ctx.budget?.countMediaDownload();
+			body = new Uint8Array(await readFile(realTarget));
+			contentType = mime.getType(file) || "application/octet-stream";
+			ext = getExtensionFromContentType(contentType) || extname(file) || ".bin";
+			sourceFilename = basename(file);
+		} else {
+			// ssrfSafeFetch also validates redirect targets.
+			validateExternalUrl(source);
+			console.log(`  📥 Downloading: ${url}`);
+			ctx.budget?.countMediaDownload();
+			const response = await ssrfSafeFetch(source, {
+				headers: { "User-Agent": "EmDash-CMS/1.0" },
+			});
+			if (!response.ok) {
+				console.warn(`  ⚠️ Failed to download ${url}: ${response.status}`);
+				result.media.skipped++;
+				return null;
+			}
+			contentType = response.headers.get("content-type") || "application/octet-stream";
+			ext = getExtensionFromContentType(contentType) || getExtensionFromUrl(source) || ".bin";
+			body = new Uint8Array(await response.arrayBuffer());
+			sourceFilename = generateFilename(source, ext);
 		}
-
-		// Get content type and determine extension
-		const contentType = response.headers.get("content-type") || "application/octet-stream";
-		const ext = getExtensionFromContentType(contentType) || getExtensionFromUrl(url) || ".bin";
-
-		// Get the body as buffer
-		const arrayBuffer = await response.arrayBuffer();
-		const body = new Uint8Array(arrayBuffer);
 
 		// Deduplicate by content hash so re-running a seed does not mint a
 		// fresh media row for a file that already exists in the library.
@@ -2514,7 +2550,7 @@ async function resolveMedia(
 				filename: existing.filename,
 				meta: { storageKey: existing.storageKey },
 			};
-			ctx.mediaCache.set(url, { ...mediaValue, caption: existing.caption ?? undefined });
+			ctx.mediaCache.set(cacheKey, { ...mediaValue, caption: existing.caption ?? undefined });
 			result.media.skipped++;
 			console.log(`  ✅ Reused: ${existing.filename}`);
 			return mediaValue;
@@ -2522,7 +2558,7 @@ async function resolveMedia(
 
 		// Generate filename and storage key
 		const storageId = ulid();
-		const finalFilename = filename || generateFilename(url, ext);
+		const finalFilename = filename || sourceFilename;
 		const storageKey = `${storageId}${ext}`;
 
 		// Get image dimensions if it's an image
@@ -2569,7 +2605,7 @@ async function resolveMedia(
 		};
 
 		// Cache the library default for reuse; this reference may have a per-use override.
-		ctx.mediaCache.set(url, {
+		ctx.mediaCache.set(cacheKey, {
 			...mediaValue,
 			caption: media.caption ?? undefined,
 		});
@@ -2579,7 +2615,7 @@ async function resolveMedia(
 		return mediaValue;
 	} catch (error) {
 		console.warn(
-			`  ⚠️ Error processing $media ${url}:`,
+			`  ⚠️ Error processing $media ${source}:`,
 			error instanceof Error ? error.message : error,
 		);
 		result.media.skipped++;

@@ -423,6 +423,17 @@ function NotFoundPanel({
 	);
 }
 
+const BRACKETS = /[[\]]/g;
+
+/**
+ * The rule source that matches a logged 404 path and nothing else. Brackets in
+ * a source are pattern placeholders, and sources are compared percent-decoded,
+ * so encoding them keeps the rule an exact match.
+ */
+function literalSource(path: string): string {
+	return path.replace(BRACKETS, encodeURIComponent);
+}
+
 // ---------------------------------------------------------------------------
 // Redirect row
 // ---------------------------------------------------------------------------
@@ -649,14 +660,19 @@ export function Redirects() {
 	// One-click "Gone": create a 410 rule (no destination) for a 404 path.
 	const markGoneMutation = useMutation({
 		mutationFn: (path: string) =>
-			createRedirect({ source: path, destination: "", type: 410, enabled: true }),
+			createRedirect({
+				source: literalSource(path),
+				destination: "",
+				type: 410,
+				enabled: true,
+			}),
 		onSuccess: () => {
 			void refreshRedirects(queryClient);
 		},
 	});
 
 	function handleCreateFrom404(path: string) {
-		openForm({ defaultSource: path });
+		openForm({ defaultSource: literalSource(path) });
 		setTab("redirects");
 	}
 

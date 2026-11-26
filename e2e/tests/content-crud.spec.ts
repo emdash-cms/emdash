@@ -76,6 +76,35 @@ test.describe("Content CRUD", () => {
 			});
 		});
 
+		test("explains the first save as a draft and offers publishing after it", async ({
+			admin,
+		}, testInfo) => {
+			await admin.goToNewContent("posts");
+			await admin.waitForLoading();
+
+			const saveDraft = admin.page.getByRole("button", { name: "Save draft" });
+			await expect(saveDraft).toBeVisible();
+			await expect(
+				admin.page.getByText(
+					"Saving creates a draft that stays off the site. You can publish it after the first save.",
+				),
+			).toBeVisible();
+			await expect(
+				admin.page.getByRole("button", { name: "Publish now", exact: true }),
+			).not.toBeVisible();
+
+			await admin.fillField("title", `First Draft Save ${testInfo.retry}`);
+			await saveDraft.click();
+
+			await expect(admin.page).toHaveURL(CONTENT_EDIT_URL_PATTERN, { timeout: 10000 });
+			await expect(admin.page.getByRole("status").filter({ hasText: "Saved" })).toHaveText("Saved");
+			await expect(
+				admin.page.getByRole("button", { name: "Publish now", exact: true }),
+			).toBeVisible();
+			await expect(admin.page.getByText("This version is not visible on the site")).toBeVisible();
+			await expect(admin.page.getByRole("button", { name: "Save draft" })).toHaveCount(0);
+		});
+
 		test("auto-generates slug from title", async ({ admin }) => {
 			await admin.goToNewContent("posts");
 			await admin.waitForLoading();
@@ -90,56 +119,6 @@ test.describe("Content CRUD", () => {
 	});
 
 	test.describe("Edit Content", () => {
-		test("vertically aligns standard section drag handles with their headings", async ({
-			admin,
-		}) => {
-			await admin.goToContent("posts");
-			await admin.waitForLoading();
-			await admin.page.getByRole("link", { name: "First Post", exact: true }).click();
-			await admin.waitForLoading();
-
-			const dragHandle = admin.page.getByRole("button", {
-				name: "Drag to reorder Publish",
-			});
-			const section = dragHandle.locator("xpath=ancestor::section");
-			const heading = section.getByRole("heading", { name: "Publish" });
-			const [handleBox, headingBox] = await Promise.all([
-				dragHandle.boundingBox(),
-				heading.boundingBox(),
-			]);
-
-			expect(handleBox).not.toBeNull();
-			expect(headingBox).not.toBeNull();
-			expect(
-				Math.abs(handleBox!.y + handleBox!.height / 2 - (headingBox!.y + headingBox!.height / 2)),
-			).toBeLessThanOrEqual(1);
-		});
-
-		test("vertically aligns disclosure section drag handles with their headers", async ({
-			admin,
-		}) => {
-			await admin.goToContent("posts");
-			await admin.waitForLoading();
-			await admin.page.getByRole("link", { name: "First Post", exact: true }).click();
-			await admin.waitForLoading();
-
-			const dragHandle = admin.page.getByRole("button", {
-				name: "Drag to reorder Revisions",
-			});
-			const section = dragHandle.locator("xpath=ancestor::section");
-			const disclosureTrigger = section.getByRole("button", { name: /^Revisions/ });
-			const [handleBox, triggerBox] = await Promise.all([
-				dragHandle.boundingBox(),
-				disclosureTrigger.boundingBox(),
-			]);
-
-			expect(handleBox).not.toBeNull();
-			expect(triggerBox).not.toBeNull();
-			expect(
-				Math.abs(handleBox!.y + handleBox!.height / 2 - (triggerBox!.y + triggerBox!.height / 2)),
-			).toBeLessThanOrEqual(1);
-		});
-
 		test("loads existing content for editing", async ({ admin }) => {
 			// Go to content list
 			await admin.goToContent("posts");

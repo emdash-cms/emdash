@@ -1,4 +1,5 @@
 import { Button } from "@cloudflare/kumo";
+import type { EditorDraftFieldDefinition, EditorDraftPatchOperation } from "@emdash-cms/blocks";
 import { Trans } from "@lingui/react/macro";
 import * as React from "react";
 
@@ -8,7 +9,49 @@ export interface ContentEditorPanelContext {
 	collection: string;
 	entry: ContentItem;
 	locale?: string;
+	/**
+	 * Reads and patches the editor's unsaved values. Keeps its identity while the editor
+	 * shows this entry. Absent on hosts that predate draft access.
+	 */
+	editorDraft?: ContentEditorDraft;
 }
+
+/** The open editor's unsaved field values, slug and SEO text, for a trusted panel. */
+export interface ContentEditorDraft {
+	get(): ContentEditorDraftSnapshot;
+	/**
+	 * Sets or clears draft values in the form without saving it. `seo.title` and
+	 * `seo.description` are the exception: the SEO panel saves them within about half a
+	 * second, on a published entry too. Refuses the whole patch when any draft value
+	 * changed after `expectedRevision` was read. Never throws.
+	 */
+	patch(
+		operations: readonly EditorDraftPatchOperation[],
+		options: { expectedRevision: string },
+	): ContentEditorDraftPatchResult;
+}
+
+export interface ContentEditorDraftSnapshot {
+	/** Identifies the draft values the snapshot was taken from. */
+	revision: string;
+	/** True while the editor doesn't accept edits, and once it no longer shows this entry. */
+	readOnly: boolean;
+	/**
+	 * A copy of each draft value, keyed by field slug, `slug`, `seo.title` or `seo.description`,
+	 * with null for none.
+	 */
+	fields: Record<string, unknown>;
+	fieldDefinitions: EditorDraftFieldDefinition[];
+}
+
+export type ContentEditorDraftPatchResult =
+	| { ok: true }
+	| {
+			ok: false;
+			code: "EDITOR_DRAFT_STALE" | "EDITOR_DRAFT_READ_ONLY" | "EDITOR_DRAFT_INVALID";
+			/** English text for developers; show your own text based on `code`. */
+			message: string;
+	  };
 
 export interface ContentEditorPanelExtension {
 	/** Stable identifier, unique within this plugin's editor panels. */
@@ -20,6 +63,8 @@ export interface ContentEditorPanelExtension {
 	collections?: readonly string[] | ((collection: string) => boolean);
 	/** Minimum numeric admin role required to see this panel. */
 	minRole?: number;
+	/** Show the section only when true. Hidden on the first pending check or on error. */
+	isVisible?: (ctx: ContentEditorPanelContext) => boolean | Promise<boolean>;
 	/** Lower values render first among contributed panels. */
 	order?: number;
 }
@@ -72,6 +117,10 @@ function isValidPanel(value: unknown, pluginId: string): value is ContentEditorP
 			pluginId,
 			`ignored panel "${value.id}" because collections must be an array of strings or a predicate.`,
 		);
+		return false;
+	}
+	if (value.isVisible !== undefined && typeof value.isVisible !== "function") {
+		warn(pluginId, `ignored panel "${value.id}" because isVisible must be a function.`);
 		return false;
 	}
 	if (value.minRole !== undefined && !Number.isFinite(value.minRole)) {
@@ -151,6 +200,75 @@ export function resolveContentEditorPanels(
 			(a.extension.order ?? 0) - (b.extension.order ?? 0) ||
 			a.pluginId.localeCompare(b.pluginId) ||
 			a.extension.id.localeCompare(b.extension.id),
+	);
+}
+
+export function useVisibleContentEditorPanels(
+	panels: ResolvedContentEditorPanel[],
+	context: ContentEditorPanelContext | null,
+): ResolvedContentEditorPanel[] {
+	const scope = context
+		? JSON.stringify([context.collection, context.entry.id, context.locale])
+		: null;
+	const [result, setResult] = React.useState<{
+		scope: string;
+		visible: Map<string, ContentEditorPanelExtension>;
+	} | null>(null);
+
+	React.useEffect(() => {
+		if (!context || scope === null) {
+			setResult(null);
+			return;
+		}
+		let cancelled = false;
+		setResult((current) => ({
+			scope,
+			visible: new Map(
+				panels.flatMap(({ pluginId, extension }) => {
+					const id = `${pluginId}:${extension.id}`;
+					return current?.scope === scope && current.visible.get(id) === extension
+						? [[id, extension] as const]
+						: [];
+				}),
+			),
+		}));
+
+		for (const panel of panels) {
+			const isVisible = panel.extension.isVisible;
+			if (!isVisible) continue;
+			const id = `${panel.pluginId}:${panel.extension.id}`;
+			const updateVisibility = (visible: boolean) => {
+				setResult((current) => {
+					const next = new Map(current?.scope === scope ? current.visible : []);
+					if (visible) next.set(id, panel.extension);
+					else next.delete(id);
+					return { scope, visible: next };
+				});
+			};
+			void (async () => {
+				try {
+					const visible = (await isVisible(context)) === true;
+					if (!cancelled) updateVisibility(visible);
+				} catch (error) {
+					if (cancelled) return;
+					updateVisibility(false);
+					console.error(
+						`Plugin "${panel.pluginId}" failed while checking visibility of content editor panel "${panel.extension.id}".`,
+						error,
+					);
+				}
+			})();
+		}
+
+		return () => {
+			cancelled = true;
+		};
+	}, [panels, context, scope]);
+
+	return panels.filter(
+		({ pluginId, extension }) =>
+			!extension.isVisible ||
+			(result?.scope === scope && result.visible.get(`${pluginId}:${extension.id}`) === extension),
 	);
 }
 

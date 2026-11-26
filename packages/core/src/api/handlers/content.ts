@@ -18,7 +18,7 @@ import {
 } from "../../database/repositories/content.js";
 import { EntryLockRepository } from "../../database/repositories/entry-locks.js";
 import { OptionsRepository } from "../../database/repositories/options.js";
-import { RedirectRepository } from "../../database/repositories/redirect.js";
+import { RedirectRepository, redirectPathVariants } from "../../database/repositories/redirect.js";
 import { RelationRepository } from "../../database/repositories/relation.js";
 import { RevisionRepository } from "../../database/repositories/revision.js";
 import { SeoRepository } from "../../database/repositories/seo.js";
@@ -70,6 +70,7 @@ import {
 } from "./relations.js";
 import {
 	applyStagedReferences,
+	liveReferenceData,
 	liveReferenceSelection,
 	pageStagedGroups,
 	readStagedReferenceBaselines,
@@ -259,7 +260,7 @@ async function collectionHasSeo(db: Kysely<Database>, collection: string): Promi
 async function getCollectionPublishConfig(
 	db: Kysely<Database>,
 	collection: string,
-): Promise<{ supportsRevisions: boolean; routable: boolean }> {
+): Promise<{ supportsRevisions: boolean; supportsScheduling: boolean; routable: boolean }> {
 	return requestCached(`collectionPublishConfig:${collection}`, async () => {
 		const row = await db
 			.selectFrom("_emdash_collections")
@@ -269,6 +270,7 @@ async function getCollectionPublishConfig(
 		const supports: unknown = row?.supports ? JSON.parse(row.supports) : [];
 		return {
 			supportsRevisions: Array.isArray(supports) && supports.includes("revisions"),
+			supportsScheduling: !Array.isArray(supports) || !supports.includes("no-scheduling"),
 			routable: row?.routable !== 0,
 		};
 	});
@@ -863,7 +865,7 @@ async function removeShadowingAutoRedirect(
 
 	const result = await db
 		.deleteFrom("_emdash_redirects")
-		.where("source", "=", url)
+		.where("source", "in", redirectPathVariants(url))
 		.where("auto", "=", 1)
 		.executeTakeFirst();
 	const removed = BigInt(result.numDeletedRows ?? 0n) > 0n;
@@ -1039,6 +1041,28 @@ export async function handleContentList(
 			sortableExtras,
 		});
 
+		// Unpublished entries have no live data to preserve in the list. Keep the
+		// base columns untouched so discarding a draft can still restore them.
+		const unpublishedDrafts = result.items.filter(
+			(item) => item.status !== "published" && item.liveRevisionId === null && item.draftRevisionId,
+		);
+		const draftIds = unpublishedDrafts.flatMap((item) =>
+			item.draftRevisionId ? [item.draftRevisionId] : [],
+		);
+		if (draftIds.length > 0) {
+			const revisions = await new RevisionRepository(db).findByIds(collection, draftIds);
+			const byId = new Map(revisions.map((revision) => [revision.id, revision]));
+			for (const item of unpublishedDrafts) {
+				if (!item.draftRevisionId) continue;
+				const revision = byId.get(item.draftRevisionId);
+				if (!revision || revision.entryId !== item.id) continue;
+				const fields = Object.fromEntries(
+					Object.entries(revision.data).filter(([key]) => !key.startsWith("_")),
+				);
+				item.data = { ...item.data, ...fields };
+			}
+		}
+
 		// Hydrate SEO data if the collection has SEO enabled
 		const hasSeo = await collectionHasSeo(db, collection);
 		await hydrateSeoMany(db, collection, result.items, hasSeo);
@@ -1099,7 +1123,8 @@ export async function handleContentList(
 export interface ContentAuthor {
 	id: string;
 	name: string | null;
-	email: string;
+	/** Omitted for callers without `users:read`. */
+	email?: string;
 	avatarUrl: string | null;
 }
 
@@ -1107,13 +1132,17 @@ export interface ContentAuthor {
  * List the distinct authors of a collection's live content.
  *
  * Backs the admin content-list author filter. Unlike `/admin/users` (ADMIN
- * only), this is gated on `content:read`, so any editor can filter by author.
- * Returns only users who have authored at least one non-trashed entry, sorted
- * by display name then email for a stable dropdown order.
+ * only), this is gated on `content:read_drafts`, so any editor can filter by
+ * author. Returns only users who have authored at least one non-trashed entry,
+ * sorted by display name for a stable dropdown order.
+ *
+ * Email addresses are account data: pass `includeEmail` only for a caller who
+ * holds `users:read`. Without it they are neither returned nor sorted on.
  */
 export async function handleContentAuthors(
 	db: Kysely<Database>,
 	collection: string,
+	options: { includeEmail?: boolean } = {},
 ): Promise<ApiResult<{ items: ContentAuthor[] }>> {
 	try {
 		const repo = new ContentRepository(db);
@@ -1126,8 +1155,13 @@ export async function handleContentAuthors(
 		const users = await userRepo.findByIds(authorIds);
 
 		const items: ContentAuthor[] = users
-			.map((u) => ({ id: u.id, name: u.name, email: u.email, avatarUrl: u.avatarUrl }))
-			.toSorted((a, b) => (a.name ?? a.email).localeCompare(b.name ?? b.email));
+			.map((u) => ({
+				id: u.id,
+				name: u.name,
+				...(options.includeEmail ? { email: u.email } : {}),
+				avatarUrl: u.avatarUrl,
+			}))
+			.toSorted((a, b) => (a.name ?? a.email ?? a.id).localeCompare(b.name ?? b.email ?? b.id));
 
 		return { success: true, data: { items } };
 	} catch (error) {
@@ -1151,6 +1185,41 @@ export async function handleContentAuthors(
 	}
 }
 
+/** Options for resolving the target of a write. */
+export interface ContentGetOptions {
+	/**
+	 * Fail with AMBIGUOUS_LOCALE when no locale is given and the identifier is a
+	 * slug that rows in more than one locale share.
+	 */
+	refuseAmbiguousSlug?: boolean;
+}
+
+async function ambiguousSlugError(
+	repo: ContentRepository,
+	collection: string,
+	identifier: string,
+	item: ContentItem,
+	includeTrashed: boolean,
+): Promise<{ success: false; error: { code: "AMBIGUOUS_LOCALE"; message: string } } | null> {
+	if (item.id === identifier || item.slug !== identifier) return null;
+	const rows = await repo.findSlugLocales(collection, identifier);
+	const candidates =
+		includeTrashed && rows.some((row) => row.trashed)
+			? rows.filter((row) => row.trashed)
+			: rows.filter((row) => !row.trashed);
+	const locales = [
+		...new Set(candidates.map((row) => resolveConfiguredLocale(row.locale))),
+	].toSorted();
+	if (locales.length < 2) return null;
+	return {
+		success: false,
+		error: {
+			code: "AMBIGUOUS_LOCALE",
+			message: `Content '${identifier}' exists in multiple locales (${locales.join(", ")}); pass 'locale' or use the entry's ID.`,
+		},
+	};
+}
+
 /**
  * Get single content item
  */
@@ -1160,6 +1229,7 @@ export async function handleContentGet(
 	id: string,
 	locale?: string,
 	referenceOptions?: { includeDrafts: boolean },
+	options: ContentGetOptions = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
@@ -1177,6 +1247,11 @@ export async function handleContentGet(
 					message: `Content item not found: ${id}`,
 				},
 			};
+		}
+
+		if (options.refuseAmbiguousSlug && !locale) {
+			const ambiguous = await ambiguousSlugError(repo, collection, id, item, false);
+			if (ambiguous) return ambiguous;
 		}
 
 		// Hydrate SEO data if the collection has SEO enabled
@@ -1207,6 +1282,33 @@ export async function handleContentGet(
 }
 
 /**
+ * Get a content item by id only, never by slug. Use for permission checks on
+ * an entry that the caller then acts on by id.
+ */
+export async function handleContentGetById(
+	db: Kysely<Database>,
+	collection: string,
+	id: string,
+): Promise<ApiResult<{ item: ContentItem }>> {
+	try {
+		const item = await new ContentRepository(db).findById(collection, id);
+		if (item) return { success: true, data: { item } };
+	} catch (error) {
+		if (!isMissingTableError(error)) {
+			console.error("Content get error:", error);
+			return {
+				success: false,
+				error: { code: "CONTENT_GET_ERROR", message: "Failed to get content" },
+			};
+		}
+	}
+	return {
+		success: false,
+		error: { code: "NOT_FOUND", message: `Content item not found: ${id}` },
+	};
+}
+
+/**
  * Get a content item by id, including trashed items.
  * Used by restore endpoint for ownership checks on soft-deleted items.
  */
@@ -1215,6 +1317,7 @@ export async function handleContentGetIncludingTrashed(
 	collection: string,
 	id: string,
 	locale?: string,
+	options: ContentGetOptions = {},
 ): Promise<ApiResult<ContentResponse>> {
 	try {
 		const repo = new ContentRepository(db);
@@ -1232,6 +1335,11 @@ export async function handleContentGetIncludingTrashed(
 					message: `Content item not found: ${id}`,
 				},
 			};
+		}
+
+		if (options.refuseAmbiguousSlug && !locale) {
+			const ambiguous = await ambiguousSlugError(repo, collection, id, item, true);
+			if (ambiguous) return ambiguous;
 		}
 
 		// Hydrate SEO data if the collection has SEO enabled
@@ -1722,11 +1830,11 @@ export async function handleContentUpdate(
 				updated.primaryBylineId = credits[0]?.byline.translationGroup ?? null;
 			}
 
-			// Create auto-redirect when slug changes. Date tokens in the URL
-			// pattern resolve from the publish date, so the old URL uses the
-			// pre-update date (the URL that was actually live) and the new URL
-			// the post-update one.
-			if (oldSlug && body.slug) {
+			// Create auto-redirect when a published entry's slug changes. Date
+			// tokens in the URL pattern resolve from the publish date, so the old
+			// URL uses the pre-update date (the URL that was actually live) and the
+			// new URL the post-update one.
+			if (oldSlug && body.slug && existing?.status === "published") {
 				redirectChanged = await createSlugChangeRedirect(
 					trx,
 					collection,
@@ -2298,6 +2406,9 @@ export async function handleContentSchedule(
 			const resolvedId = existing?.id ?? id;
 			if (existing) {
 				const publishConfig = await getCollectionPublishConfig(trx, collection);
+				if (!publishConfig.supportsScheduling) {
+					throw new EmDashValidationError("Scheduling is disabled for this collection");
+				}
 				requireRoutablePublishSlug(publishConfig.routable, existing.slug);
 			}
 			return repo.schedule(collection, resolvedId, scheduledAt, currentTime, expectedRevision);
@@ -2542,6 +2653,14 @@ export async function handleContentPublish(
 						stagedReferenceBaselines,
 					);
 				}
+			}
+
+			// `repo.publish()` writes the starting revision too, but without the links.
+			if (publishConfig.supportsRevisions && existing) {
+				const entryGroup = existing.translationGroup;
+				await repo.keepStartingRevision(new RevisionRepository(trx), collection, existing, () =>
+					liveReferenceData(trx, collection, entryGroup),
+				);
 			}
 
 			const published = await repo.publish(

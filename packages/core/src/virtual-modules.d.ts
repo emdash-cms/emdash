@@ -28,7 +28,11 @@ declare module "virtual:emdash/config" {
 		/** Public origin from astro.config.mjs, origin-normalized at startup. */
 		siteUrl?: string;
 		astroCspEnabled?: boolean;
+		/** `name` of the Astro route cache provider, e.g. `"memory"` for `memoryCache()`. */
+		routeCacheProvider?: string;
 		trailingSlash?: "always" | "never" | "ignore";
+		robotsTxtOverridden?: boolean;
+		sessionCookieName?: string;
 		/** `routePattern` of the image endpoint EmDash installed; absent when it installed none. */
 		imageEndpointRoute?: string;
 	}
@@ -59,12 +63,17 @@ declare module "virtual:emdash/dialect" {
 	 */
 	export interface RequestScopedDbOpts {
 		config: unknown;
+		/**
+		 * Request-start state, for choosing a connection: a session user, or an
+		 * `Authorization: Bearer` header that nothing has verified yet.
+		 */
 		isAuthenticated: boolean;
 		/**
 		 * Evaluated at commit() time: whether the request ended authenticated.
 		 * Login/signup/invite requests start unauthenticated and establish a
 		 * session mid-request; `isAuthenticated` captures only the request-start
-		 * state.
+		 * state. Counts verified callers only, so when provided it decides
+		 * whether `commit()` hands per-request state back to the client.
 		 */
 		endedAuthenticated?: () => boolean;
 		isWrite: boolean;
@@ -181,16 +190,19 @@ declare module "virtual:emdash/wait-until" {
 	/**
 	 * Optional host-provided lifetime extender for work deferred past the
 	 * response. Resolves to Cloudflare's `waitUntil` under @astrojs/cloudflare;
-	 * `undefined` on Node (fire-and-forget is safe on a long-lived process).
+	 * `undefined` for other adapters.
 	 */
 	export const waitUntil: ((promise: Promise<unknown>) => void) | undefined;
+	/** True under @astrojs/node, where the process outlives each response. */
+	export const longLivedProcess: boolean;
 }
 
 declare module "virtual:emdash/env" {
 	/**
 	 * Worker bindings/secrets. Resolves to Cloudflare's `env` (from
-	 * `cloudflare:workers`) under @astrojs/cloudflare; `undefined` on Node,
-	 * where callers should fall back to `import.meta.env`.
+	 * `cloudflare:workers`) under @astrojs/cloudflare. `undefined` on Node,
+	 * where callers that need runtime secrets prefer `process.env` over the
+	 * build-time `import.meta.env` snapshot.
 	 */
 	export const env: Record<string, unknown> | undefined;
 }
@@ -216,6 +228,20 @@ declare module "virtual:emdash/scheduler" {
 	export const createScheduler: CreateSchedulerFn | null;
 }
 
+declare module "virtual:emdash/rooms" {
+	import type { CreateRoomHostFn } from "./emdash-runtime.js";
+	/**
+	 * Factory for the room host with co-editing on: in-process on
+	 * `@astrojs/node`, Durable Objects on `@astrojs/cloudflare`. `null`
+	 * otherwise, which gives every join single-editor mode.
+	 */
+	export const createRoomHost: CreateRoomHostFn | null;
+}
+
+declare module "virtual:emdash/admin-loader" {
+	export function loadPluginAdmins(): Promise<typeof import("virtual:emdash/admin-registry")>;
+}
+
 declare module "virtual:emdash/admin-registry" {
 	/**
 	 * Plugin admin module registry.
@@ -227,14 +253,5 @@ declare module "virtual:emdash/admin-registry" {
 	 *   - contentEditorPanels: Trusted content editor sidebar panels
 	 *   - contentListColumns: trusted-plugin content list column definitions
 	 */
-	export const pluginAdmins: Record<
-		string,
-		{
-			pages?: Record<string, unknown>;
-			widgets?: Record<string, unknown>;
-			fields?: Record<string, unknown>;
-			contentEditorPanels?: readonly unknown[];
-			contentListColumns?: readonly unknown[];
-		}
-	>;
+	export const pluginAdmins: import("@emdash-cms/admin").PluginAdmins;
 }

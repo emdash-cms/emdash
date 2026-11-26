@@ -2,9 +2,10 @@ import * as React from "react";
 
 import { getFieldLabel } from "../../lib/field-label.js";
 import type { FieldDiff, RevisionDiff } from "../../lib/revision-diff/types.js";
+import { userColorProps, type UserColor } from "../../lib/user-color.js";
 import type { FieldDescriptor } from "../ContentEditor";
 import { OptionalLabel } from "../OptionalLabel.js";
-import { type AuthorColor, revisionTargetElementId } from "./revision-format.js";
+import { revisionTargetElementId } from "./revision-format.js";
 import { RevisionDocument } from "./RevisionDocument.js";
 import { BooleanFieldValue, TextFieldValue, ValueFieldValue } from "./RevisionFieldValue.js";
 
@@ -14,7 +15,7 @@ export interface RevisionViewCanvasProps {
 	/** The field the editor shows as the document title. */
 	titleField?: string;
 	showChanges: boolean;
-	authorColor: AuthorColor;
+	authorColor: UserColor | null;
 	/** Accessible name, such as "Version from Today, 9:12 AM". */
 	label: string;
 	/** The site's time zone, which the editor shows stored times in. */
@@ -153,7 +154,7 @@ export function RevisionViewCanvas({
 	return (
 		<article
 			data-emdash-revision-view=""
-			data-author-color={authorColor}
+			{...userColorProps(authorColor)}
 			aria-label={label}
 			className="space-y-6"
 		>

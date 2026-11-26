@@ -53,6 +53,7 @@ declare module "@aws-sdk/client-s3" {
 		send(command: HeadObjectCommand): Promise<HeadObjectResponse>;
 		send(command: ListObjectsV2Command): Promise<ListObjectsV2Response>;
 		send(command: PutObjectCommand): Promise<void>;
+		send(command: CopyObjectCommand): Promise<void>;
 		send(command: DeleteObjectCommand): Promise<void>;
 		// Generic fallback
 		send(command: unknown): Promise<unknown>;
@@ -66,6 +67,16 @@ declare module "@aws-sdk/client-s3" {
 			ContentType?: string;
 			ContentLength?: number;
 			CacheControl?: string;
+		});
+	}
+
+	export class CopyObjectCommand {
+		constructor(input: {
+			Bucket: string;
+			Key: string;
+			CopySource: string;
+			ContentType?: string;
+			MetadataDirective?: "COPY" | "REPLACE";
 		});
 	}
 

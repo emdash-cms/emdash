@@ -150,7 +150,7 @@ describe("revision attribution", () => {
 describe("hook actor payloads", () => {
 	const beforeEvents: ContentHookEvent[] = [];
 	const afterEvents: ContentHookEvent[] = [];
-	let mutateBeforeSaveActor = false;
+	let mutateBeforeSaveEvent = false;
 
 	let sqlite: Database;
 	let runtime: EmDashRuntime;
@@ -174,8 +174,11 @@ describe("hook actor payloads", () => {
 						"content:beforeSave": {
 							handler: (async (event) => {
 								const mutableActor = event.actor as { id: string; role: number } | undefined;
-								if (mutateBeforeSaveActor && mutableActor) {
+								if (mutateBeforeSaveEvent && mutableActor) {
 									mutableActor.id = "spoofed_by_hook";
+								}
+								if (mutateBeforeSaveEvent && event.editedBy) {
+									(event.editedBy as string[]).splice(0, Infinity, "spoofed_by_hook");
 								}
 								beforeEvents.push(event);
 							}) as ContentBeforeSaveHandler,
@@ -200,7 +203,7 @@ describe("hook actor payloads", () => {
 		deferred.length = 0;
 		beforeEvents.length = 0;
 		afterEvents.length = 0;
-		mutateBeforeSaveActor = false;
+		mutateBeforeSaveEvent = false;
 		sqlite = new Database(":memory:");
 		runtime = await EmDashRuntime.create(createTrustedDeps());
 		const registry = new SchemaRegistry(runtime.db);
@@ -225,6 +228,7 @@ describe("hook actor payloads", () => {
 			collection: "posts",
 			isNew: true,
 			actor: actorA,
+			editedBy: [actorA.id],
 		});
 		expect(beforeEvents[0]?.id).toBeUndefined();
 
@@ -235,6 +239,7 @@ describe("hook actor payloads", () => {
 			collection: "posts",
 			isNew: true,
 			actor: actorA,
+			editedBy: [actorA.id],
 		});
 		expect(afterEvents[0]?.content.id).toBe(result.data?.item.id);
 	});
@@ -256,6 +261,7 @@ describe("hook actor payloads", () => {
 				id: item.id,
 				actor: actorB,
 				locale: "en",
+				editedBy: [actorB.id],
 			},
 		]);
 
@@ -266,14 +272,81 @@ describe("hook actor payloads", () => {
 			collection: "posts",
 			isNew: false,
 			actor: actorB,
+			editedBy: [actorB.id],
 		});
 		expect(afterEvents[0]?.content.id).toBe(item.id);
+	});
+
+	it("passes the save's editedBy to content:beforeSave / content:afterSave on update", async () => {
+		const item = await repo.create({ type: "posts", data: { title: "Original" } });
+
+		const result = await runtime.handleContentUpdate("posts", item.id, {
+			data: { title: "Changed" },
+			actor: actorB,
+			editedBy: [actorB.id, actorA.id],
+		});
+		expect(result.success).toBe(true);
+
+		expect(beforeEvents).toHaveLength(1);
+		expect(beforeEvents[0]).toMatchObject({ actor: actorB, editedBy: [actorB.id, actorA.id] });
+
+		await flushDeferred();
+
+		expect(afterEvents).toHaveLength(1);
+		expect(afterEvents[0]).toMatchObject({ actor: actorB, editedBy: [actorB.id, actorA.id] });
+	});
+
+	it("passes the actor alone when the save's editedBy is empty", async () => {
+		const item = await repo.create({ type: "posts", data: { title: "Original" } });
+
+		const result = await runtime.handleContentUpdate("posts", item.id, {
+			data: { title: "Changed" },
+			actor: actorB,
+			editedBy: [],
+		});
+		expect(result.success).toBe(true);
+		await flushDeferred();
+
+		expect(beforeEvents[0]?.editedBy).toEqual([actorB.id]);
+		expect(afterEvents[0]?.editedBy).toEqual([actorB.id]);
+	});
+
+	it("passes each editor once when the save's editedBy repeats one", async () => {
+		const item = await repo.create({ type: "posts", data: { title: "Original" } });
+
+		const result = await runtime.handleContentUpdate("posts", item.id, {
+			data: { title: "Changed" },
+			actor: actorA,
+			editedBy: [actorB.id, actorA.id, actorB.id],
+		});
+		expect(result.success).toBe(true);
+		await flushDeferred();
+
+		expect(beforeEvents[0]?.editedBy).toEqual([actorB.id, actorA.id]);
+		expect(afterEvents[0]?.editedBy).toEqual([actorB.id, actorA.id]);
+	});
+
+	it("omits editedBy from saves without an actor", async () => {
+		const created = await runtime.handleContentCreate("posts", { data: { title: "Created" } });
+		if (!created.success) throw new Error(created.error.message);
+		const updated = await runtime.handleContentUpdate("posts", created.data.item.id, {
+			data: { title: "Changed" },
+		});
+		expect(updated.success).toBe(true);
+		await flushDeferred();
+
+		expect(beforeEvents).toHaveLength(2);
+		expect(afterEvents).toHaveLength(2);
+		for (const event of [...beforeEvents, ...afterEvents]) {
+			expect(event).not.toHaveProperty("actor");
+			expect(event).not.toHaveProperty("editedBy");
+		}
 	});
 
 	it("keeps revision and downstream hook attribution stable when a hook mutates its event", async () => {
 		const item = await repo.create({ type: "posts", data: { title: "Original" } });
 		const actor = { id: "authenticated_user", role: Role.EDITOR };
-		mutateBeforeSaveActor = true;
+		mutateBeforeSaveEvent = true;
 
 		const result = await runtime.handleContentUpdate("posts", item.id, {
 			data: { title: "Changed" },
@@ -288,6 +361,7 @@ describe("hook actor payloads", () => {
 
 		await flushDeferred();
 		expect(afterEvents[0]?.actor).toEqual(actor);
+		expect(afterEvents[0]?.editedBy).toEqual(["authenticated_user"]);
 	});
 });
 
@@ -366,6 +440,7 @@ describe("sandboxed hook actor payloads", () => {
 			isNew: true,
 			actor: actorA,
 			locale: "en",
+			editedBy: [actorA.id],
 		});
 	});
 
@@ -385,6 +460,7 @@ describe("sandboxed hook actor payloads", () => {
 			id: item.id,
 			actor: actorB,
 			locale: "en",
+			editedBy: [actorB.id],
 		});
 	});
 });

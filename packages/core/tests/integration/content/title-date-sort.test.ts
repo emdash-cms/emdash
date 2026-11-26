@@ -77,6 +77,45 @@ describeEachDialect("content list custom-field sort", (dialect) => {
 		expect(slugsOf(asc)).toEqual(["e1", "e3", "e2"]);
 	});
 
+	it.each(["publishedAt", "createdAt", "updatedAt"])(
+		"sorts and paginates with system dateField %s",
+		async (dateField) => {
+			const registry = new SchemaRegistry(ctx.db);
+			await registry.updateCollection("events", { dateField });
+			const column = {
+				publishedAt: "published_at",
+				createdAt: "created_at",
+				updatedAt: "updated_at",
+			}[dateField]!;
+			for (const [slug, date] of [
+				["e1", "2015-03-15T12:00:00.000Z"],
+				["e2", "2020-01-01T12:00:00.000Z"],
+				["e3", "2018-07-04T12:00:00.000Z"],
+			]) {
+				await ctx.db
+					.updateTable("ec_events")
+					.set({ [column]: date })
+					.where("slug", "=", slug)
+					.execute();
+			}
+			const first = await handleContentList(ctx.db, "events", {
+				orderBy: dateField,
+				order: "desc",
+				limit: 2,
+			});
+			expect(slugsOf(first)).toEqual(["e2", "e3"]);
+			if (!first.success) throw new Error("list failed");
+			expect(first.data.nextCursor).toBeTruthy();
+			const next = await handleContentList(ctx.db, "events", {
+				orderBy: dateField,
+				order: "desc",
+				limit: 2,
+				cursor: first.data.nextCursor,
+			});
+			expect(slugsOf(next)).toEqual(["e1"]);
+		},
+	);
+
 	it("sorts by the configured titleField, distinct from createdAt and dateField", async () => {
 		const asc = await handleContentList(ctx.db, "events", { orderBy: "title", order: "asc" });
 		expect(slugsOf(asc)).toEqual(["e3", "e1", "e2"]); // Alpha, Bravo, Charlie

@@ -5,9 +5,12 @@
  * Remote URLs are keyed by origin, local dev by project path.
  */
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
+
+import { lockSync } from "proper-lockfile";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -119,14 +122,48 @@ function readStore(): CredentialStore {
 }
 
 function writeStore(store: CredentialStore): void {
-	const dir = getConfigDir();
-	mkdirSync(dir, { recursive: true, mode: 0o700 });
-
 	const path = getCredentialPath();
-	writeFileSync(path, JSON.stringify(store, null, "\t"), {
-		encoding: "utf-8",
-		mode: 0o600, // Owner read/write only
-	});
+	const temporaryPath = `${path}.${randomUUID()}.tmp`;
+	try {
+		writeFileSync(temporaryPath, JSON.stringify(store, null, "\t"), {
+			encoding: "utf-8",
+			mode: 0o600,
+			flag: "wx",
+			flush: true,
+		});
+		renameSync(temporaryPath, path);
+	} finally {
+		rmSync(temporaryPath, { force: true });
+	}
+}
+
+function withStoreLock<T>(update: () => T): T {
+	mkdirSync(getConfigDir(), { recursive: true, mode: 0o700 });
+	const path = getCredentialPath();
+	const deadline = performance.now() + 15_000;
+	const sleeper = new Int32Array(new SharedArrayBuffer(4));
+	let release: () => void;
+	while (true) {
+		try {
+			// The store may not exist yet, so lock its path without resolving the file.
+			release = lockSync(path, { realpath: false, stale: 10_000 });
+			break;
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code !== "ELOCKED") throw error;
+			if (performance.now() >= deadline) {
+				throw new Error(`Timed out waiting to update CLI credentials at ${path}. Try again.`, {
+					cause: error,
+				});
+			}
+			// proper-lockfile's synchronous API does not support retries.
+			Atomics.wait(sleeper, 0, 0, 25);
+		}
+	}
+	try {
+		return update();
+	} finally {
+		release();
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -149,9 +186,11 @@ export function getCredentials(baseUrl: string): StoredCredential | null {
  */
 export function saveCredentials(baseUrl: string, cred: StoredCredential): void {
 	const key = resolveCredentialKey(baseUrl);
-	const store = readStore();
-	store[key] = cred;
-	writeStore(store);
+	withStoreLock(() => {
+		const store = readStore();
+		store[key] = cred;
+		writeStore(store);
+	});
 }
 
 /**
@@ -159,13 +198,15 @@ export function saveCredentials(baseUrl: string, cred: StoredCredential): void {
  */
 export function removeCredentials(baseUrl: string): boolean {
 	const key = resolveCredentialKey(baseUrl);
-	const store = readStore();
-	if (key in store) {
-		delete store[key];
-		writeStore(store);
-		return true;
-	}
-	return false;
+	return withStoreLock(() => {
+		const store = readStore();
+		if (key in store) {
+			delete store[key];
+			writeStore(store);
+			return true;
+		}
+		return false;
+	});
 }
 
 /**

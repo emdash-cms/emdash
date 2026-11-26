@@ -5,7 +5,9 @@ import { sanitizeContent } from "../utils/sanitize.js";
 /**
  * Portable Text Embed block component
  *
- * Renders embeds from YouTube, Vimeo, Twitter, etc.
+ * Renders YouTube and Vimeo players, self-hosted video and audio, and
+ * sanitized provider HTML. Links to the embed URL when sanitizing removed an
+ * iframe or left nothing to show.
  */
 export interface Props {
 	node: {
@@ -27,26 +29,53 @@ if (!node?.url) {
 const { url: rawUrl, provider, html, caption } = node;
 const url = sanitizeHref(rawUrl);
 
-const YOUTUBE_ID_PATTERN = /(?:youtube\.com\/(?:watch\?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/;
-const VIMEO_ID_PATTERN = /vimeo\.com\/(\d+)/;
+const YOUTUBE_HOSTS = new Set(["youtube.com", "www.youtube.com", "m.youtube.com"]);
+const VIMEO_HOSTS = new Set(["vimeo.com", "www.vimeo.com"]);
+const YOUTUBE_ID_PATTERN = /^[a-zA-Z0-9_-]{11}$/;
+const YOUTUBE_SHORT_PATH_PATTERN = /^\/([a-zA-Z0-9_-]{11})\/?$/;
+const YOUTUBE_EMBED_PATH_PATTERN = /^\/embed\/([a-zA-Z0-9_-]{11})\/?$/;
+const VIMEO_PATH_PATTERN = /^\/(\d+)(?:\/|$)/;
+const IFRAME_PATTERN = /<iframe\b([^>]*)>[\s\S]*?<\/iframe>/gi;
+const ATTRIBUTE_VALUE_PATTERN = /="[^"]*"/g;
+const SRC_ATTRIBUTE_PATTERN = /\ssrc(?=[\s/]|$)/i;
+const TAG_PATTERN = /<[^>]*>/g;
+const MEDIA_TAG_PATTERN = /<(?:img|iframe)\b/i;
 
-// Extract video ID for common providers
-function getYouTubeId(input: string): string | null {
-	const match = input.match(YOUTUBE_ID_PATTERN);
-	return match?.[1] || null;
+function getYouTubeId(input: URL | null): string | null {
+	if (!input) return null;
+	const id =
+		input.hostname === "youtu.be"
+			? input.pathname.match(YOUTUBE_SHORT_PATH_PATTERN)?.[1]
+			: YOUTUBE_HOSTS.has(input.hostname)
+				? input.pathname === "/watch"
+					? input.searchParams.get("v")
+					: input.pathname.match(YOUTUBE_EMBED_PATH_PATTERN)?.[1]
+				: null;
+	return id && YOUTUBE_ID_PATTERN.test(id) ? id : null;
 }
 
-function getVimeoId(input: string): string | null {
-	const match = input.match(VIMEO_ID_PATTERN);
-	return match?.[1] || null;
+function getVimeoId(input: URL | null): string | null {
+	if (!input || !VIMEO_HOSTS.has(input.hostname)) return null;
+	return input.pathname.match(VIMEO_PATH_PATTERN)?.[1] || null;
 }
 
-const youtubeId = getYouTubeId(url);
-const vimeoId = getVimeoId(url);
+const parsedUrl = URL.canParse(url) ? new URL(url) : null;
+const videoUrl =
+	parsedUrl?.protocol === "https:" || parsedUrl?.protocol === "http:" ? parsedUrl : null;
+const youtubeId = getYouTubeId(videoUrl);
+const vimeoId = getVimeoId(videoUrl);
 
 // Check if this is a self-hosted video or audio
 const isSelfHostedVideo = provider === "video";
 const isSelfHostedAudio = provider === "audio";
+const sanitizedHtml = html ? sanitizeContent(html) : "";
+// sanitize-html keeps an iframe from a host it doesn't allow but drops its `src`.
+const embedHtml = sanitizedHtml.replace(IFRAME_PATTERN, (iframe, attributes: string) =>
+	SRC_ATTRIBUTE_PATTERN.test(attributes.replace(ATTRIBUTE_VALUE_PATTERN, "")) ? iframe : "",
+);
+const hasEmbedHtml =
+	embedHtml.replace(TAG_PATTERN, "").trim() !== "" || MEDIA_TAG_PATTERN.test(embedHtml);
+const showLink = !hasEmbedHtml || embedHtml !== sanitizedHtml;
 ---
 
 <figure class="emdash-embed">
@@ -83,12 +112,15 @@ const isSelfHostedAudio = provider === "audio";
 					allowfullscreen
 				/>
 			</div>
-		) : html ? (
-			<div class="emdash-embed-html" set:html={sanitizeContent(html)} />
 		) : (
-			<a href={url} target="_blank" rel="noopener noreferrer">
-				{url}
-			</a>
+			<>
+				{hasEmbedHtml && <div class="emdash-embed-html" set:html={embedHtml} />}
+				{showLink && (
+					<a href={url} target="_blank" rel="noopener noreferrer">
+						{url}
+					</a>
+				)}
+			</>
 		)
 	}
 	{caption && <figcaption>{caption}</figcaption>}

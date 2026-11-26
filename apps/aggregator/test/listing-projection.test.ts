@@ -74,6 +74,8 @@ let upgradeEvidence: {
 	packageInstallability: string | null;
 	revisionInstallability: string | null;
 	publicPackageInstallability: string | null;
+	packageHandleMatches: number;
+	publicPackageHandleMatches: number;
 };
 
 beforeAll(async () => {
@@ -92,6 +94,7 @@ beforeAll(async () => {
 		"0011_unique_publisher_handle.sql",
 		"0012_profile_installability.sql",
 		"0013_extensionless_profiles.sql",
+		"0014_search_slug_and_handle.sql",
 	]);
 	await applyD1Migrations(testEnv.DB, migrations.slice(0, 2));
 	await testEnv.DB.prepare(
@@ -195,6 +198,10 @@ beforeAll(async () => {
 			`UPDATE profile_installability_reconciliation
 			 SET status = 'complete', completed_at = ? WHERE id = 1`,
 		).bind(NOW.toISOString()),
+		testEnv.DB.prepare(
+			`INSERT INTO known_publishers (did, handle, first_seen_at, last_seen_at)
+			 VALUES (?, 'oldtimer.bsky.social', ?, ?)`,
+		).bind(DID_A, NOW.toISOString(), NOW.toISOString()),
 	]);
 	await applyD1Migrations(testEnv.DB, migrations.slice(12));
 	const removedInstallabilityArtifacts = await testEnv.DB.prepare(
@@ -319,6 +326,19 @@ beforeAll(async () => {
 					.bind(DID_A)
 					.first<{ installability_status: string }>()
 			)?.installability_status ?? null,
+		packageHandleMatches:
+			(
+				await testEnv.DB.prepare(
+					`SELECT COUNT(*) AS count FROM packages_fts WHERE packages_fts MATCH '"oldtimer"'`,
+				).first<{ count: number }>()
+			)?.count ?? 0,
+		publicPackageHandleMatches:
+			(
+				await testEnv.DB.prepare(
+					`SELECT COUNT(*) AS count FROM public_packages_fts
+					 WHERE public_packages_fts MATCH '"oldtimer"'`,
+				).first<{ count: number }>()
+			)?.count ?? 0,
 	};
 });
 
@@ -339,6 +359,7 @@ beforeEach(async () => {
 		"packages",
 		"package_profile_heads",
 		"package_profile_revisions",
+		"known_publishers",
 	]) {
 		await testEnv.DB.prepare(`DELETE FROM ${table}`).run();
 	}
@@ -360,6 +381,8 @@ describe("revision migration and ingest", () => {
 			packageInstallability: "valid",
 			revisionInstallability: "valid",
 			publicPackageInstallability: "valid",
+			packageHandleMatches: 1,
+			publicPackageHandleMatches: 1,
 		});
 	});
 
@@ -1186,6 +1209,38 @@ describe("projection policy", () => {
 		});
 	});
 
+	it.each(["listing-pending", "listing-review", "listing-error"])(
+		"keeps the last passed release listed while a newer release is %s",
+		async (value) => {
+			await seedProfile({ cid: PROFILE_CID_1, name: "demo", at: NOW });
+			await seedRelease({ cid: RELEASE_CID_1, version: "1.0.0", at: NOW });
+			await putLabel(packageProfileUri(DID_A, "demo"), PROFILE_CID_1, "listing-passed");
+			await putLabel(releaseUri(DID_A, "demo", "1.0.0"), RELEASE_CID_1, "listing-passed");
+			await rebuild("projection");
+
+			await seedRelease({
+				cid: RELEASE_CID_2,
+				version: "2.0.0",
+				at: new Date("2026-08-24T10:02:00.000Z"),
+			});
+			await putLabel(releaseUri(DID_A, "demo", "2.0.0"), RELEASE_CID_2, value);
+			await rebuild("projection");
+
+			const packageResponse = await xrpc(
+				"projection",
+				`${NSID.aggregatorGetPackage}?did=${DID_A}&slug=demo`,
+			);
+			expect(packageResponse.status).toBe(200);
+			expect(await packageResponse.json()).toMatchObject({ latestVersion: "1.0.0" });
+			const releaseResponse = await xrpc(
+				"projection",
+				`${NSID.aggregatorGetLatestRelease}?did=${DID_A}&package=demo`,
+			);
+			expect(releaseResponse.status).toBe(200);
+			expect(await releaseResponse.json()).toMatchObject({ cid: RELEASE_CID_1, version: "1.0.0" });
+		},
+	);
+
 	it("never returns staged publisher content in public reads or direct errors", async () => {
 		const hostile = "UNSAFE-PUBLISHER-TEXT https://credential-steal.example";
 		await seedProfile({ cid: PROFILE_CID_1, name: hostile, at: NOW });
@@ -1211,6 +1266,36 @@ describe("projection policy", () => {
 		);
 		expect(record.status).toBe(404);
 		expect(await record.text()).not.toContain(hostile);
+	});
+
+	it("finds public packages by part of the publisher's current handle", async () => {
+		await testEnv.DB.prepare(
+			`INSERT INTO known_publishers (did, handle, first_seen_at, last_seen_at)
+			 VALUES (?, 'meekmedia.bsky.social', ?, ?)`,
+		)
+			.bind(DID_A, NOW.toISOString(), NOW.toISOString())
+			.run();
+		await seedApprovedPairAndRebuild();
+		const search = async (query: string) => {
+			const response = await xrpc("projection", `${NSID.aggregatorSearchPackages}?q=${query}`);
+			const body = (await response.json()) as { packages: Array<{ slug: string }> };
+			return body.packages.map((p) => p.slug);
+		};
+
+		expect(await search("meekmedia")).toEqual(["demo"]);
+
+		await testEnv.DB.prepare(
+			`UPDATE known_publishers SET handle = 'newname.bsky.social' WHERE did = ?`,
+		)
+			.bind(DID_A)
+			.run();
+		expect(await search("meekmedia")).toEqual([]);
+		expect(await search("newname")).toEqual(["demo"]);
+		await expect(
+			testEnv.DB.prepare(
+				"INSERT INTO public_packages_fts(public_packages_fts, rank) VALUES ('integrity-check', 1)",
+			).run(),
+		).resolves.toMatchObject({ success: true });
 	});
 
 	it("removes an approved package immediately when the publisher deletes it", async () => {

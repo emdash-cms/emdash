@@ -136,6 +136,11 @@ export interface UpdateContentInput {
 	/** Reference-field edges to replace atomically, keyed by field slug. */
 	references?: Record<string, string[]>;
 	/**
+	 * The bylines and reference selections this save was based on, as a read returned them. The
+	 * server refuses the save with `LIST_CONFLICT` when a stored list differs.
+	 */
+	expected?: { bylines?: BylineCreditInput[]; references?: Record<string, string[]> };
+	/**
 	 * Optimistic-concurrency token from the last read. When present, the
 	 * server rejects the write with 409 if the entry changed since that read,
 	 * preventing a stale editor from silently overwriting a newer draft
@@ -242,14 +247,15 @@ export async function fetchContentList(
 export interface ContentAuthor {
 	id: string;
 	name: string | null;
-	email: string;
+	/** Omitted for callers without `users:read`. */
+	email?: string;
 	avatarUrl: string | null;
 }
 
 /**
  * Fetch the distinct authors of a collection's content. Gated on
- * `content:read`, so unlike the user-management API it's available to any
- * editor. Returns only users who have authored at least one live entry.
+ * `content:read_drafts`, so unlike the user-management API it's available to
+ * any editor. Returns only users who have authored at least one live entry.
  */
 export async function fetchContentAuthors(collection: string): Promise<ContentAuthor[]> {
 	const response = await apiFetch(`${API_BASE}/content/${collection}/authors`);
@@ -616,6 +622,11 @@ export interface RevisionAuthor {
 export interface RevisionListItem extends Revision {
 	/** `null` when no author was recorded or the account no longer exists. */
 	author: RevisionAuthor | null;
+	/**
+	 * Everyone who edited the revision since the one before it, latest first. An entry is `null`
+	 * when the account no longer exists. `null` means its author alone.
+	 */
+	editedBy: Array<RevisionAuthor | null> | null;
 }
 
 export interface RevisionListResponse {
@@ -640,6 +651,28 @@ export async function fetchRevisions(
 }
 
 /**
+ * Everyone who edited a content item in the revisions newer than `since`, newest first and once
+ * each, or everyone who edited it when `since` is `null`. An entry is `null` when the account no
+ * longer exists.
+ */
+export async function fetchRevisionEditors(
+	collection: string,
+	entryId: string,
+	options: { since: string | null; signal?: AbortSignal },
+): Promise<Array<RevisionAuthor | null>> {
+	const params = new URLSearchParams();
+	if (options.since) params.set("since", options.since);
+
+	const url = `${API_BASE}/content/${collection}/${entryId}/revisions/editors${params.toString() ? `?${params}` : ""}`;
+	const response = await apiFetch(url, { signal: options.signal });
+	const data = await parseApiResponse<{ items: Array<RevisionAuthor | null> }>(
+		response,
+		i18n._(msg`Failed to fetch revision editors`),
+	);
+	return data.items;
+}
+
+/**
  * Get a specific revision
  */
 export async function fetchRevision(revisionId: string): Promise<Revision> {
@@ -647,7 +680,7 @@ export async function fetchRevision(revisionId: string): Promise<Revision> {
 
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Revision not found: ${revisionId}`);
+			throw new Error(i18n._(msg`Revision not found: ${revisionId}`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to fetch revision`));
 	}
@@ -669,7 +702,7 @@ export async function restoreRevision(revisionId: string): Promise<ContentItem> 
 
 	if (!response.ok) {
 		if (response.status === 404) {
-			throw new Error(`Revision not found: ${revisionId}`);
+			throw new Error(i18n._(msg`Revision not found: ${revisionId}`));
 		}
 		await throwResponseError(response, i18n._(msg`Failed to restore revision`));
 	}

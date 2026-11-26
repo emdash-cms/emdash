@@ -1,5 +1,5 @@
 import type { EmailMessage } from "@emdash-cms/auth";
-import { Role, sendMagicLink } from "@emdash-cms/auth";
+import { createMagicLinkUrl, Role, sendMagicLink } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -53,7 +53,13 @@ describe("magic link verify route", () => {
 		await teardownTestDatabase(db);
 	});
 
-	function confirm(token: string, session = { set: vi.fn() }) {
+	function confirm(
+		token: string,
+		session: { set(key: string, value: unknown): void; regenerate(): Promise<void> } = {
+			set: vi.fn(),
+			regenerate: vi.fn(async () => {}),
+		},
+	) {
 		const request = new Request("https://example.com/_emdash/api/auth/magic-link/verify", {
 			method: "POST",
 			headers: { "Content-Type": "application/json" },
@@ -79,17 +85,48 @@ describe("magic link verify route", () => {
 		expect(location.searchParams.get("token")).toBe(token);
 		expect(location.searchParams.get("redirect")).toBe("/_emdash/admin/content/posts");
 
-		const session = { set: vi.fn() };
+		const session = { set: vi.fn(), regenerate: vi.fn(async () => {}) };
 		const response = await confirm(token, session);
 		expect(response.status).toBe(200);
 		expect(session.set).toHaveBeenCalledWith("user", { id: userId });
 	});
 
-	it("confirming uses the token once", async () => {
+	it("confirming signs the user in under a new session id", async () => {
+		const signedIn = new Map<string, unknown>();
+		let id = "id-from-request-cookie";
+		const session = {
+			regenerate: vi.fn(async () => {
+				id = "new-id";
+			}),
+			set: vi.fn((_key: string, value: unknown) => {
+				signedIn.set(id, value);
+			}),
+		};
+
+		expect((await confirm(linkUrl.searchParams.get("token")!, session)).status).toBe(200);
+		expect([...signedIn]).toEqual([["new-id", { id: userId }]]);
+	});
+
+	it("records a magic-link login for users without passkeys in the list and detail", async () => {
+		const adapter = createKyselyAdapter(db);
+		expect((await adapter.getUserWithDetails(userId))?.lastLogin).toBeNull();
+		const before = Date.now();
+		expect((await confirm(linkUrl.searchParams.get("token")!)).status).toBe(200);
+		const details = await adapter.getUserWithDetails(userId);
+		expect(details?.credentials).toHaveLength(0);
+		expect(details?.lastLogin?.getTime()).toBeGreaterThanOrEqual(before);
+		expect(details?.lastLogin?.getTime()).toBeLessThanOrEqual(Date.now());
+		const list = await adapter.getUsers();
+		expect(list.items.find((user) => user.id === userId)?.lastLogin).toEqual(details?.lastLogin);
+	});
+
+	it("confirming uses the token once without updating login again on replay", async () => {
 		const token = linkUrl.searchParams.get("token")!;
 		expect((await confirm(token)).status).toBe(200);
+		const firstLogin = (await createKyselyAdapter(db).getUserWithDetails(userId))?.lastLogin;
+		expect(firstLogin).not.toBeNull();
 
-		const session = { set: vi.fn() };
+		const session = { set: vi.fn(), regenerate: vi.fn(async () => {}) };
 		const replay = await confirm(token, session);
 		expect(replay.status).toBe(400);
 		await expect(replay.json()).resolves.toMatchObject({
@@ -97,6 +134,21 @@ describe("magic link verify route", () => {
 			error: { code: "INVALID_TOKEN" },
 		});
 		expect(session.set).not.toHaveBeenCalled();
+		expect((await createKyselyAdapter(db).getUserWithDetails(userId))?.lastLogin).toEqual(
+			firstLogin,
+		);
+	});
+
+	it("does not record an expired login token", async () => {
+		const adapter = createKyselyAdapter(db);
+		const expired = await createMagicLinkUrl(
+			adapter,
+			{ id: userId, email: "author@example.com" },
+			"https://example.com",
+			{ expiresInMs: -1 },
+		);
+		expect((await confirm(new URL(expired).searchParams.get("token")!)).status).toBe(410);
+		expect((await adapter.getUserWithDetails(userId))?.lastLogin).toBeNull();
 	});
 
 	it("fails without an Astro session and leaves the token usable", async () => {
@@ -116,6 +168,7 @@ describe("magic link verify route", () => {
 			success: false,
 			error: { code: "SESSION_UNAVAILABLE" },
 		});
+		expect((await createKyselyAdapter(db).getUserWithDetails(userId))?.lastLogin).toBeNull();
 		expect((await confirm(token)).status).toBe(200);
 	});
 });

@@ -20,6 +20,9 @@ export const prerender = false;
 
 export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const db = emdash.db;
 	const { name } = params;
 
@@ -70,7 +73,7 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 				component_props: body.componentProps ? JSON.stringify(body.componentProps) : null,
 			})
 			.execute();
-		invalidateWidgetObjectCache();
+		await invalidateWidgetObjectCache({ waitForPersist: true });
 
 		const widget = await db
 			.selectFrom("_emdash_widgets")

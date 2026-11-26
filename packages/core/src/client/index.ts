@@ -20,6 +20,7 @@
 import mime from "mime/lite";
 
 import type { ContentFieldFilters } from "../content-list-query.js";
+import type { MediaItem as StoredMediaItem } from "../database/repositories/media.js";
 import type {
 	BlockType,
 	CreateBlockTypeInput,
@@ -63,6 +64,10 @@ function pageQuery(options?: { limit?: number; cursor?: string }): string {
 	if (options?.cursor !== undefined) params.set("cursor", options.cursor);
 	const qs = params.toString();
 	return qs ? `?${qs}` : "";
+}
+
+function localeQuery(locale: string | undefined): string {
+	return locale ? `?${new URLSearchParams({ locale })}` : "";
 }
 
 /** Encode a site package path (`records/post/000000.ndjson`) segment by segment */
@@ -121,7 +126,8 @@ export interface ContentItem {
 	publishedAt: string | null;
 	scheduledAt: string | null;
 	liveRevisionId: string | null;
-	draftRevisionId: string | null;
+	/** Omitted for callers without `content:read_drafts`. */
+	draftRevisionId?: string | null;
 	locale: string | null;
 	translationGroup: string | null;
 	_rev?: string;
@@ -190,6 +196,7 @@ export interface MediaUsageOccurrenceDetail {
 		| "file_field"
 		| "portable_text_image"
 		| "portable_text_video"
+		| "link"
 		| "unknown";
 }
 
@@ -226,22 +233,13 @@ export interface MediaUsageDetailsResponse {
 }
 
 /** Media item */
-export interface MediaItem {
-	id: string;
-	filename: string;
-	key: string;
-	mimeType: string;
-	size: number;
-	width?: number;
-	height?: number;
-	focalX?: number | null;
-	focalY?: number | null;
-	alt?: string;
-	caption?: string;
-	createdAt: string;
-	updatedAt: string;
-	folderId?: string | null;
+export interface MediaItem extends StoredMediaItem {
 	usage?: MediaUsageSummary;
+}
+
+/** Media item with the URL that serves its file, as returned by list and upload */
+export interface MediaItemWithUrl extends MediaItem {
+	url: string;
 }
 
 /** Result of assigning local media to a folder or the Main library */
@@ -717,9 +715,16 @@ export class EmDashClient {
 		return data.item;
 	}
 
-	/** Delete a collection */
-	async deleteCollection(slug: string): Promise<void> {
-		await this.request<unknown>("DELETE", `/schema/collections/${encodeURIComponent(slug)}`);
+	/**
+	 * Delete a collection. A collection that still has content is refused
+	 * unless `force` is set, which the route reads as `?force=true`.
+	 */
+	async deleteCollection(slug: string, options?: { force?: boolean }): Promise<void> {
+		const query = options?.force ? "?force=true" : "";
+		await this.request<unknown>(
+			"DELETE",
+			`/schema/collections/${encodeURIComponent(slug)}${query}`,
+		);
 	}
 
 	/** Create a field on a collection */
@@ -878,6 +883,10 @@ export class EmDashClient {
 			status?: string;
 			locale?: string;
 			translationOf?: string;
+			/** ISO 8601 publication date to record, e.g. when migrating content. Requires `content:publish_any`. */
+			publishedAt?: string | null;
+			/** ISO 8601 creation date to record, e.g. when migrating content. Requires `content:publish_any`. */
+			createdAt?: string | null;
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 		},
@@ -908,6 +917,8 @@ export class EmDashClient {
 			status?: string;
 			_rev?: string;
 			locale?: string;
+			/** ISO 8601 publication date to record, or `null` to clear it. Requires `content:publish_any`. */
+			publishedAt?: string | null;
 			migrateBlocks?: boolean;
 			replaceBlocks?: boolean;
 			/** Write even though another editor holds this entry's edit lock. */
@@ -925,6 +936,7 @@ export class EmDashClient {
 			data,
 			slug: input.slug,
 			status: input.status,
+			publishedAt: input.publishedAt,
 			migrateBlocks: input.migrateBlocks,
 			replaceBlocks: input.replaceBlocks,
 			...(input._rev ? { _rev: input._rev } : {}),
@@ -949,9 +961,12 @@ export class EmDashClient {
 	async delete(
 		collection: string,
 		id: string,
-		options: { overrideLock?: boolean } = {},
+		options: { overrideLock?: boolean; locale?: string } = {},
 	): Promise<void> {
-		const query = options.overrideLock ? "?overrideLock=true" : "";
+		const params = new URLSearchParams();
+		if (options.overrideLock) params.set("overrideLock", "true");
+		if (options.locale) params.set("locale", options.locale);
+		const query = params.size > 0 ? `?${params}` : "";
 		await this.request<unknown>(
 			"DELETE",
 			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}${query}`,
@@ -962,12 +977,22 @@ export class EmDashClient {
 	async publish(
 		collection: string,
 		id: string,
-		options: { overrideLock?: boolean } = {},
+		options: {
+			overrideLock?: boolean;
+			/** ISO 8601 publication date to record, e.g. when migrating content. Requires `content:publish_any`. */
+			publishedAt?: string;
+			/** Locale to resolve a slug in. */
+			locale?: string;
+		} = {},
 	): Promise<void> {
+		const body = {
+			...(options.overrideLock ? { overrideLock: true } : {}),
+			...(options.publishedAt !== undefined ? { publishedAt: options.publishedAt } : {}),
+		};
 		await this.request<unknown>(
 			"POST",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/publish`,
-			options.overrideLock ? { overrideLock: true } : undefined,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/publish${localeQuery(options.locale)}`,
+			Object.keys(body).length > 0 ? body : undefined,
 		);
 	}
 
@@ -975,11 +1000,11 @@ export class EmDashClient {
 	async unpublish(
 		collection: string,
 		id: string,
-		options: { overrideLock?: boolean } = {},
+		options: { overrideLock?: boolean; locale?: string } = {},
 	): Promise<void> {
 		await this.request<unknown>(
 			"POST",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/unpublish`,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/unpublish${localeQuery(options.locale)}`,
 			options.overrideLock ? { overrideLock: true } : undefined,
 		);
 	}
@@ -988,20 +1013,20 @@ export class EmDashClient {
 	async schedule(
 		collection: string,
 		id: string,
-		options: { at: string; overrideLock?: boolean },
+		options: { at: string; overrideLock?: boolean; locale?: string },
 	): Promise<void> {
 		await this.request<unknown>(
 			"POST",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/schedule`,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/schedule${localeQuery(options.locale)}`,
 			{ scheduledAt: options.at, ...(options.overrideLock ? { overrideLock: true } : {}) },
 		);
 	}
 
 	/** Restore a trashed content item */
-	async restore(collection: string, id: string): Promise<void> {
+	async restore(collection: string, id: string, options: { locale?: string } = {}): Promise<void> {
 		await this.request<unknown>(
 			"POST",
-			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/restore`,
+			`/content/${encodeURIComponent(collection)}/${encodeURIComponent(id)}/restore${localeQuery(options.locale)}`,
 		);
 	}
 
@@ -1069,7 +1094,7 @@ export class EmDashClient {
 		page?: number;
 		includeUsage?: boolean;
 		folderId?: string | null;
-	}): Promise<ListResult<MediaItem> & { totalCount?: number }> {
+	}): Promise<ListResult<MediaItemWithUrl> & { totalCount?: number }> {
 		const params = new URLSearchParams();
 		if (options?.mimeType) params.set("mimeType", options.mimeType);
 		if (options?.limit) params.set("limit", String(options.limit));
@@ -1083,7 +1108,7 @@ export class EmDashClient {
 		}
 
 		const qs = params.toString();
-		return this.request<ListResult<MediaItem> & { totalCount?: number }>(
+		return this.request<ListResult<MediaItemWithUrl> & { totalCount?: number }>(
 			"GET",
 			`/media${qs ? `?${qs}` : ""}`,
 		);
@@ -1175,7 +1200,7 @@ export class EmDashClient {
 		file: Uint8Array | Blob,
 		filename: string,
 		options?: { alt?: string; caption?: string; contentType?: string },
-	): Promise<MediaItem> {
+	): Promise<MediaItemWithUrl> {
 		const formData = new FormData();
 
 		// Handle different file types
@@ -1198,7 +1223,7 @@ export class EmDashClient {
 		const response = await this.transport.fetch(request);
 		await this.assertOk(response);
 
-		const raw = (await response.json()) as { data: { item: MediaItem } };
+		const raw = (await response.json()) as { data: { item: MediaItemWithUrl } };
 		return raw.data.item;
 	}
 
@@ -1629,9 +1654,11 @@ export class EmDashClient {
 		let code = "UNKNOWN_ERROR";
 		let message = `HTTP ${response.status}`;
 		let details: Record<string, unknown> | undefined;
+		let text = "";
 
 		try {
-			const json = (await response.json()) as {
+			text = await response.text();
+			const json = JSON.parse(text) as {
 				error?: { code?: string; message?: string; details?: Record<string, unknown> };
 			};
 			if (json.error) {
@@ -1640,8 +1667,7 @@ export class EmDashClient {
 				details = json.error.details;
 			}
 		} catch {
-			// Response body isn't JSON — use status text
-			message = response.statusText || message;
+			message = text.trim().slice(0, 500) || response.statusText || message;
 		}
 
 		throw new EmDashApiError(response.status, code, message, details);

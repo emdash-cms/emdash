@@ -5,6 +5,7 @@ import { Kysely } from "kysely";
 import { describe, expect, it } from "vitest";
 
 import { RawBindingD1Dialect } from "../../../cloudflare/src/db/d1-dialect.js";
+import { deleteMedia } from "../../../cloudflare/src/sandbox/bridge-media.js";
 import { PluginRuntimeBridge } from "../../../cloudflare/src/sandbox/runtime-bridge.js";
 import { generatePluginWrapper } from "../../../cloudflare/src/sandbox/wrapper.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
@@ -18,6 +19,7 @@ declare module "cloudflare:test" {
 	interface ProvidedEnv {
 		DB: D1Database;
 		LOADER: WorkerLoader;
+		MEDIA: R2Bucket;
 	}
 }
 
@@ -26,6 +28,7 @@ const requestScope = new AsyncLocalStorage<string>();
 const PLUGIN = `
 export default {
   routes: {
+    deleteMedia: async ({ input }, ctx) => ctx.media.delete(input.id),
     createOnly: async ({ input }, ctx) => {
       try { return await ctx.content.create("posts", { title: input.title }); }
       catch (error) {
@@ -54,6 +57,7 @@ function loadPlugin() {
 				"content:publish",
 				"taxonomies:write",
 				"comments:moderate",
+				"media:write",
 			],
 		} as never,
 		{ site: { name: "Test", url: "https://example.test", locale: "en" } },
@@ -76,6 +80,7 @@ function loadPlugin() {
 						"content:publish",
 						"taxonomies:write",
 						"comments:moderate",
+						"media:write",
 					],
 					allowedHosts: [],
 					storageCollections: [],
@@ -146,6 +151,54 @@ function runtimeBridge(
 }
 
 describe("sandbox runtime bridge RPC", () => {
+	it("invalidates deleted media through the originating runtime with an unwired loopback map", async () => {
+		await env.DB.exec("DROP TABLE IF EXISTS media");
+		await env.DB.exec(
+			"CREATE TABLE media (id TEXT PRIMARY KEY, storage_key TEXT NOT NULL, mime_type TEXT NOT NULL)",
+		);
+		const plugin = loadPlugin();
+		const first: string[] = [];
+		const second: string[] = [];
+		for (const id of ["one", "two"]) {
+			await env.DB.prepare("INSERT INTO media VALUES (?, ?, ?)")
+				.bind(id, `${id}.png`, "image/png")
+				.run();
+			await env.MEDIA.put(`${id}.png`, "image bytes");
+		}
+		const results = await Promise.all(
+			(
+				[
+					["one", first],
+					["two", second],
+				] as const
+			).map(async ([id, calls]) =>
+				requestScope.run(id, () =>
+					plugin.invokeRoute(
+						"deleteMedia",
+						{ id },
+						{ method: "POST", meta: {} },
+						id,
+						new PluginRuntimeBridge("rpc-plugin", ["media:write"], id, {
+							mediaDelete: (mediaId) => deleteMedia(env, mediaId),
+							contentActions: {
+								invalidateMedia: async (pluginId: string, key: string, invocationId: string) => {
+									expect(requestScope.getStore()).toBe(id);
+									calls.push(`${pluginId}:${key}:${invocationId}`);
+								},
+							} as never,
+						}),
+					),
+				),
+			),
+		);
+		expect(results).toEqual([true, true]);
+		expect(await env.MEDIA.head("one.png")).toBeNull();
+		expect(await env.MEDIA.head("two.png")).toBeNull();
+		expect((await env.DB.prepare("SELECT id FROM media").all()).results).toEqual([]);
+		expect(first).toEqual(["rpc-plugin:one.png:one"]);
+		expect(second).toEqual(["rpc-plugin:two.png:two"]);
+	});
+
 	it("forwards callback operations through the RPC invocation parameter", async () => {
 		const plugin = loadPlugin();
 		const first: string[] = [];

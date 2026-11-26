@@ -427,7 +427,8 @@ The response body is `{ kind: "text", value: string }` or
 `{ kind: "bytes", value: Uint8Array }` and is buffered up to 8 MiB. Raw responses may set
 `Accept-Ranges`, `Content-Disposition`, `Content-Encoding`, `Content-Language`, `Content-Range`,
 `Content-Type`, `ETag`, `Last-Modified`, `Location`, and `Retry-After`; the host removes every other
-plugin-supplied header. It adds
+plugin-supplied header. On a public route, `Location` must resolve to the site's own origin, taken
+from `siteUrl` or `EMDASH_SITE_URL` when either is set; any other redirect fails with a 500. It adds
 `X-Content-Type-Options: nosniff`, a sandboxed document content security policy, and
 `Referrer-Policy: no-referrer`. It applies the route's `cacheControl` only to successful public
 `GET` and `HEAD` responses. Other responses use `private, no-store`.

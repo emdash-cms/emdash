@@ -272,6 +272,16 @@ export const contentUpdateBody = z
 			description:
 				"Reference selections as { fieldSlug: [entryId, ...] }, in display order. Written as content-reference links in the same transaction as the entry. A field bound to the child end of its relation selects the entries pointing at this one, which carry no order.",
 		}),
+		expected: z
+			.object({
+				bylines: z.array(contentBylineInputSchema).optional(),
+				references: z.record(z.string(), z.array(z.string()).max(1000)).optional(),
+			})
+			.optional()
+			.meta({
+				description:
+					"The bylines and reference selections this save was based on, as a read of the entry returned them (every page of a reference field). When a stored list no longer matches, nothing is written and the save fails with 409 LIST_CONFLICT, so the client can read the entry again and rebase its change.",
+			}),
 		publishedAt: contentDateOverride,
 		migrateBlocks: z.boolean().optional(),
 		replaceBlocks: z.boolean().optional(),
@@ -330,6 +340,10 @@ export const contentPreviewUrlBody = z
 export const contentTermsBody = z
 	.object({
 		termIds: z.array(z.string()),
+		expected: z.array(z.string()).optional().meta({
+			description:
+				"The term ids this change was based on, as a read of the entry's terms returned them. When the entry's terms no longer match, nothing is written and the request fails with 409 LIST_CONFLICT.",
+		}),
 	})
 	.meta({ id: "ContentTermsBody" });
 
@@ -416,8 +430,12 @@ export const contentItemSchema = z
 		publishedAt: z.string().nullable(),
 		scheduledAt: z.string().nullable(),
 		liveRevisionId: z.string().nullable(),
-		draftRevisionId: z.string().nullable(),
-		version: z.number().int(),
+		draftRevisionId: z.string().nullable().optional().meta({
+			description: "Omitted for callers without content:read_drafts",
+		}),
+		version: z.number().int().optional().meta({
+			description: "Omitted for callers without content:read_drafts",
+		}),
 		locale: z.string().nullable(),
 		translationGroup: z.string().nullable(),
 		seo: contentSeoSchema.optional(),
@@ -462,7 +480,8 @@ export const contentAuthorSchema = z
 	.object({
 		id: z.string(),
 		name: z.string().nullable(),
-		email: z.string(),
+		/** Omitted for callers without `users:read`. */
+		email: z.string().optional(),
 		avatarUrl: z.string().nullable(),
 	})
 	.meta({ id: "ContentAuthor" });

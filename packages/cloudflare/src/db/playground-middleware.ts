@@ -55,6 +55,7 @@ async function ensurePlaygroundInitialized(
 	binding: string,
 	token: string,
 	ttl: number,
+	siteUrl: string,
 ): Promise<void> {
 	if (initializedSessions.has(token)) return;
 
@@ -65,7 +66,7 @@ async function ensurePlaygroundInitialized(
 	try {
 		await getFullStub(binding, token).setTtlAlarm(ttl);
 		const { loadSeed } = await import("emdash/seed");
-		await initializePlayground(db, await loadSeed());
+		await initializePlayground(db, await loadSeed(), siteUrl);
 		initializedSessions.add(token);
 	} finally {
 		await db.destroy();
@@ -206,7 +207,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		}
 
 		try {
-			await ensurePlaygroundInitialized(binding, token, ttl);
+			await ensurePlaygroundInitialized(binding, token, ttl, url.origin);
 			console.log(`[playground] Session ${token} initialized`);
 			return Response.json({ ok: true });
 		} catch (error) {
@@ -248,7 +249,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
 	// Ensure initialized
 	try {
-		await ensurePlaygroundInitialized(binding, token, ttl);
+		await ensurePlaygroundInitialized(binding, token, ttl, url.origin);
 	} catch (error) {
 		console.error("Playground initialization failed:", error);
 		return Response.json(

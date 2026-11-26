@@ -7,19 +7,21 @@
  * Image.astro), falling back to Astro's Image component when dimensions are
  * available for locally-stored media.
  */
-import { Image as AstroImage } from "astro:assets";
+import { Image as AstroImage, getImage } from "astro:assets";
 import type { ImageEmbed } from "../media/types.js";
 import { getMediaProvider } from "../media/provider-loader.js";
 import { buildRenderMediaUrl } from "../media/url.js";
 import {
+	canOptimizeImage,
 	toAbsoluteMediaUrl,
+	galleryColumns,
 	gallerySizes,
-	GALLERY_DEFAULT_COLUMNS,
 	responsiveWidths,
 } from "../media/responsive.js";
 import { getPublicOrigin } from "../api/public-url.js";
 import { sanitizeGalleryImages } from "../content/converters/gallery.js";
 import { focalPointToObjectPosition } from "../media/focal-point.js";
+import { cssColor } from "../utils/css-value.js";
 
 export interface Props {
 	node: {
@@ -76,7 +78,7 @@ function generateSrcset(
 
 const { node, placeholder = true, sizes: sizesOverride } = Astro.props;
 const images = sanitizeGalleryImages(node?.images);
-const columns = node?.columns ?? GALLERY_DEFAULT_COLUMNS;
+const columns = galleryColumns(node?.columns);
 // Each image fills one grid cell, not the viewport.
 const cellSizes = sizesOverride ?? gallerySizes(columns);
 
@@ -136,12 +138,17 @@ const resolvedImages = await Promise.all(
 				id: asset._ref,
 			});
 			if (width && height) {
-				astroImageSrc = toAbsoluteMediaUrl(
+				const absoluteSrc = toAbsoluteMediaUrl(
 					src,
 					getPublicOrigin(Astro.url, Astro.locals.emdash?.config),
 				);
+				if (await canOptimizeImage(getImage, { src: absoluteSrc, width, height })) {
+					astroImageSrc = absoluteSrc;
+				}
 			}
 		}
+
+		const dominantColor = cssColor(image.dominantColor);
 
 		// Prefer blurhash over dominant color for the LQIP placeholder, like
 		// Image.astro.
@@ -149,8 +156,8 @@ const resolvedImages = await Promise.all(
 		if (placeholder && image.blurhash) {
 			const { blurhashToImageCssString } = await import("@unpic/placeholder");
 			placeholderStyle = blurhashToImageCssString(image.blurhash);
-		} else if (placeholder && image.dominantColor) {
-			placeholderStyle = `background-color: ${image.dominantColor};`;
+		} else if (placeholder && dominantColor) {
+			placeholderStyle = `background-color: ${dominantColor};`;
 		}
 
 		return {

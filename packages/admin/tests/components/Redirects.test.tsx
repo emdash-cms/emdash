@@ -76,8 +76,8 @@ const missingPage: NotFoundSummary = {
 	topReferrer: null,
 };
 
-async function renderNotFoundTab() {
-	vi.mocked(fetch404Summary).mockResolvedValue([missingPage]);
+async function renderNotFoundTab(item: NotFoundSummary = missingPage) {
+	vi.mocked(fetch404Summary).mockResolvedValue([item]);
 	const screen = await render(<Redirects />);
 	await screen.getByRole("tab", { name: "404 Errors" }).click();
 	return screen;
@@ -312,6 +312,18 @@ describe("Redirects", () => {
 			.toHaveValue("/missing-page");
 	});
 
+	it("opens a new redirect for a 404 path that looks like a pattern as a literal source", async () => {
+		const screen = await renderNotFoundTab({ ...missingPage, path: "/posts/[...rest]" });
+		await screen
+			.getByRole("button", { name: "Create redirect for /posts/[...rest]", exact: true })
+			.click();
+
+		const dialog = screen.getByRole("dialog", { name: "New Redirect" });
+		await expect
+			.element(dialog.getByRole("textbox", { name: "Source path" }))
+			.toHaveValue("/posts/%5B...rest%5D");
+	});
+
 	it("describes what marking a 404 path as gone does", async () => {
 		const screen = await renderNotFoundTab();
 
@@ -339,6 +351,28 @@ describe("Redirects", () => {
 		await vi.waitFor(() =>
 			expect(createRedirect).toHaveBeenCalledExactlyOnceWith({
 				source: "/missing-page",
+				destination: "",
+				type: 410,
+				enabled: true,
+			}),
+		);
+	});
+
+	it("marks a 404 path that looks like a pattern as gone for that path only", async () => {
+		vi.mocked(createRedirect).mockResolvedValue({
+			...makeRedirect(1),
+			source: "/posts/%5Bslug%5D",
+			destination: "",
+			type: 410,
+		});
+		const screen = await renderNotFoundTab({ ...missingPage, path: "/posts/[slug]" });
+		await screen
+			.getByRole("button", { name: "Mark /posts/[slug] as Gone (410)", exact: true })
+			.click();
+
+		await vi.waitFor(() =>
+			expect(createRedirect).toHaveBeenCalledExactlyOnceWith({
+				source: "/posts/%5Bslug%5D",
 				destination: "",
 				type: 410,
 				enabled: true,

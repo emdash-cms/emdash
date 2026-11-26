@@ -8,7 +8,7 @@ import {
 } from "../datetime-normalization.js";
 import { requestCached } from "../request-cache.js";
 import { isStoragelessFieldRow, type FieldType, type RepeaterSubField } from "../schema/types.js";
-import { isSafeUrlFieldWriteValue } from "../utils/url.js";
+import { isSafeMediaUrl, isSafeUrlFieldWriteValue } from "../utils/url.js";
 import { EmDashValidationError } from "./repositories/types.js";
 import type { Database } from "./types.js";
 
@@ -17,10 +17,16 @@ interface UrlFieldDescriptor {
 	urlSubFields?: readonly string[];
 }
 
+interface MediaFieldDescriptor {
+	slug: string;
+	mediaSubFields?: readonly string[];
+}
+
 interface DatetimeContext {
 	timezone: string;
 	fields: DatetimeFieldDescriptor[];
 	urlFields: UrlFieldDescriptor[];
+	mediaFields: MediaFieldDescriptor[];
 	writableFieldSlugs: ReadonlySet<string>;
 }
 
@@ -102,11 +108,14 @@ export class ContentDatetimeNormalizer {
 		}
 		const fields: DatetimeFieldDescriptor[] = [];
 		const urlFields: UrlFieldDescriptor[] = [];
+		const mediaFields: MediaFieldDescriptor[] = [];
 		for (const row of rows) {
 			if (row.type === "datetime") {
 				fields.push({ slug: row.slug, type: "datetime" });
 			} else if (row.type === "url") {
 				urlFields.push({ slug: row.slug });
+			} else if (row.type === "image" || row.type === "file") {
+				mediaFields.push({ slug: row.slug });
 			} else if (row.type === "repeater") {
 				fields.push({
 					slug: row.slug,
@@ -115,12 +124,14 @@ export class ContentDatetimeNormalizer {
 				});
 				const urlSubFields = repeaterSubFieldsOfType(row.validation, "url");
 				if (urlSubFields.length > 0) urlFields.push({ slug: row.slug, urlSubFields });
+				const mediaSubFields = repeaterSubFieldsOfType(row.validation, "image");
+				if (mediaSubFields.length > 0) mediaFields.push({ slug: row.slug, mediaSubFields });
 			}
 		}
 		const writableFieldSlugs = new Set(
 			rows.filter((field) => !isStoragelessFieldRow(field)).map((field) => field.slug),
 		);
-		return { timezone, fields, urlFields, writableFieldSlugs };
+		return { timezone, fields, urlFields, mediaFields, writableFieldSlugs };
 	}
 
 	async writableFieldSlugs(collection: string): Promise<ReadonlySet<string>> {
@@ -129,9 +140,10 @@ export class ContentDatetimeNormalizer {
 
 	/**
 	 * Normalizes datetimes in incoming field values and rejects `url` values
-	 * with unsafe schemes, control characters, or off-site path forms. Values
-	 * already stored are not checked, so restoring or syncing existing data
-	 * goes through {@link normalizeData} instead.
+	 * with unsafe schemes, control characters, or off-site path forms, and
+	 * `image` and `file` values whose URLs have unsafe schemes or control
+	 * characters. Values already stored are not checked, so restoring or
+	 * syncing existing data goes through {@link normalizeData} instead.
 	 */
 	async normalizeInput(
 		collection: string,
@@ -139,6 +151,7 @@ export class ContentDatetimeNormalizer {
 	): Promise<Record<string, unknown>> {
 		const context = await this.context(collection);
 		assertSafeUrlFields(data, context.urlFields);
+		assertSafeMediaFields(data, context.mediaFields);
 		return this.normalizeWithContext(context, [data])[0] ?? data;
 	}
 
@@ -205,7 +218,7 @@ function repeaterRows(value: unknown): unknown[] | undefined {
 }
 
 function assertSafeUrl(path: string, value: unknown): void {
-	if (typeof value === "string" && !isSafeUrlFieldWriteValue(value)) {
+	if (value !== undefined && value !== null && !isSafeUrlFieldWriteValue(value)) {
 		throw new EmDashValidationError(
 			`Field "${path}" must use http, https, mailto, or tel, or be a safe relative path or fragment`,
 			{ path },
@@ -229,6 +242,65 @@ function assertSafeUrlFields(
 			if (!isRecord(row)) continue;
 			for (const subField of field.urlSubFields) {
 				assertSafeUrl(`${field.slug}.${index}.${subField}`, row[subField]);
+			}
+		}
+	}
+}
+
+const MEDIA_URL_KEYS = ["src", "url", "previewUrl"] as const;
+
+// Reads parse a stored string that looks like JSON, so a media value written as a JSON string
+// comes back as an object and must be checked as one, and one that starts with `[` comes back
+// as an array rather than a URL. Any other string is the URL itself.
+function assertSafeMedia(path: string, value: unknown, allowDarkVariant = true): void {
+	let media = value;
+	if (typeof media === "string" && media.trimStart().startsWith("[")) {
+		throw unsafeMediaUrlError(path);
+	}
+	if (typeof media === "string" && media.startsWith("{")) {
+		try {
+			media = JSON.parse(media);
+		} catch {
+			// Stays a string on read too.
+		}
+	}
+	if (typeof media === "string") {
+		assertSafeMediaUrl(path, media);
+		return;
+	}
+	if (!isRecord(media)) return;
+	for (const key of MEDIA_URL_KEYS) assertSafeMediaUrl(`${path}.${key}`, media[key]);
+	if (allowDarkVariant) assertSafeMedia(`${path}.darkVariant`, media.darkVariant, false);
+}
+
+function assertSafeMediaUrl(path: string, value: unknown): void {
+	if (value === undefined || value === null) return;
+	if (typeof value !== "string" || !isSafeMediaUrl(value)) throw unsafeMediaUrlError(path);
+}
+
+function unsafeMediaUrlError(path: string): EmDashValidationError {
+	return new EmDashValidationError(
+		`Field "${path}" must be text that uses http or https, or a relative path`,
+		{ path },
+	);
+}
+
+function assertSafeMediaFields(
+	data: Record<string, unknown>,
+	mediaFields: readonly MediaFieldDescriptor[],
+): void {
+	for (const field of mediaFields) {
+		const value = data[field.slug];
+		if (!field.mediaSubFields) {
+			assertSafeMedia(field.slug, value);
+			continue;
+		}
+		const rows = repeaterRows(value);
+		if (!rows) continue;
+		for (const [index, row] of rows.entries()) {
+			if (!isRecord(row)) continue;
+			for (const subField of field.mediaSubFields) {
+				assertSafeMedia(`${field.slug}.${index}.${subField}`, row[subField]);
 			}
 		}
 	}

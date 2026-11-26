@@ -17,13 +17,22 @@ const MIN_INTERVAL_MS = 1000;
 
 /**
  * Maximum polling interval (ms). Each wake runs the maintenance pass — stale
- * lock recovery *and* the scheduled-publishing sweep + system cleanup. The cap
- * is the worst-case latency for scheduled content when no plugin cron task is
- * due sooner (`getNextDueTime()` only knows about cron tasks, not content
- * `scheduled_at`). Held at 60s so Node publish latency matches the Cloudflare
- * Cron Trigger cadence (`* * * * *`) rather than lagging up to five minutes.
+ * lock recovery *and* the scheduled-publishing sweep + system cleanup.
+ * `getNextDueTime()` only knows about cron tasks, not content `scheduled_at`,
+ * so the scheduler also wakes at the start of every minute: the admin
+ * schedules content to the minute, and a wake on the boundary publishes it on
+ * time instead of up to a minute late.
  */
 const MAX_INTERVAL_MS = 60 * 1000;
+
+/** Wakes just after the minute starts, so a timer that fires early still lands on it. */
+const MINUTE_BOUNDARY_SLACK_MS = 25;
+
+function msUntilNextMinute(now: number): number {
+	const sinceMinute = now % MAX_INTERVAL_MS;
+	if (sinceMinute < MINUTE_BOUNDARY_SLACK_MS) return MINUTE_BOUNDARY_SLACK_MS - sinceMinute;
+	return MAX_INTERVAL_MS - sinceMinute + MINUTE_BOUNDARY_SLACK_MS;
+}
 
 export class NodeCronScheduler implements CronScheduler {
 	private timer: ReturnType<typeof setTimeout> | null = null;
@@ -68,14 +77,11 @@ export class NodeCronScheduler implements CronScheduler {
 			.then((nextDue) => {
 				if (!this.running) return undefined;
 
-				let delayMs: number;
+				const now = Date.now();
+				let delayMs = msUntilNextMinute(now);
 				if (nextDue) {
 					const dueAt = new Date(nextDue).getTime();
-					delayMs = Math.max(dueAt - Date.now(), MIN_INTERVAL_MS);
-					delayMs = Math.min(delayMs, MAX_INTERVAL_MS);
-				} else {
-					// No tasks scheduled — poll at max interval for stale lock recovery
-					delayMs = MAX_INTERVAL_MS;
+					delayMs = Math.min(delayMs, Math.max(dueAt - now, MIN_INTERVAL_MS));
 				}
 
 				this.timer = setTimeout(() => {

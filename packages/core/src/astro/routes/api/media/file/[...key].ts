@@ -5,11 +5,14 @@
  */
 
 import type { APIRoute } from "astro";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import { apiError, handleError } from "#api/error.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { contentDisposition } from "#media/content-disposition.js";
 import {
+	cacheMediaResponse,
 	IMMUTABLE_IMAGE_CACHE,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	isNotModified,
@@ -55,6 +58,7 @@ const SAFE_INLINE_TYPES = new Set([
 	"image/gif",
 	"image/webp",
 	"image/avif",
+	"image/bmp",
 	"image/x-icon",
 	"video/mp4",
 	"video/webm",
@@ -171,6 +175,14 @@ export const GET: APIRoute = async ({ params, locals, request, cache }) => {
 
 		const response = new Response(body, { status: 200, headers });
 		if (body) unusedBody = undefined;
+		if (
+			virtualConfig?.routeCacheProvider !== "memory" &&
+			!range &&
+			result.contentType.startsWith("image/") &&
+			!request.url.includes("?")
+		) {
+			cacheMediaResponse(cache, key);
+		}
 		return response;
 	} catch (error) {
 		// Check if it's a "not found" error

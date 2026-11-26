@@ -85,7 +85,7 @@ The dev server generates `emdash-env.d.ts` from this schema. As a result,
 
 5. Assign a byline, category, and any relevant tags in the settings panel.
 
-6. Select **Save**. The entry becomes a draft and the editor opens its permanent entry URL.
+6. Select **Save draft**. The entry becomes a draft and the editor opens its permanent entry URL.
 
 7. Select **Preview** and check the post page. Return to the editor and select **Publish** when the
    draft is ready.
@@ -161,9 +161,9 @@ if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
 
-if (error) return new Response("Unable to load post", { status: 500 });
-if (!post) return Astro.rewrite("/404");
+if (error) throw error;
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+if (!post) return Astro.rewrite("/404");
 ---
 
 <article>
@@ -201,7 +201,7 @@ const { entries: posts, error } = await getEmDashCollection("posts", {
   orderBy: { published_at: "desc" },
 });
 
-if (error) return new Response("Unable to load posts", { status: 500 });
+if (error) throw error;
 ---
 ```
 

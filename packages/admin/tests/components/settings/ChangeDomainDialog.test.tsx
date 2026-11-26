@@ -101,7 +101,7 @@ describe("ChangeDomainDialog", () => {
 		await input.fill("new.example");
 		await userEvent.keyboard("{Enter}");
 
-		const reason = "https://new.example does not serve this site yet";
+		const reason = "Could not verify that https://new.example serves this site";
 		await expect.element(input).toHaveAccessibleDescription(reason);
 		await expect.element(input).toHaveAttribute("aria-invalid", "true");
 		await expect.element(input).toHaveFocus();
