@@ -244,6 +244,168 @@ describe("redirect middleware — issue #808", () => {
 	});
 });
 
+describe("redirect middleware — request query strings", () => {
+	let db: Kysely<Database>;
+
+	beforeEach(async () => {
+		invalidateRedirectCache();
+		db = await setupTestDatabase();
+		getDbMock.mockReset();
+		getDbMock.mockResolvedValue(db);
+	});
+
+	afterEach(async () => {
+		await waitForDeferredTasks();
+		await teardownTestDatabase(db);
+	});
+
+	it.each([301, 302, 307, 308] as const)(
+		"preserves campaign parameters on a %i redirect",
+		async (type) => {
+			const repo = new RedirectRepository(db);
+			await repo.create({ source: "/promo", destination: "/landing/promo", type });
+			await publishRedirectArtifacts(db);
+			const { context } = buildContext({ pathname: "/promo?utm_source=pdf&utm_medium=book" });
+			const next = vi.fn(async () => new Response("not found", { status: 404 }));
+
+			const response = await onRequest(context, next);
+
+			expect(response.status).toBe(type);
+			expect(response.headers.get("Location")).toBe(
+				"/landing/promo?utm_source=pdf&utm_medium=book",
+			);
+			expect(next).not.toHaveBeenCalled();
+		},
+	);
+
+	it.each([
+		{
+			source: "/old-post",
+			pathname: "/old-post/?utm_source=x&gclid=t",
+			destination: "/news/old-post",
+			expected: "/news/old-post?utm_source=x&gclid=t",
+		},
+		{
+			source: "/old-post/",
+			pathname: "/old-post?gclid=t",
+			destination: "/news/old-post",
+			expected: "/news/old-post?gclid=t",
+		},
+		{
+			source: "/old/[slug]",
+			pathname: "/old/post?gclid=t",
+			destination: "/news/[slug]#section",
+			isPattern: true,
+			expected: "/news/post?gclid=t#section",
+		},
+		{ destination: "/landing#section", expected: "/landing?utm_source=pdf#section" },
+		{
+			destination: "/landing#section?details",
+			expected: "/landing?utm_source=pdf#section?details",
+		},
+		{ destination: "/landing?source=rule#section", expected: "/landing?source=rule#section" },
+		{ destination: "/landing?", expected: "/landing?" },
+		{ destination: "/landing?#section", expected: "/landing?#section" },
+		{
+			pathname: "/promo?tag=a%20b&tag=c+d&token=%2f%26%23",
+			destination: "/landing",
+			expected: "/landing?tag=a%20b&tag=c+d&token=%2f%26%23",
+		},
+		{ pathname: "/promo", destination: "/landing#section", expected: "/landing#section" },
+		{ destination: "/štítek#část", expected: "/%C5%A1t%C3%ADtek?utm_source=pdf#%C4%8D%C3%A1st" },
+	])(
+		"builds the redirect Location for %j",
+		async ({
+			source = "/promo",
+			pathname = "/promo?utm_source=pdf",
+			destination,
+			expected,
+			isPattern = false,
+		}) => {
+			const repo = new RedirectRepository(db);
+			await repo.create({ source, destination, type: 301, isPattern });
+			await publishRedirectArtifacts(db);
+			const { context } = buildContext({ pathname });
+
+			const response = await onRequest(
+				context,
+				async () => new Response("not found", { status: 404 }),
+			);
+
+			expect(response.status).toBe(301);
+			expect(response.headers.get("Location")).toBe(expected);
+		},
+	);
+
+	it("uses each request's query string when reusing cached rules", async () => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/promo", destination: "/landing", type: 301 });
+		await publishRedirectArtifacts(db);
+
+		for (const search of ["?utm_source=pdf", "?gclid=ad", ""]) {
+			const { context } = buildContext({ pathname: `/promo${search}` });
+			const response = await onRequest(context, async () => new Response("ok"));
+			expect(response.headers.get("Location")).toBe(`/landing${search}`);
+		}
+	});
+
+	it.each(["", "?utm_source=pdf", "?gclid=ad"])(
+		"opts redirect responses out of route caching for search %j",
+		async (search) => {
+			const repo = new RedirectRepository(db);
+			await repo.create({ source: "/promo", destination: "/landing", type: 301 });
+			await publishRedirectArtifacts(db);
+			const cache = storingRouteCache({ maxAge: 60 });
+			const { context } = buildContext({ pathname: `/promo${search}`, cache });
+			const next = vi.fn(async () => new Response("page"));
+
+			const response = await onRequest(context, next);
+
+			expect(response.headers.get("Location")).toBe(`/landing${search}`);
+			expect(cache.set).toHaveBeenCalledWith(false);
+			expect(cache.options).toEqual({ tags: [] });
+			expect(next).not.toHaveBeenCalled();
+		},
+	);
+
+	it("preserves parameters when a newly published rule replaces a cached render", async () => {
+		await publishRedirectArtifacts(db);
+		const warm = buildContext({ pathname: "/warm" });
+		await onRequest(warm.context, async () => new Response("ok"));
+		await waitForDeferredTasks();
+
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/promo", destination: "/landing#section", type: 301 });
+		await publishRedirectArtifacts(db);
+		const cache = storingRouteCache();
+		const { context } = buildContext({ pathname: "/promo?gclid=ad", cache });
+		const next = vi.fn(async () => {
+			cache.set({ maxAge: 60 });
+			return new Response("page");
+		});
+
+		const response = await onRequest(context, next);
+
+		expect(next).toHaveBeenCalledTimes(1);
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe("/landing?gclid=ad#section");
+		expect(cache.set).toHaveBeenCalledWith(false);
+	});
+
+	it.each([410, 451] as const)("keeps terminal %i responses free of Location", async (type) => {
+		const repo = new RedirectRepository(db);
+		await repo.create({ source: "/gone", destination: "/", type });
+		const { context } = buildContext({ pathname: "/gone?utm_source=pdf" });
+		const next = vi.fn(async () => new Response("ok"));
+
+		const response = await onRequest(context, next);
+
+		expect(response.status).toBe(type);
+		expect(response.headers.has("Location")).toBe(false);
+		expect(next).not.toHaveBeenCalled();
+	});
+});
+
 describe("redirect middleware — 404 logging attributes misses to the requested path", () => {
 	let db: Kysely<Database>;
 
