@@ -182,7 +182,7 @@ export const GET: APIRoute = async (ctx) => {
 			// out; the full-size original keeps the image visible.
 			console.error("[emdash] image transform failed, serving the original:", error);
 			if (unusedBody && !unusedBody.locked) await unusedBody.cancel().catch(() => undefined);
-			ctx.cache?.set(false);
+			if (ctx.cache?.enabled) ctx.cache.set(false);
 			const original = await storage.download(key);
 			unusedBody = original.body;
 			return serveOriginal(original, ORIGINAL_FALLBACK);

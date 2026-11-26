@@ -151,7 +151,6 @@ export const GET: APIRoute = async (ctx) => {
 		const serveFallbackOriginal = (
 			body: ReadableStream<Uint8Array> | Uint8Array<ArrayBuffer>,
 		): Response => {
-			ctx.cache?.set(false);
 			const headers: Record<string, string> = {
 				...originalMediaHeaders(source.contentType, source.size, source.lastModified),
 				...validatorHeaders(source.size, source.lastModified, ORIGINAL_FALLBACK_SUFFIX),
@@ -163,6 +162,7 @@ export const GET: APIRoute = async (ctx) => {
 		};
 
 		if (sharpMissing()) {
+			if (ctx.cache?.enabled) ctx.cache.set(false);
 			if (isNotModified(ctx.request, source.size, source.lastModified, ORIGINAL_FALLBACK_SUFFIX)) {
 				const notModified = notModifiedResponse(
 					source.contentType,
@@ -191,6 +191,7 @@ export const GET: APIRoute = async (ctx) => {
 			if (!(error instanceof Error && error.name === "MissingSharp")) throw error;
 			(globalThis as Record<symbol, unknown>)[MISSING_SHARP_KEY] = true;
 			console.error("[emdash] sharp is not installed, serving original images:", error);
+			if (ctx.cache?.enabled) ctx.cache.set(false);
 			return serveFallbackOriginal(inputBuffer);
 		}
 		const { data, format } = output;

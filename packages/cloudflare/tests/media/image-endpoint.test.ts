@@ -467,6 +467,7 @@ describe("cloudflare image endpoint storage body", () => {
 			headers: { "If-None-Match": etag },
 		});
 		expect(response.status).toBe(304);
+		expect(response.headers.get("Last-Modified")).toBeNull();
 		expect(downloads.every((download) => download.cancelled())).toBe(true);
 	});
 

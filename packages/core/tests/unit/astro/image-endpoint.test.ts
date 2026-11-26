@@ -572,14 +572,30 @@ describe("GET /_image when the image service cannot transform", () => {
 		const etag = first.headers.get("ETag");
 		expect(etag).toBeTruthy();
 
-		const second = await GET(buildContext(request({ "If-None-Match": etag! }), { download }));
+		const cache = routeCache();
+		const second = await GET(
+			buildContext(request({ "If-None-Match": etag! }), { download }, cache),
+		);
 		const third = await GET(buildContext(request(), { download }));
 
 		expect(second.status).toBe(304);
+		expect(second.headers.get("Last-Modified")).toBeNull();
+		expect(cache.set.mock.calls).toEqual([[false]]);
 		expect(third.status).toBe(200);
 		expect(new Uint8Array(await third.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
 		expect(transform).toHaveBeenCalledTimes(1);
 		expect(log).toHaveBeenCalledTimes(1);
+	});
+
+	it("leaves a disabled route cache untouched when serving the original", async () => {
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		transform.mockRejectedValueOnce(missingSharp());
+		const cache = { enabled: false, set: vi.fn() };
+
+		const response = await GET(buildContext(request(), { download }, cache));
+
+		expect(response.status).toBe(200);
+		expect(cache.set).not.toHaveBeenCalled();
 	});
 
 	it("fails when the image itself cannot be transformed", async () => {
