@@ -68,6 +68,7 @@ vi.mock("../../../src/emdash-runtime.js", async (importOriginal) => {
 		DB_INIT_DEADLINE_MS: actual.DB_INIT_DEADLINE_MS,
 		EmDashRuntime: {
 			create: mockCreateRuntime,
+			isDatabaseUnmigrated: () => false,
 			getStorage: actual.EmDashRuntime.getStorage,
 		},
 	};
@@ -132,7 +133,6 @@ afterAll(async () => {
 });
 
 beforeEach(() => {
-	delete (globalThis as Record<symbol, unknown>)[Symbol.for("emdash:setup-verified")];
 	delete (globalThis as Record<symbol, unknown>)[Symbol.for("emdash:runtime-holder")];
 	CONFIG.storage = LOCAL_STORAGE;
 	CONFIG.imageEndpointRoute = "/_image";

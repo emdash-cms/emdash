@@ -986,6 +986,48 @@ describe("EmDashRuntime.create — cold boot", () => {
 		expect(dialectCalls).toBe(1);
 	});
 
+	describe("a database that was never migrated", () => {
+		it("is reported unmigrated while its migration fails and backs off", async () => {
+			const sqlite = new Database(":memory:");
+			// 001_initial creates this table, so the first migration fails.
+			sqlite.exec("CREATE TABLE _emdash_collections (id TEXT)");
+			const deps: RuntimeDependencies = {
+				...createDeps(),
+				createDialect: () => new SqliteDialect({ database: sqlite }),
+			};
+
+			await expect(EmDashRuntime.create(deps)).rejects.toThrow(/Migration failed/i);
+			expect(EmDashRuntime.isDatabaseUnmigrated(deps.config)).toBe(true);
+
+			await expect(EmDashRuntime.create(deps)).rejects.toThrow(/backing off/i);
+			expect(EmDashRuntime.isDatabaseUnmigrated(deps.config)).toBe(true);
+		});
+
+		it("is no longer reported unmigrated once init has migrated it", async () => {
+			const deps = createDeps();
+			const runtime = await EmDashRuntime.create(deps);
+			await runtime.stopCron();
+
+			expect(EmDashRuntime.isDatabaseUnmigrated(deps.config)).toBe(false);
+		});
+
+		it("is not confused with a migrated database whose migration fails", async () => {
+			const sqlite = new Database(":memory:");
+			const setupDb = new Kysely<EmDashDatabase>({
+				dialect: new SqliteDialect({ database: sqlite }),
+			});
+			await runMigrations(setupDb);
+			await sql`DELETE FROM _emdash_migrations WHERE name = '001_initial'`.execute(setupDb);
+			const deps: RuntimeDependencies = {
+				...createDeps(),
+				createDialect: () => new SqliteDialect({ database: sqlite }),
+			};
+
+			await expect(EmDashRuntime.create(deps)).rejects.toThrow(/Migration failed/i);
+			expect(EmDashRuntime.isDatabaseUnmigrated(deps.config)).toBe(false);
+		});
+	});
+
 	it("backs off behind a migration lock that was left long ago", async () => {
 		const sqlite = new Database(":memory:");
 		const setupDb = new Kysely<EmDashDatabase>({

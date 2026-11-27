@@ -20,14 +20,15 @@
  * ALS, and the runtime/loader db getters prefer it over the singleton — so all
  * request-path queries use a connection opened in the current request.
  *
- * `createDialect` still builds the per-isolate singleton Kysely, used only for
- * cold-start migrations (which run inside the first request, so the socket is
- * valid there). Everything else resolves the connection from ALS at use-time:
+ * `createDialect` builds the per-isolate singleton Kysely, which runs cold-start
+ * migrations and runtime init. It keeps no connection between checkouts: each
+ * one opens a connection in the caller's request and closes it on release, so
+ * the singleton can't hand one request's socket to another, whichever request
+ * reaches it. Everything else resolves the connection from ALS at use-time:
  * the request path through the runtime/loader db getters, and the background and
  * plugin paths (Cron Trigger sweep, plugin hook contexts, media providers)
  * through resolvers threaded by the core runtime. The Cron Trigger handler opens
- * its own event-scoped connection for the sweep. So no warm-isolate path reuses
- * the singleton's request-bound socket across events.
+ * its own event-scoped connection for the sweep.
  *
  * Optional split caching (`cachedBinding`)
  * ----------------------------------------
@@ -64,10 +65,10 @@ import { env, waitUntil } from "cloudflare:workers";
 import { EmDashConfigurationError } from "emdash";
 import { kyselyLogOption } from "emdash/database/instrumentation";
 import { FailFastPostgresDialect } from "emdash/internal/database/pg-migration-lock";
-import { type Dialect, Kysely, PostgresDialect } from "kysely";
+import { type Dialect, Kysely, PostgresDialect, type PostgresPool } from "kysely";
 // `pg` is provided by the consuming site (an optional peer of `emdash`); it is
 // kept external from this package's bundle.
-import { Pool } from "pg";
+import { Client, Pool } from "pg";
 
 /**
  * Hyperdrive configuration (runtime type — matches the config-time type in
@@ -126,21 +127,46 @@ function createPool(connectionString: string, max: number): Pool {
 }
 
 /**
+ * A pool that opens a connection for every checkout and closes it on release.
+ *
+ * The per-isolate Kysely outlives the request that first uses it, and workerd
+ * binds a socket to the request that opened it. A pooled connection handed to
+ * a later request hangs it on workerd's cross-request I/O guard, so this pool
+ * keeps nothing between checkouts: the connection is opened by whichever
+ * request checks it out.
+ */
+function createUnpooledConnections(connectionString: string): PostgresPool {
+	const options = { connectionString };
+	return {
+		options,
+		async connect() {
+			const client = new Client(options);
+			await client.connect();
+			return Object.assign(client, {
+				release() {
+					client.end().catch((error: unknown) => {
+						console.error("[emdash][hyperdrive] failed to close connection:", error);
+					});
+				},
+			});
+		},
+		async end() {},
+	};
+}
+
+/**
  * Create a PostgreSQL dialect backed by a Hyperdrive binding.
  *
- * Used for the per-isolate singleton Kysely, which serves cold-start migrations
- * only. The request path reads through `createRequestScopedDb`, and the
- * background/plugin paths resolve an event-scoped connection from ALS, so
- * neither reuses this singleton's request-bound socket across events.
+ * Used for the per-isolate singleton Kysely, which runs cold-start migrations
+ * and runtime init. The request path reads through `createRequestScopedDb`,
+ * and the background/plugin paths resolve an event-scoped connection from ALS.
  */
 export function createDialect(config: HyperdriveConfig): Dialect {
 	const binding = requireBinding(config);
-	// Cold-start migrations are sequential, so a single connection is enough,
-	// and keeping it to 1 leaves the bulk of Hyperdrive's connection budget for
-	// the per-request pools. Fail-fast migration locking: when another isolate
-	// is already migrating, throw instead of parking this connection on
-	// Kysely's blocking `pg_advisory_xact_lock` (#1744).
-	return new FailFastPostgresDialect({ pool: createPool(binding.connectionString, 1) });
+	// Fail-fast migration locking: when another isolate is already migrating,
+	// throw instead of parking this connection on Kysely's blocking
+	// `pg_advisory_xact_lock` (#1744).
+	return new FailFastPostgresDialect({ pool: createUnpooledConnections(binding.connectionString) });
 }
 
 /**

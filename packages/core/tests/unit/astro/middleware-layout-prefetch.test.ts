@@ -110,6 +110,7 @@ vi.mock("../../../src/emdash-runtime.js", () => ({
 							? Reflect.get(runtime, key)
 							: async () => ({ success: true }),
 			}),
+		isDatabaseUnmigrated: () => false,
 	},
 }));
 
