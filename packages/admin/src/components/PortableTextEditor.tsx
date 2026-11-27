@@ -99,6 +99,7 @@ import {
 	Globe,
 	PencilSimple,
 	TextT,
+	ChatCircleText,
 	type Icon,
 } from "@phosphor-icons/react";
 import { X } from "@phosphor-icons/react";
@@ -199,6 +200,11 @@ import {
 } from "./editor/blockTypes.js";
 import { CodeBlockExtension } from "./editor/CodeBlockNode";
 import { DragHandleWrapper } from "./editor/DragHandleWrapper";
+import {
+	createEditorialCommentsExtension,
+	isCommentableBlock,
+	type EditorialCommentsBridge,
+} from "./editor/EditorialCommentsExtension.js";
 import {
 	EditorMenuCheckboxItem,
 	EditorMenuItem,
@@ -2152,6 +2158,16 @@ export interface PortableTextEditorProps {
 	 * never called, and undo is the room's own, limited to this editor's edits.
 	 */
 	collaboration?: RichTextBinding;
+	/**
+	 * Editorial comments: `onComment` adds a Comment button to the selection
+	 * toolbar and handles the shortcut; `onActivate` fires when the caret lands
+	 * in a commented range, and `onDeactivate` when a click lands outside every one.
+	 */
+	editorialComments?: {
+		onComment?: () => void;
+		onActivate?: (threadId: string) => void;
+		onDeactivate?: () => void;
+	};
 }
 
 // For external providers, src is only used for admin preview; the frontend Image
@@ -2226,8 +2242,15 @@ export function PortableTextEditor({
 	variant = "boxed",
 	onArrowUpAtStart,
 	collaboration: collaborationProp,
+	editorialComments,
 }: PortableTextEditorProps) {
 	const { t } = useLingui();
+	const editorialBridgeRef = React.useRef<EditorialCommentsBridge>({});
+	editorialBridgeRef.current = {
+		onActivate: editorialComments?.onActivate,
+		onDeactivate: editorialComments?.onDeactivate,
+		onCommentShortcut: editorialComments?.onComment,
+	};
 	const [collaboration] = React.useState(collaborationProp);
 	// The drag handle's plugin moves the handle's element out of React's tree, so the handle can't
 	// unmount while the editor lives. Once mounted it stays, and hides itself while read-only.
@@ -2664,6 +2687,7 @@ export function PortableTextEditor({
 		() => [
 			PortableTextIdentityExtension,
 			PortableTextSpanIdentity,
+			createEditorialCommentsExtension(editorialBridgeRef),
 			LinkBoundaryExit,
 			collaboration ? EditorStarterKit.configure({ undoRedo: false }) : EditorStarterKit,
 			TopBlockDocument,
@@ -2737,6 +2761,14 @@ export function PortableTextEditor({
 	const editorLabel = t`Rich text editor`;
 	// Tiptap gives the editor a textbox role, so a read-only editor has to say so itself.
 	const editableRef = React.useRef(true);
+	// A read-only editor takes focus when it can be commented on, for the comment shortcut.
+	const commentableRef = React.useRef(false);
+	commentableRef.current = Boolean(editorialComments?.onComment);
+	// A read-only editor can sit in a disabled fieldset, which would disable its Comment button too.
+	const appendInlineBubbleMenu = React.useCallback(
+		() => (editableRef.current ? floatingRootRef.current! : document.body),
+		[],
+	);
 	// Stable editorProps reference — a new object every render would cause
 	// compareOptions to call setOptions → updateState → plugin teardown →
 	// Suggestion onExit → setSlashMenuState → re-render → infinite loop.
@@ -2750,6 +2782,7 @@ export function PortableTextEditor({
 				"aria-label": editorLabel,
 				...(ariaLabelledby ? { "aria-labelledby": ariaLabelledby } : {}),
 				...(editableRef.current ? {} : { "aria-readonly": "true" }),
+				...(editableRef.current || !commentableRef.current ? {} : { tabindex: "0" }),
 				// The top padding leaves room over the first line for a co-editor's name.
 				class: isDocument
 					? "emdash-document flow-root min-h-32 pt-1 pb-2 focus:outline-none"
@@ -3460,8 +3493,10 @@ export function PortableTextEditor({
 			)}
 			<EditorBubbleMenu
 				editor={editor}
-				appendTo={appendBubbleMenu}
+				editable={editorEditable}
+				appendTo={appendInlineBubbleMenu}
 				getCollisionOptions={getBubbleMenuCollisionOptions}
+				onComment={editorialComments?.onComment}
 			/>
 			<ImageBubbleMenu
 				editor={editor}
@@ -3515,6 +3550,7 @@ export function PortableTextEditor({
 							editor={editor}
 							onInsertBlock={openBlockInsertMenuAt}
 							editable={editable}
+							onComment={editorialComments?.onComment}
 						/>
 					)}
 				</div>
@@ -3679,12 +3715,17 @@ function playBubbleEntrance(surface: HTMLElement | null) {
  */
 function EditorBubbleMenu({
 	editor,
+	editable,
 	appendTo,
 	getCollisionOptions,
+	onComment,
 }: {
 	editor: Editor;
+	/** A read-only editor's menu offers only Comment. */
+	editable: boolean;
 	appendTo: () => HTMLElement;
 	getCollisionOptions: BubbleMenuCollisionOptions;
+	onComment?: () => void;
 }) {
 	const [showLinkInput, setShowLinkInput] = React.useState(false);
 	const [linkUrl, setLinkUrl] = React.useState("");
@@ -3730,6 +3771,8 @@ function EditorBubbleMenu({
 	}, [editor, linkInvalid]);
 	const showLinkInputRef = React.useRef(showLinkInput);
 	showLinkInputRef.current = showLinkInput;
+	const onCommentRef = React.useRef(onComment);
+	onCommentRef.current = onComment;
 	const closeLinkInputRef = React.useRef(closeLinkInput);
 	closeLinkInputRef.current = closeLinkInput;
 
@@ -3827,8 +3870,16 @@ function EditorBubbleMenu({
 					const hasMenuFocus =
 						element.contains(activeElement) ||
 						Boolean(activeElement?.closest(`[${BUBBLE_POPUP_ATTR}]`));
+					if (!activeEditor.isEditable && selection instanceof NodeSelection) {
+						// Without the block menu, a read-only editor offers Comment on a selected block here.
+						return (
+							onCommentRef.current !== undefined &&
+							isCommentableBlock(selection.node, selection.$from.parent) &&
+							(view.hasFocus() || hasMenuFocus)
+						);
+					}
 					return (
-						activeEditor.isEditable &&
+						(activeEditor.isEditable || onCommentRef.current !== undefined) &&
 						(selection instanceof TextSelection || selection instanceof AllSelection) &&
 						// A selection of only line breaks or spaces has nothing to format.
 						NON_WHITESPACE_REGEX.test(
@@ -3843,12 +3894,27 @@ function EditorBubbleMenu({
 					ref={surfaceRef}
 					data-emdash-inline-bubble-menu
 					role="toolbar"
-					aria-label={t`Format selection`}
+					aria-label={editable ? t`Format selection` : t`Selection actions`}
 					className={bubbleMenuClassName}
 					onKeyDown={(event) => moveToolbarFocus(event, false)}
 				>
 					<TooltipProvider delay={400}>
-						{showLinkInput ? (
+						{!editable ? (
+							onComment && (
+								<div className="flex items-center">
+									<BubbleButton
+										onClick={() => {
+											onComment();
+											editor.commands.setTextSelection(editor.state.selection.to);
+										}}
+										active={false}
+										title={t`Comment`}
+									>
+										<ChatCircleText className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								</div>
+							)
+						) : showLinkInput ? (
 							<div className="flex min-w-0 items-start gap-1">
 								<LinkDestinationInput
 									className="w-72 min-w-0 shrink"
@@ -3895,6 +3961,20 @@ function EditorBubbleMenu({
 								>
 									<LinkIcon className="h-4 w-4" aria-hidden="true" />
 								</BubbleButton>
+								{onComment && (
+									<BubbleButton
+										onClick={() => {
+											onComment();
+											// Focus moves to the draft from this menu, which the menu doesn't notice.
+											// An empty selection hides it.
+											editor.commands.setTextSelection(editor.state.selection.to);
+										}}
+										active={false}
+										title={t`Comment`}
+									>
+										<ChatCircleText className="h-4 w-4" aria-hidden="true" />
+									</BubbleButton>
+								)}
 								<BubbleSeparator />
 								{INLINE_MARKS.map(({ mark, label, icon: MarkIcon }) => (
 									<BubbleButton
