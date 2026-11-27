@@ -138,6 +138,7 @@ const getCommand = defineCommand({
 			const item = await client.get(args.collection, args.id, {
 				raw: args.raw,
 				locale: args.locale,
+				published: args.published,
 			});
 
 			// If a draft exists, overlay draft data unless --published
