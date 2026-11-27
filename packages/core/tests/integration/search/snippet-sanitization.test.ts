@@ -91,13 +91,9 @@ describe("search snippet sanitization", () => {
 		expect(snippet).toContain("&lt;");
 	});
 
-	it("does not crash when the snippet column is NULL", async () => {
-		// FTS triggers insert raw column values with no COALESCE, so any
-		// row whose title (the column the snippet() call targets) is
-		// NULL produces a NULL snippet from SQLite — even when the row
-		// matched via a different searchable column. A regression that
-		// drops the null-guard throws "Cannot read properties of null
-		// (reading 'replace')" before these assertions can run.
+	it("matches via body when the title is NULL", async () => {
+		// FTS triggers insert raw column values with no COALESCE, so the
+		// title column is NULL for this row and only the body can match.
 		const registry = new SchemaRegistry(db);
 		await registry.updateField("post", "content", { searchable: true });
 		const ftsManager = new FTSManager(db);
@@ -127,9 +123,44 @@ describe("search snippet sanitization", () => {
 		});
 
 		expect(items).toHaveLength(1);
-		// Whether the snippet ends up as a string or undefined doesn't
-		// matter — the contract is "the search call must not throw".
-		expect(typeof items[0]!.snippet === "string" || items[0]!.snippet === undefined).toBe(true);
+		expect(items[0]!.snippet).toContain("<mark>Quokka</mark>");
+	});
+
+	it("snippet reflects the field that actually matched, not always the title", async () => {
+		// Title never mentions the query term; only the body does, so the
+		// snippet must come from the body.
+		const registry = new SchemaRegistry(db);
+		await registry.updateField("post", "content", { searchable: true });
+		const ftsManager = new FTSManager(db);
+		await ftsManager.enableSearch("post");
+
+		await repo.create(
+			createPostFixture({
+				slug: "houston-mention",
+				status: "published",
+				data: {
+					title: "Weekend Roundup",
+					content: [
+						{
+							_type: "block",
+							style: "normal",
+							children: [{ _type: "span", text: "The team drove to Houston for the game." }],
+						},
+					],
+				},
+			}),
+		);
+
+		const { items } = await searchWithDb(db, "Houston", {
+			collections: ["post"],
+		});
+
+		expect(items).toHaveLength(1);
+		const snippet = items[0]!.snippet ?? "";
+
+		expect(snippet).not.toBe("Weekend Roundup");
+		expect(snippet.toLowerCase()).toContain("houston");
+		expect(snippet).toMatch(/<mark>Houston<\/mark>/i);
 	});
 
 	it("preserves `<mark>` highlight tags as live HTML", async () => {
