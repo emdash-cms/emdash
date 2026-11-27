@@ -334,6 +334,23 @@ describe("LinkDestinationInput", () => {
 		await vi.waitFor(() => expect(onPick).toHaveBeenCalledWith("/posts/hello-world"));
 	});
 
+	it("puts the site base in front of a picked entry's URL", async () => {
+		vi.mocked(fetchManifest).mockResolvedValue({
+			...makeManifest({ posts: { label: "Posts", urlPattern: "/posts/{slug}" } }),
+			basePath: "/site",
+		});
+		mockSearchResponses([helloPost]);
+		const onPick = vi.fn();
+		const screen = await render(<Harness onPick={onPick} />);
+
+		await typeQuery(screen, "hello");
+		const option = screen.getByRole("option", { name: /Hello World/ });
+		await expect.element(option).toBeVisible();
+		(option.element() as HTMLElement).click();
+
+		await vi.waitFor(() => expect(onPick).toHaveBeenCalledWith("/site/posts/hello-world"));
+	});
+
 	it("prefixes non-default locales when i18n is configured", async () => {
 		vi.mocked(fetchManifest).mockResolvedValue(
 			makeManifest(

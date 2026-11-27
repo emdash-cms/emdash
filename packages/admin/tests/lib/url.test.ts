@@ -47,6 +47,16 @@ describe("contentUrl", () => {
 	it("resolves {id} tokens from the entry id", () => {
 		expect(contentUrl("posts", "hello", "/p/{id}", { id: "01ABC" })).toBe("/p/01ABC");
 	});
+
+	it("puts the site base in front of the locale prefix", () => {
+		expect(
+			contentUrl("posts", "bonjour", "/posts/{slug}", {
+				locale: "fr",
+				i18n: { defaultLocale: "en", locales: ["en", "fr"] },
+				basePath: "/blog",
+			}),
+		).toBe("/blog/fr/posts/bonjour");
+	});
 });
 
 describe("sanitizeRedirectUrl", () => {

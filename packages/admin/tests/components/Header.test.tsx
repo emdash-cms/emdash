@@ -128,6 +128,17 @@ describe("Header", () => {
 		await expect.element(screen.getByText("View Site")).toBeInTheDocument();
 	});
 
+	it("links View Site to the site base", async () => {
+		const screen = await render(
+			<TestWrapper>
+				<Header basePath="/blog" />
+			</TestWrapper>,
+		);
+		await expect
+			.element(screen.getByRole("link", { name: "View Site" }))
+			.toHaveAttribute("href", "/blog/");
+	});
+
 	it("links a staging site to its status setting and hides the badge once live", async () => {
 		const screen = await render(
 			<TestWrapper>
