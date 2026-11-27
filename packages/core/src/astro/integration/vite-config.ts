@@ -451,7 +451,7 @@ export function createVirtualModulesPlugin(options: VitePluginOptions): Plugin {
 // `?url`), so both forms resolve to dist rather than the source alias.
 const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
 
-const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg"];
+const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg", "sharp"];
 
 /**
  * The editor schema that the inline Portable Text editor and the room engine build documents with.

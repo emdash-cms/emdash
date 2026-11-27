@@ -183,6 +183,7 @@ catalog:
   react-day-picker: ^9.14.0
   react-dom: 19.2.4
   semver: ^7.6.3
+  sharp: ^0.35.4
   tsdown: 0.20.3
   typescript: ^6.0.3
   vite: ^8.3.0
