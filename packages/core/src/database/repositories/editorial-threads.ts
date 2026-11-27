@@ -72,6 +72,7 @@ export interface EditorialCommentHead {
 	id: string;
 	threadId: string;
 	authorId: string | null;
+	body: string;
 	deletedAt: string | null;
 }
 
@@ -284,7 +285,7 @@ export class EditorialThreadRepository {
 	async findComment(id: string): Promise<EditorialCommentHead | null> {
 		const row = await this.db
 			.selectFrom("_emdash_editorial_comments")
-			.select(["id", "thread_id", "author_id", "deleted_at"])
+			.select(["id", "thread_id", "author_id", "body", "deleted_at"])
 			.where("id", "=", id)
 			.executeTakeFirst();
 		if (!row) return null;
@@ -292,6 +293,7 @@ export class EditorialThreadRepository {
 			id: row.id,
 			threadId: row.thread_id,
 			authorId: row.author_id,
+			body: row.body,
 			deletedAt: row.deleted_at,
 		};
 	}
