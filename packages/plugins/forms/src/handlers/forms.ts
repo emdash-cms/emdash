@@ -14,6 +14,7 @@ import type {
 	FormCreateInput,
 	FormDeleteInput,
 	FormDuplicateInput,
+	FormsListInput,
 	FormUpdateInput,
 } from "../schemas.js";
 import type { FormDefinition } from "../types.js";
@@ -39,10 +40,11 @@ function withoutWebhookUrl(form: FormDefinition): FormDefinition {
 	return { ...form, settings };
 }
 
-export async function formsListHandler(ctx: RouteContext) {
+export async function formsListHandler(ctx: RouteContext<FormsListInput>) {
 	const result = await forms(ctx).query({
 		orderBy: { createdAt: "desc" },
-		limit: 100,
+		limit: ctx.input.limit,
+		cursor: ctx.input.cursor,
 	});
 
 	// No user (token without a bound user) is treated like a non-admin.

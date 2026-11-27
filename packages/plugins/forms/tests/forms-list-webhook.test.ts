@@ -1,7 +1,7 @@
-import type { RouteContext } from "emdash";
 import { describe, expect, it } from "vitest";
 
 import { formsListHandler } from "../src/handlers/forms.js";
+import type { FormsListInput } from "../src/schemas.js";
 import type { FormDefinition } from "../src/types.js";
 
 const WEBHOOK = "https://hooks.slack.com/services/T000/B000/secret";
@@ -31,8 +31,12 @@ function storedForm(): FormDefinition {
 	};
 }
 
-function ctxWith(form: FormDefinition, user?: { role: number }): RouteContext {
+type Ctx = Parameters<typeof formsListHandler>[0];
+
+function ctxWith(form: FormDefinition, user?: { role: number }): Ctx {
+	const input: FormsListInput = { limit: 100 };
 	return {
+		input,
 		storage: {
 			forms: {
 				query: async () => ({
@@ -43,7 +47,7 @@ function ctxWith(form: FormDefinition, user?: { role: number }): RouteContext {
 			},
 		},
 		user,
-	} as unknown as RouteContext;
+	} as unknown as Ctx;
 }
 
 describe("forms/list webhook URL", () => {
