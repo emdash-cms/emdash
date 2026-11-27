@@ -1928,31 +1928,51 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   // Each badge sits on its element's top end corner. A badge that would cover
   // one already placed, such as a field's on its entry's shared corner, moves
-  // towards the start of the line until it is clear.
+  // towards the start of the line until it is clear, or to a row below when
+  // that would take it off screen. Layout is read in passes between the
+  // writes, so a scroll frame forces at most one reflow.
   function layoutComments() {
     if (!commentLayer) return;
     var origin = commentLayer.getBoundingClientRect();
-    var placed = [];
+    var items = [];
     commentTargets.forEach(function(target) {
-      var button = target.button;
-      if (!button) return;
+      if (!target.button) return;
       var rect = target.element.getBoundingClientRect();
       var rtl = isRtl(target.element);
-      button.hidden = !isShown(target.element) || isClipped(target.element, rtl ? rect.left : rect.right, rect.top);
-      if (button.hidden) {
-        if (openCommentTarget === target && commentsPopover) commentsPopover.then(function(popover) { popover.close(); });
-        return;
+      var shown = isShown(target.element) && !isClipped(target.element, rtl ? rect.left : rect.right, rect.top);
+      items.push({ target: target, rect: rect, rtl: rtl, shown: shown });
+    });
+    items.forEach(function(item) {
+      item.target.button.hidden = !item.shown;
+      if (!item.shown && openCommentTarget === item.target && commentsPopover) {
+        commentsPopover.then(function(popover) { popover.close(); });
       }
-      var box = { x: 0, y: rect.top - button.offsetHeight / 2, width: button.offsetWidth, height: button.offsetHeight };
-      box.x = clampX(rtl ? rect.left - box.width / 2 : rect.right - box.width / 2, box.width);
+    });
+    var shown = items.filter(function(item) { return item.shown; });
+    shown.forEach(function(item) {
+      item.width = item.target.button.offsetWidth;
+      item.height = item.target.button.offsetHeight;
+    });
+    var placed = [];
+    shown.forEach(function(item) {
+      var rect = item.rect;
+      var rtl = item.rtl;
+      var startX = clampX(rtl ? rect.left - item.width / 2 : rect.right - item.width / 2, item.width);
+      var box = { x: startX, y: rect.top - item.height / 2, width: item.width, height: item.height };
       for (var i = 0; i < placed.length; i++) {
         if (!overlaps(box, placed[i])) continue;
-        box.x = rtl ? placed[i].x + placed[i].width + COMMENT_BADGE_GAP : placed[i].x - box.width - COMMENT_BADGE_GAP;
+        var x = rtl ? placed[i].x + placed[i].width + COMMENT_BADGE_GAP : placed[i].x - box.width - COMMENT_BADGE_GAP;
+        if (clampX(x, box.width) === x) {
+          box.x = x;
+        } else {
+          box.x = startX;
+          box.y = placed[i].y + placed[i].height + COMMENT_BADGE_GAP;
+        }
         i = -1;
       }
       placed.push(box);
-      button.style.left = (box.x - origin.left) + "px";
-      button.style.top = (box.y - origin.top) + "px";
+      item.target.button.style.left = (box.x - origin.left) + "px";
+      item.target.button.style.top = (box.y - origin.top) + "px";
     });
   }
 
