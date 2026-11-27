@@ -9,6 +9,7 @@
  *   - schema_delete_collection
  *   - schema_create_field
  *   - schema_update_field
+ *   - schema_reorder_fields
  *   - schema_delete_field
  *
  * For each tool: happy path, edge cases (empty, missing, duplicate,
@@ -24,7 +25,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import type { Database } from "../../../src/database/types.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
-import { validateContent } from "../../../src/schema/zod-generator.js";
+import { clearSchemaCache, validateContent } from "../../../src/schema/zod-generator.js";
 import {
 	connectMcpHarness,
 	extractJson,
@@ -419,6 +420,61 @@ describe("schema_update_collection", () => {
 		expect(items.some((entry) => entry.data.title === "Kept content")).toBe(true);
 	});
 
+	it("updates admin settings, visibility, and order while preserving omitted settings", async () => {
+		const initial = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: {
+				slug: "post",
+				admin: { quickCreate: true, listColumns: ["title"] },
+				hidden: true,
+				sortOrder: 7,
+			},
+		});
+		expect(initial.isError, extractText(initial)).toBeFalsy();
+		expect((await new SchemaRegistry(db).getCollection("post"))?.admin).toEqual({
+			quickCreate: true,
+			listColumns: ["title"],
+		});
+
+		const partial = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", admin: { quickCreate: false, listColumns: ["title"] } },
+		});
+		expect(partial.isError, extractText(partial)).toBeFalsy();
+		expect(await new SchemaRegistry(db).getCollection("post")).toMatchObject({
+			admin: { quickCreate: false, listColumns: ["title"] },
+			hidden: true,
+			sortOrder: 7,
+		});
+
+		const clearOrder = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", sortOrder: null },
+		});
+		expect(clearOrder.isError, extractText(clearOrder)).toBeFalsy();
+		expect(await new SchemaRegistry(db).getCollection("post")).toMatchObject({
+			admin: { quickCreate: false, listColumns: ["title"] },
+			hidden: true,
+			sortOrder: undefined,
+		});
+	});
+
+	it.each([
+		{ admin: { listColumns: ["not a slug"] } },
+		{ admin: { quickCreate: "false" } },
+		{ hidden: "true" },
+		{ sortOrder: 1.5 },
+	])("rejects malformed collection options %j without mutation", async (input) => {
+		const before = await new SchemaRegistry(db).getCollection("post");
+		const result = await harness.client.callTool({
+			name: "schema_update_collection",
+			arguments: { slug: "post", ...input },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(await new SchemaRegistry(db).getCollection("post")).toEqual(before);
+	});
+
 	it("returns the canonical not-found error", async () => {
 		const result = await harness.client.callTool({
 			name: "schema_update_collection",
@@ -647,6 +703,7 @@ describe("schema_create_field", () => {
 	let harness: McpHarness;
 
 	beforeEach(async () => {
+		clearSchemaCache();
 		db = await setupTestDatabase();
 		const registry = new SchemaRegistry(db);
 		await registry.createCollection({ slug: "post", label: "Posts" });
@@ -668,6 +725,118 @@ describe("schema_create_field", () => {
 		expect(field.slug).toBe("title");
 		expect(field.type).toBe("string");
 	});
+
+	it("creates a url field and validates content against the stored field schema", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_create_field",
+			arguments: { collection: "post", slug: "reader_url", label: "Reader URL", type: "url" },
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		const collection = await new SchemaRegistry(db).getCollectionWithFields("post");
+		const field = collection?.fields.find((candidate) => candidate.slug === "reader_url");
+		expect(field).toMatchObject({ slug: "reader_url", type: "url" });
+		expect(validateContent(collection!, { reader_url: "https://example.com/read" }).success).toBe(
+			true,
+		);
+		expect(validateContent(collection!, { reader_url: "javascript:alert(1)" }).success).toBe(false);
+
+		const accepted = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { reader_url: "/read" } },
+		});
+		expect(accepted.isError, extractText(accepted)).toBeFalsy();
+		const rejected = await harness.client.callTool({
+			name: "content_create",
+			arguments: { collection: "post", data: { reader_url: "javascript:alert(1)" } },
+		});
+		expect(rejected.isError).toBe(true);
+	});
+
+	it("creates a repeater with url sub-fields and preserves item validation", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_create_field",
+			arguments: {
+				collection: "post",
+				slug: "links",
+				label: "Links",
+				type: "repeater",
+				validation: {
+					minItems: 1,
+					maxItems: 2,
+					subFields: [{ slug: "href", label: "URL", type: "url" }],
+				},
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+
+		const collection = await new SchemaRegistry(db).getCollectionWithFields("post");
+		const field = collection?.fields.find((candidate) => candidate.slug === "links");
+		expect(field).toMatchObject({
+			type: "repeater",
+			validation: {
+				minItems: 1,
+				maxItems: 2,
+				subFields: [{ slug: "href", label: "URL", type: "url" }],
+			},
+		});
+		expect(validateContent(collection!, { links: [{ href: "https://example.com" }] }).success).toBe(
+			true,
+		);
+		expect(validateContent(collection!, { links: [] }).success).toBe(false);
+		expect(validateContent(collection!, { links: [{ href: "javascript:alert(1)" }] }).success).toBe(
+			false,
+		);
+		expect(
+			validateContent(collection!, {
+				links: [
+					{ href: "https://one.example" },
+					{ href: "https://two.example" },
+					{ href: "https://three.example" },
+				],
+			}).success,
+		).toBe(false);
+	});
+
+	it("persists a custom widget id, arbitrary options, and sort order from create", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_create_field",
+			arguments: {
+				collection: "post",
+				slug: "featured",
+				label: "Featured",
+				type: "string",
+				widget: "plugin.example.featured",
+				options: { variant: "compact", maxItems: 3, nested: { enabled: true } },
+				sortOrder: 2,
+			},
+		});
+		expect(result.isError, extractText(result)).toBeFalsy();
+		expect(await new SchemaRegistry(db).getField("post", "featured")).toMatchObject({
+			widget: "plugin.example.featured",
+			options: { variant: "compact", maxItems: 3, nested: { enabled: true } },
+			sortOrder: 2,
+		});
+	});
+
+	it.each([{ sortOrder: -1 }, { sortOrder: 1.5 }, { widget: 42 }])(
+		"rejects malformed field options %j without creating a field",
+		async (input) => {
+			const result = await harness.client.callTool({
+				name: "schema_create_field",
+				arguments: {
+					collection: "post",
+					slug: "invalid_order",
+					label: "Invalid order",
+					type: "url",
+					...input,
+				},
+			});
+
+			expect(result.isError).toBe(true);
+			expect(await new SchemaRegistry(db).getField("post", "invalid_order")).toBeNull();
+		},
+	);
 
 	it.each([
 		["text", "f_text"],
@@ -717,6 +886,69 @@ describe("schema_create_field", () => {
 			},
 		});
 		expect(result.isError, extractText(result)).toBeFalsy();
+	});
+
+	it("creates relation-backed references and rejects unknown or duplicate bindings", async () => {
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "page", label: "Pages" });
+		const created = await harness.client.callTool({
+			name: "schema_create_field",
+			arguments: {
+				collection: "post",
+				slug: "related_page",
+				label: "Related page",
+				type: "reference",
+				validation: { targetCollection: "page", multiple: true },
+			},
+		});
+		expect(created.isError, extractText(created)).toBeFalsy();
+		const field = await registry.getField("post", "related_page");
+		expect(field?.validation).toMatchObject({
+			targetCollection: "page",
+			multiple: true,
+			relationSide: "parent",
+		});
+		const relationSlug = field?.validation?.relation;
+		expect(relationSlug).toBeTypeOf("string");
+		expect(
+			await db
+				.selectFrom("_emdash_relations")
+				.selectAll()
+				.where("slug", "=", relationSlug!)
+				.executeTakeFirst(),
+		).toBeDefined();
+
+		for (const [slug, relation, code] of [
+			["unknown_relation", "does_not_exist", "NOT_FOUND"],
+			["duplicate_binding", relationSlug!, "CONFLICT"],
+		]) {
+			const rejected = await harness.client.callTool({
+				name: "schema_create_field",
+				arguments: {
+					collection: "post",
+					slug,
+					label: "Reference",
+					type: "reference",
+					validation: { relation },
+				},
+			});
+			expect(rejected.isError).toBe(true);
+			expect(extractText(rejected)).toContain(`[${code}]`);
+			expect(await registry.getField("post", slug!)).toBeNull();
+		}
+	});
+
+	it("invalidates a cached content schema after field creation", async () => {
+		const registry = new SchemaRegistry(db);
+		const before = await registry.getCollectionWithFields("post");
+		expect(validateContent(before!, {}).success).toBe(true);
+		const created = await harness.client.callTool({
+			name: "schema_create_field",
+			arguments: { collection: "post", slug: "reader_url", label: "Reader URL", type: "url" },
+		});
+		expect(created.isError, extractText(created)).toBeFalsy();
+		const after = await registry.getCollectionWithFields("post");
+		expect(validateContent(after!, { reader_url: "javascript:alert(1)" }).success).toBe(false);
 	});
 
 	it("rejects field slug not matching the slug pattern", async () => {
@@ -1077,6 +1309,103 @@ describe("schema_update_field", () => {
 		expect(scopeResult.isError).toBe(true);
 		expect(extractText(scopeResult)).toContain("[INSUFFICIENT_SCOPE]");
 		expect((await new SchemaRegistry(db).getField("post", "body"))?.label).toBe("Body");
+	});
+});
+
+// ---------------------------------------------------------------------------
+// schema_reorder_fields
+// ---------------------------------------------------------------------------
+
+describe("schema_reorder_fields", () => {
+	let db: Kysely<Database>;
+	let harness: McpHarness;
+
+	beforeEach(async () => {
+		db = await setupTestDatabase();
+		const registry = new SchemaRegistry(db);
+		await registry.createCollection({ slug: "post", label: "Posts" });
+		await registry.createField("post", { slug: "title", label: "Title", type: "string" });
+		await registry.createField("post", { slug: "body", label: "Body", type: "text" });
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+	});
+
+	afterEach(async () => {
+		if (harness) await harness.cleanup();
+		await teardownTestDatabase(db);
+	});
+
+	it("persists the requested field order", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_reorder_fields",
+			arguments: { collection: "post", fieldSlugs: ["body", "title"] },
+		});
+
+		expect(result.isError, extractText(result)).toBeFalsy();
+		const registry = new SchemaRegistry(db);
+		expect(await registry.getField("post", "body")).toMatchObject({ sortOrder: 0 });
+		expect(await registry.getField("post", "title")).toMatchObject({ sortOrder: 1 });
+		expect(
+			(await registry.getCollectionWithFields("post"))?.fields.map((field) => field.slug),
+		).toEqual(["body", "title"]);
+	});
+
+	it("rejects an unknown collection without changing the existing order", async () => {
+		const registry = new SchemaRegistry(db);
+		const before = await registry.getCollectionWithFields("post");
+		const result = await harness.client.callTool({
+			name: "schema_reorder_fields",
+			arguments: { collection: "missing", fieldSlugs: ["body", "title"] },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toContain("[COLLECTION_NOT_FOUND]");
+		expect(await registry.getCollectionWithFields("post")).toEqual(before);
+	});
+
+	it("rejects a non-array fieldSlugs value", async () => {
+		const result = await harness.client.callTool({
+			name: "schema_reorder_fields",
+			arguments: { collection: "post", fieldSlugs: "body,title" },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toMatch(/array|invalid|validation/i);
+	});
+
+	it("requires the schema:write scope", async () => {
+		await harness.cleanup();
+		harness = await connectMcpHarness({
+			db,
+			userId: ADMIN_ID,
+			userRole: Role.ADMIN,
+			tokenScopes: ["schema:read"],
+		});
+
+		const result = await harness.client.callTool({
+			name: "schema_reorder_fields",
+			arguments: { collection: "post", fieldSlugs: ["body", "title"] },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toContain("[INSUFFICIENT_SCOPE]");
+		expect(
+			(await new SchemaRegistry(db).getCollectionWithFields("post"))?.fields.map(
+				(field) => field.slug,
+			),
+		).toEqual(["title", "body"]);
+	});
+
+	it("requires the ADMIN role", async () => {
+		await harness.cleanup();
+		harness = await connectMcpHarness({ db, userId: EDITOR_ID, userRole: Role.EDITOR });
+
+		const result = await harness.client.callTool({
+			name: "schema_reorder_fields",
+			arguments: { collection: "post", fieldSlugs: ["body", "title"] },
+		});
+
+		expect(result.isError).toBe(true);
+		expect(extractText(result)).toContain("[INSUFFICIENT_PERMISSIONS]");
 	});
 });
 
