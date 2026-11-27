@@ -382,10 +382,16 @@ async function notifyApprovalWorkflow(
 ): Promise<void> {
 	try {
 		const instance = await env.RELEASE_INTENT_WORKFLOW.get(workflowIntentId);
-		await instance.sendEvent({
-			type: "approval-decision",
-			payload: { decision, approvalDigest },
-		});
+		try {
+			await instance.sendEvent({
+				type: "approval-decision",
+				payload: { decision, approvalDigest },
+			});
+		} catch (error) {
+			// sendEvent throws once the instance has finished, and a finished workflow needs no wake-up.
+			const { status } = await instance.status();
+			if (status !== "complete" && status !== "errored" && status !== "terminated") throw error;
+		}
 	} catch (error) {
 		console.error(
 			JSON.stringify({
@@ -393,6 +399,11 @@ async function notifyApprovalWorkflow(
 				intentId: workflowIntentId,
 				error: error instanceof Error ? error.message : String(error),
 			}),
+		);
+		throw new ApiError(
+			"WORKFLOW_UNAVAILABLE",
+			503,
+			"Decision recorded, but the release workflow did not receive it. Try again.",
 		);
 	}
 }
