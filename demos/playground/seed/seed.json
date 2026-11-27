@@ -288,6 +288,7 @@
 					"content": [
 						{
 							"_type": "block",
+							"_key": "long-term-1",
 							"style": "normal",
 							"children": [
 								{
@@ -298,6 +299,7 @@
 						},
 						{
 							"_type": "block",
+							"_key": "long-term-2",
 							"style": "normal",
 							"children": [
 								{
@@ -308,11 +310,13 @@
 						},
 						{
 							"_type": "block",
+							"_key": "long-term-3",
 							"style": "h2",
 							"children": [{ "_type": "span", "text": "What survives" }]
 						},
 						{
 							"_type": "block",
+							"_key": "long-term-4",
 							"style": "normal",
 							"children": [
 								{
@@ -323,6 +327,7 @@
 						},
 						{
 							"_type": "block",
+							"_key": "long-term-5",
 							"style": "normal",
 							"children": [
 								{
@@ -333,6 +338,7 @@
 						},
 						{
 							"_type": "block",
+							"_key": "long-term-6",
 							"style": "normal",
 							"children": [
 								{
