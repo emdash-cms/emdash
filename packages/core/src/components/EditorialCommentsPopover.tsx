@@ -97,8 +97,25 @@ const MENTION_RE = /<@([^<>\s]{1,64})>/g;
 const TYPED_TOKEN_START_RE = /<@/g;
 const PLACEHOLDER_RE = /\{(\w+)\}/g;
 
-/** Unsent text, kept by thread while the popover is closed. */
-const DraftsContext = React.createContext<Map<string, string>>(new Map());
+/**
+ * Kept by thread while the popover is closed: unsent text, and sends still in
+ * flight, with the text they sent and whether they were saved.
+ */
+interface Sending {
+	sent: string;
+	saved: Promise<boolean>;
+}
+
+interface DraftStore {
+	text: Map<string, string>;
+	sending: Map<string, Sending>;
+}
+
+function createDraftStore(): DraftStore {
+	return { text: new Map(), sending: new Map() };
+}
+
+const DraftsContext = React.createContext<DraftStore>(createDraftStore());
 
 function fillLabel(label: string, values: Record<string, string>): string {
 	return label.replace(PLACEHOLDER_RE, (match, name: string) => values[name] ?? match);
@@ -157,32 +174,58 @@ function CommentForm({
 }) {
 	const id = React.useId();
 	const drafts = React.useContext(DraftsContext);
-	const [value, setValue] = React.useState(() => drafts.get(draftKey) ?? "");
-	const [busy, setBusy] = React.useState(false);
+	const [value, setValue] = React.useState(() => drafts.text.get(draftKey) ?? "");
 	const [error, setError] = React.useState("");
 	const formRef = React.useRef<HTMLFormElement>(null);
 
 	function change(next: string) {
 		setValue(next);
-		if (next) drafts.set(draftKey, next);
-		else drafts.delete(draftKey);
+		if (next) drafts.text.set(draftKey, next);
+		else drafts.text.delete(draftKey);
 	}
 
-	async function submit(event: React.FormEvent) {
+	// A send outlives the popover that started it, so a reopened form waits for
+	// it instead of allowing it to be sent again.
+	const [sending, setSending] = React.useState(() => drafts.sending.get(draftKey) ?? null);
+	const busy = sending !== null;
+	React.useEffect(() => {
+		if (!sending) return;
+		let mounted = true;
+		const settle = async () => {
+			const saved = await sending.saved;
+			if (!mounted) return;
+			setSending(null);
+			if (saved) setValue((current) => (current === sending.sent ? "" : current));
+			else setError(failedLabel);
+		};
+		void settle();
+		return () => {
+			mounted = false;
+		};
+	}, [sending, failedLabel]);
+
+	function submit(event: React.FormEvent) {
 		event.preventDefault();
 		const text = value.trim();
 		if (!text || busy) return;
-		setBusy(true);
+		const sent = value;
+		const saved = onSubmit(text.replace(TYPED_TOKEN_START_RE, "<\u200B@")).then(
+			() => true,
+			(err: unknown) => {
+				console.error("[emdash] Comment request failed:", err);
+				return false;
+			},
+		);
+		const next = { sent, saved };
+		drafts.sending.set(draftKey, next);
+		const forget = async () => {
+			const ok = await saved;
+			drafts.sending.delete(draftKey);
+			if (ok && drafts.text.get(draftKey) === sent) drafts.text.delete(draftKey);
+		};
+		void forget();
 		setError("");
-		try {
-			await onSubmit(text.replace(TYPED_TOKEN_START_RE, "<\u200B@"));
-			change("");
-		} catch (err) {
-			console.error("[emdash] Comment request failed:", err);
-			setError(failedLabel);
-		} finally {
-			setBusy(false);
-		}
+		setSending(next);
 	}
 
 	return (
@@ -456,7 +499,7 @@ function CommentsLayer({
 	onDismiss,
 }: {
 	current: { options: CommentsPopoverOptions; key: number } | null;
-	drafts: Map<string, string>;
+	drafts: DraftStore;
 	onDismiss: () => void;
 }) {
 	const root = useInlineUiRoot();
@@ -479,7 +522,7 @@ export function mountEditorialComments(): CommentsPopoverHandle {
 	container.style.display = "contents";
 	document.body.append(container);
 	const root = createRoot(container);
-	const drafts = new Map<string, string>();
+	const drafts = createDraftStore();
 	let current: { options: CommentsPopoverOptions; key: number } | null = null;
 	let nextKey = 0;
 

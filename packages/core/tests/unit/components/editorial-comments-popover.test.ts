@@ -282,6 +282,32 @@ describe("editorial comments popover", () => {
 		).toBe("");
 	});
 
+	it("keeps a reply sending while the popover closes and opens again, and doesn't let it clear newer text", async () => {
+		let finish!: (value: CommentsThreadView) => void;
+		const request = vi.fn(() => new Promise<CommentsThreadView>((resolve) => (finish = resolve)));
+		await open({ threads: [thread("t-1")], request });
+		const replyBox = () =>
+			dialog().querySelector<HTMLTextAreaElement>(".emdash-comments-thread textarea")!;
+		await type(replyBox(), "Fixed");
+		await act(async () => button("Reply").click());
+		await act(async () => button("Close").click());
+
+		await open({ threads: [thread("t-1")], request });
+		expect(replyBox().value).toBe("Fixed");
+		expect(replyBox().readOnly).toBe(true);
+		await act(async () => button("Reply").click());
+		expect(request).toHaveBeenCalledTimes(1);
+
+		await act(async () => finish(thread("t-1")));
+		expect(replyBox().value).toBe("");
+		expect(replyBox().readOnly).toBe(false);
+		await type(replyBox(), "One more thing");
+		await act(async () => button("Close").click());
+
+		await open({ threads: [thread("t-1")], request });
+		expect(replyBox().value).toBe("One more thing");
+	});
+
 	it("sends a typed mention token as text, so it can't mention anyone", async () => {
 		const options = await open({
 			threads: [thread("t-1")],
