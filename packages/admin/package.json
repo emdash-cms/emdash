@@ -73,6 +73,10 @@
     "./internal/editorial-anchors": {
       "types": "./dist/internal/editorial-anchors.d.ts",
       "default": "./dist/internal/editorial-anchors.js"
+    },
+    "./internal/editorial-editor": {
+      "types": "./dist/internal/editorial-editor.d.ts",
+      "default": "./dist/internal/editorial-editor.js"
     }
   },
   "scripts": {

@@ -11,7 +11,11 @@
  */
 
 import { htmlBlockFields } from "@emdash-cms/admin/html-block";
-import { Node, mergeAttributes, type JSONContent } from "@tiptap/core";
+import {
+	PORTABLE_TEXT_KEY_ATTR,
+	PortableTextKeys,
+} from "@emdash-cms/admin/internal/editorial-editor";
+import { Extension, Node, mergeAttributes, type JSONContent } from "@tiptap/core";
 import Focus from "@tiptap/extension-focus";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -209,6 +213,17 @@ function canonicalMediaProviderId(provider: string | undefined): string | undefi
 	return provider === "external-url" ? "external" : provider;
 }
 
+/** The `_key` a node was loaded with or given by `PortableTextKeys`, or a new one. */
+function blockKey(node: PMNode): string {
+	const key = node.attrs?.[PORTABLE_TEXT_KEY_ATTR];
+	return typeof key === "string" && key ? key : k();
+}
+
+/** The node attribute that carries a Portable Text block's `_key` while it is edited. */
+function keyAttrs(key: unknown): Record<string, string> | undefined {
+	return typeof key === "string" && key ? { [PORTABLE_TEXT_KEY_ATTR]: key } : undefined;
+}
+
 function pmToPortableText(doc: PMNode): PTBlock[] {
 	if (!doc || doc.type !== "doc" || !doc.content) return [];
 	const blocks: PTBlock[] = [];
@@ -219,7 +234,20 @@ function pmToPortableText(doc: PMNode): PTBlock[] {
 			else blocks.push(r);
 		}
 	}
-	return blocks;
+	// Content saved with repeated keys keeps the first block's key.
+	const used = new Set<string>();
+	return blocks.map((block) => {
+		const existing = typeof block._key === "string" ? block._key : "";
+		if (existing && !used.has(existing)) {
+			used.add(existing);
+			return block;
+		}
+		let key: string;
+		do key = k();
+		while (used.has(key));
+		used.add(key);
+		return { ...block, _key: key };
+	});
 }
 
 function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
@@ -231,7 +259,7 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
-				_key: k(),
+				_key: blockKey(node),
 				style: "normal",
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -255,7 +283,7 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
 			return {
 				_type: "block",
-				_key: k(),
+				_key: blockKey(node),
 				style: headingStyle,
 				children,
 				markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -274,7 +302,7 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 					if (children.length > 0) {
 						blocks.push({
 							_type: "block",
-							_key: k(),
+							_key: blockKey(child),
 							style: "blockquote",
 							children,
 							markDefs: markDefs.length > 0 ? markDefs : undefined,
@@ -292,7 +320,7 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			const code = (node.content || []).map((n) => n.text || "").join("");
 			return {
 				_type: "code",
-				_key: k(),
+				_key: blockKey(node),
 				code,
 				language: attrStrOpt(node.attrs, "language"),
 			};
@@ -300,7 +328,7 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 		case "htmlBlock":
 			return {
 				_type: "htmlBlock",
-				_key: k(),
+				_key: blockKey(node),
 				...htmlBlockFields(node.attrs ?? {}),
 			};
 		case "image": {
@@ -318,7 +346,7 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			// so non-LQIP meta keys are never silently dropped on editor round-trip.
 			return {
 				_type: "image",
-				_key: k(),
+				_key: blockKey(node),
 				asset: {
 					_ref: attrStr(node.attrs, "mediaId"),
 					url: attrStr(node.attrs, "src"),
@@ -338,7 +366,7 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			};
 		}
 		case "horizontalRule":
-			return { _type: "break", _key: k(), style: "lineBreak" };
+			return { _type: "break", _key: blockKey(node), style: "lineBreak" };
 		case "table": {
 			const rawTable = node.attrs?.rawTable;
 			if (isPTTableBlock(rawTable)) return rawTable;
@@ -353,7 +381,7 @@ function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
 			return {
 				...(data && typeof data === "object" ? data : {}),
 				_type: typeof blockType === "string" ? blockType : "embed",
-				_key: k(),
+				_key: blockKey(node),
 				...(field ? { [field]: typeof id === "string" ? id : "" } : {}),
 			};
 		}
@@ -381,7 +409,7 @@ function convertPMList(
 					if (children.length > 0) {
 						blocks.push({
 							_type: "block",
-							_key: k(),
+							_key: blockKey(child),
 							style: "normal",
 							listItem,
 							level,
@@ -544,6 +572,7 @@ function portableTextToPM(blocks: PTBlock[]): JSONContent {
 					const pmContent = convertPTSpans(quoteBlock.children, quoteBlock.markDefs || []);
 					return {
 						type: "paragraph",
+						attrs: keyAttrs(quoteBlock._key),
 						content: pmContent.length > 0 ? pmContent : undefined,
 					};
 				}),
@@ -572,6 +601,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 				content: [
 					{
 						type: "paragraph",
+						attrs: keyAttrs(block._key),
 						content: pmContent.length > 0 ? pmContent : undefined,
 					},
 				],
@@ -581,13 +611,13 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 			const level = parseInt(style.substring(1), 10);
 			return {
 				type: "heading",
-				attrs: { level, ...(textAlign ? { textAlign } : {}) },
+				attrs: { level, ...(textAlign ? { textAlign } : {}), ...keyAttrs(block._key) },
 				content: pmContent.length > 0 ? pmContent : undefined,
 			};
 		}
 		return {
 			type: "paragraph",
-			attrs: textAlign ? { textAlign } : undefined,
+			attrs: textAlign ? { textAlign, ...keyAttrs(block._key) } : keyAttrs(block._key),
 			content: pmContent.length > 0 ? pmContent : undefined,
 		};
 	}
@@ -596,17 +626,17 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 		const language = typeof cb.language === "string" && cb.language.length > 0 ? cb.language : null;
 		return {
 			type: "codeBlock",
-			attrs: { language },
+			attrs: { language, ...keyAttrs(block._key) },
 			content: cb.code ? [{ type: "text", text: cb.code }] : undefined,
 		};
 	}
 	if (block._type === "break") {
-		return { type: "horizontalRule" };
+		return { type: "horizontalRule", attrs: keyAttrs(block._key) };
 	}
 	if (block._type === "htmlBlock") {
 		return {
 			type: "htmlBlock",
-			attrs: { ...htmlBlockFields(block) },
+			attrs: { ...htmlBlockFields(block), ...keyAttrs(block._key) },
 		};
 	}
 	if (block._type === "image") {
@@ -650,6 +680,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 		return {
 			type: "image",
 			attrs: {
+				...keyAttrs(block._key),
 				src: asset.url || ib.url || (asset._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
 				alt: alt || "",
 				title: ib.title || "",
@@ -670,7 +701,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 	if (block._type === "table") {
 		return {
 			type: "table",
-			attrs: { rawTable: block },
+			attrs: { rawTable: block, emdashKey: typeof block._key === "string" ? block._key : null },
 		};
 	}
 	// Unknown block types — treat as plugin blocks. Capture every field other
@@ -689,6 +720,7 @@ function convertPTBlock(block: PTBlock): PMNode | null {
 	return {
 		type: "pluginBlock",
 		attrs: {
+			...keyAttrs(block._key),
 			blockType: typeof block._type === "string" ? block._type : "embed",
 			id: typeof identity === "string" ? identity : "",
 			identityField,
@@ -765,6 +797,7 @@ function convertPTListItem(
 	const content: PMNode[] = [
 		{
 			type: "paragraph",
+			attrs: keyAttrs(item._key),
 			content: convertPTSpans(item.children, item.markDefs || []),
 		},
 	];
@@ -880,6 +913,32 @@ function convertPTMarks(marks: string[], markDefs: Map<string, PTMarkDef>): Mark
  * block's data is preserved across edits in the visual editor. Full editing
  * (textarea + preview) is only available in the admin editor.
  */
+const KEYED_NODE_TYPES = [
+	"paragraph",
+	"heading",
+	"codeBlock",
+	"htmlBlock",
+	"image",
+	"horizontalRule",
+	"pluginBlock",
+];
+
+/** Holds each block's Portable Text `_key` on the node it is saved from. */
+const PortableTextKeyAttribute = Extension.create({
+	name: "emdashInlinePortableTextKey",
+
+	addGlobalAttributes() {
+		return [
+			{
+				types: KEYED_NODE_TYPES,
+				attributes: {
+					[PORTABLE_TEXT_KEY_ATTR]: { default: null, rendered: false, parseHTML: () => null },
+				},
+			},
+		];
+	},
+});
+
 const HtmlBlockNode = Node.create({
 	name: "htmlBlock",
 	group: "block",
@@ -928,6 +987,7 @@ const TableBlockNode = Node.create<{ placeholder: string }>({
 	addAttributes() {
 		return {
 			rawTable: { default: null, rendered: false, parseHTML: () => null },
+			emdashKey: { default: null, rendered: false, parseHTML: () => null },
 		};
 	},
 
@@ -1267,6 +1327,8 @@ export function InlinePortableTextEditor({
 			HtmlBlockNode,
 			TableBlockNode.configure({ placeholder: tablePlaceholder }),
 			PluginBlockNode,
+			PortableTextKeyAttribute,
+			PortableTextKeys,
 			slashCommandsExtension,
 		],
 		content: initialContent,
