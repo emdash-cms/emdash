@@ -68,7 +68,7 @@ The `isPreview` flag is `true` when a valid preview token matches the entry retu
 
 ## Generate preview URLs
 
-Most editors use **View on site** in the admin. That action calls the preview URL endpoint, which resolves the site secret without exposing it to the browser.
+Most editors use the **Preview** button in the content editor, labelled **Preview draft** when a published entry has unpublished changes. The button appears on saved entries in collections whose `supports` list includes `preview`. It calls the preview URL endpoint, which resolves the site secret without exposing it to the browser.
 
 Use `getPreviewUrl()` when server-side application code must create a link. The helper requires the signing secret explicitly. Read secrets from `process.env`, and fail before generating a link if the variable is missing:
 
@@ -143,11 +143,18 @@ await getPreviewUrl({
 // Returns: /hello?_preview=...
 ```
 
-The admin's **View on site** link goes through `POST /_emdash/api/content/{collection}/{id}/preview-url`. The endpoint uses the entry's database ID and supplies its locale automatically. Its token is signed for that database ID even when the request addresses the entry by slug, so the link never opens a different entry that takes the slug later. An API token needs both `content:read` and `content:write` to call it. Set `EMDASH_PREVIEW_PATH_PATTERN` when your public route differs from the default `/{collection}/{id}` pattern. For example, `/{locale}/posts/{id}` produces `/pt-br/posts/01ABC...` for a Portuguese entry and `/posts/01ABC...` for an unprefixed default-locale entry. The destination route can pass that database ID to `getEmDashEntry()`. A `pathPattern` in the request body overrides the environment value.
+The admin's **Preview** button goes through `POST /_emdash/api/content/{collection}/{id}/preview-url`. The link's token is signed for the entry's database ID even when the request addresses the entry by slug, so the link never opens a different entry that takes the slug later. An API token needs both `content:read` and `content:write` to call the endpoint. The endpoint builds the link's path from the first of these that applies:
 
-The endpoint cannot substitute the entry's slug separately from its database ID. If a preview URL must use the slug, generate it in server-side application code with `getPreviewUrl()` and pass the slug as `id`.
+1. A `pathPattern` in the request body.
+2. The `EMDASH_PREVIEW_PATH_PATTERN` environment variable.
+3. The collection's URL pattern, such as `/blog/{slug}`. The endpoint fills in `{slug}` and `{id}` with the entry's slug and database ID, then applies Astro's locale prefix and any custom locale `path` mapping. It does not fill in date placeholders such as `{year}`.
+4. `/{collection}/{id}`, without a locale prefix.
 
-The `{locale}` placeholder receives the configured locale code. It does not apply Astro's custom locale `path` mappings. If the public route uses a different segment, call the helper with that segment or provide a route that accepts the locale code used by the admin endpoint.
+When a collection's URL pattern has no date placeholders, its preview links follow it and need no setting. Set `EMDASH_PREVIEW_PATH_PATTERN` only when preview links need a different path. It overrides every collection's URL pattern for preview links. For a collection whose URL pattern uses date placeholders, add a route that loads entries by database ID, and set `EMDASH_PREVIEW_PATH_PATTERN` to its pattern, such as `/preview/{collection}/{id}`. Preview links for every other collection then use that path too.
+
+`pathPattern` and `EMDASH_PREVIEW_PATH_PATTERN` accept the `{collection}`, `{id}` and `{locale}` placeholders, but not `{slug}`. `{id}` receives the entry's database ID. `{locale}` receives the entry's locale code, or an empty value for a default-locale entry when `prefixDefaultLocale` is `false`. For example, `/{locale}/posts/{id}` produces `/pt-br/posts/01ABC...` for a Portuguese entry and `/posts/01ABC...` for an unprefixed default-locale entry. The destination route can pass that database ID to `getEmDashEntry()`.
+
+`{locale}` does not apply Astro's custom locale `path` mappings. If the public route uses a custom locale segment, use the collection's URL pattern, or generate the link in server-side application code with `getPreviewUrl()` and pass that segment as `locale`.
 
 ## Set token expiration
 

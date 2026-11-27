@@ -2450,8 +2450,9 @@ export function createMcpServer(
 				"Create a new content collection (content type). This creates a database " +
 				"table and schema definition. The slug must be lowercase alphanumeric " +
 				"with underscores, starting with a letter. Supports: 'drafts' (draft/" +
-				"publish workflow), 'revisions' (version history), 'preview' (live " +
-				"preview), 'no-scheduling' (disables timed publishing, which is otherwise allowed), " +
+				"publish workflow), 'revisions' (version history), 'preview' (a Preview " +
+				"button in the editor that opens the entry through a signed preview link), " +
+				"'no-scheduling' (disables timed publishing, which is otherwise allowed), " +
 				"'search' (full-text indexing), " +
 				"and 'seo' (SEO metadata).",
 			inputSchema: z.object({
