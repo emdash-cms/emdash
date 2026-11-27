@@ -3,6 +3,7 @@ import * as React from "react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { userEvent } from "vitest/browser";
 
+import "../../dist/styles.css";
 import type { AdminManifest } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
@@ -23,6 +24,7 @@ vi.mock("@tanstack/react-router", async () => {
 const mockFetchManifest = vi.fn<() => Promise<AdminManifest>>();
 const mockSetLocale = vi.fn<(locale: string) => void>();
 const currentUser = vi.hoisted(() => ({ role: 50 }));
+const currentLocale = vi.hoisted(() => ({ code: "en" }));
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
@@ -33,7 +35,7 @@ vi.mock("../../src/lib/api", async () => {
 });
 
 vi.mock("../../src/locales/useLocale.js", () => ({
-	useLocale: () => ({ locale: "en", setLocale: mockSetLocale }),
+	useLocale: () => ({ locale: currentLocale.code, setLocale: mockSetLocale }),
 }));
 
 vi.mock("../../src/lib/api/current-user.js", () => ({
@@ -66,6 +68,7 @@ describe("Settings", () => {
 	beforeEach(() => {
 		vi.clearAllMocks();
 		currentUser.role = 50;
+		currentLocale.code = "en";
 		mockFetchManifest.mockResolvedValue(defaultManifest);
 	});
 
@@ -189,6 +192,42 @@ describe("Settings", () => {
 		await userEvent.click(screen.getByRole("option", { name: "Português (Brasil)" }));
 
 		expect(mockSetLocale).toHaveBeenCalledWith("pt-BR");
+	});
+
+	it("keeps long locale labels on a single line without overflowing the trigger", async () => {
+		currentLocale.code = "es-419";
+		const screen = await render(
+			<Wrapper>
+				<Settings />
+			</Wrapper>,
+		);
+
+		const trigger = screen.getByRole("combobox", { name: "Language", exact: true });
+		await expect.element(trigger).toHaveTextContent("Español (Latinoamérica)");
+
+		const triggerEl = trigger.element() as HTMLElement;
+		const walker = document.createTreeWalker(triggerEl, NodeFilter.SHOW_TEXT);
+		let textNode: Text | null = null;
+		for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+			if (node.textContent?.includes("Español (Latinoamérica)")) {
+				textNode = node as Text;
+				break;
+			}
+		}
+		expect(textNode).not.toBeNull();
+
+		const range = document.createRange();
+		range.selectNodeContents(textNode!);
+		const textRects = range.getClientRects();
+		const triggerRect = triggerEl.getBoundingClientRect();
+		const textContainer = textNode!.parentElement as HTMLElement;
+
+		// With compiled Tailwind/Kumo styles loaded (`h-9` + `min-w-48`), the label
+		// must render on one line without horizontal clipping or vertical overflow.
+		expect(textRects.length).toBe(1);
+		expect(textRects[0]!.height).toBeLessThanOrEqual(triggerRect.height);
+		expect(textContainer.scrollWidth).toBeLessThanOrEqual(textContainer.clientWidth + 1);
+		expect(triggerEl.scrollHeight).toBeLessThanOrEqual(triggerEl.clientHeight + 1);
 	});
 
 	it("preserves the settings destinations", async () => {
