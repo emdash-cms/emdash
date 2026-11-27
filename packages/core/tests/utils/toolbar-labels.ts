@@ -51,6 +51,12 @@ export const GERMAN_TOOLBAR_LABELS: ToolbarLabels = {
 	onBlock: "Zu einem Block",
 	commentsLoadFailed: "Kommentare konnten nicht geladen werden",
 	commentActionFailed: "Speichern fehlgeschlagen. Versuche es erneut.",
+	commentOnSelection: "Auswahl kommentieren",
+	selectionTooLong: "Die Auswahl ist zu lang für einen Kommentar",
+	selectionOneParagraph: "Wähle Text in einem Absatz aus, um ihn zu kommentieren",
+	selectionUnsupported: "Dieser Text kann nicht kommentiert werden. Kommentiere das ganze Feld.",
+	selectionUnkeyed:
+		"Dieser Block kann noch nicht kommentiert werden. Speichere den Eintrag und versuche es erneut.",
 };
 
 /** English labels for the editorial comment controls, for tests that write the rest themselves. */
@@ -77,4 +83,9 @@ export const EDITORIAL_TOOLBAR_LABELS = {
 	onBlock: "On a block",
 	commentsLoadFailed: "Couldn't load comments",
 	commentActionFailed: "Couldn't save. Try again.",
+	commentOnSelection: "Comment on the selection",
+	selectionTooLong: "That selection is too long to comment on",
+	selectionOneParagraph: "Select text within one paragraph to comment on it",
+	selectionUnsupported: "Text here can’t take a comment. Comment on the whole field instead.",
+	selectionUnkeyed: "This block can’t take a comment yet. Save the entry, then try again.",
 };

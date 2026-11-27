@@ -208,6 +208,8 @@ function mountEditablePage(
 		localStorage,
 		fetch,
 		FormData,
+		CustomEvent,
+		Node,
 		Image: DecodedImage,
 		URL: { createObjectURL: () => "blob:upload", revokeObjectURL: () => {} },
 		setTimeout,

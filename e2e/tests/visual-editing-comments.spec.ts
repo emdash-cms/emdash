@@ -5,6 +5,16 @@
 
 import { test, expect } from "../fixtures";
 
+function textBlock(key: string, text: string) {
+	return {
+		_type: "block",
+		_key: key,
+		style: "normal",
+		markDefs: [],
+		children: [{ _type: "span", _key: `${key}s`, text, marks: [] }],
+	};
+}
+
 test.describe("Editorial comments in visual editing", () => {
 	let headers: Record<string, string>;
 	let postId: string;
@@ -16,7 +26,14 @@ test.describe("Editorial comments in visual editing", () => {
 		slug = `toolbar-comments-${crypto.randomUUID().slice(0, 8)}`;
 		const created = await page.request.post("/_emdash/api/content/posts", {
 			headers,
-			data: { data: { title: "Comment target", excerpt: "A short excerpt" }, slug },
+			data: {
+				data: {
+					title: "Comment target",
+					excerpt: "A short excerpt",
+					body: [textBlock("b1", "One fish, two fish."), textBlock("b2", "Red fish, blue fish.")],
+				},
+				slug,
+			},
 		});
 		expect(created.ok(), await created.text()).toBe(true);
 		postId = ((await created.json()) as { data: { item: { id: string } } }).data.item.id;
@@ -74,6 +91,14 @@ test.describe("Editorial comments in visual editing", () => {
 		throw new Error(`Tab never reached "${name}"; reached ${JSON.stringify(focusedNames)}`);
 	}
 
+	const INLINE_EDITOR_MODULE_RE =
+		/InlinePortableTextEditor|inline-editorial-comments|editorial-editor|EditorialCommentsExtension/;
+
+	/** A module of the inline editor or its comment highlights, by dev path or built chunk name. */
+	function isInlineEditorRequest(pathname: string): boolean {
+		return INLINE_EDITOR_MODULE_RE.test(pathname);
+	}
+
 	function isCommentsRequest(url: string): boolean {
 		const { pathname } = new URL(url);
 		return (
@@ -95,19 +120,24 @@ test.describe("Editorial comments in visual editing", () => {
 			]);
 			const visitorPage = await visitor.newPage();
 			const emdashRequests: string[] = [];
+			const editorRequests: string[] = [];
 			visitorPage.on("request", (request) => {
-				if (new URL(request.url()).pathname.startsWith("/_emdash"))
-					emdashRequests.push(request.url());
+				const { pathname } = new URL(request.url());
+				if (pathname.startsWith("/_emdash")) emdashRequests.push(request.url());
+				if (isInlineEditorRequest(pathname)) editorRequests.push(pathname);
 			});
 
-			const response = await visitorPage.goto(`/editorial-comments?slug=${slug}`);
+			const response = await visitorPage.goto(`/editorial-comments?slug=${slug}&body`);
 			const html = await response!.text();
 			await visitorPage.waitForLoadState("networkidle");
 
 			expect(html).not.toContain("emdash-toolbar");
 			expect(html).not.toContain("emdash-cm-");
+			expect(html).not.toContain("emdash-editorial");
 			expect(html).not.toContain("/_emdash/visual-editing/comments");
 			expect(emdashRequests).toEqual([]);
+			expect(editorRequests).toEqual([]);
+			await expect(visitorPage.locator("#body")).toContainText("Red fish, blue fish.");
 			await expect(visitorPage.locator(".emdash-cm-trigger, [data-emdash-comments]")).toHaveCount(
 				0,
 			);
@@ -120,15 +150,21 @@ test.describe("Editorial comments in visual editing", () => {
 		await addTitleThread(page.request);
 		await page.context().clearCookies({ name: "emdash-edit-mode" });
 		const commentRequests: string[] = [];
+		const editorRequests: string[] = [];
 		page.on("request", (request) => {
 			if (isCommentsRequest(request.url())) commentRequests.push(request.url());
+			const { pathname } = new URL(request.url());
+			if (isInlineEditorRequest(pathname)) editorRequests.push(pathname);
 		});
 
-		await page.goto(`/editorial-comments?slug=${slug}`);
+		const response = await page.goto(`/editorial-comments?slug=${slug}&body`);
+		const html = await response!.text();
 		await page.waitForLoadState("networkidle");
 
 		expect(commentRequests).toEqual([]);
-		await expect(page.locator(".emdash-cm-trigger")).toHaveCount(0);
+		expect(editorRequests).toEqual([]);
+		expect(html).not.toContain("emdash-editorial");
+		await expect(page.locator(".emdash-cm-trigger, .emdash-inline-editor")).toHaveCount(0);
 	});
 
 	test("loads only the thread counts until a badge is opened", async ({ page }) => {
@@ -409,4 +445,182 @@ test.describe("Editorial comments in visual editing", () => {
 			await expect(page.getByRole("dialog", { name: "Comments on this entry" })).toBeVisible();
 		});
 	}
+
+	const BLUE_ANCHOR = {
+		type: "text",
+		field: "body",
+		blockKey: "b2",
+		start: 10,
+		end: 14,
+		quote: "blue",
+		prefix: "Red fish, ",
+		suffix: " fish.",
+	};
+
+	async function addBlueThread(request: import("@playwright/test").APIRequestContext) {
+		const response = await request.post(`/_emdash/api/content/posts/${postId}/threads`, {
+			headers: { "X-EmDash-Request": "1" },
+			data: { anchor: BLUE_ANCHOR, body: "Which blue?" },
+		});
+		expect(response.ok(), await response.text()).toBe(true);
+		return ((await response.json()) as { data: { id: string } }).data.id;
+	}
+
+	async function openThreads(request: import("@playwright/test").APIRequestContext) {
+		const response = await request.get(`/_emdash/api/content/posts/${postId}/threads?status=open`);
+		return ((await response.json()) as { data: { items: Array<{ id: string; anchor: unknown }> } })
+			.data.items;
+	}
+
+	/** Selects the first occurrence of `text` in the inline editor. */
+	async function selectInEditor(page: import("@playwright/test").Page, text: string) {
+		await page.evaluate((wanted) => {
+			type InlineEditor = {
+				state: {
+					doc: {
+						descendants: (
+							visit: (node: { isText: boolean; text?: string }, pos: number) => void,
+						) => void;
+					};
+				};
+				chain: () => {
+					focus: () => {
+						setTextSelection: (range: { from: number; to: number }) => { run: () => boolean };
+					};
+				};
+			};
+			const element = document.querySelector(".emdash-inline-editor") as HTMLElement & {
+				editor: InlineEditor;
+			};
+			let from = -1;
+			element.editor.state.doc.descendants((node, pos) => {
+				if (from !== -1 || !node.isText || !node.text) return;
+				const index = node.text.indexOf(wanted);
+				if (index !== -1) from = pos + index;
+			});
+			if (from === -1) throw new Error(`"${wanted}" isn't in the editor`);
+			element.editor
+				.chain()
+				.focus()
+				.setTextSelection({ from, to: from + wanted.length })
+				.run();
+		}, text);
+	}
+
+	test("highlights a text thread in the inline editor, and opens it without leaving the editor", async ({
+		page,
+	}) => {
+		const threadId = await addBlueThread(page.request);
+
+		await page.goto(`/editorial-comments?slug=${slug}&body`);
+
+		const highlight = page.locator(".emdash-inline-editor .emdash-editorial-text");
+		await expect(highlight).toHaveText("blue");
+		await expect(page.getByRole("button", { name: "Comments on Body: 1 open" })).toHaveText("1");
+
+		await highlight.click();
+		const dialog = page.getByRole("dialog", { name: "Comments on Body" });
+		await expect(dialog).toBeVisible();
+		await expect(dialog.locator(".emdash-comments-thread[data-marked]")).toContainText(
+			"Which blue?",
+		);
+		await expect(page.locator(".emdash-inline-editor")).toBeFocused();
+		await expect(highlight).toHaveClass(/emdash-editorial-active/);
+		await expect(dialog.getByRole("link", { name: "Open in admin" })).toHaveAttribute(
+			"href",
+			`/_emdash/admin/content/posts/${postId}?thread=${threadId}`,
+		);
+	});
+
+	test("starts a text thread from a selection in the inline editor", async ({ page }) => {
+		await page.goto(`/editorial-comments?slug=${slug}&body`);
+		await expect(page.getByRole("button", { name: "Comment on Body" })).toBeAttached();
+
+		await selectInEditor(page, "two fish");
+		await page.getByRole("button", { name: "Comment on the selection" }).click();
+
+		const dialog = page.getByRole("dialog", { name: "Comments on Body" });
+		await expect(dialog.getByText("On “two fish”")).toBeVisible();
+		const textbox = dialog.getByRole("textbox", { name: "Write a comment" });
+		await expect(textbox).toBeFocused();
+		await textbox.fill("Count again");
+		await dialog.getByRole("button", { name: "Comment", exact: true }).click();
+		await expect(dialog.locator(".emdash-comments-text")).toHaveText(["Count again"]);
+		await expect(dialog.getByText("On “two fish”")).toHaveCount(1);
+
+		const highlight = page.locator(".emdash-inline-editor .emdash-editorial-text");
+		await expect(highlight).toHaveText("two fish");
+		expect((await openThreads(page.request)).map((thread) => thread.anchor)).toEqual([
+			expect.objectContaining({ type: "text", field: "body", blockKey: "b1", quote: "two fish" }),
+		]);
+
+		await page.reload();
+		await expect(highlight).toHaveText("two fish");
+		await expect(page.getByRole("button", { name: "Comments on Body: 1 open" })).toBeAttached();
+	});
+
+	test("says why a selection across paragraphs can't take a comment", async ({ page }) => {
+		await page.goto(`/editorial-comments?slug=${slug}&body`);
+		await expect(page.getByRole("button", { name: "Comment on Body" })).toBeAttached();
+
+		await page.evaluate(() => {
+			const element = document.querySelector(".emdash-inline-editor") as HTMLElement & {
+				editor: {
+					chain: () => {
+						focus: () => {
+							setTextSelection: (range: { from: number; to: number }) => { run: () => boolean };
+						};
+					};
+				};
+			};
+			element.editor.chain().focus().setTextSelection({ from: 5, to: 26 }).run();
+		});
+		await page.getByRole("button", { name: "Comment on the selection" }).click();
+
+		await expect(page.getByRole("status")).toHaveText(
+			"Select text within one paragraph to comment on it",
+		);
+		await expect(page.locator("[data-emdash-comments]")).toHaveCount(0);
+	});
+
+	test("moves a thread's anchor when an inline edit moves its text", async ({ page }) => {
+		await addBlueThread(page.request);
+		await page.goto(`/editorial-comments?slug=${slug}&body`);
+		await expect(page.locator(".emdash-inline-editor .emdash-editorial-text")).toHaveText("blue");
+
+		await selectInEditor(page, "Red fish");
+		await page.keyboard.press("ArrowLeft");
+		await page.keyboard.type("Very ");
+		const moved = page.waitForResponse(
+			(response) =>
+				new URL(response.url()).pathname.endsWith("/threads/anchors") &&
+				response.request().method() === "PATCH",
+		);
+		await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
+		expect((await moved).ok()).toBe(true);
+
+		expect((await openThreads(page.request)).map((thread) => thread.anchor)).toEqual([
+			{ ...BLUE_ANCHOR, start: 15, end: 19, prefix: "Very Red fish, " },
+		]);
+		await page.reload();
+		await expect(page.locator(".emdash-inline-editor .emdash-editorial-text")).toHaveText("blue");
+	});
+
+	test("shows the inline editor's highlights and badge on the start side of a right-to-left page", async ({
+		page,
+	}) => {
+		await addBlueThread(page.request);
+		await page.goto(`/editorial-comments?slug=${slug}&body&dir=rtl`);
+
+		await expect(page.locator(".emdash-inline-editor .emdash-editorial-text")).toHaveText("blue");
+		const editor = page.locator(".emdash-inline-editor");
+		const badge = page.getByRole("button", { name: "Comments on Body: 1 open" });
+		await editor.hover();
+		await expect(badge).toBeVisible();
+		const [editorBox, badgeBox] = await Promise.all([editor.boundingBox(), badge.boundingBox()]);
+		expect(badgeBox!.x + badgeBox!.width / 2).toBeLessThan(editorBox!.x + editorBox!.width / 2);
+
+		await selectInEditor(page, "two fish");
+		await expect(page.getByRole("button", { name: "Comment on the selection" })).toBeVisible();
+	});
 });

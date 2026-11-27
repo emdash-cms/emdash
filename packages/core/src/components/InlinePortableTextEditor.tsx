@@ -14,6 +14,8 @@ import { htmlBlockFields } from "@emdash-cms/admin/html-block";
 import {
 	PORTABLE_TEXT_KEY_ATTR,
 	PortableTextKeys,
+	createEditorialCommentsExtension,
+	type EditorialCommentsBridge,
 } from "@emdash-cms/admin/internal/editorial-editor";
 import { Extension, Node, mergeAttributes, type JSONContent } from "@tiptap/core";
 import Focus from "@tiptap/extension-focus";
@@ -49,6 +51,10 @@ import { CodeMarkExtension } from "./code-mark.js";
 import { InlineBubbleMenu } from "./inline-bubble-menu.js";
 import { InlineCodeBlockExtension } from "./inline-code-block.js";
 import { INLINE_EDITOR_UI_STYLES, useInlineUiRoot } from "./inline-editor-ui.js";
+import {
+	INLINE_EDITORIAL_STYLES,
+	useInlineEditorialComments,
+} from "./inline-editorial-comments.js";
 import { INLINE_IMAGE_STYLES, InlineImageExtension, insertImage } from "./inline-image.js";
 import { INLINE_MEDIA_PICKER_STYLES, InlineMediaPicker } from "./inline-media-picker.js";
 import {
@@ -117,6 +123,19 @@ function isProseMirrorDocument(value: unknown): value is ProseMirrorDocument {
 
 function k(): string {
 	return Math.random().toString(36).substring(2, 11);
+}
+
+/** The entry revision a successful save response reports, if it has one. */
+async function savedRev(response: Response): Promise<string | undefined> {
+	try {
+		const body: unknown = await response.json();
+		if (!body || typeof body !== "object" || !("data" in body)) return undefined;
+		const { data } = body;
+		if (!data || typeof data !== "object" || !("_rev" in data)) return undefined;
+		return typeof data._rev === "string" ? data._rev : undefined;
+	} catch {
+		return undefined;
+	}
 }
 
 function getUnsupportedFileGuidance(locale: string): string {
@@ -1164,6 +1183,15 @@ export function InlinePortableTextEditor({
 		dismiss: () => {},
 	});
 
+	const editorialBridgeRef = React.useRef<EditorialCommentsBridge>({});
+	const editorialCommentsExtension = React.useMemo(
+		() => createEditorialCommentsExtension(editorialBridgeRef),
+		[],
+	);
+	const [rootElement, setRootElement] = React.useState<HTMLDivElement | null>(null);
+	const saveRef = React.useRef<() => void>(() => {});
+	const syncAnchorsRef = React.useRef<(rev: string | undefined) => void>(() => {});
+
 	const [loadState] = React.useState<{
 		content: JSONContent;
 		error: UnsupportedPortableTextMarksError | null;
@@ -1229,6 +1257,7 @@ export function InlinePortableTextEditor({
 					setSaveError(null);
 					initialRef.current = blocks;
 					savedDocRef.current = doc;
+					syncAnchorsRef.current(await savedRev(res));
 					document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "saved" } }));
 					document.dispatchEvent(
 						new CustomEvent("emdash:content-changed", {
@@ -1329,6 +1358,7 @@ export function InlinePortableTextEditor({
 			PluginBlockNode,
 			PortableTextKeyAttribute,
 			PortableTextKeys,
+			editorialCommentsExtension,
 			slashCommandsExtension,
 		],
 		content: initialContent,
@@ -1345,6 +1375,19 @@ export function InlinePortableTextEditor({
 			document.dispatchEvent(new CustomEvent("emdash:save", { detail: { state: "unsaved" } }));
 		},
 	});
+
+	const saveBeforeDraft = React.useCallback(() => saveRef.current(), []);
+	const editorialComments = useInlineEditorialComments({
+		editor,
+		bridge: editorialBridgeRef,
+		root: rootElement,
+		collection,
+		entryId,
+		field,
+		beforeDraft: saveBeforeDraft,
+	});
+	saveRef.current = () => void save();
+	syncAnchorsRef.current = editorialComments.syncAnchors;
 
 	// Store editor ref for getBlocks, and record the loaded document as saved.
 	React.useEffect(() => {
@@ -1442,7 +1485,7 @@ export function InlinePortableTextEditor({
 	if (!editor || !uiRoot) return null;
 
 	return (
-		<div onBlur={handleBlur}>
+		<div ref={setRootElement} onBlur={handleBlur}>
 			{loadError ? (
 				<div className="emdash-inline-editor-error" role="alert" dir="auto">
 					This field can’t be edited here because it contains unsupported Portable Text marks:{" "}
@@ -1450,7 +1493,19 @@ export function InlinePortableTextEditor({
 				</div>
 			) : (
 				<>
-					<InlineBubbleMenu editor={editor} uiRoot={uiRoot} onImageReplaced={() => void save()} />
+					<InlineBubbleMenu
+						editor={editor}
+						uiRoot={uiRoot}
+						onImageReplaced={() => void save()}
+						comment={
+							editorialComments.labels
+								? {
+										label: editorialComments.labels.commentOnSelection,
+										onClick: editorialComments.startComment,
+									}
+								: undefined
+						}
+					/>
 					<EditorContent editor={editor} />
 				</>
 			)}
@@ -1468,6 +1523,11 @@ export function InlinePortableTextEditor({
 					dir="auto"
 				>
 					{unsupportedFileGuidance.message}
+				</div>
+			) : null}
+			{editorialComments.notice ? (
+				<div className="emdash-inline-editor-guidance" role="status" aria-live="polite" dir="auto">
+					{editorialComments.notice}
 				</div>
 			) : null}
 			<InlineSlashMenu
@@ -1639,6 +1699,7 @@ export function InlinePortableTextEditor({
 				${INLINE_EDITOR_UI_STYLES}
 				${INLINE_MEDIA_PICKER_STYLES}
 				${INLINE_IMAGE_STYLES}
+				${INLINE_EDITORIAL_STYLES}
 				.emdash-inline-editor:focus {
 					outline: none;
 				}

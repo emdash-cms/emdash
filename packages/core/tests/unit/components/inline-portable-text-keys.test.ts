@@ -109,7 +109,10 @@ describe("inline Portable Text editor block keys", () => {
 	});
 
 	it("keeps the key on one half of a split block and gives the other half its own", async () => {
-		const { editable, editor } = await mount([block("para", "Before after"), block("next", "Next")]);
+		const { editable, editor } = await mount([
+			block("para", "Before after"),
+			block("next", "Next"),
+		]);
 		await act(async () => {
 			editor.chain().setTextSelection(8).splitBlock().run();
 		});

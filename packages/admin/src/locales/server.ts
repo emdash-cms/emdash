@@ -55,6 +55,11 @@ export interface VisualEditingToolbarLabels {
 	onBlock: string;
 	commentsLoadFailed: string;
 	commentActionFailed: string;
+	commentOnSelection: string;
+	selectionTooLong: string;
+	selectionOneParagraph: string;
+	selectionUnsupported: string;
+	selectionUnkeyed: string;
 }
 
 const TOOLBAR_MESSAGES = {
@@ -132,6 +137,26 @@ const TOOLBAR_MESSAGES = {
 		id: "visualEditing.commentActionFailed",
 		message: "Couldn't save. Try again.",
 	}),
+	commentOnSelection: msg({
+		id: "visualEditing.commentOnSelection",
+		message: "Comment on the selection",
+	}),
+	selectionTooLong: msg({
+		id: "visualEditing.selectionTooLong",
+		message: "That selection is too long to comment on",
+	}),
+	selectionOneParagraph: msg({
+		id: "visualEditing.selectionOneParagraph",
+		message: "Select text within one paragraph to comment on it",
+	}),
+	selectionUnsupported: msg({
+		id: "visualEditing.selectionUnsupported",
+		message: "Text here can’t take a comment. Comment on the whole field instead.",
+	}),
+	selectionUnkeyed: msg({
+		id: "visualEditing.selectionUnkeyed",
+		message: "This block can’t take a comment yet. Save the entry, then try again.",
+	}),
 } satisfies Record<keyof VisualEditingToolbarLabels, MessageDescriptor>;
 
 function resolveToolbarMessage(messages: Messages, descriptor: MessageDescriptor): string {
@@ -203,6 +228,11 @@ export function translateVisualEditingToolbarLabels(
 		onBlock: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.onBlock),
 		commentsLoadFailed: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentsLoadFailed),
 		commentActionFailed: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentActionFailed),
+		commentOnSelection: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentOnSelection),
+		selectionTooLong: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.selectionTooLong),
+		selectionOneParagraph: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.selectionOneParagraph),
+		selectionUnsupported: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.selectionUnsupported),
+		selectionUnkeyed: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.selectionUnkeyed),
 	};
 }
 
