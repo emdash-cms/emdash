@@ -81,6 +81,14 @@ describe("mention drafts", () => {
 
 		expect(draftToBody(type(draft, 4, "e"))).toBe("@Anne");
 		expect(draftToBody(type(draft, 4, "2"))).toBe("@Ann2");
+		expect(draftToBody(type(draft, 4, "\u0301"))).toBe("@Ann\u0301");
+	});
+
+	it("drops a mention when deleting the space after it joins it to a word", () => {
+		const draft = bodyToDraft(`<@${ANN.id}> xyz`, [ANN], LABELS);
+
+		expect(draftToBody(backspace(draft, 5))).toBe("@Annxyz");
+		expect(draftToBody(backspace(draft, 6))).toBe(`<@${ANN.id}> yz`);
 	});
 
 	it("names someone without a name as an unnamed user", () => {

@@ -5666,6 +5666,16 @@ describe("editorial comments", () => {
 			await expect.element(composer).toHaveAttribute("aria-expanded", "false");
 		});
 
+		it("doesn't suggest people for an @ in a URL path", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
+			const { composer } = await openComposer();
+
+			await userEvent.keyboard("youtube.com/@sa");
+			await new Promise((resolve) => setTimeout(resolve, 300));
+
+			await expect.element(composer).toHaveAttribute("aria-expanded", "false");
+		});
+
 		it("leaves Shift+Enter to add a line while people are suggested", async () => {
 			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
 			const { composer } = await openComposer();
