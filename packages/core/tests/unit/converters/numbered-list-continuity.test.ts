@@ -1,6 +1,6 @@
+import { portableTextToProsemirror as editorPortableTextToPM } from "@emdash-cms/admin/internal/portable-text";
 import { describe, expect, it } from "vitest";
 
-import { _portableTextToPM as inlinePortableTextToPM } from "../../../src/components/InlinePortableTextEditor.js";
 import {
 	MAX_ORDERED_LIST_START,
 	normalizeListId,
@@ -64,7 +64,7 @@ function allOrderedLists(doc: ProseMirrorDocument): ProseMirrorNode[] {
 }
 
 describe("numbered-list Portable Text conversion", () => {
-	it("keeps the inline and reusable legacy identities equivalent", () => {
+	it("keeps the editor and reusable legacy identities equivalent", () => {
 		const blocks: PortableTextBlock[] = [
 			{
 				_type: "block",
@@ -75,10 +75,10 @@ describe("numbered-list Portable Text conversion", () => {
 				children: [{ _type: "span", _key: "legacy-span", text: "Legacy" }],
 			},
 		];
-		const inline = inlinePortableTextToPM(blocks) as ProseMirrorDocument;
+		const editor = editorPortableTextToPM(blocks) as ProseMirrorDocument;
 		const reusable = portableTextToProsemirror(blocks);
 
-		expect(allOrderedLists(inline)[0]?.attrs?.listId).toBe(
+		expect(allOrderedLists(editor)[0]?.attrs?.listId).toBe(
 			allOrderedLists(reusable)[0]?.attrs?.listId,
 		);
 	});

@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 /**
  * Inline editor image LQIP round-trip tests.
  *
@@ -9,12 +11,16 @@
  * a MediaValue asset instead of a reference and must keep their media reference.
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
-	_pmToPortableText as pmToPortableText,
-	_portableTextToPM as portableTextToPM,
-} from "../../../src/components/InlinePortableTextEditor.js";
+	destroyInlineEditors,
+	inlineDocument as portableTextToPM,
+	topLevelNodes,
+	saveDocument as pmToPortableText,
+} from "../../utils/inline-portable-text.js";
+
+afterEach(destroyInlineEditors);
 
 describe("Image LQIP round-trip (inline editor seam)", () => {
 	it("preserves blurhash and dominantColor through PT → PM → PT (legacy asset.meta input)", () => {
@@ -176,7 +182,7 @@ describe("Image caption round-trip (inline editor seam)", () => {
 });
 
 describe("Image link and alignment round-trip (inline editor seam)", () => {
-	it("drops unknown alignments and empty links", () => {
+	it("keeps an alignment it doesn't know, as the admin editor does, and drops an empty link", () => {
 		const [restored] = pmToPortableText(
 			portableTextToPM([
 				{
@@ -189,7 +195,7 @@ describe("Image link and alignment round-trip (inline editor seam)", () => {
 			]),
 		) as Array<{ alignment?: unknown; link?: unknown }>;
 
-		expect(restored.alignment).toBeUndefined();
+		expect(restored.alignment).toBe("diagonal");
 		expect(restored.link).toBeUndefined();
 	});
 });
@@ -219,7 +225,7 @@ describe("Image media reference (inline editor seam)", () => {
 		];
 
 		const pm = portableTextToPM(seeded);
-		expect(pm.content?.map((node) => node.attrs)).toMatchObject([
+		expect(topLevelNodes(pm).map((node) => node.attrs)).toMatchObject([
 			{
 				src: "/_emdash/api/media/file/01M2QZRZR8HDNT3039QNQ95B9D.jpg",
 				mediaId: "01M2QZRZTZPBJ2WV8A3B61ZZX7",

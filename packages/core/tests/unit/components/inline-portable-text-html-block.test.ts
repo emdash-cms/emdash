@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 /**
  * Inline editor htmlBlock round-trip tests.
  *
@@ -6,12 +8,15 @@
  * core converter round-trip test against the in-file converters.
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
-	_pmToPortableText as pmToPortableText,
-	_portableTextToPM as portableTextToPM,
-} from "../../../src/components/InlinePortableTextEditor.js";
+	destroyInlineEditors,
+	inlineDocument as portableTextToPM,
+	saveDocument as pmToPortableText,
+} from "../../utils/inline-portable-text.js";
+
+afterEach(destroyInlineEditors);
 
 describe("HTML block round-trip (inline editor seam)", () => {
 	it("preserves html content through PT → PM → PT", () => {

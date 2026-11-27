@@ -5,11 +5,10 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-	InlinePortableTextEditor,
-	_pmToPortableText as pmToPortableText,
-	_portableTextToPM as portableTextToPM,
-} from "../../../src/components/InlinePortableTextEditor.js";
+import { InlinePortableTextEditor } from "../../../src/components/InlinePortableTextEditor.js";
+import { destroyInlineEditors, roundTripInline } from "../../utils/inline-portable-text.js";
+
+afterEach(destroyInlineEditors);
 
 const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 
@@ -345,7 +344,7 @@ describe("inline Portable Text image picker and image toolbar", () => {
 	}
 
 	it("canonicalizes a legacy direct URL provider when an existing image is saved", () => {
-		const pm = portableTextToPM([
+		const restored = roundTripInline([
 			{
 				_type: "image",
 				_key: "external-image",
@@ -357,7 +356,6 @@ describe("inline Portable Text image picker and image toolbar", () => {
 			},
 		]);
 
-		const restored = pmToPortableText(pm);
 		expect((restored[0] as { asset?: { provider?: string } }).asset?.provider).toBe("external");
 	});
 
@@ -535,7 +533,8 @@ describe("inline Portable Text image picker and image toolbar", () => {
 
 		expect(dialog.isConnected).toBe(false);
 		const blocks = await savedBlocks();
-		expect(blocks[0]).toMatchObject({ children: [{ text: "Intro. More." }] });
+		const children = (blocks[0] as { children: Array<{ text: string }> }).children;
+		expect(children.map((span) => span.text).join("")).toBe("Intro. More.");
 		outside.remove();
 	});
 

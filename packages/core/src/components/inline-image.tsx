@@ -5,10 +5,10 @@
  * without alignment, link, and settings.
  */
 
+import { ImageNode } from "@emdash-cms/admin/internal/portable-text";
 import type { VirtualElement } from "@floating-ui/react";
 import { Check, ImageSquare, TextAa, Trash, X } from "@phosphor-icons/react";
 import type { Editor } from "@tiptap/core";
-import Image from "@tiptap/extension-image";
 import { NodeSelection, type EditorState } from "@tiptap/pm/state";
 import {
 	NodeViewWrapper,
@@ -293,19 +293,10 @@ function InlineImageView({ node, editor, getPos, updateAttributes }: NodeViewPro
 	);
 }
 
-export const InlineImageExtension = Image.extend({
+export const InlineImageExtension = ImageNode.extend({
 	addAttributes() {
 		return {
 			...this.parent?.(),
-			mediaId: { default: null },
-			provider: { default: null },
-			width: { default: null },
-			height: { default: null },
-			displayWidth: { default: null },
-			displayHeight: { default: null },
-			caption: { default: null },
-			blurhash: { default: null },
-			dominantColor: { default: null },
 			alignment: { default: null, rendered: false },
 			link: { default: null, rendered: false },
 		};

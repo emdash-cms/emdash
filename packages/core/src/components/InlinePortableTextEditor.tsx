@@ -1,62 +1,47 @@
 /**
  * Self-contained inline Portable Text editor for visual editing.
  *
- * Uses TipTap directly with content extensions — no admin UI deps.
- * Includes the admin editor's selection toolbar and slash menu, and a
- * toolbar and picker for images, but no fixed toolbar, sidebar, or section
- * picker.
+ * Uses the admin editor's Portable Text schema and converter, with its own
+ * node views (`inline-portable-text-schema.ts`), so both editors read and
+ * write rich text the same way. Includes the admin editor's selection
+ * toolbar and slash menu, and a toolbar and picker for images, but no fixed
+ * toolbar, sidebar, or section picker.
  *
- * Converts between Portable Text and ProseMirror on mount/save.
  * Auto-saves on blur, dispatches custom events for toolbar integration.
  */
 
-import { htmlBlockFields } from "@emdash-cms/admin/html-block";
 import {
-	PORTABLE_TEXT_KEY_ATTR,
-	PortableTextKeys,
 	createEditorialCommentsExtension,
 	type EditorialCommentsBridge,
 } from "@emdash-cms/admin/internal/editorial-editor";
-import { Extension, Node, mergeAttributes, type JSONContent } from "@tiptap/core";
+import {
+	UnsafePortableTextTableError,
+	UnsupportedPortableTextMarksError,
+	portableTextToProsemirror,
+	prosemirrorToPortableText,
+	type PortableTextBlock,
+} from "@emdash-cms/admin/internal/portable-text";
 import Focus from "@tiptap/extension-focus";
-import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
-import Subscript from "@tiptap/extension-subscript";
-import Superscript from "@tiptap/extension-superscript";
-import TextAlign from "@tiptap/extension-text-align";
 import Typography from "@tiptap/extension-typography";
-import Underline from "@tiptap/extension-underline";
-import { Plugin, type Transaction } from "@tiptap/pm/state";
+import type { Transaction } from "@tiptap/pm/state";
 import { useEditor, EditorContent, type Editor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
 import { exitSuggestion } from "@tiptap/suggestion";
 import * as React from "react";
 
-import { resolveImageMedia } from "../content/converters/gallery.js";
-import { normalizeImageLink } from "../content/converters/image-link.js";
-import {
-	assertPortableTextMarksSupported,
-	assertProseMirrorMarksSupported,
-	UnsupportedPortableTextMarksError,
-} from "../content/converters/mark-safety.js";
-import {
-	deriveLegacyListId,
-	normalizeProseMirrorOrderedListJson,
-	normalizeListId,
-	normalizeListStart,
-	readOrderedListMetadata,
-} from "../content/converters/numbered-list.js";
-import type { ProseMirrorDocument } from "../content/converters/types.js";
-import { CodeMarkExtension } from "./code-mark.js";
 import { InlineBubbleMenu } from "./inline-bubble-menu.js";
-import { InlineCodeBlockExtension } from "./inline-code-block.js";
 import { INLINE_EDITOR_UI_STYLES, useInlineUiRoot } from "./inline-editor-ui.js";
 import {
 	INLINE_EDITORIAL_STYLES,
 	useInlineEditorialComments,
 } from "./inline-editorial-comments.js";
-import { INLINE_IMAGE_STYLES, InlineImageExtension, insertImage } from "./inline-image.js";
+import { INLINE_IMAGE_STYLES, insertImage } from "./inline-image.js";
 import { INLINE_MEDIA_PICKER_STYLES, InlineMediaPicker } from "./inline-media-picker.js";
+import {
+	DEFAULT_TABLE_PLACEHOLDER,
+	INLINE_PLUGIN_BLOCK_TYPES,
+	inlinePortableTextExtensions,
+} from "./inline-portable-text-schema.js";
 import {
 	InlineSlashMenu,
 	createSlashCommandsExtension,
@@ -64,66 +49,8 @@ import {
 	type SlashCommandItem,
 	type SlashMenuState,
 } from "./inline-slash-menu.js";
-import { EmDashOrderedList } from "./ordered-list.js";
-
-// ── Portable Text types ────────────────────────────────────────────
-
-interface PTSpan {
-	_type: "span";
-	_key: string;
-	text: string;
-	marks?: string[];
-}
-
-interface PTMarkDef {
-	_type: string;
-	_key: string;
-	[key: string]: unknown;
-}
-
-interface PTTextBlock {
-	_type: "block";
-	_key: string;
-	style?: "normal" | "h1" | "h2" | "h3" | "h4" | "h5" | "h6" | "blockquote";
-	listItem?: "bullet" | "number";
-	level?: number;
-	listId?: string;
-	listStart?: number;
-	children: PTSpan[];
-	markDefs?: PTMarkDef[];
-	textAlign?: "left" | "center" | "right" | "justify";
-}
-
-type PTTableBlock = { _type: "table"; [key: string]: unknown };
-type PTBlock = PTTextBlock | PTTableBlock | { _type: string; _key: string; [key: string]: unknown };
-const TABLE_BLOCK_PLACEHOLDER_HTML = /<[^>]+\bdata-emdash-table-block(?:\s|=|>)/i;
-
-/** Type guard for PTTextBlock */
-function isPTTextBlock(block: PTBlock): block is PTTextBlock {
-	return block._type === "block";
-}
-
-function isPTTableBlock(value: unknown): value is PTTableBlock {
-	return typeof value === "object" && value !== null && "_type" in value && value._type === "table";
-}
-
-/** Type guard for a ProseMirror JSON document. */
-function isProseMirrorDocument(value: unknown): value is ProseMirrorDocument {
-	return (
-		typeof value === "object" &&
-		value !== null &&
-		"type" in value &&
-		value.type === "doc" &&
-		"content" in value &&
-		Array.isArray(value.content)
-	);
-}
 
 // ── Helpers ────────────────────────────────────────────────────────
-
-function k(): string {
-	return Math.random().toString(36).substring(2, 11);
-}
 
 /** The entry revision a successful save response reports, if it has one. */
 async function savedRev(response: Response): Promise<string | undefined> {
@@ -180,949 +107,10 @@ function createUnsupportedFileHandlers(showGuidance: () => void) {
 	};
 }
 
-// ── ProseMirror → Portable Text ────────────────────────────────────
-
-type PMNode = {
-	type: string;
-	attrs?: Record<string, unknown>;
-	content?: PMNode[];
-	marks?: Array<{ type: string; attrs?: Record<string, unknown> }>;
-	text?: string;
-};
-
-/** Safely extract a string attribute from ProseMirror attrs */
-function attrStr(attrs: Record<string, unknown> | undefined, key: string): string {
-	const v = attrs?.[key];
-	return typeof v === "string" ? v : "";
-}
-
-/** Safely extract an optional string attribute from ProseMirror attrs */
-function attrStrOpt(attrs: Record<string, unknown> | undefined, key: string): string | undefined {
-	const v = attrs?.[key];
-	return typeof v === "string" && v ? v : undefined;
-}
-
-/** Safely extract a number attribute from ProseMirror attrs */
-function attrNum(attrs: Record<string, unknown> | undefined, key: string): number | undefined {
-	const v = attrs?.[key];
-	return typeof v === "number" ? v : undefined;
-}
-
-function attrDimension(
-	attrs: Record<string, unknown> | undefined,
-	key: string,
-): number | undefined {
-	const value = attrNum(attrs, key);
-	return value !== undefined && Number.isFinite(value) && value > 0 ? value : undefined;
-}
-
-type ImageAlignment = "left" | "center" | "right" | "wide" | "full";
-
-function imageAlignment(value: unknown): ImageAlignment | undefined {
-	return value === "left" ||
-		value === "center" ||
-		value === "right" ||
-		value === "wide" ||
-		value === "full"
-		? value
-		: undefined;
-}
-
-function canonicalMediaProviderId(provider: string | undefined): string | undefined {
-	return provider === "external-url" ? "external" : provider;
-}
-
-/** The `_key` a node was loaded with or given by `PortableTextKeys`, or a new one. */
-function blockKey(node: PMNode): string {
-	const key = node.attrs?.[PORTABLE_TEXT_KEY_ATTR];
-	return typeof key === "string" && key ? key : k();
-}
-
-/** The node attribute that carries a Portable Text block's `_key` while it is edited. */
-function keyAttrs(key: unknown): Record<string, string> | undefined {
-	return typeof key === "string" && key ? { [PORTABLE_TEXT_KEY_ATTR]: key } : undefined;
-}
-
-function pmToPortableText(doc: PMNode): PTBlock[] {
-	if (!doc || doc.type !== "doc" || !doc.content) return [];
-	const blocks: PTBlock[] = [];
-	for (let i = 0; i < doc.content.length; i++) {
-		const r = convertPMNode(doc.content[i]!, `root:${i}`);
-		if (r) {
-			if (Array.isArray(r)) blocks.push(...r);
-			else blocks.push(r);
-		}
-	}
-	// Content saved with repeated keys keeps the first block's key.
-	const used = new Set<string>();
-	return blocks.map((block) => {
-		const existing = typeof block._key === "string" ? block._key : "";
-		if (existing && !used.has(existing)) {
-			used.add(existing);
-			return block;
-		}
-		let key: string;
-		do key = k();
-		while (used.has(key));
-		used.add(key);
-		return { ...block, _key: key };
-	});
-}
-
-function convertPMNode(node: PMNode, path: string): PTBlock | PTBlock[] | null {
-	switch (node.type) {
-		case "paragraph": {
-			const { children, markDefs } = convertInline(node.content || []);
-			if (children.length === 0) return null;
-			const ta = node.attrs?.textAlign;
-			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
-			return {
-				_type: "block",
-				_key: blockKey(node),
-				style: "normal",
-				children,
-				markDefs: markDefs.length > 0 ? markDefs : undefined,
-				...(textAlign ? { textAlign } : {}),
-			};
-		}
-		case "heading": {
-			const { children, markDefs } = convertInline(node.content || []);
-			const level = attrNum(node.attrs, "level") ?? 1;
-			if (children.length === 0) return null;
-			const headingStyles: Record<number, PTTextBlock["style"]> = {
-				1: "h1",
-				2: "h2",
-				3: "h3",
-				4: "h4",
-				5: "h5",
-				6: "h6",
-			};
-			const headingStyle = headingStyles[level] ?? "h1";
-			const ta = node.attrs?.textAlign;
-			const textAlign = ta === "center" || ta === "right" || ta === "justify" ? ta : undefined;
-			return {
-				_type: "block",
-				_key: blockKey(node),
-				style: headingStyle,
-				children,
-				markDefs: markDefs.length > 0 ? markDefs : undefined,
-				...(textAlign ? { textAlign } : {}),
-			};
-		}
-		case "bulletList":
-			return convertPMList(node.content || [], "bullet", 1, node.attrs, path);
-		case "orderedList":
-			return convertPMList(node.content || [], "number", 1, node.attrs, path);
-		case "blockquote": {
-			const blocks: PTTextBlock[] = [];
-			for (const child of node.content || []) {
-				if (child.type === "paragraph") {
-					const { children, markDefs } = convertInline(child.content || []);
-					if (children.length > 0) {
-						blocks.push({
-							_type: "block",
-							_key: blockKey(child),
-							style: "blockquote",
-							children,
-							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
-					}
-				}
-			}
-			if (blocks.length === 1) {
-				const first = blocks[0];
-				return first ?? null;
-			}
-			return blocks.length > 0 ? blocks : null;
-		}
-		case "codeBlock": {
-			const code = (node.content || []).map((n) => n.text || "").join("");
-			return {
-				_type: "code",
-				_key: blockKey(node),
-				code,
-				language: attrStrOpt(node.attrs, "language"),
-			};
-		}
-		case "htmlBlock":
-			return {
-				_type: "htmlBlock",
-				_key: blockKey(node),
-				...htmlBlockFields(node.attrs ?? {}),
-			};
-		case "image": {
-			const provider = attrStrOpt(node.attrs, "provider");
-			const blurhash = attrStrOpt(node.attrs, "blurhash");
-			const dominantColor = attrStrOpt(node.attrs, "dominantColor");
-			const title = attrStrOpt(node.attrs, "title");
-			const caption = Object.hasOwn(node.attrs ?? {}, "caption")
-				? (attrStrOpt(node.attrs, "caption") ?? (title ? "" : undefined))
-				: title;
-			// Persist LQIP as first-class block fields (matching the image-field
-			// MediaValue path) rather than nesting in `asset.meta`, so read sites
-			// and normalize don't need a dual-shape fallback. `asset.meta` is left
-			// to carry only provider-specific data — it isn't reconstructed here,
-			// so non-LQIP meta keys are never silently dropped on editor round-trip.
-			return {
-				_type: "image",
-				_key: blockKey(node),
-				asset: {
-					_ref: attrStr(node.attrs, "mediaId"),
-					url: attrStr(node.attrs, "src"),
-					provider: provider && provider !== "local" ? provider : undefined,
-				},
-				alt: attrStrOpt(node.attrs, "alt"),
-				caption,
-				title,
-				width: attrDimension(node.attrs, "width"),
-				height: attrDimension(node.attrs, "height"),
-				...(blurhash ? { blurhash } : {}),
-				...(dominantColor ? { dominantColor } : {}),
-				displayWidth: attrDimension(node.attrs, "displayWidth"),
-				displayHeight: attrDimension(node.attrs, "displayHeight"),
-				alignment: imageAlignment(node.attrs?.alignment),
-				link: normalizeImageLink(node.attrs?.link) ?? undefined,
-			};
-		}
-		case "horizontalRule":
-			return { _type: "break", _key: blockKey(node), style: "lineBreak" };
-		case "table": {
-			const rawTable = node.attrs?.rawTable;
-			if (isPTTableBlock(rawTable)) return rawTable;
-			return null;
-		}
-		case "pluginBlock": {
-			// Spread the captured data back out so the block round-trips losslessly.
-			// `data` holds every field except _type / _key and the identity field
-			// (`id` or `url`, named by `identityField`), which live on dedicated attrs.
-			const { blockType, id, identityField, data } = node.attrs ?? {};
-			const field = identityField === "url" || identityField === "" ? identityField : "id";
-			return {
-				...(data && typeof data === "object" ? data : {}),
-				_type: typeof blockType === "string" ? blockType : "embed",
-				_key: blockKey(node),
-				...(field ? { [field]: typeof id === "string" ? id : "" } : {}),
-			};
-		}
-		default:
-			return null;
-	}
-}
-
-function convertPMList(
-	items: PMNode[],
-	listItem: "bullet" | "number",
-	level: number,
-	attrs: Record<string, unknown> | undefined,
-	path: string,
-): PTTextBlock[] {
-	const blocks: PTTextBlock[] = [];
-	const metadata = listItem === "number" ? readOrderedListMetadata(attrs, path) : undefined;
-	for (let itemIndex = 0; itemIndex < items.length; itemIndex++) {
-		const item = items[itemIndex]!;
-		if (item.type === "listItem") {
-			for (let childIndex = 0; childIndex < (item.content?.length ?? 0); childIndex++) {
-				const child = item.content![childIndex]!;
-				if (child.type === "paragraph") {
-					const { children, markDefs } = convertInline(child.content || []);
-					if (children.length > 0) {
-						blocks.push({
-							_type: "block",
-							_key: blockKey(child),
-							style: "normal",
-							listItem,
-							level,
-							...metadata,
-							children,
-							markDefs: markDefs.length > 0 ? markDefs : undefined,
-						});
-					}
-				} else if (child.type === "bulletList" || child.type === "orderedList") {
-					const childListItem = child.type === "bulletList" ? "bullet" : "number";
-					blocks.push(
-						...convertPMList(
-							child.content || [],
-							childListItem,
-							level + 1,
-							child.attrs,
-							`${path}:${itemIndex}:${childIndex}`,
-						),
-					);
-				}
-			}
-		}
-	}
-	return blocks;
-}
-
-function convertInline(nodes: PMNode[]): { children: PTSpan[]; markDefs: PTMarkDef[] } {
-	const children: PTSpan[] = [];
-	const markDefs: PTMarkDef[] = [];
-	const markDefMap = new Map<string, string>();
-
-	for (const node of nodes) {
-		if (node.type === "text" && node.text) {
-			const marks: string[] = [];
-			for (const mark of node.marks || []) {
-				const m = convertPMMark(mark, markDefs, markDefMap);
-				if (m) marks.push(m);
-			}
-			children.push({
-				_type: "span",
-				_key: k(),
-				text: node.text,
-				marks: marks.length > 0 ? marks : undefined,
-			});
-		} else if (node.type === "hardBreak") {
-			if (children.length > 0) {
-				const last = children.at(-1);
-				if (last) last.text += "\n";
-			} else {
-				children.push({ _type: "span", _key: k(), text: "\n" });
-			}
-		}
-	}
-
-	if (children.length === 0) {
-		children.push({ _type: "span", _key: k(), text: "" });
-	}
-	return { children, markDefs };
-}
-
-function convertPMMark(
-	mark: { type: string; attrs?: Record<string, unknown> },
-	markDefs: PTMarkDef[],
-	markDefMap: Map<string, string>,
-): string | null {
-	switch (mark.type) {
-		case "bold":
-		case "strong":
-			return "strong";
-		case "italic":
-		case "em":
-			return "em";
-		case "underline":
-			return "underline";
-		case "strike":
-		case "strikethrough":
-			return "strike-through";
-		case "code":
-			return "code";
-		case "link": {
-			const href = attrStr(mark.attrs, "href");
-			if (markDefMap.has(href)) return markDefMap.get(href)!;
-			const key = k();
-			markDefs.push({
-				_type: "link",
-				_key: key,
-				href,
-				blank: mark.attrs?.target === "_blank",
-			});
-			markDefMap.set(href, key);
-			return key;
-		}
-		default:
-			return mark.type;
-	}
-}
-
-// ── Portable Text → ProseMirror ────────────────────────────────────
-
-function portableTextToPM(blocks: PTBlock[]): JSONContent {
-	if (!blocks || blocks.length === 0) return { type: "doc", content: [{ type: "paragraph" }] };
-	assertPortableTextMarksSupported(blocks);
-
-	const content: PMNode[] = [];
-	let i = 0;
-
-	while (i < blocks.length) {
-		const block = blocks[i];
-		if (!block) {
-			i++;
-			continue;
-		}
-		if (isPTTextBlock(block) && block.listItem) {
-			const listBlocks: PTTextBlock[] = [];
-			const listType = block.listItem;
-			const runStart = i;
-			const rootId = listType === "number" ? normalizeListId(block.listId) : undefined;
-			while (i < blocks.length) {
-				const cur = blocks[i];
-				if (!cur || !isPTTextBlock(cur) || !cur.listItem) break;
-				const level = cur.level || 1;
-				const currentId = cur.listItem === "number" ? normalizeListId(cur.listId) : undefined;
-				const sameIdentity =
-					listType !== "number" ||
-					level > 1 ||
-					(rootId ? currentId === rootId : currentId === undefined);
-				if (level > 1 || (cur.listItem === listType && sameIdentity)) {
-					listBlocks.push(cur);
-					i++;
-				} else break;
-			}
-			content.push(convertPTList(listBlocks, listType, `root:${runStart}`));
-		} else if (
-			isPTTextBlock(block) &&
-			block.style === "blockquote" &&
-			block.listItem === undefined
-		) {
-			// Group consecutive blockquote blocks into ONE blockquote node —
-			// PT is flat, so a multi-paragraph quote is stored as a run of
-			// blockquote-styled blocks. Mirrors the grouping in
-			// content/converters/portable-text-to-prosemirror.ts; without it
-			// merges revert on reload in the inline editor too.
-			const quoteBlocks: PTTextBlock[] = [];
-			while (i < blocks.length) {
-				const cur = blocks[i];
-				if (
-					!cur ||
-					!isPTTextBlock(cur) ||
-					cur.style !== "blockquote" ||
-					cur.listItem !== undefined
-				) {
-					break;
-				}
-				quoteBlocks.push(cur);
-				i++;
-			}
-			content.push({
-				type: "blockquote",
-				content: quoteBlocks.map((quoteBlock) => {
-					const pmContent = convertPTSpans(quoteBlock.children, quoteBlock.markDefs || []);
-					return {
-						type: "paragraph",
-						attrs: keyAttrs(quoteBlock._key),
-						content: pmContent.length > 0 ? pmContent : undefined,
-					};
-				}),
-			});
-		} else {
-			const c = convertPTBlock(block);
-			if (c) content.push(c);
-			i++;
-		}
-	}
-
-	return normalizeProseMirrorOrderedListJson({
-		type: "doc",
-		content: content.length > 0 ? content : [{ type: "paragraph" }],
-	});
-}
-
-function convertPTBlock(block: PTBlock): PMNode | null {
-	if (isPTTextBlock(block)) {
-		const { style = "normal", children, markDefs = [], textAlign } = block;
-		const pmContent = convertPTSpans(children, markDefs);
-
-		if (style === "blockquote") {
-			return {
-				type: "blockquote",
-				content: [
-					{
-						type: "paragraph",
-						attrs: keyAttrs(block._key),
-						content: pmContent.length > 0 ? pmContent : undefined,
-					},
-				],
-			};
-		}
-		if (style?.startsWith("h")) {
-			const level = parseInt(style.substring(1), 10);
-			return {
-				type: "heading",
-				attrs: { level, ...(textAlign ? { textAlign } : {}), ...keyAttrs(block._key) },
-				content: pmContent.length > 0 ? pmContent : undefined,
-			};
-		}
-		return {
-			type: "paragraph",
-			attrs: textAlign ? { textAlign, ...keyAttrs(block._key) } : keyAttrs(block._key),
-			content: pmContent.length > 0 ? pmContent : undefined,
-		};
-	}
-	if (block._type === "code") {
-		const cb = block as PTBlock & { code?: string; language?: string };
-		const language = typeof cb.language === "string" && cb.language.length > 0 ? cb.language : null;
-		return {
-			type: "codeBlock",
-			attrs: { language, ...keyAttrs(block._key) },
-			content: cb.code ? [{ type: "text", text: cb.code }] : undefined,
-		};
-	}
-	if (block._type === "break") {
-		return { type: "horizontalRule", attrs: keyAttrs(block._key) };
-	}
-	if (block._type === "htmlBlock") {
-		return {
-			type: "htmlBlock",
-			attrs: { ...htmlBlockFields(block), ...keyAttrs(block._key) },
-		};
-	}
-	if (block._type === "image") {
-		const ib = block as PTBlock & {
-			asset?: {
-				_ref?: string;
-				url?: string;
-				provider?: string;
-				meta?: Record<string, unknown>;
-			};
-			url?: string;
-			alt?: string;
-			caption?: string;
-			title?: string;
-			width?: number;
-			height?: number;
-			/** LQIP — first-class field (legacy snapshots keep it in `asset.meta`). */
-			blurhash?: string;
-			dominantColor?: string;
-			displayWidth?: number;
-			displayHeight?: number;
-			alignment?: unknown;
-			/** `{ href, blank? }`, or a bare string on WordPress-imported content */
-			link?: unknown;
-		};
-		const meta = ib.asset?.meta;
-		const { asset, alt, width, height } = resolveImageMedia(ib);
-		// Prefer first-class LQIP fields; fall back to `asset.meta` for legacy.
-		const blurhash =
-			typeof ib.blurhash === "string"
-				? ib.blurhash
-				: typeof meta?.blurhash === "string"
-					? meta.blurhash
-					: null;
-		const dominantColor =
-			typeof ib.dominantColor === "string"
-				? ib.dominantColor
-				: typeof meta?.dominantColor === "string"
-					? meta.dominantColor
-					: null;
-		return {
-			type: "image",
-			attrs: {
-				...keyAttrs(block._key),
-				src: asset.url || ib.url || (asset._ref ? `/_emdash/api/media/file/${asset._ref}` : ""),
-				alt: alt || "",
-				title: ib.title || "",
-				caption: Object.hasOwn(ib, "caption") ? ib.caption || "" : ib.title || "",
-				mediaId: asset._ref || undefined,
-				provider: canonicalMediaProviderId(asset.provider),
-				width,
-				height,
-				blurhash,
-				dominantColor,
-				displayWidth: ib.displayWidth,
-				displayHeight: ib.displayHeight,
-				alignment: imageAlignment(ib.alignment) ?? null,
-				link: normalizeImageLink(ib.link),
-			},
-		};
-	}
-	if (block._type === "table") {
-		return {
-			type: "table",
-			attrs: { rawTable: block, emdashKey: typeof block._key === "string" ? block._key : null },
-		};
-	}
-	// Unknown block types — treat as plugin blocks. Capture every field other
-	// than the well-known ones into `data` so the block round-trips losslessly,
-	// even if no plugin currently registers this type. Matches the admin
-	// editor's `convertCustomBlock`.
-	// The identity lives under whichever of `id` / `url` the block arrived with,
-	// so the PM → PT direction can write it back under the same key.
-	const identityField =
-		typeof block.id === "string" ? "id" : typeof block.url === "string" ? "url" : "";
-	const identity = identityField ? block[identityField] : undefined;
-	// Filter out _-prefixed keys to prevent accumulation across edit cycles.
-	const data = Object.fromEntries(
-		Object.entries(block).filter(([key]) => !key.startsWith("_") && key !== identityField),
-	);
-	return {
-		type: "pluginBlock",
-		attrs: {
-			...keyAttrs(block._key),
-			blockType: typeof block._type === "string" ? block._type : "embed",
-			id: typeof identity === "string" ? identity : "",
-			identityField,
-			data,
-		},
-	};
-}
-
-function convertPTList(
-	items: PTTextBlock[],
-	listType: "bullet" | "number",
-	context: string,
-): PMNode {
-	const rootItems: PMNode[] = [];
-	let index = 0;
-
-	while (index < items.length) {
-		const item = items[index]!;
-		const level = item.level || 1;
-		if (level === 1) {
-			const nestedItems: PTTextBlock[] = [];
-			index++;
-			while (index < items.length && (items[index]!.level || 1) > 1) {
-				nestedItems.push(items[index]!);
-				index++;
-			}
-			rootItems.push(
-				convertPTListItem(item, nestedItems, listType, `${context}:${rootItems.length}`),
-			);
-		} else {
-			rootItems.push(convertPTListItem(item, [], listType, `${context}:${rootItems.length}`));
-			index++;
-		}
-	}
-
-	const firstItem = items[0]!;
-	const listId =
-		normalizeListId(firstItem.listId) ?? deriveLegacyListId(`${context}:${firstItem._key}`);
-	const listStart = normalizeListStart(firstItem.listStart);
-	const metadata =
-		listType === "number"
-			? {
-					listId,
-					...(listStart === undefined ? {} : { listStart }),
-				}
-			: undefined;
-	return {
-		type: listType === "bullet" ? "bulletList" : "orderedList",
-		attrs: metadata ? { ...metadata, start: metadata.listStart ?? 1 } : undefined,
-		content: rootItems,
-	};
-}
-
-function belongsToNestedPTGroup(
-	item: PTTextBlock,
-	minLevel: number,
-	parentListType: "bullet" | "number",
-	anchorType: "bullet" | "number",
-	anchorId: string | undefined,
-): boolean {
-	if ((item.level || 2) > minLevel) return true;
-	if ((item.listItem || parentListType) !== anchorType) return false;
-	if (anchorType !== "number") return true;
-	const itemId = normalizeListId(item.listId);
-	return anchorId ? itemId === anchorId : itemId === undefined;
-}
-
-function convertPTListItem(
-	item: PTTextBlock,
-	nestedItems: PTTextBlock[],
-	parentListType: "bullet" | "number",
-	context: string,
-): PMNode {
-	const content: PMNode[] = [
-		{
-			type: "paragraph",
-			attrs: keyAttrs(item._key),
-			content: convertPTSpans(item.children, item.markDefs || []),
-		},
-	];
-
-	if (nestedItems.length > 0) {
-		let minLevel = Infinity;
-		for (const nestedItem of nestedItems) {
-			const level = nestedItem.level || 2;
-			if (level < minLevel) minLevel = level;
-		}
-
-		let index = 0;
-		while (index < nestedItems.length) {
-			const groupStart = index;
-			const anchorType = nestedItems[index]!.listItem || parentListType;
-			const anchorId =
-				anchorType === "number" ? normalizeListId(nestedItems[index]!.listId) : undefined;
-			const nestedGroup: PTTextBlock[] = [];
-			do {
-				nestedGroup.push(nestedItems[index]!);
-				index++;
-			} while (
-				index < nestedItems.length &&
-				belongsToNestedPTGroup(nestedItems[index]!, minLevel, parentListType, anchorType, anchorId)
-			);
-
-			content.push(
-				convertPTList(
-					nestedGroup.map((nestedItem) => ({
-						...nestedItem,
-						level: (nestedItem.level || 2) - 1,
-					})),
-					anchorType,
-					`${context}:nested:${groupStart}`,
-				),
-			);
-		}
-	}
-
-	return { type: "listItem", content };
-}
-
-function convertPTSpans(spans: PTSpan[], markDefs: PTMarkDef[]): PMNode[] {
-	const nodes: PMNode[] = [];
-	const mdMap = new Map(markDefs.map((md) => [md._key, md]));
-
-	for (const span of spans) {
-		if (span._type !== "span") continue;
-		const parts = span.text.split("\n");
-		for (let i = 0; i < parts.length; i++) {
-			const text = parts[i];
-			if (text && text.length > 0) {
-				const marks = convertPTMarks(span.marks || [], mdMap);
-				const node: PMNode = {
-					type: "text",
-					text,
-				};
-				if (marks.length > 0) node.marks = marks;
-				nodes.push(node);
-			}
-			if (i < parts.length - 1) nodes.push({ type: "hardBreak" });
-		}
-	}
-	return nodes;
-}
-
-type MarkJSON = { type: string; attrs?: Record<string, unknown>; [key: string]: unknown };
-
-function convertPTMarks(marks: string[], markDefs: Map<string, PTMarkDef>): MarkJSON[] {
-	const pm: MarkJSON[] = [];
-	for (const mark of marks) {
-		switch (mark) {
-			case "strong":
-				pm.push({ type: "bold" });
-				break;
-			case "em":
-				pm.push({ type: "italic" });
-				break;
-			case "underline":
-				pm.push({ type: "underline" });
-				break;
-			case "strike-through":
-				pm.push({ type: "strike" });
-				break;
-			case "code":
-				pm.push({ type: "code" });
-				break;
-			case "superscript":
-				pm.push({ type: "superscript" });
-				break;
-			case "subscript":
-				pm.push({ type: "subscript" });
-				break;
-			default: {
-				const md = markDefs.get(mark);
-				if (md && md._type === "link") {
-					pm.push({
-						type: "link",
-						attrs: { href: md.href, target: md.blank ? "_blank" : null },
-					});
-				}
-				break;
-			}
-		}
-	}
-	return pm;
-}
-
-/**
- * Minimal `htmlBlock` TipTap node for the inline (visual-editing) editor.
- *
- * Like PluginBlockNode below, this renders as a read-only placeholder so the
- * block's data is preserved across edits in the visual editor. Full editing
- * (textarea + preview) is only available in the admin editor.
- */
-const KEYED_NODE_TYPES = [
-	"paragraph",
-	"heading",
-	"codeBlock",
-	"htmlBlock",
-	"image",
-	"horizontalRule",
-	"pluginBlock",
-];
-
-/** Holds each block's Portable Text `_key` on the node it is saved from. */
-const PortableTextKeyAttribute = Extension.create({
-	name: "emdashInlinePortableTextKey",
-
-	addGlobalAttributes() {
-		return [
-			{
-				types: KEYED_NODE_TYPES,
-				attributes: {
-					[PORTABLE_TEXT_KEY_ATTR]: { default: null, rendered: false, parseHTML: () => null },
-				},
-			},
-		];
-	},
-});
-
-const HtmlBlockNode = Node.create({
-	name: "htmlBlock",
-	group: "block",
-	atom: true,
-	selectable: true,
-	draggable: true,
-
-	addAttributes() {
-		const noDom = { rendered: false, parseHTML: () => null };
-		return {
-			html: { default: "", ...noDom },
-			css: { default: "", ...noDom },
-			js: { default: "", ...noDom },
-			isolated: { default: false, ...noDom },
-		};
-	},
-
-	parseHTML() {
-		return [{ tag: 'div[data-emdash-html-block="true"]' }];
-	},
-
-	renderHTML({ HTMLAttributes }) {
-		return [
-			"div",
-			mergeAttributes(HTMLAttributes, {
-				"data-emdash-html-block": "true",
-				class: "emdash-plugin-block-placeholder",
-				contenteditable: "false",
-			}),
-			"HTML block (edit in admin)",
-		];
-	},
-});
-
-const TableBlockNode = Node.create<{ placeholder: string }>({
-	name: "table",
-	group: "block",
-	atom: true,
-	selectable: true,
-	draggable: true,
-
-	addOptions() {
-		return { placeholder: "Table (edit in admin)" };
-	},
-
-	addAttributes() {
-		return {
-			rawTable: { default: null, rendered: false, parseHTML: () => null },
-			emdashKey: { default: null, rendered: false, parseHTML: () => null },
-		};
-	},
-
-	parseHTML() {
-		return [{ tag: 'div[data-emdash-table-block="true"]' }];
-	},
-
-	addProseMirrorPlugins() {
-		return [
-			new Plugin({
-				props: {
-					handleDOMEvents: {
-						cut: (view, event) => {
-							let hasTable = false;
-							view.state.selection.content().content.descendants((node) => {
-								hasTable ||= node.type.name === "table";
-							});
-							if (!hasTable) return false;
-							event.preventDefault();
-							return true;
-						},
-					},
-					handlePaste: (_view, event, slice) => {
-						const html = event.clipboardData?.getData("text/html") ?? "";
-						if (!TABLE_BLOCK_PLACEHOLDER_HTML.test(html)) return false;
-
-						let hasTable = false;
-						let hasMissingPayload = false;
-						slice.content.descendants((node) => {
-							if (node.type.name !== "table") return;
-							hasTable = true;
-							if (!isPTTableBlock(node.attrs.rawTable)) hasMissingPayload = true;
-						});
-						if (hasTable && !hasMissingPayload) return false;
-
-						event.preventDefault();
-						return true;
-					},
-				},
-			}),
-		];
-	},
-
-	renderHTML({ HTMLAttributes }) {
-		return [
-			"div",
-			mergeAttributes(HTMLAttributes, {
-				"data-emdash-table-block": "true",
-				class: "emdash-plugin-block-placeholder",
-				contenteditable: "false",
-			}),
-			this.options.placeholder,
-		];
-	},
-});
-
-/**
- * Minimal `pluginBlock` TipTap node for the inline (visual-editing) editor.
- *
- * Plugin-contributed Portable Text block types (e.g. `marketing.hero`) are
- * editable in the admin via a Block Kit modal. The visual-editing surface
- * deliberately does NOT offer that UX — it would need to fetch the manifest,
- * mount the modal, and round-trip through plugin-block plumbing that lives in
- * `@emdash-cms/admin`. Instead, the inline editor renders these blocks as a
- * read-only placeholder so editors can see they exist and edit the surrounding
- * content without losing the block's data.
- *
- * The full block payload is preserved on `data` and round-tripped losslessly
- * through PT ↔ PM conversion (see convertPTBlock/convertPMNode). Without this
- * extension, ProseMirror's schema would silently filter unknown nodes on load
- * and the next save would persist the block's disappearance.
- */
-const PluginBlockNode = Node.create({
-	name: "pluginBlock",
-	group: "block",
-	atom: true,
-	selectable: true,
-	draggable: true,
-
-	addAttributes() {
-		// These attributes are stored on the ProseMirror node but not
-		// rendered as DOM attributes — they're metadata for the round-trip,
-		// not styling or behaviour the placeholder DOM needs to expose.
-		const noDom = { rendered: false, parseHTML: () => null };
-		return {
-			blockType: { default: "", ...noDom },
-			id: { default: "", ...noDom },
-			identityField: { default: "id", ...noDom },
-			data: { default: {}, ...noDom },
-		};
-	},
-
-	parseHTML() {
-		return [{ tag: 'div[data-emdash-plugin-block="true"]' }];
-	},
-
-	renderHTML({ HTMLAttributes, node }) {
-		const blockType = typeof node.attrs.blockType === "string" ? node.attrs.blockType : "";
-		const label = blockType || "Block";
-		return [
-			"div",
-			mergeAttributes(HTMLAttributes, {
-				"data-emdash-plugin-block": "true",
-				"data-block-type": blockType,
-				class: "emdash-plugin-block-placeholder",
-				contenteditable: "false",
-			}),
-			`Plugin block: ${label} (edit in admin)`,
-		];
-	},
-});
-
 // ── Component ──────────────────────────────────────────────────────
 
 export interface InlinePortableTextEditorProps {
-	value: PTBlock[];
+	value: PortableTextBlock[];
 	collection: string;
 	entryId: string;
 	field: string;
@@ -1134,7 +122,7 @@ export function InlinePortableTextEditor({
 	collection,
 	entryId,
 	field,
-	tablePlaceholder = TableBlockNode.options.placeholder,
+	tablePlaceholder = DEFAULT_TABLE_PLACEHOLDER,
 }: InlinePortableTextEditorProps) {
 	const initialRef = React.useRef(value);
 	// The editor document last known to be stored: the one the loaded content
@@ -1193,13 +181,19 @@ export function InlinePortableTextEditor({
 	const syncAnchorsRef = React.useRef<(rev: string | undefined) => void>(() => {});
 
 	const [loadState] = React.useState<{
-		content: JSONContent;
-		error: UnsupportedPortableTextMarksError | null;
+		content: ReturnType<typeof portableTextToProsemirror>;
+		error: UnsupportedPortableTextMarksError | UnsafePortableTextTableError | null;
 	}>(() => {
 		try {
-			return { content: portableTextToPM(value || []), error: null };
+			return {
+				content: portableTextToProsemirror(value || [], INLINE_PLUGIN_BLOCK_TYPES),
+				error: null,
+			};
 		} catch (error) {
-			if (error instanceof UnsupportedPortableTextMarksError) {
+			if (
+				error instanceof UnsupportedPortableTextMarksError ||
+				error instanceof UnsafePortableTextTableError
+			) {
 				return {
 					content: { type: "doc", content: [{ type: "paragraph" }] },
 					error,
@@ -1213,13 +207,10 @@ export function InlinePortableTextEditor({
 	const loadError = loadState.error;
 	const [saveError, setSaveError] = React.useState<string | null>(null);
 
-	const getBlocks = React.useCallback((): PTBlock[] => {
+	const getBlocks = React.useCallback((): PortableTextBlock[] => {
 		const editor = editorRef.current;
 		if (!editor) return initialRef.current;
-		const json: unknown = editor.getJSON();
-		if (!isProseMirrorDocument(json)) return initialRef.current;
-		assertProseMirrorMarksSupported(json);
-		return pmToPortableText(json);
+		return prosemirrorToPortableText(editor.getJSON());
 	}, []);
 
 	const save = React.useCallback(
@@ -1310,34 +301,14 @@ export function InlinePortableTextEditor({
 			}),
 		[setSlashMenuState],
 	);
+	const schemaExtensions = React.useMemo(
+		() => inlinePortableTextExtensions({ tablePlaceholder }),
+		[tablePlaceholder],
+	);
 
 	const editor = useEditor({
 		extensions: [
-			StarterKit.configure({
-				dropcursor: { color: "#3b82f6", width: 2 },
-				// Replaced with InlineCodeBlockExtension below (adds language picker).
-				codeBlock: false,
-				// Replaced with CodeMarkExtension so inline code can combine with link/etc.
-				code: false,
-				orderedList: false,
-				// Registered on their own below, so links don't open when clicked.
-				link: false,
-				underline: false,
-			}),
-			EmDashOrderedList,
-			CodeMarkExtension,
-			InlineCodeBlockExtension,
-			InlineImageExtension,
-			Underline,
-			Subscript,
-			Superscript,
-			Link.configure({
-				openOnClick: false,
-				// TipTap's Link extension defaults target to "_blank". Without an
-				// explicit override it would deep-merge that default in, causing every
-				// link created via setLink to serialize as blank: true.
-				HTMLAttributes: { target: null, class: "underline text-blue-600 dark:text-blue-400" },
-			}),
+			...schemaExtensions,
 			Placeholder.configure({
 				includeChildren: true,
 				placeholder: ({ node }) => {
@@ -1345,23 +316,16 @@ export function InlinePortableTextEditor({
 					return "";
 				},
 			}),
-			TextAlign.configure({
-				types: ["heading", "paragraph"],
-			}),
 			Focus.configure({
 				className: "has-focus",
 				mode: "all",
 			}),
 			Typography,
-			HtmlBlockNode,
-			TableBlockNode.configure({ placeholder: tablePlaceholder }),
-			PluginBlockNode,
-			PortableTextKeyAttribute,
-			PortableTextKeys,
 			editorialCommentsExtension,
 			slashCommandsExtension,
 		],
-		content: initialContent,
+		// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the converter builds documents for this schema
+		content: initialContent as Parameters<typeof useEditor>[0]["content"],
 		immediatelyRender: false,
 		editorProps: {
 			attributes: {
@@ -1486,10 +450,15 @@ export function InlinePortableTextEditor({
 
 	return (
 		<div ref={setRootElement} onBlur={handleBlur}>
-			{loadError ? (
+			{loadError instanceof UnsupportedPortableTextMarksError ? (
 				<div className="emdash-inline-editor-error" role="alert" dir="auto">
 					This field can’t be edited here because it contains unsupported Portable Text marks:{" "}
 					{loadError.marks.join(", ")}.
+				</div>
+			) : loadError ? (
+				<div className="emdash-inline-editor-error" role="alert" dir="auto">
+					This field can’t be edited here because it contains a table the editor can’t open. Edit it
+					in the admin.
 				</div>
 			) : (
 				<>
@@ -1774,7 +743,4 @@ export function InlinePortableTextEditor({
 }
 
 // Test-only exports for unit tests.
-export { pmToPortableText as _pmToPortableText };
-export { portableTextToPM as _portableTextToPM };
 export { createUnsupportedFileHandlers as _createUnsupportedFileHandlers };
-export { TableBlockNode as _InlineTableBlockNode };

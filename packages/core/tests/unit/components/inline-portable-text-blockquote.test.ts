@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 /**
  * Inline editor blockquote grouping tests (#1884).
  *
@@ -8,12 +10,16 @@
  * quote doesn't split again on reload.
  */
 
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
-	_pmToPortableText as pmToPortableText,
-	_portableTextToPM as portableTextToPM,
-} from "../../../src/components/InlinePortableTextEditor.js";
+	destroyInlineEditors,
+	inlineDocument as portableTextToPM,
+	topLevelNodes,
+	saveDocument as pmToPortableText,
+} from "../../utils/inline-portable-text.js";
+
+afterEach(destroyInlineEditors);
 
 function quoteBlock(key: string, text: string) {
 	return {
@@ -37,7 +43,7 @@ describe("blockquote grouping (inline editor seam)", () => {
 	it("merges consecutive blockquote blocks into one blockquote node", () => {
 		const pm = portableTextToPM([quoteBlock("q1", "First"), quoteBlock("q2", "Second")]);
 
-		expect(pm.content).toHaveLength(1);
+		expect(topLevelNodes(pm)).toHaveLength(1);
 		const quote = pm.content?.[0] as { type: string; content?: Array<{ type: string }> };
 		expect(quote.type).toBe("blockquote");
 		expect(quote.content).toHaveLength(2);
@@ -51,7 +57,7 @@ describe("blockquote grouping (inline editor seam)", () => {
 			quoteBlock("q2", "Second"),
 		]);
 
-		const types = (pm.content ?? []).map((n) => (n as { type: string }).type);
+		const types = topLevelNodes(pm).map((n) => (n as { type: string }).type);
 		expect(types).toEqual(["blockquote", "paragraph", "blockquote"]);
 	});
 
@@ -74,7 +80,7 @@ describe("blockquote grouping (inline editor seam)", () => {
 	it("keeps a single blockquote block as one quote with one paragraph", () => {
 		const pm = portableTextToPM([quoteBlock("q1", "Only")]);
 
-		expect(pm.content).toHaveLength(1);
+		expect(topLevelNodes(pm)).toHaveLength(1);
 		const quote = pm.content?.[0] as { type: string; content?: unknown[] };
 		expect(quote.type).toBe("blockquote");
 		expect(quote.content).toHaveLength(1);

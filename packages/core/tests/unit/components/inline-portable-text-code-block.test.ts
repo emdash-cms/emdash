@@ -8,11 +8,14 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InlineCodeBlockExtension } from "../../../src/components/inline-code-block.js";
+import { InlinePortableTextEditor } from "../../../src/components/InlinePortableTextEditor.js";
 import {
-	InlinePortableTextEditor,
-	_pmToPortableText as pmToPortableText,
-	_portableTextToPM as portableTextToPM,
-} from "../../../src/components/InlinePortableTextEditor.js";
+	destroyInlineEditors,
+	inlineDocument as portableTextToPM,
+	saveDocument as pmToPortableText,
+} from "../../utils/inline-portable-text.js";
+
+afterEach(destroyInlineEditors);
 
 describe("inline Portable Text code blocks", () => {
 	let editor: Editor;
