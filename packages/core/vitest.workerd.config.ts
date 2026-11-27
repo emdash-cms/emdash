@@ -35,7 +35,10 @@ export default defineConfig({
 				d1Databases: ["DB", "TARGET_DB"],
 				r2Buckets: ["MEDIA"],
 				// Without `useSQLite`, the object gets key-value storage with no `storage.sql`.
-				durableObjects: { EMDASH_ROOMS: { className: "EmDashRoom", useSQLite: true } },
+				durableObjects: {
+					EMDASH_ROOMS: { className: "EmDashRoom", useSQLite: true },
+					PLUGIN_GENERATION_DB: { className: "EmDashDB", useSQLite: true },
+				},
 			},
 		}),
 	],

@@ -1,12 +1,18 @@
 import type { APIContext } from "astro";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const { fakeEnv, adapterGET } = vi.hoisted(() => ({
+const { fakeEnv, adapterGET, imageConfig, virtualConfig } = vi.hoisted(() => ({
+	virtualConfig: {} as { routeCacheProvider?: string },
 	fakeEnv: {} as Record<string, unknown>,
 	adapterGET: vi.fn(async () => new Response("adapter", { status: 418 })),
+	imageConfig: {
+		service: { entrypoint: "@astrojs/cloudflare/image-service-workerd" },
+	} as { service: { entrypoint: string }; assetQueryParams?: URLSearchParams },
 }));
 
+vi.mock("virtual:emdash/config", () => ({ default: virtualConfig }));
 vi.mock("cloudflare:workers", () => ({ env: fakeEnv }));
+vi.mock("astro:assets", () => ({ imageConfig }));
 vi.mock("@astrojs/cloudflare/image-transform-endpoint", () => ({ GET: adapterGET }));
 vi.mock(
 	"emdash/media/image-endpoint",
@@ -19,20 +25,22 @@ const sourceBytes = new TextEncoder().encode("source");
 const transformedBytes = new TextEncoder().encode("transformed");
 
 function context(query: string, contentType = "image/jpeg") {
-	const input = {
-		body: new ReadableStream({
+	const sourceStream = () =>
+		new ReadableStream({
 			start(controller) {
 				controller.enqueue(sourceBytes);
 				controller.close();
 			},
-		}),
+		});
+	const input = {
+		body: sourceStream(),
 		contentType,
 		size: sourceBytes.length,
 		downloads: 0,
 	};
 	const storage = {
 		download: vi.fn(async () => {
-			input.downloads++;
+			if (input.downloads++ > 0) input.body = sourceStream();
 			return input;
 		}),
 	};
@@ -41,9 +49,10 @@ function context(query: string, contentType = "image/jpeg") {
 		storage,
 		ctx: {
 			request: new Request(
-				`https://example.test/_image?href=/_emdash/api/media/file/photo.jpg&${query}`,
+				`https://example.test/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fphoto.jpg${query ? `&${query}` : ""}`,
 			),
 			locals: { emdash: { storage } },
+			cache: { enabled: true, set: vi.fn() },
 		},
 	};
 }
@@ -70,6 +79,9 @@ function installImages() {
 
 afterEach(() => {
 	for (const key of Object.keys(fakeEnv)) delete fakeEnv[key];
+	delete imageConfig.assetQueryParams;
+	imageConfig.service.entrypoint = "@astrojs/cloudflare/image-service-workerd";
+	delete virtualConfig.routeCacheProvider;
 	vi.clearAllMocks();
 });
 
@@ -95,6 +107,179 @@ describe("Cloudflare image endpoint", () => {
 		expect(transform).toHaveBeenCalledWith({ width: 120 });
 		expect(output).toHaveBeenCalledWith({ format: "image/webp", quality });
 		expect(await response.text()).toBe("transformed");
+	});
+
+	it.each([
+		"/_emdash/api/media/file/photo.jpg?buster=1",
+		"/_emdash/api/media/file/photo.jpg?buster=2",
+		"/_emdash/api/media/file/photo.jpg?_emdash_media=hash",
+		"/_emdash/api/media/file/photo.jpg#preview",
+		"/_emdash/api/media/file/photo.jpg?",
+		"/_emdash/api/media/file/photo.jpg#",
+		"https://other.test/_emdash/api/media/file/photo.jpg",
+		"https://user@example.test/_emdash/api/media/file/photo.jpg",
+		"//example.test/_emdash/api/media/file/photo.jpg",
+	])("serves source URL %s without storing another cache entry", async (href) => {
+		installImages();
+		const { ctx } = context("w=120");
+		const url = new URL(ctx.request.url);
+		url.searchParams.set("href", href);
+		ctx.request = new Request(url);
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("transformed");
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it.each([false, true])(
+		"preserves custom-service parameters with cache enabled=%s",
+		async (enabled) => {
+			installImages();
+			imageConfig.service.entrypoint = "./custom-image-service.ts";
+			const { ctx } = context("w=120&size=thumbnail");
+			ctx.cache.enabled = enabled;
+
+			const response = await GET(ctx as never);
+
+			expect(response.status).toBe(200);
+			expect(response.headers.has("Location")).toBe(false);
+			expect(await response.text()).toBe("transformed");
+			expect(ctx.cache.set).not.toHaveBeenCalled();
+		},
+	);
+
+	it("serves a variant without caching when the provider is memory", async () => {
+		installImages();
+		virtualConfig.routeCacheProvider = "memory";
+		const { ctx } = context("w=120");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("transformed");
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it("caches a plain same-origin absolute source URL", async () => {
+		installImages();
+		const { ctx } = context("w=120");
+		const url = new URL(ctx.request.url);
+		url.searchParams.set("href", "https://example.test/_emdash/api/media/file/photo.jpg");
+		ctx.request = new Request(url);
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("transformed");
+		expect(ctx.cache.set).toHaveBeenCalledOnce();
+	});
+
+	it("stores a transformed variant in the route cache under its storage key", async () => {
+		installImages();
+		const { ctx } = context("w=120");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(ctx.cache.set).toHaveBeenCalledWith({
+			maxAge: 31_536_000,
+			tags: ["emdash:media:photo.jpg"],
+		});
+	});
+
+	it("does not cache the original fallback for malformed params", async () => {
+		installImages();
+		const { ctx } = context("w=120&q=unknown");
+
+		await GET(ctx as never);
+
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it("redirects a non-canonical query without reading storage or caching", async () => {
+		const { images } = installImages();
+		const { ctx, storage } = context("x=1&w=120");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(301);
+		expect(response.headers.get("Location")).toBe(
+			"/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fphoto.jpg&w=120",
+		);
+		expect(storage.download).not.toHaveBeenCalled();
+		expect(images.input).not.toHaveBeenCalled();
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it("serves a URL that ends in the adapter's asset query params without redirecting", async () => {
+		installImages();
+		imageConfig.assetQueryParams = new URLSearchParams({ dpl: "abc" });
+		const { ctx } = context("w=120&dpl=abc");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(ctx.cache.set).toHaveBeenCalledWith(
+			expect.objectContaining({ tags: ["emdash:media:photo.jpg"] }),
+		);
+	});
+
+	it("hands a non-EmDash image to the adapter without redirecting", async () => {
+		installImages();
+		const { ctx, storage } = context("");
+		ctx.request = new Request("https://example.test/_image?x=1&w=120&href=%2F_astro%2Flogo.png");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(418);
+		expect(adapterGET).toHaveBeenCalledOnce();
+		expect(storage.download).not.toHaveBeenCalled();
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it("serves the original uncached when the transform fails", async () => {
+		const { output } = installImages();
+		output.mockRejectedValueOnce(new Error("Images unavailable"));
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const { ctx } = context("w=120");
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("source");
+		expect(ctx.cache.set.mock.calls).toEqual([[false]]);
+	});
+
+	it("leaves a disabled route cache untouched when the transform fails", async () => {
+		const { output } = installImages();
+		output.mockRejectedValueOnce(new Error("Images unavailable"));
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const { ctx } = context("w=120");
+		ctx.cache.enabled = false;
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(200);
+		expect(await response.text()).toBe("source");
+		expect(ctx.cache.set).not.toHaveBeenCalled();
+	});
+
+	it("does not cache a failed transform when the original can't be read again", async () => {
+		const { output } = installImages();
+		output.mockRejectedValueOnce(new Error("Images unavailable"));
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const { ctx, storage } = context("w=120");
+		const download = storage.download.getMockImplementation()!;
+		storage.download
+			.mockImplementationOnce(download)
+			.mockRejectedValueOnce(new Error("R2 unavailable"));
+
+		const response = await GET(ctx as never);
+
+		expect(response.status).toBe(500);
+		expect(ctx.cache.set.mock.calls).toEqual([[false]]);
 	});
 
 	it("uses the Images default quality for an omitted q", async () => {
@@ -186,24 +371,35 @@ async function request(options: {
 	query: string;
 	method?: string;
 	headers?: Record<string, string>;
-}): Promise<{ response: Response; body: TrackedBody }> {
-	const body = trackedBody();
+}): Promise<{
+	response: Response;
+	body: TrackedBody;
+	downloads: TrackedBody[];
+	cacheSet: ReturnType<typeof vi.fn>;
+}> {
+	const downloads: TrackedBody[] = [];
 	const storage = {
-		download: async () => ({
-			body: body.stream,
-			contentType: options.contentType,
-			size: 3,
-			lastModified: new Date("2026-01-01T00:00:00Z"),
-		}),
+		download: async () => {
+			const tracked = trackedBody();
+			downloads.push(tracked);
+			return {
+				body: tracked.stream,
+				contentType: options.contentType,
+				size: 3,
+				lastModified: new Date("2026-01-01T00:00:00Z"),
+			};
+		},
 	};
-	const url = `https://site.test/_image?href=/_emdash/api/media/file/a.bin&${options.query}`;
-	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the endpoint reads only request and locals
+	const url = `https://site.test/_image?href=%2F_emdash%2Fapi%2Fmedia%2Ffile%2Fa.bin&${options.query}`;
+	const cacheSet = vi.fn();
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- the endpoint reads only request, locals and cache
 	const ctx = {
 		request: new Request(url, { method: options.method ?? "GET", headers: options.headers }),
 		locals: { emdash: { storage } },
+		cache: { enabled: true, set: cacheSet },
 	} as unknown as APIContext;
 	const response = await GET(ctx);
-	return { response, body };
+	return { response, body: downloads[0]!, downloads, cacheSet };
 }
 
 describe("cloudflare image endpoint storage body", () => {
@@ -258,11 +454,103 @@ describe("cloudflare image endpoint storage body", () => {
 		expect(body.cancelled()).toBe(false);
 	});
 
-	it("cancels the download when the Images binding fails without reading it", async () => {
+	it("serves the original when the Images binding fails", async () => {
 		fakeEnv.IMAGES = failingImages;
 		vi.spyOn(console, "error").mockImplementation(() => {});
-		const { response, body } = await request({ contentType: "image/png", query: "w=100&f=webp" });
-		expect(response.status).toBe(500);
-		expect(body.cancelled()).toBe(true);
+		const { response, downloads, cacheSet } = await request({
+			contentType: "image/png",
+			query: "w=100&f=webp",
+		});
+		expect(response.status).toBe(200);
+		expect(cacheSet.mock.calls).toEqual([[false]]);
+		expect(response.headers.get("Last-Modified")).toBeNull();
+		expect(response.headers.get("Content-Type")).toBe("image/png");
+		expect(new Uint8Array(await response.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3]));
+		expect(downloads[0]!.cancelled()).toBe(true);
+		expect(downloads[1]!.cancelled()).toBe(false);
 	});
+
+	it("revalidates the original served after the Images binding fails", async () => {
+		fakeEnv.IMAGES = failingImages;
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const first = await request({ contentType: "image/png", query: "w=100&f=webp" });
+		const etag = first.response.headers.get("ETag")!;
+		const { response, downloads } = await request({
+			contentType: "image/png",
+			query: "w=100&f=webp",
+			headers: { "If-None-Match": etag },
+		});
+		expect(response.status).toBe(304);
+		expect(response.headers.get("Last-Modified")).toBeNull();
+		expect(downloads.every((download) => download.cancelled())).toBe(true);
+	});
+
+	it("transforms again once the Images binding recovers", async () => {
+		fakeEnv.IMAGES = failingImages;
+		vi.spyOn(console, "error").mockImplementation(() => {});
+		const first = await request({ contentType: "image/png", query: "w=100&f=webp" });
+		fakeEnv.IMAGES = fakeImages;
+		const { response } = await request({
+			contentType: "image/png",
+			query: "w=100&f=webp",
+			headers: { "If-None-Match": first.response.headers.get("ETag")! },
+		});
+		expect(response.status).toBe(200);
+		expect(response.headers.get("ETag")).not.toBe(first.response.headers.get("ETag"));
+	});
+});
+
+describe("Cloudflare image endpoint outside EmDash storage", () => {
+	function imageContext(
+		href: string,
+		locals: object = { emdash: { storage: { download: vi.fn() } } },
+	) {
+		return {
+			request: new Request(
+				`https://example.test/_image?href=${encodeURIComponent(href)}&w=120&f=webp`,
+			),
+			locals,
+		};
+	}
+
+	it.each([
+		"https://attacker.example/_emdash/api/media/file/nested/photo.jpg",
+		"//attacker.example/_emdash/api/media/file/nested/photo.jpg",
+		"http:attacker.example/_emdash/api/media/file/nested/photo.jpg",
+		"http:/attacker.example/_emdash/api/media/file/nested/photo.jpg",
+	])("does not load internal media from another host (%s)", async (href) => {
+		const response = await GET(imageContext(href) as never);
+
+		expect(response.status).toBe(404);
+		expect(adapterGET).not.toHaveBeenCalled();
+	});
+
+	it("does not load cross-host internal media when storage is unavailable", async () => {
+		const response = await GET(
+			imageContext("https://attacker.example/_emdash/api/media/file/photo.jpg", {}) as never,
+		);
+
+		expect(response.status).toBe(404);
+		expect(adapterGET).not.toHaveBeenCalled();
+	});
+
+	it.each([
+		"/_emdash/api/media/file/nested/photo.jpg",
+		"https://example.test/_emdash/api/media/file/nested/photo.jpg",
+	])("does not fetch internal media it cannot read from storage (%s)", async (href) => {
+		const response = await GET(imageContext(href) as never);
+
+		expect(response.status).toBe(404);
+		expect(adapterGET).not.toHaveBeenCalled();
+	});
+
+	it.each(["https://cdn.example.com/photo.jpg", "/_astro/logo.png"])(
+		"delegates other sources to the adapter endpoint (%s)",
+		async (href) => {
+			const response = await GET(imageContext(href) as never);
+
+			expect(response.status).toBe(418);
+			expect(adapterGET).toHaveBeenCalledOnce();
+		},
+	);
 });

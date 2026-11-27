@@ -273,6 +273,39 @@ describe("redirect handlers — loop detection", () => {
 				expect(result.data.loopRedirectIds).toBeUndefined();
 			}
 		});
+
+		it("saves a source with percent-encoded brackets that leads into an existing chain", async () => {
+			await new RedirectRepository(db).create({
+				source: "/posts/new",
+				destination: "/posts/newer",
+			});
+
+			const result = await handleRedirectCreate(db, {
+				source: "/posts/%5Bslug%5D",
+				destination: "/posts/new",
+			});
+
+			expect(result).toMatchObject({ success: true, data: { isPattern: false } });
+		});
+
+		it("lists a stored pattern redirect whose destination its own source matches", async () => {
+			const endless = await new RedirectRepository(db).create({
+				source: "/[...path]",
+				destination: "/moved/[...path]",
+				isPattern: true,
+			});
+			await new RedirectRepository(db).create({ source: "/old", destination: "/new" });
+
+			const result = await handleRedirectList(db, {});
+
+			expect(result).toMatchObject({
+				success: true,
+				data: { loopRedirectIds: [endless.id] },
+			});
+			await expect(
+				handleRedirectCreate(db, { source: "/a", destination: "/b" }),
+			).resolves.toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+		});
 	});
 
 	describe("redirect cache invalidation", () => {

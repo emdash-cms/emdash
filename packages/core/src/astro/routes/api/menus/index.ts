@@ -5,10 +5,11 @@
  * POST /_emdash/api/menus              - Create menu (body may include locale & translationOf)
  */
 
+import { hasPermission } from "@emdash-cms/auth";
 import type { APIRoute } from "astro";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, unwrapResult } from "#api/error.js";
+import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleMenuCreate, handleMenuList } from "#api/handlers/menus.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { createMenuBody, localeFilterQuery } from "#api/schemas.js";
@@ -22,12 +23,18 @@ export const GET: APIRoute = async ({ request, locals }) => {
 
 	const denied = requirePerm(user, "menus:read");
 	if (denied) return denied;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const query = parseQuery(new URL(request.url), localeFilterQuery);
 	if (isParseError(query)) return query;
 
 	try {
-		const result = await handleMenuList(emdash.db, { locale: query.locale });
+		const result = await handleMenuList(emdash.db, {
+			locale: query.locale,
+			includeDrafts: hasPermission(user, "content:read_drafts"),
+		});
 		return unwrapResult(result);
 	} catch (error) {
 		return handleError(error, "Failed to fetch menus", "MENU_LIST_ERROR");
@@ -39,6 +46,9 @@ export const POST: APIRoute = async ({ request, locals, cache }) => {
 
 	const denied = requirePerm(user, "menus:manage");
 	if (denied) return denied;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	try {
 		const body = await parseBody(request, createMenuBody);

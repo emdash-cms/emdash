@@ -46,9 +46,10 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		const body = await parseOptionalBody(request, installBodySchema, {});
 		if (isParseError(body)) return body;
 
-		const configuredPluginIds = new Set<string>(
-			emdash.configuredPlugins.map((p: { id: string }) => p.id),
-		);
+		const configuredPluginIds = new Set<string>([
+			...emdash.configuredPlugins.map((p: { id: string }) => p.id),
+			...emdash.sandboxedPluginEntries.map((p: { id: string }) => p.id),
+		]);
 
 		const siteOrigin = new URL(request.url).origin;
 

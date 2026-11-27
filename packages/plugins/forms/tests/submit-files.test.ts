@@ -54,7 +54,7 @@ function context(body: unknown, media?: Record<string, unknown>) {
 		storage: {
 			forms: {
 				get: async (id: string) => (id === "upload" ? form() : null),
-				put: async () => {},
+				updateIf: async () => ({ applied: false }),
 				query: async () => ({ items: [] }),
 			},
 			submissions: { put: async () => {}, count: async () => 1 },

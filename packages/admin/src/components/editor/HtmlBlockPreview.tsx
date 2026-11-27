@@ -100,7 +100,8 @@ export function HtmlBlockPreview({
 }: HtmlBlockPreviewProps) {
 	const { t } = useLingui();
 	const source = isolated ? { html, css, js } : { html: cleanInlineHtml(html) };
-	const srcdoc = buildHtmlBlockFrame(source);
+	const title = t`HTML block preview`;
+	const srcdoc = buildHtmlBlockFrame({ ...source, title });
 	const empty = !source.html.trim() && !(isolated && (css.trim() || js.trim()));
 	const waiting = isolated && !allowScripts && (js.trim() !== "" || RUNS_SCRIPT_RE.test(html));
 
@@ -121,7 +122,7 @@ export function HtmlBlockPreview({
 					</Button>
 				</div>
 			) : (
-				<PreviewFrame key={srcdoc} srcdoc={srcdoc} lastHeight={lastHeight} />
+				<PreviewFrame key={srcdoc} srcdoc={srcdoc} title={title} lastHeight={lastHeight} />
 			)}
 			{!isolated && (
 				<p className="text-xs text-kumo-subtle">
@@ -134,9 +135,11 @@ export function HtmlBlockPreview({
 
 function PreviewFrame({
 	srcdoc,
+	title,
 	lastHeight,
 }: {
 	srcdoc: string;
+	title: string;
 	lastHeight: React.RefObject<number>;
 }) {
 	const { t } = useLingui();
@@ -190,7 +193,7 @@ function PreviewFrame({
 						ref={frameRef}
 						srcDoc={srcdoc}
 						sandbox="allow-scripts"
-						title={t`HTML block preview`}
+						title={title}
 						style={{ height: "100%" }}
 						className={cn("block w-full border-0", dragging && "pointer-events-none")}
 					/>

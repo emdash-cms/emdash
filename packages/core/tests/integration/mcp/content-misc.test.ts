@@ -158,6 +158,40 @@ describe("content_permanent_delete", () => {
 		expect(result.isError).toBe(true);
 	});
 
+	it("refuses a slug trashed in several locales unless a locale is given", async () => {
+		const repo = new ContentRepository(db);
+		const ids: Record<string, string> = {};
+		for (const locale of ["fr", "de"]) {
+			const item = await repo.create({
+				type: "post",
+				data: { title: locale },
+				slug: "shared",
+				locale,
+				authorId: ADMIN_ID,
+			});
+			await repo.delete("post", item.id);
+			ids[locale] = item.id;
+		}
+		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
+
+		const ambiguous = await harness.client.callTool({
+			name: "content_permanent_delete",
+			arguments: { collection: "post", id: "shared" },
+		});
+		expect(ambiguous.isError).toBe(true);
+		expect(extractText(ambiguous)).toContain("AMBIGUOUS_LOCALE");
+		expect(await repo.findByIdIncludingTrashed("post", ids.fr!)).not.toBeNull();
+		expect(await repo.findByIdIncludingTrashed("post", ids.de!)).not.toBeNull();
+
+		const scoped = await harness.client.callTool({
+			name: "content_permanent_delete",
+			arguments: { collection: "post", id: "shared", locale: "de" },
+		});
+		expect(scoped.isError, extractText(scoped)).toBeFalsy();
+		expect(await repo.findByIdIncludingTrashed("post", ids.de!)).toBeNull();
+		expect(await repo.findByIdIncludingTrashed("post", ids.fr!)).not.toBeNull();
+	});
+
 	it("returns NOT_FOUND for missing id", async () => {
 		harness = await connectMcpHarness({ db, userId: ADMIN_ID, userRole: Role.ADMIN });
 		const result = await harness.client.callTool({
@@ -265,6 +299,70 @@ describe("content_translations + locale", () => {
 		const frTitle = frItem.data?.title ?? frItem.title;
 		expect(enTitle).toBe("EN");
 		expect(frTitle).toBe("FR");
+	});
+
+	it("write tools refuse a slug shared by several locales unless a locale is given", async () => {
+		const create = async (title: string, locale: string) =>
+			extractJson<{ item: { id: string } }>(
+				await harness.client.callTool({
+					name: "content_create",
+					arguments: { collection: "post", data: { title }, slug: "shared", locale },
+				}),
+			).item.id;
+		const deId = await create("DE", "de");
+		const enId = await create("EN", "en");
+		const repo = new ContentRepository(db);
+
+		const read = await harness.client.callTool({
+			name: "content_get",
+			arguments: { collection: "post", id: "shared" },
+		});
+		expect(extractJson<{ item: { id: string } }>(read).item.id).toBe(enId);
+
+		const ambiguous = await harness.client.callTool({
+			name: "content_publish",
+			arguments: {
+				collection: "post",
+				id: "shared",
+				_rev: await currentRev(harness.client, "post", enId),
+			},
+		});
+		expect(ambiguous.isError).toBe(true);
+		expect(extractText(ambiguous)).toContain("AMBIGUOUS_LOCALE");
+		expect((await repo.findById("post", enId))?.status).toBe("draft");
+
+		const scoped = await harness.client.callTool({
+			name: "content_publish",
+			arguments: {
+				collection: "post",
+				id: "shared",
+				locale: "de",
+				_rev: await currentRev(harness.client, "post", deId),
+			},
+		});
+		expect(scoped.isError, extractText(scoped)).toBeFalsy();
+		expect((await repo.findById("post", deId))?.status).toBe("published");
+
+		const refusedDelete = await harness.client.callTool({
+			name: "content_delete",
+			arguments: { collection: "post", id: "shared" },
+		});
+		expect(refusedDelete.isError).toBe(true);
+
+		const deleted = await harness.client.callTool({
+			name: "content_delete",
+			arguments: { collection: "post", id: "shared", locale: "de" },
+		});
+		expect(deleted.isError, extractText(deleted)).toBeFalsy();
+		expect(await repo.findById("post", deId)).toBeNull();
+		expect(await repo.findById("post", enId)).not.toBeNull();
+
+		const restored = await harness.client.callTool({
+			name: "content_restore",
+			arguments: { collection: "post", id: "shared" },
+		});
+		expect(restored.isError, extractText(restored)).toBeFalsy();
+		expect(await repo.findById("post", deId)).not.toBeNull();
 	});
 
 	it("content_update with locale param resolves slug per-locale", async () => {

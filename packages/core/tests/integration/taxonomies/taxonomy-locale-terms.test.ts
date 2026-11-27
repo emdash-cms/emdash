@@ -154,8 +154,8 @@ function buildPostContext(
 		locals: {
 			emdash: {
 				db,
-				handleContentGet: (collection: string, id: string, locale?: string) =>
-					handleContentGet(db, collection, id, locale),
+				handleContentGetForWrite: (collection: string, id: string, locale?: string) =>
+					handleContentGet(db, collection, id, locale, undefined, { refuseAmbiguousSlug: true }),
 			},
 			user: adminUser,
 		},
@@ -785,6 +785,7 @@ describeEachDialect("content terms route without draft access", (dialect) => {
 	});
 
 	afterEach(async () => {
+		setI18nConfig(null);
 		await teardownForDialect(ctx);
 	});
 
@@ -800,6 +801,38 @@ describeEachDialect("content terms route without draft access", (dialect) => {
 		expect(published.status).toBe(200);
 		const body = (await published.json()) as TermsResponse;
 		expect((body.data?.terms ?? []).map((t) => t.id)).toEqual([fx.enTagId]);
+	});
+
+	it("GET hides terms assigned for an unpublished translation from a Subscriber", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "fr"] });
+		const fx = await seedLocalizedTags(ctx.db);
+		await new ContentRepository(ctx.db).update("post", fx.enContentId, { status: "published" });
+		// A term typed into the draft French translation exists in French only.
+		const frOnlyTag = await new TaxonomyRepository(ctx.db).create({
+			name: "tags",
+			slug: "rachat",
+			label: "Rachat",
+			locale: "fr",
+		});
+		await postTerms(
+			buildPostContext(ctx.db, { collection: "post", id: fx.frContentId, taxonomy: "tags" }, [
+				fx.frTagId,
+				frOnlyTag.id,
+			]),
+		);
+		const params = { collection: "post", id: fx.enContentId, taxonomy: "tags" };
+
+		const forEditor = await getTerms(buildGetContext(ctx.db, params));
+		const editorBody = (await forEditor.json()) as TermsResponse;
+		expect(editorBody.data?.unresolved?.map((a) => a.translationGroup)).toEqual([
+			frOnlyTag.translationGroup,
+		]);
+
+		const forSubscriber = await getTerms(buildGetContext(ctx.db, params, subscriberUser));
+		expect(forSubscriber.status).toBe(200);
+		const subscriberBody = (await forSubscriber.json()) as TermsResponse;
+		expect((subscriberBody.data?.terms ?? []).map((t) => t.id)).toEqual([fx.enTagId]);
+		expect(subscriberBody.data?.unresolved).toEqual([]);
 	});
 });
 

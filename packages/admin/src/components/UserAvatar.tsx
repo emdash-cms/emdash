@@ -40,6 +40,9 @@ export function UserAvatar({ user, size, label }: UserAvatarProps) {
 				<img
 					src={src}
 					alt=""
+					loading="lazy"
+					decoding="async"
+					draggable={false}
 					onLoad={() => setLoadedSrc(src)}
 					onError={() => setFailedSrc(src)}
 					className={`absolute inset-0 size-full rounded-full object-cover ${loaded ? "opacity-100" : "opacity-0"}`}

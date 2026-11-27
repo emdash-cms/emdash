@@ -54,6 +54,13 @@ Collection settings control how editors and public pages use the entries:
   lock is released. It applies when the editor uses
   [single-editor mode](/guides/working-with-content/#single-editor-mode).
 - **Comments** can be enabled per collection, with moderation and automatic closing settings.
+  The built-in moderator approves a comment from a signed-in user at once while **Auto-approve
+  authenticated users** is on, which is the default. With **First-time commenters only**
+  moderation, any other comment is held for review unless the email address in the comment already
+  has an approved comment anywhere on the site. EmDash does not verify that address, so a comment
+  from anyone who types such an address is published without review. When every comment must be
+  reviewed, choose **All comments require approval** and turn off **Auto-approve authenticated
+  users**.
 - **Icon** names the Phosphor icon shown next to the collection in the sidebar and command
   palette, such as `calendar-blank`; a name that does not resolve falls back to the default icon.
 - **Hide from navigation** removes the sidebar entry, the command palette link, the dashboard quick

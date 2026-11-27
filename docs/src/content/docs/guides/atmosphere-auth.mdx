@@ -102,7 +102,7 @@ When you start a fresh site with the Atmosphere provider configured, the setup w
 
 </Steps>
 
-Later logins begin with the handle, continue at the account provider, and return with an EmDash session. The provider's OAuth state and tokens are stored separately from that EmDash session so the OAuth callback can complete and the provider can refresh its own session.
+Later logins begin with the handle, continue at the account provider, and return with an EmDash session. EmDash stores the OAuth state of a sign-in in progress separately from that EmDash session so the OAuth callback can complete. It deletes the state when the callback arrives, or during scheduled cleanup if the sign-in is never finished. The tokens EmDash receives from the account provider are used only during the callback, to read the account's handle and display name, and are not stored.
 
 ## Local development
 

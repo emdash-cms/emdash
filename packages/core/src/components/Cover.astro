@@ -5,6 +5,7 @@
  * Renders an image/video with text overlay from WordPress imports.
  */
 import PortableText from "./PortableText.astro";
+import { cssColor, cssLength, cssOpacity } from "../utils/css-value.js";
 
 export interface Props {
 	node: {
@@ -21,15 +22,10 @@ export interface Props {
 }
 
 const { node } = Astro.props;
-const {
-	backgroundImage,
-	backgroundVideo,
-	overlayColor,
-	overlayOpacity = 0.5,
-	content = [],
-	minHeight = "300px",
-	alignment = "center",
-} = node ?? {};
+const { backgroundImage, backgroundVideo, content = [], alignment = "center" } = node ?? {};
+const overlayColor = cssColor(node?.overlayColor);
+const overlayOpacity = cssOpacity(node?.overlayOpacity) ?? 0.5;
+const minHeight = cssLength(node?.minHeight) ?? "300px";
 
 const hasBackground = backgroundImage || backgroundVideo;
 const overlayStyle = overlayColor

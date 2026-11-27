@@ -545,7 +545,7 @@ function createContext(originHook, invocationId) {
 			});
 		},
 		getUploadUrl: () => { throw new Error("getUploadUrl is not available in sandbox mode. Use media.upload() instead."); },
-		delete: (id) => bridgeCall("media/delete", { id }),
+		delete: (id) => bridgeCall("media/delete", { id, invocationId }),
 	};
 
 	// Marshal a RequestInit into a bounded JSON-safe shape. Request performs the

@@ -1,13 +1,3 @@
-export interface AuthorRow {
-	id: string;
-	github_id: string | null;
-	name: string;
-	email: string | null;
-	avatar_url: string | null;
-	verified: number;
-	created_at: string;
-}
-
 export interface PluginRow {
 	id: string;
 	name: string;
@@ -46,37 +36,6 @@ export interface PluginVersionRow {
 	image_audit_id: string | null;
 	image_audit_verdict: string | null;
 	published_at: string;
-}
-
-export interface PluginAuditRow {
-	id: string;
-	plugin_id: string;
-	version: string;
-	verdict: string;
-	risk_score: number;
-	summary: string;
-	findings: string;
-	model: string;
-	duration_ms: number;
-	created_at: string;
-}
-
-export interface PluginImageAuditRow {
-	id: string;
-	plugin_id: string;
-	version: string;
-	verdict: string;
-	findings: string;
-	model: string;
-	duration_ms: number;
-	created_at: string;
-}
-
-export interface InstallRow {
-	plugin_id: string;
-	site_hash: string;
-	version: string;
-	installed_at: string;
 }
 
 export interface PluginWithAuthor extends PluginRow {

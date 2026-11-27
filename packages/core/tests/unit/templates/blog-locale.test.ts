@@ -1,5 +1,5 @@
 import type { APIContext, APIRoute } from "astro";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET as cloudflareFeed } from "../../../../../templates/blog-cloudflare/src/pages/rss.xml";
 import * as cloudflareLocale from "../../../../../templates/blog-cloudflare/src/utils/locale";
@@ -33,6 +33,14 @@ describe.each([
 	["Node", nodeLocale, nodeFeed],
 	["Cloudflare", cloudflareLocale, cloudflareFeed],
 ] as const)("%s blog locale", (_name, { formatDate, getSiteLocale }, feed) => {
+	// Both templates share one formatter cache on globalThis; clear it so each copy builds its own formatters.
+	beforeEach(() => {
+		const formats = (globalThis as Record<symbol, unknown>)[
+			Symbol.for("emdash:template-blog:date-formats")
+		];
+		if (formats instanceof Map) formats.clear();
+	});
+
 	it("stays English when i18n isn't configured", async () => {
 		setDefaultLocale(null);
 		expect(getSiteLocale()).toBeUndefined();
@@ -46,6 +54,21 @@ describe.each([
 		expect(getSiteLocale()).toBe("fr");
 		expect(formatDate(date, "long")).toBe("7 octobre 2026");
 		expect(await feedLanguage(feed)).toBe("fr");
+	});
+
+	it("follows a locale change between calls", () => {
+		setDefaultLocale("fr");
+		expect(formatDate(date, "long")).toBe("7 octobre 2026");
+		setDefaultLocale("de");
+		expect(formatDate(date, "long")).toBe("7. Oktober 2026");
+		expect(formatDate(date, "short")).toBe("7. Okt. 2026");
+		setDefaultLocale(null);
+		expect(formatDate(date, "short")).toBe("Oct 7, 2026");
+	});
+
+	it("renders an invalid date as text instead of throwing", () => {
+		setDefaultLocale(null);
+		expect(formatDate(new Date(Number.NaN), "long")).toBe("Invalid Date");
 	});
 
 	it.each([

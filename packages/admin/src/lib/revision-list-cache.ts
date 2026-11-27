@@ -31,21 +31,33 @@ export interface AutosavedDraft {
 	liveRevisionId: string | null;
 	/** How many revisions the cached list asked for. */
 	limit: number;
+	/** Set when the autosave kept the draft it replaced, as a manual save does. */
+	keepPrevious?: boolean;
 }
 
 /**
  * The revision list as it most likely stands after an autosave, without reading it again: the new
  * draft revision on top. The server replaces the draft it follows only when that one was an
  * autosave, so it's removed, and its editors named after the new draft's, only when this client's
- * own autosave wrote it and it isn't the live revision. The list is read again afterwards to
- * correct the guess.
+ * own autosave wrote it, it isn't the live revision, and this autosave didn't keep it. The list is
+ * read again afterwards to correct the guess.
  */
 export function withAutosavedDraft(
 	list: RevisionListResponse,
-	{ draft, previousDraftId, previousIsAutosave, liveRevisionId, limit }: AutosavedDraft,
+	{
+		draft,
+		previousDraftId,
+		previousIsAutosave,
+		liveRevisionId,
+		limit,
+		keepPrevious = false,
+	}: AutosavedDraft,
 ): RevisionListResponse {
 	const replacesPrevious =
-		previousIsAutosave && previousDraftId !== null && previousDraftId !== liveRevisionId;
+		!keepPrevious &&
+		previousIsAutosave &&
+		previousDraftId !== null &&
+		previousDraftId !== liveRevisionId;
 	const previous = replacesPrevious
 		? list.items.find((item) => item.id === previousDraftId)
 		: undefined;

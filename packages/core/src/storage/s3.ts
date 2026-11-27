@@ -9,6 +9,7 @@ import {
 	S3Client,
 	type S3ClientConfig,
 	PutObjectCommand,
+	CopyObjectCommand,
 	GetObjectCommand,
 	DeleteObjectCommand,
 	HeadObjectCommand,
@@ -249,6 +250,26 @@ export class S3Storage implements Storage {
 				throw new EmDashStorageError(`File not found: ${key}`, "NOT_FOUND", error);
 			}
 			throw new EmDashStorageError(`Failed to download file: ${key}`, "DOWNLOAD_FAILED", error);
+		}
+	}
+
+	async copy(options: { sourceKey: string; key: string; contentType: string }): Promise<void> {
+		try {
+			await this.client.send(
+				new CopyObjectCommand({
+					Bucket: this.bucket,
+					Key: options.key,
+					CopySource: `${this.bucket}/${options.sourceKey.split("/").map(encodeURIComponent).join("/")}`,
+					ContentType: options.contentType,
+					MetadataDirective: "REPLACE",
+				}),
+			);
+		} catch (error) {
+			throw new EmDashStorageError(
+				`Failed to copy file: ${options.sourceKey}`,
+				"COPY_FAILED",
+				error,
+			);
 		}
 	}
 

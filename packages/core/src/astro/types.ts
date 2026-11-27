@@ -9,6 +9,10 @@ import type { Element } from "@emdash-cms/blocks";
 import type { Kysely } from "kysely";
 
 import type { ContentWrite } from "../api/content-save.js";
+import type { MediaUploadInput } from "../api/handlers/media-upload.js";
+import type { MediaListResponse, MediaResponse } from "../api/handlers/media.js";
+import type { RevisionResponse } from "../api/handlers/revision.js";
+import type { ContentResponse } from "../api/types.js";
 import type { ContentFieldFilters } from "../content-list-query.js";
 import type { ContentSeoInput } from "../database/repositories/types.js";
 import type {
@@ -70,6 +74,8 @@ export interface ManifestCollection {
 		string,
 		{
 			kind: string;
+			/** Schema type. Absent for unsupported types and for descriptors derived from Zod schemas. */
+			type?: string;
 			label?: string;
 			required?: boolean;
 			translatable?: boolean;
@@ -269,19 +275,43 @@ export interface EmDashManifest {
 /**
  * Standard handler response shape used by all EmDashHandlers methods.
  *
- * The error shape matches `ApiResult` from the core package — typing it
- * here lets route files use `result.error?.code` without unsafe casts while
- * keeping the data side loosely coupled (defaults to `unknown`).
+ * Narrows on `success` like `ApiResult` from the core package, while keeping
+ * `data` and `error` readable on both branches (`result.error?.code`,
+ * `result.data?.items`). The data side defaults to `unknown`.
  */
-export interface HandlerResponse<T = unknown> {
+export type HandlerResponse<T = unknown> =
+	| {
+			success: true;
+			data: T;
+			error?: undefined;
+			liveContentChanged?: boolean;
+	  }
+	| {
+			success: false;
+			data?: undefined;
+			error: {
+				code: string;
+				message: string;
+				details?: Record<string, unknown>;
+			};
+			/** The HTTP status, where the error code alone doesn't decide it. */
+			status?: number;
+			liveContentChanged?: boolean;
+	  };
+
+/**
+ * Result of dispatching to a plugin route. Unlike `HandlerResponse`, it does
+ * not narrow on `success`.
+ */
+export interface PluginRouteResponse {
 	success: boolean;
-	data?: T;
-	liveContentChanged?: boolean;
+	data?: unknown;
 	error?: {
 		code: string;
 		message: string;
 		details?: Record<string, unknown>;
 	};
+	status?: number;
 }
 
 /**
@@ -299,7 +329,7 @@ export interface EmDashHandlers {
 		moderator: { id: string; name: string | null },
 		expectedStatus?: "pending" | "approved" | "spam" | "trash",
 		request?: Request,
-	) => Promise<unknown>;
+	) => Promise<import("../database/repositories/comment.js").Comment | null>;
 
 	// Content handlers
 	handleContentList: (
@@ -324,7 +354,10 @@ export interface EmDashHandlers {
 		},
 	) => Promise<HandlerResponse>;
 
-	handleContentAuthors: (collection: string) => Promise<HandlerResponse>;
+	handleContentAuthors: (
+		collection: string,
+		options?: { includeEmail?: boolean },
+	) => Promise<HandlerResponse>;
 
 	handleContentGet: (
 		collection: string,
@@ -332,16 +365,7 @@ export interface EmDashHandlers {
 		locale?: string,
 		referenceOptions?: { includeDrafts: boolean },
 		draftOptions?: { includeStagedSlug?: boolean },
-	) => Promise<
-		HandlerResponse<{
-			item: {
-				id: string;
-				authorId: string | null;
-				[key: string]: unknown;
-			};
-			_rev?: string;
-		}>
-	>;
+	) => Promise<HandlerResponse<ContentResponse & { item: Record<string, unknown> }>>;
 
 	handleContentCreate: (
 		collection: string,
@@ -421,6 +445,19 @@ export interface EmDashHandlers {
 
 	handleContentGetIncludingTrashed: (collection: string, id: string) => Promise<HandlerResponse>;
 
+	handleContentGetForWrite: (
+		collection: string,
+		id: string,
+		locale?: string,
+		options?: { includeTrashed?: boolean },
+	) => Promise<HandlerResponse<ContentResponse & { item: Record<string, unknown> }>>;
+
+	/** Looks up by id only, never by slug. */
+	handleContentGetById: (
+		collection: string,
+		id: string,
+	) => Promise<HandlerResponse<{ item: { id: string; authorId: string | null } }>>;
+
 	handleContentDuplicate: (
 		collection: string,
 		id: string,
@@ -479,21 +516,18 @@ export interface EmDashHandlers {
 		page?: number;
 		limit?: number;
 		mimeType?: string | readonly string[];
+		q?: string;
 		folderId?: string | null;
-	}) => Promise<HandlerResponse>;
+	}) => Promise<HandlerResponse<MediaListResponse>>;
 
-	handleMediaGet: (id: string) => Promise<HandlerResponse>;
+	handleMediaGet: (id: string) => Promise<HandlerResponse<MediaResponse>>;
 
-	handleMediaUpload: (input: {
-		filename: string;
-		base64?: string;
-		url?: string;
-		contentType?: string;
-		alt?: string;
-		caption?: string;
-		authorId?: string;
-		maxUploadSize?: number;
-	}) => Promise<HandlerResponse>;
+	handleMediaUpload: (input: MediaUploadInput) => Promise<
+		HandlerResponse<{
+			item: import("../index.js").MediaItem & { url: string };
+			deduplicated?: boolean;
+		}>
+	>;
 
 	handleMediaCreate: (input: {
 		filename: string;
@@ -509,7 +543,7 @@ export interface EmDashHandlers {
 		dominantColor?: string;
 		authorId?: string;
 		folderId?: string | null;
-	}) => Promise<HandlerResponse>;
+	}) => Promise<HandlerResponse<MediaResponse>>;
 
 	handleMediaRegisterUpload: (input: {
 		storageKey: string;
@@ -527,15 +561,22 @@ export interface EmDashHandlers {
 			focalX?: number | null;
 			focalY?: number | null;
 		},
-	) => Promise<HandlerResponse>;
+	) => Promise<HandlerResponse<MediaResponse>>;
 
 	handleMediaReplaceMetadata?: (
 		id: string,
 		expectedStorageKey: string,
 		input: { size: number; width: number; height: number; contentHash: string },
-	) => Promise<HandlerResponse>;
+	) => Promise<HandlerResponse<MediaResponse>>;
 
-	handleMediaDelete: (id: string) => Promise<HandlerResponse>;
+	handleMediaDelete: (id: string) => Promise<
+		HandlerResponse<{
+			deleted: true;
+			storageKey: string;
+			mimeType: string;
+			storageDeleted: boolean;
+		}>
+	>;
 
 	// Revision handlers
 	handleRevisionList: (
@@ -550,17 +591,9 @@ export interface EmDashHandlers {
 		since: string | null,
 	) => Promise<HandlerResponse>;
 
-	handleRevisionGet: (revisionId: string) => Promise<
-		HandlerResponse<{
-			item: {
-				id: string;
-				collection: string;
-				entryId: string;
-				authorId: string | null;
-				[key: string]: unknown;
-			};
-		}>
-	>;
+	handleRevisionGet: (
+		revisionId: string,
+	) => Promise<HandlerResponse<RevisionResponse & { item: Record<string, unknown> }>>;
 
 	/**
 	 * A recovery revision restores as a save by the caller, with `role` or else their current
@@ -582,7 +615,7 @@ export interface EmDashHandlers {
 		user?: RouteCallerInput | null,
 		invalidateContentCache?: PluginContentCacheInvalidator,
 		editorDispatch?: PluginEditorExtensionDispatch,
-	) => Promise<HandlerResponse>;
+	) => Promise<PluginRouteResponse>;
 	getPluginEditorExtension: (
 		pluginId: string,
 		kind: "panel" | "action",
@@ -597,7 +630,7 @@ export interface EmDashHandlers {
 		method: string,
 		path: string,
 		request: Request,
-	) => Promise<HandlerResponse>;
+	) => Promise<PluginRouteResponse>;
 
 	// Public-only plugin route metadata for SSR page components.
 	// Public routes return their meta. Private and unknown routes return null.
@@ -612,6 +645,7 @@ export interface EmDashHandlers {
 		Array<{
 			pluginId: string;
 			name: string;
+			mcpName: string;
 			description: string;
 			route: string;
 			permission: string;
@@ -624,6 +658,7 @@ export interface EmDashHandlers {
 		Array<{
 			pluginId: string;
 			name: string;
+			mcpName: string;
 			description: string;
 			route: string;
 			permission: string;
@@ -645,7 +680,7 @@ export interface EmDashHandlers {
 		request: Request,
 		caller?: RouteCallerInput | null,
 		invalidateContentCache?: PluginContentCacheInvalidator,
-	) => Promise<HandlerResponse>;
+	) => Promise<PluginRouteResponse>;
 	handlePluginMcpDenied: (
 		pluginId: string,
 		toolName: string,
@@ -716,10 +751,16 @@ export interface EmDashHandlers {
 	runPluginActivateLifecycle: (pluginId: string) => Promise<void>;
 	runPluginUninstallLifecycle: (pluginId: string, deleteData: boolean) => Promise<void>;
 	// Read settings metadata for runtime-installed plugins.
-	getRuntimePluginSettingsSchema: (pluginId: string) => Record<string, unknown> | null;
+	getRuntimePluginSettingsSchema: (
+		pluginId: string,
+	) => Record<string, import("../plugins/types.js").SettingField> | null;
 
 	// Update plugin enabled/disabled status and rebuild hook pipeline
-	setPluginStatus: (pluginId: string, status: "active" | "inactive") => Promise<void>;
+	setPluginStatus: (
+		pluginId: string,
+		status: "active" | "inactive",
+		generation?: bigint,
+	) => Promise<void>;
 
 	// Page contribution methods (for EmDashHead/EmDashBodyStart/EmDashBodyEnd)
 	collectPageMetadata: (
@@ -730,10 +771,9 @@ export interface EmDashHandlers {
 	) => Promise<import("../plugins/types.js").PageFragmentContribution[]>;
 
 	/**
-	 * Lazy search index health check. Search routes call this before
-	 * querying so a crash-corrupted index gets repaired on first use
-	 * rather than stalling cold start. Optional because it's only
-	 * meaningful when an FTS5-capable runtime is wired in.
+	 * Lazy missing- or empty-index repair. Search routes call this before querying
+	 * without performing full row-count verification. Optional because
+	 * it's only meaningful when an FTS5-capable runtime is wired in.
 	 */
 	ensureSearchHealthy?: () => Promise<void>;
 }

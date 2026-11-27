@@ -148,6 +148,13 @@ export const LOCALES: LocaleDefinition[] = [
 		enabled: true,
 		dateLocale: () => import("react-day-picker/locale/de").then((m) => m.de),
 	},
+	// Greek
+	{
+		code: "el",
+		label: "Ελληνικά",
+		enabled: false,
+		dateLocale: () => import("react-day-picker/locale/el").then((m) => m.el),
+	},
 	// Hebrew
 	{
 		code: "he",
@@ -197,6 +204,13 @@ export const LOCALES: LocaleDefinition[] = [
 		label: "한국어",
 		enabled: false,
 		dateLocale: () => import("react-day-picker/locale/ko").then((m) => m.ko),
+	},
+	// Lithuanian
+	{
+		code: "lt",
+		label: "Lietuvių",
+		enabled: true,
+		dateLocale: () => import("react-day-picker/locale/lt").then((m) => m.lt),
 	},
 	// Norwegian Bokmål
 	{
