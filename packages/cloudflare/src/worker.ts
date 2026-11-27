@@ -15,6 +15,7 @@
 // @ts-ignore - resolved against the consuming app's Astro build
 import astroHandler from "@astrojs/cloudflare/entrypoints/server";
 import { createApp } from "astro/app/entrypoint";
+import { exports as workerExports, WorkerEntrypoint } from "cloudflare:workers";
 
 import { handleRoomUpgrade } from "./rooms/upgrade.js";
 
@@ -58,27 +59,26 @@ function getCacheProvider(): ReturnType<typeof loadCacheProvider> {
 	return provider;
 }
 
-/**
- * Purge edge-cache tags for content the sweep just published. Without a
- * request there's no `locals.cache`, so we reach the configured cache provider
- * through the Astro App manifest — the same provider routes invalidate against.
- * A no-op when no cache provider is configured.
- */
-async function invalidatePublishedTags(
-	published: ReadonlyArray<{ collection: string; id: string }>,
-): Promise<void> {
-	if (published.length === 0) return;
-	const provider = await getCacheProvider();
-	if (!provider) return;
-	const tags = [...new Set(published.flatMap((ref) => [ref.collection, ref.id]))];
-	await provider.invalidate({ tags });
-}
-
 async function invalidateContentTags(tags: string[]): Promise<void> {
 	if (tags.length === 0) return;
 	const provider = await getCacheProvider();
 	if (!provider) return;
 	await provider.invalidate({ tags });
+}
+
+async function invalidateDefaultEntrypointTags(tags: string[]): Promise<void> {
+	if (tags.length === 0) return;
+	// Workers Cache purges are scoped to the calling entrypoint. Cron invocations
+	// must use RPC on the default entrypoint, not fetch or a named entrypoint.
+	const entrypoint = (
+		workerExports as {
+			default?: { emdashInvalidateCache: (tags: string[]) => Promise<void> };
+		}
+	)?.default;
+	if (!entrypoint) {
+		throw new Error("Default-entrypoint cache invalidation requires Cloudflare loopback exports");
+	}
+	await entrypoint.emdashInvalidateCache(tags);
 }
 
 /**
@@ -94,6 +94,8 @@ const PUBLISH_UPCOMING_WITHIN_MS = 70 * 1000;
  */
 export interface ScheduledHandlerOptions {
 	generalCron?: string;
+	/** Requires EmDashWorker (or a subclass) as the site's default export. */
+	invalidateViaDefaultEntrypoint?: boolean;
 }
 
 export function createScheduledHandler(
@@ -103,6 +105,12 @@ export function createScheduledHandler(
 	if (options?.generalCron !== undefined && !generalCron) {
 		throw new Error("Configured scheduled-handler expressions must be non-empty");
 	}
+
+	// The runtime retains this callback for request-less plugin actions, so it
+	// must not capture an invocation's ExecutionContext or RPC stub.
+	const invalidate = options?.invalidateViaDefaultEntrypoint
+		? invalidateDefaultEntrypointTags
+		: invalidateContentTags;
 
 	return (controller, _env, ctx) => {
 		if (generalCron !== undefined && controller.cron !== generalCron) {
@@ -120,8 +128,9 @@ export function createScheduledHandler(
 					// to publish — not just whatever completed before a single end-of-sweep
 					// purge that may never run.
 					const { published } = await runScheduledTasks({
-						onPublished: invalidatePublishedTags,
-						invalidateContentCache: invalidateContentTags,
+						onPublished: (refs) =>
+							invalidate([...new Set(refs.flatMap((ref) => [ref.collection, ref.id]))]),
+						invalidateContentCache: invalidate,
 						publishUpcomingWithinMs: PUBLISH_UPCOMING_WITHIN_MS,
 					});
 					if (published.length > 0) {
@@ -136,16 +145,41 @@ export function createScheduledHandler(
 }
 
 // eslint-disable-next-line typescript/no-unsafe-type-assertion -- astroHandler is the adapter's { fetch } worker object; resolved at app-build time
-const handler = astroHandler as ExportedHandler;
+const handler = astroHandler as Omit<ExportedHandler, "fetch"> & {
+	fetch?: (request: Request, env: unknown, ctx: ExecutionContext) => Response | Promise<Response>;
+};
 
+function workerFetch(request: Request, env: unknown, ctx: ExecutionContext) {
+	const upgrade = handleRoomUpgrade(request, env);
+	if (upgrade) return upgrade;
+	if (!handler.fetch) throw new Error("The Astro handler has no fetch");
+	return handler.fetch(request, env, ctx);
+}
+
+const scheduledHandler = createScheduledHandler();
+const rpcScheduledHandler = createScheduledHandler({ invalidateViaDefaultEntrypoint: true });
+
+/** Legacy object-style handler. Use EmDashWorker as default for Workers Cache cron purges. */
 export default {
 	...handler,
-	// Room upgrades go to their Durable Object before Astro runs.
-	fetch(request, env, ctx) {
-		const upgrade = handleRoomUpgrade(request, env);
-		if (upgrade) return upgrade;
-		if (!handler.fetch) throw new Error("The Astro handler has no fetch");
-		return handler.fetch(request, env, ctx);
-	},
-	scheduled: createScheduledHandler(),
+	fetch: workerFetch,
+	scheduled: scheduledHandler,
 } satisfies ExportedHandler;
+
+/**
+ * Export as the site's default entrypoint to invalidate Workers Cache from Cron Triggers.
+ * Extend this class when the site needs custom fetch or scheduled handling.
+ */
+export class EmDashWorker extends WorkerEntrypoint {
+	override fetch(request: Request): Response | Promise<Response> {
+		return workerFetch(request, this.env, this.ctx);
+	}
+
+	override scheduled(controller: ScheduledController): void | Promise<void> {
+		return rpcScheduledHandler(controller, this.env, this.ctx);
+	}
+
+	async emdashInvalidateCache(tags: string[]): Promise<void> {
+		await invalidateContentTags(tags);
+	}
+}

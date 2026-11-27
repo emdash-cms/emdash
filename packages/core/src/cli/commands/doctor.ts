@@ -29,11 +29,13 @@ export interface CheckResult {
 
 const WRANGLER_CONFIG_FILES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml"] as const;
 const CLOUDFLARE_WORKER_MODULE = "@emdash-cms/cloudflare/worker";
-const WORKER_FIX = `export { default, PluginBridge } from "${CLOUDFLARE_WORKER_MODULE}";`;
+const WORKER_FIX = `export { EmDashWorker as default, PluginBridge } from "${CLOUDFLARE_WORKER_MODULE}";`;
 const MAIN_FIX_JSONC = `"main": "./src/worker.ts"`;
 const MAIN_FIX_TOML = `main = "./src/worker.ts"`;
 const TRIGGER_FIX_JSONC = `"triggers": { "crons": ["* * * * *"] }`;
 const TRIGGER_FIX_TOML = `[triggers]\ncrons = ["* * * * *"]`;
+const EMDASH_WORKER_SUBCLASS_PATTERN =
+	/export\s+default\s+class(?:\s+[A-Za-z_$][\w$]*)?\s+extends\s+EmDashWorker\b/m;
 const SCHEDULED_HANDLER_PATTERN = /\bscheduled\s*:\s*createScheduledHandler\s*\(/m;
 
 function triggerFix(configPath: string): string {
@@ -83,9 +85,14 @@ function workerExportsScheduledMaintenance(source: string): boolean {
 		`import\\s+[^;]*\\{[^}]*\\bcreateScheduledHandler\\b[^}]*\\}\\s*from\\s*["']${modulePattern}["']`,
 		"m",
 	);
+	const importsEmDashWorker = new RegExp(
+		`import\\s+[^;]*\\{[^}]*\\bEmDashWorker\\b[^}]*\\}\\s*from\\s*["']${modulePattern}["']`,
+		"m",
+	);
 	return (
 		reExportsWorker.test(source) ||
-		(importsFactory.test(source) && SCHEDULED_HANDLER_PATTERN.test(source))
+		(importsFactory.test(source) && SCHEDULED_HANDLER_PATTERN.test(source)) ||
+		(importsEmDashWorker.test(source) && EMDASH_WORKER_SUBCLASS_PATTERN.test(source))
 	);
 }
 

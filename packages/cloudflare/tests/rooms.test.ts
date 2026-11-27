@@ -13,7 +13,7 @@ const { fakeEnv, rooms, astroFetch } = vi.hoisted(() => {
 	};
 });
 
-vi.mock("cloudflare:workers", () => ({ env: fakeEnv }));
+vi.mock("cloudflare:workers", () => ({ env: fakeEnv, WorkerEntrypoint: vi.fn() }));
 vi.mock("@astrojs/cloudflare/entrypoints/server", () => ({ default: { fetch: astroFetch } }));
 vi.mock("astro/app/entrypoint", () => ({ createApp: () => ({ manifest: {} }) }));
 vi.mock("../src/sandbox/bridge.js", () => ({ PluginBridge: vi.fn() }));
