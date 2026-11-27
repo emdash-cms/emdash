@@ -17,12 +17,21 @@ import {
 	handleMenuItemCreate,
 	handleMenuItemDelete,
 	handleMenuItemUpdate,
+	handleMenuList,
 	handleMenuSetItems,
 } from "../../../src/api/handlers/menus.js";
 import { createMenuItemBody, updateMenuItemBody } from "../../../src/api/schemas/menus.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
 import type { Database } from "../../../src/database/types.js";
 import { setI18nConfig } from "../../../src/i18n/config.js";
-import { setupTestDatabase, teardownTestDatabase } from "../../utils/test-db.js";
+import {
+	describeEachDialect,
+	setupForDialectWithCollections,
+	setupTestDatabase,
+	teardownForDialect,
+	teardownTestDatabase,
+	type DialectTestContext,
+} from "../../utils/test-db.js";
 
 describe("menu schemas", () => {
 	describe("createMenuItemBody.strict()", () => {
@@ -277,6 +286,148 @@ describe("handleMenuSetItems — concurrent delete race", () => {
 			.where("menu_id", "=", menuId)
 			.execute();
 		expect(orphans).toHaveLength(0);
+	});
+});
+
+describeEachDialect("menu reads without draft access", (dialect) => {
+	let ctx: DialectTestContext;
+	let db: Kysely<Database>;
+	let content: ContentRepository;
+
+	beforeEach(async () => {
+		ctx = await setupForDialectWithCollections(dialect);
+		db = ctx.db;
+		content = new ContentRepository(db);
+		await handleMenuCreate(db, { name: "primary", label: "Primary" });
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	async function addItem(input: Parameters<typeof handleMenuItemCreate>[2]): Promise<string> {
+		const res = await handleMenuItemCreate(db, "primary", input);
+		if (!res.success) throw new Error(res.error.message);
+		return res.data.id;
+	}
+
+	async function readLabels(includeDrafts: boolean): Promise<string[]> {
+		const res = await handleMenuGet(db, "primary", { includeDrafts });
+		if (!res.success) throw new Error(res.error.message);
+		return res.data.items.map((item) => item.label);
+	}
+
+	async function readItemCount(includeDrafts: boolean): Promise<number | undefined> {
+		const res = await handleMenuList(db, { includeDrafts });
+		if (!res.success) throw new Error(res.error.message);
+		return res.data.find((menu) => menu.name === "primary")?.itemCount;
+	}
+
+	it("omits items that link to draft, scheduled, trashed or missing entries", async () => {
+		const published = await content.create({
+			type: "page",
+			slug: "team",
+			data: { title: "Our team" },
+			status: "published",
+		});
+		const draft = await content.create({
+			type: "page",
+			slug: "acme",
+			data: { title: "We are acquiring Acme Corp" },
+		});
+		const scheduled = await content.create({
+			type: "post",
+			slug: "launch",
+			data: { title: "Launch day" },
+			status: "scheduled",
+		});
+		const trashed = await content.create({
+			type: "post",
+			slug: "old",
+			data: { title: "Old news" },
+			status: "published",
+		});
+		await content.delete("post", trashed.id);
+
+		await addItem({ type: "custom", label: "Blog", customUrl: "/blog" });
+		await addItem({ type: "collection", label: "Posts", referenceCollection: "post" });
+		await addItem({
+			type: "page",
+			label: "Our team",
+			referenceCollection: "page",
+			referenceId: published.id,
+		});
+		const draftItem = await addItem({
+			type: "page",
+			label: "We are acquiring Acme Corp",
+			referenceCollection: "page",
+			referenceId: draft.id,
+		});
+		await addItem({
+			type: "custom",
+			label: "Deal terms",
+			customUrl: "/acme/terms",
+			parentId: draftItem,
+		});
+		await addItem({
+			type: "post",
+			label: "Launch day",
+			referenceCollection: "post",
+			referenceId: scheduled.id,
+		});
+		await addItem({
+			type: "post",
+			label: "Old news",
+			referenceCollection: "post",
+			referenceId: trashed.id,
+		});
+		await addItem({
+			type: "collection",
+			label: "Gone",
+			referenceCollection: "dropped_collection",
+			referenceId: "01JUNKNOWN",
+		});
+
+		expect(await readLabels(true)).toHaveLength(8);
+		expect(await readItemCount(true)).toBe(8);
+
+		// The default is the restricted view.
+		const res = await handleMenuGet(db, "primary");
+		expect(res.success && res.data.items.map((item) => item.label)).toEqual([
+			"Blog",
+			"Posts",
+			"Our team",
+		]);
+		expect(await readLabels(false)).toEqual(["Blog", "Posts", "Our team"]);
+		expect(await readItemCount(false)).toBe(3);
+	});
+
+	it("keeps an item once any translation of its target is published", async () => {
+		const source = await content.create({ type: "page", slug: "about", data: { title: "About" } });
+		const translation = await content.create({
+			type: "page",
+			slug: "a-propos",
+			data: { title: "À propos" },
+			locale: "fr",
+			translationOf: source.id,
+			status: "published",
+		});
+		// One item stores the translation group, the other a row id.
+		await addItem({
+			type: "page",
+			label: "About",
+			referenceCollection: "page",
+			referenceId: source.translationGroup ?? source.id,
+		});
+		await addItem({
+			type: "page",
+			label: "À propos",
+			referenceCollection: "page",
+			referenceId: translation.id,
+		});
+
+		expect(await readLabels(false)).toEqual(["About", "À propos"]);
+		expect(await readItemCount(false)).toBe(2);
 	});
 });
 

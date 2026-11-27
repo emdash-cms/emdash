@@ -183,6 +183,9 @@ export interface RepeaterSubField {
 	label: string;
 	required?: boolean;
 	options?: string[]; // For select sub-fields
+	validation?: {
+		allowedMimeTypes?: string[];
+	}; // For image sub-fields
 }
 
 /** Allowed types for repeater sub-fields (no nesting, no complex types) */

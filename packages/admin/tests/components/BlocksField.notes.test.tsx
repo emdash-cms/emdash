@@ -902,6 +902,7 @@ describe("A problem under a label that fills its narrow line", () => {
 		const atRest = await openWordy();
 		await link().fill("contact us");
 		await textbox("Title").click();
+		await expect.poll(() => dangerTexts(label()).map(ownText)).toEqual(["Invalid link"]);
 		await settled();
 		const twoLines = label().getBoundingClientRect().height;
 		expect(twoLines).toBeGreaterThan(atRest + 8);
@@ -936,6 +937,7 @@ describe("A problem under a label that fills its narrow line", () => {
 		await openWordy();
 		await link().fill("contact us");
 		await textbox("Title").click();
+		await expect.poll(() => dangerTexts(label()).map(ownText)).toEqual(["Invalid link"]);
 		await settled();
 		const head = toggleOf("after");
 

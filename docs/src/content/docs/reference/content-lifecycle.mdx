@@ -68,6 +68,12 @@ after permanent deletion. Successful after-hooks run after the state change and 
 response has been sent. A plugin can reject save, publish, unpublish, schedule, or move-to-Trash from
 the corresponding before-hook.
 
+A REST save or an MCP `content_update` that sets `status` to `draft` on a published or scheduled
+entry saves its other fields, then unpublishes the entry. It needs the Unpublish permission as well
+as the Save changes permission. When a `content:beforeUnpublish` hook rejects it, the entry keeps its
+status, live revision, and schedule, and the other fields stay saved. The error's `details._rev` is
+the `_rev` of that save.
+
 When scheduled publication reaches its due time, it uses the publish hooks. If a
 `content:beforePublish` hook rejects that scheduled attempt, EmDash clears the schedule and runs
 `content:afterUnschedule`. It does the same when the publish itself refuses the entry with

@@ -16,8 +16,12 @@ const ENTITIES: Record<string, string> = { "&": "&amp;", '"': "&quot;", "<": "&l
 // Astro leaves `<` and `>` unescaped in attributes. Middleware that finds
 // `</body>` by searching the page's text could then match one inside `srcdoc`
 // and break the tag, dropping its sandbox.
-const srcdoc = buildHtmlBlockFrame(Astro.props).replace(MARKUP_RE, (char) => ENTITIES[char] ?? char);
-const frame = `<iframe class="emdash-html-block" data-emdash-html-block srcdoc="${srcdoc}" sandbox="${HTML_BLOCK_FRAME_SANDBOX}" title="Embedded HTML"></iframe>`;
+const title = "Embedded HTML";
+const srcdoc = buildHtmlBlockFrame({ ...Astro.props, title }).replace(
+	MARKUP_RE,
+	(char) => ENTITIES[char] ?? char,
+);
+const frame = `<iframe class="emdash-html-block" data-emdash-html-block srcdoc="${srcdoc}" sandbox="${HTML_BLOCK_FRAME_SANDBOX}" title="${title}"></iframe>`;
 ---
 
 <Fragment set:html={frame} />

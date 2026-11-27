@@ -97,6 +97,84 @@ describe("Comment Service with CommentHookRunner", () => {
 		expect(result!.comment.body).toBe("Modified body");
 	});
 
+	it("keeps the target, account and request details when beforeCreate returns other ones", async () => {
+		await db
+			.insertInto("users")
+			.values({ id: "admin-1", email: "owner@example.com", name: "Owner", role: 50 })
+			.execute();
+		const elsewhere = await createComment(
+			db,
+			{
+				...defaultInput,
+				authorEmail: "joe@example.com",
+				collection: "page",
+				contentId: "content-2",
+			},
+			defaultSettings(),
+			makeHookRunner(),
+		);
+		const runModerate = vi.fn(async (event: CommentModerateEvent) =>
+			defaultCommentModerate(event, {} as PluginContext),
+		);
+		const hooks = makeHookRunner({
+			runBeforeCreate: vi.fn(async (event: CommentBeforeCreateEvent) => ({
+				...event,
+				comment: {
+					...event.comment,
+					authorName: "Owner",
+					authorUserId: "admin-1",
+					collection: "page",
+					contentId: "content-2",
+					parentId: elsewhere!.comment.id,
+					ipHash: "someone-else",
+					userAgent: "someone-else",
+				},
+			})),
+			runModerate,
+		});
+
+		const result = await createComment(
+			db,
+			{ ...defaultInput, ipHash: "visitor", userAgent: "browser" },
+			defaultSettings(),
+			hooks,
+		);
+
+		expect(runModerate.mock.calls[0]![0].comment.authorUserId).toBeNull();
+		expect(result!.comment).toMatchObject({
+			status: "pending",
+			authorName: "Owner",
+			authorUserId: null,
+			collection: "post",
+			contentId: "content-1",
+			parentId: null,
+			ipHash: "visitor",
+			userAgent: "browser",
+		});
+	});
+
+	it("keeps the target and account when beforeCreate changes them in place", async () => {
+		const hooks = makeHookRunner({
+			runBeforeCreate: vi.fn(async (event: CommentBeforeCreateEvent) => {
+				event.comment.contentId = "content-2";
+				event.comment.authorUserId = "admin-1";
+				event.comment.body = "Edited in place";
+				event.metadata.checked = true;
+				return event;
+			}),
+			runModerate: vi.fn(async () => ({ status: "pending" as const, reason: "Held" })),
+		});
+
+		const result = await createComment(db, defaultInput, defaultSettings(), hooks);
+
+		expect(result!.comment).toMatchObject({
+			contentId: "content-1",
+			authorUserId: null,
+			body: "Edited in place",
+			moderationMetadata: { checked: true },
+		});
+	});
+
 	it("returns null when beforeCreate returns false (rejected)", async () => {
 		const hooks = makeHookRunner({
 			runBeforeCreate: vi.fn(async () => false as const),
@@ -395,6 +473,108 @@ describe("Comment Hooks with HookPipeline", () => {
 		expect(spy).toHaveBeenCalledOnce();
 		expect(result).not.toBe(false);
 		expect((result as CommentBeforeCreateEvent).metadata.enriched).toBe(true);
+	});
+
+	it.each([
+		["returns the event", true],
+		["returns nothing", false],
+	])(
+		"ignores in-place target changes from a comment:beforeCreate handler that %s",
+		async (_label, returnsEvent) => {
+			const plugin = definePlugin({
+				id: "test-in-place",
+				version: "1.0.0",
+				capabilities: ["users:read"],
+				hooks: {
+					"comment:beforeCreate": async (event: CommentBeforeCreateEvent) => {
+						event.comment.contentId = "c2";
+						event.comment.authorUserId = "admin-1";
+						event.comment.body = "Edited in place";
+						event.metadata.enriched = true;
+						return returnsEvent ? event : undefined;
+					},
+				},
+			});
+			const pipeline = createHookPipeline([plugin], { db: pipelineDb });
+			const event: CommentBeforeCreateEvent = {
+				comment: {
+					collection: "post",
+					contentId: "c1",
+					parentId: null,
+					authorName: "Jane",
+					authorEmail: "jane@example.com",
+					authorUserId: null,
+					body: "Hello",
+					ipHash: null,
+					userAgent: null,
+				},
+				metadata: {},
+			};
+
+			const result = await pipeline.runCommentBeforeCreate(event);
+
+			expect(result).toMatchObject({
+				comment: { contentId: "c1", authorUserId: null, body: "Edited in place" },
+				metadata: { enriched: true },
+			});
+		},
+	);
+
+	it("passes the caller's target and account to the next comment:beforeCreate handler", async () => {
+		const forger = definePlugin({
+			id: "test-forger",
+			version: "1.0.0",
+			capabilities: ["users:read"],
+			hooks: {
+				"comment:beforeCreate": {
+					priority: 10,
+					handler: async (event: CommentBeforeCreateEvent) => ({
+						...event,
+						comment: {
+							...event.comment,
+							body: "Rewritten",
+							authorUserId: "admin-1",
+							contentId: "c2",
+							ipHash: "someone-else",
+						},
+						metadata: { ...event.metadata, enriched: true },
+					}),
+				},
+			},
+		});
+		const seen = vi.fn(async (_event: CommentBeforeCreateEvent) => {});
+		const observer = definePlugin({
+			id: "test-observer",
+			version: "1.0.0",
+			capabilities: ["users:read"],
+			hooks: { "comment:beforeCreate": { priority: 20, handler: seen } },
+		});
+
+		const pipeline = createHookPipeline([forger, observer], { db: pipelineDb });
+
+		const event: CommentBeforeCreateEvent = {
+			comment: {
+				collection: "post",
+				contentId: "c1",
+				parentId: null,
+				authorName: "Jane",
+				authorEmail: "jane@example.com",
+				authorUserId: null,
+				body: "Hello",
+				ipHash: "visitor",
+				userAgent: null,
+			},
+			metadata: {},
+		};
+
+		const result = await pipeline.runCommentBeforeCreate(event);
+
+		const expected = {
+			comment: { ...event.comment, body: "Rewritten" },
+			metadata: { enriched: true },
+		};
+		expect(seen.mock.calls[0]![0]).toEqual(expected);
+		expect(result).toEqual(expected);
 	});
 
 	it("invokes exclusive comment:moderate plugin and returns decision", async () => {

@@ -212,11 +212,10 @@ function buildDependencies(
 		config,
 		migrationMode,
 		plugins: getPlugins(),
-		createDialect: virtualCreateDialect as (config: Record<string, unknown>) => unknown,
+		createDialect: virtualCreateDialect as RuntimeDependencies["createDialect"],
 		// Optional: only batching backends (D1, DO) export this; undefined otherwise.
-		createCoalescingDialect: virtualCreateCoalescingDialect as
-			| ((config: Record<string, unknown>) => unknown)
-			| undefined,
+		createCoalescingDialect:
+			virtualCreateCoalescingDialect as RuntimeDependencies["createCoalescingDialect"],
 		createStorage: virtualCreateStorage as ((config: Record<string, unknown>) => Storage) | null,
 		createScheduler: virtualCreateScheduler as CreateSchedulerFn | null,
 		createRoomHost: virtualCreateRoomHost as CreateRoomHostFn | null,
@@ -820,6 +819,25 @@ function canReuseAnonymousRender(context: APIContext): boolean {
 	return true;
 }
 
+interface HostLocals {
+	netlify?: { context?: { waitUntil?: unknown } };
+	waitUntil?: unknown;
+}
+
+/**
+ * The per-request lifetime extender on `locals`: Netlify's
+ * `locals.netlify.context`, or `locals.waitUntil` set by a site's own
+ * middleware.
+ */
+function localsWaitUntil(locals: object): ((promise: Promise<unknown>) => void) | undefined {
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- host-specific fields that App.Locals does not declare
+	const host = locals as HostLocals;
+	const netlify = host.netlify?.context;
+	if (typeof netlify?.waitUntil === "function") return netlify.waitUntil.bind(netlify);
+	if (typeof host.waitUntil === "function") return host.waitUntil.bind(locals);
+	return undefined;
+}
+
 export const onRequest = defineMiddleware(async (context, next) => {
 	const { request, locals, cookies } = context;
 	const url = context.url;
@@ -879,7 +897,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			config && !playgroundDb && isImageEndpointRequest(context)
 				? tryGetStorage(config, migrationMode)
 				: null;
-		if (imageStorage) {
+		if (config && imageStorage) {
 			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- partial object; the image endpoint reads only storage, the auth middleware db
 			const imageLocals = { storage: imageStorage } as EmDashHandlers;
 			locals.emdash = imageLocals;
@@ -899,7 +917,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			(request.headers.get("authorization") ?? "").toLowerCase().startsWith("bearer ");
 		const isWrite = request.method !== "GET" && request.method !== "HEAD";
 		const isAuthenticated = !!sessionUser || hasBearerAuth;
-		const endedAuthenticated = () => requestEndedAuthenticated(isAuthenticated, cookies);
+		// The Bearer header is unverified here and only steers connection
+		// routing. Per-request state that commit() returns to the client is
+		// only for callers the auth middleware resolved into `locals.user`.
+		const endedAuthenticated = () =>
+			requestEndedAuthenticated(!!sessionUser || !!locals.user, cookies);
 		const canUseCachedBinding =
 			!isAuthenticated &&
 			!isWrite &&
@@ -1158,6 +1180,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
 					handleContentPermanentDelete: runtime.handleContentPermanentDelete.bind(runtime),
 					handleContentCountTrashed: runtime.handleContentCountTrashed.bind(runtime),
 					handleContentGetIncludingTrashed: runtime.handleContentGetIncludingTrashed.bind(runtime),
+					handleContentGetForWrite: runtime.handleContentGetForWrite.bind(runtime),
+					handleContentGetById: runtime.handleContentGetById.bind(runtime),
 
 					// Duplicate handler
 					handleContentDuplicate: runtime.handleContentDuplicate.bind(runtime),
@@ -1326,10 +1350,15 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				timings.push({ name: "render", dur: performance.now() - t0, desc: "Page render" });
 				timings.push({ name: "mw", dur: performance.now() - mwStart, desc: "Total middleware" });
 				pushMetricsTimings(timings, metrics);
+				// Some API routes give the same answer whether or not a record
+				// exists; query counts and durations would differ, so API
+				// responses only carry timings in dev.
+				const isApiRoute = publicPath.startsWith("/_emdash/api");
+				const exposedTimings = import.meta.env.DEV || !isApiRoute ? timings : undefined;
 				// Server-Timing only sees pre-stream queries; the stream-end
 				// wrapper (instrumentation-gated, no-op otherwise) emits the
 				// final counters once the body finishes streaming.
-				return wrapBodyForStreamMetrics(finalizeResponse(response, timings));
+				return wrapBodyForStreamMetrics(finalizeResponse(response, exposedTimings));
 			};
 
 			if (scoped) {
@@ -1366,7 +1395,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	};
 
 	try {
-		const response = await runWithContext({ editMode: false, queryRecorder, metrics }, run);
+		const response = await runWithContext(
+			{ editMode: false, queryRecorder, metrics, hostWaitUntil: () => localsWaitUntil(locals) },
+			run,
+		);
 		applyBuildValidator(context);
 		keepUnsharedResponsesOutOfRouteCache(context, response);
 		return response;

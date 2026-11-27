@@ -52,7 +52,7 @@ export type UserDataValue =
 	| { readonly [key: string]: UserDataValue };
 
 /** Top-level `users.data` keys that core writes one at a time. */
-export type UserDataKey = "welcomeDismissed" | "adminLayout";
+export type UserDataKey = "welcomeDismissed" | "adminLayout" | "firstAdminClaim";
 
 /**
  * User repository for CRUD operations

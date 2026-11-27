@@ -55,8 +55,14 @@ describe("buildImageRemotePatterns", () => {
 		expect(buildImageRemotePatterns(localStorage, "https://**.com", "build")).toEqual([]);
 	});
 
-	it("adds a host-agnostic media pattern only in dev", () => {
+	it("adds a host-agnostic media pattern in dev", () => {
 		expect(buildImageRemotePatterns(localStorage, undefined, "dev")).toEqual([
+			{ pathname: MEDIA_PATH },
+		]);
+	});
+
+	it("adds a host-agnostic media pattern to a build only when EmDash serves media transforms", () => {
+		expect(buildImageRemotePatterns(localStorage, undefined, "build", true)).toEqual([
 			{ pathname: MEDIA_PATH },
 		]);
 		expect(buildImageRemotePatterns(localStorage, undefined, "build")).toEqual([]);
@@ -206,7 +212,10 @@ describe("imageEndpointRoutePattern", () => {
 });
 
 /** Runs `astro:config:setup` and returns the image config Astro would receive. */
-async function imageConfigFor(config: EmDashConfig) {
+async function imageConfigFor(
+	config: EmDashConfig,
+	image: { endpoint?: { entrypoint?: string; route?: string } } = {},
+) {
 	const setup = emdash(config).hooks["astro:config:setup"] as NonNullable<
 		AstroIntegration["hooks"]["astro:config:setup"]
 	>;
@@ -220,6 +229,7 @@ async function imageConfigFor(config: EmDashConfig) {
 			security: {},
 			trailingSlash: "ignore",
 			integrations: [{ name: "@astrojs/react", hooks: {} }],
+			image,
 		},
 		logger: { debug: vi.fn(), error: vi.fn(), info: vi.fn(), warn: vi.fn() },
 		injectRoute: vi.fn(),
@@ -291,17 +301,30 @@ describe("image remotePatterns from env", () => {
 			hostname: "env.example.com",
 			pathname: MEDIA_PATH,
 		});
-		expect(image.remotePatterns?.every((pattern) => pattern.hostname)).toBe(true);
 	});
 
 	it.each(["not-a-url", "file:///etc/passwd", "https://*.example.com", "https://**.com"])(
-		"allowlists nothing for a malformed EMDASH_SITE_URL (%s)",
+		"allowlists no host for a malformed EMDASH_SITE_URL (%s)",
 		async (value) => {
 			process.env.EMDASH_SITE_URL = value;
 			const image = await imageConfigFor({});
-			expect(image.remotePatterns).toBeUndefined();
+			expect(image.remotePatterns).toEqual([{ pathname: MEDIA_PATH }]);
 		},
 	);
+});
+
+describe("image remotePatterns without a site URL", () => {
+	it("allowlists the media route on any host when EmDash installs its image endpoint", async () => {
+		expect((await imageConfigFor({})).remotePatterns).toEqual([{ pathname: MEDIA_PATH }]);
+	});
+
+	it("allowlists nothing when EmDash does not install its image endpoint", async () => {
+		expect((await imageConfigFor({ images: false })).remotePatterns).toBeUndefined();
+		expect(
+			(await imageConfigFor({}, { endpoint: { entrypoint: "./src/my-endpoint.ts" } }))
+				.remotePatterns,
+		).toBeUndefined();
+	});
 });
 
 describe("image endpoint route in the runtime config", () => {

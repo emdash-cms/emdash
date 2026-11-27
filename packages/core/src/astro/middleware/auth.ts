@@ -10,7 +10,7 @@
  * we know setup is complete and users exist.
  */
 
-import type { User, RoleLevel } from "@emdash-cms/auth";
+import { toRoleLevel, type User, type RoleLevel } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { defineMiddleware } from "astro:middleware";
 import { ulid } from "ulidx";
@@ -23,6 +23,7 @@ import virtualConfig from "virtual:emdash/config";
 import { checkPublicCsrf } from "../../api/csrf.js";
 import { apiError } from "../../api/error.js";
 import { getPublicOrigin } from "../../api/public-url.js";
+import { createFirstAdmin } from "../../api/setup-complete.js";
 
 /** Cache headers for middleware error responses (matches API_CACHE_HEADERS in api/error.ts) */
 const MW_CACHE_HEADERS = {
@@ -51,6 +52,8 @@ declare global {
 			/** Id of the API or OAuth token the request authenticated with. Undefined for session auth. */
 			tokenId?: string;
 			emdash?: EmDashHandlers;
+			/** Per-session playground database, set by the `@emdash-cms/cloudflare` playground middleware. */
+			__playgroundDb?: unknown;
 		}
 		interface SessionData {
 			user: { id: string };
@@ -396,11 +399,11 @@ async function handleEmDashAuth(
 				return next();
 			}
 
-			return handlePasskeyAuth(context, next, isApiRoute);
+			return handlePasskeyAuth(context, next, emdash, isApiRoute);
 		}
 
 		// External auth provider (Cloudflare Access, etc.)
-		return handleExternalAuth(context, next, authMode, isApiRoute);
+		return handleExternalAuth(context, next, emdash, authMode, isApiRoute);
 	}
 
 	// Passkey authentication (default)
@@ -408,7 +411,7 @@ async function handleEmDashAuth(
 		return next();
 	}
 
-	return handlePasskeyAuth(context, next, isApiRoute);
+	return handlePasskeyAuth(context, next, emdash, isApiRoute);
 }
 
 /**
@@ -455,11 +458,12 @@ async function handlePluginRouteAuth(
 
 	const authMode = getAuthMode(emdash?.config);
 	if (
+		emdash &&
 		authMode.type === "external" &&
 		!import.meta.env.DEV &&
 		!isPublicPluginApiRoute(url.pathname, emdash)
 	) {
-		return handleExternalAuth(context, next, authMode, true);
+		return handleExternalAuth(context, next, emdash, authMode, true);
 	}
 
 	try {
@@ -531,11 +535,11 @@ async function handlePublicRouteAuth(
 async function handleExternalAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
+	emdash: EmDashHandlers,
 	authMode: ExternalAuthMode,
 	_isApiRoute: boolean,
 ): Promise<Response> {
 	const { locals, request } = context;
-	const { emdash } = locals;
 
 	let authResult: AuthResult;
 	try {
@@ -576,28 +580,31 @@ async function handleExternalAuth(
 				});
 			}
 
-			// Check if this is the first user (they become admin)
-			const userCount = await emdash.db
-				.selectFrom("users")
-				.select(emdash.db.fn.count("id").as("count"))
-				.executeTakeFirst();
-
-			const isFirstUser = Number(userCount?.count ?? 0) === 0;
-			const role = isFirstUser ? ROLE_ADMIN : authResult.role;
-
-			// Create user
-			const now = new Date().toISOString();
-			const newUser = {
-				id: ulid(),
+			// The first user becomes admin; the conditional insert makes sure
+			// only one of several concurrent first sign-ins gets that role.
+			const firstAdmin = await createFirstAdmin(emdash.db, {
 				email: authResult.email,
 				name: authResult.name,
-				role,
-				email_verified: 1,
-				created_at: now,
-				updated_at: now,
-			};
+				emailVerified: true,
+			});
+			const isFirstUser = firstAdmin !== null;
+			const role = isFirstUser ? ROLE_ADMIN : toRoleLevel(authResult.role);
 
-			await emdash.db.insertInto("users").values(newUser).execute();
+			if (!isFirstUser) {
+				const now = new Date().toISOString();
+				await emdash.db
+					.insertInto("users")
+					.values({
+						id: ulid(),
+						email: authResult.email.toLowerCase(),
+						name: authResult.name,
+						role,
+						email_verified: 1,
+						created_at: now,
+						updated_at: now,
+					})
+					.execute();
+			}
 
 			user = await adapter.getUserByEmail(authResult.email);
 
@@ -617,7 +624,7 @@ async function handleExternalAuth(
 
 			// Sync role if enabled
 			if (externalConfig.syncRoles && user.role !== authResult.role) {
-				newRole = authResult.role;
+				newRole = toRoleLevel(authResult.role);
 				updates.role = newRole;
 			}
 
@@ -735,10 +742,10 @@ async function handleBearerAuth(
 async function handlePasskeyAuth(
 	context: Parameters<Parameters<typeof defineMiddleware>[0]>[0],
 	next: Parameters<Parameters<typeof defineMiddleware>[0]>[1],
+	emdash: EmDashHandlers,
 	isApiRoute: boolean,
 ): Promise<Response> {
 	const { url, locals, session } = context;
-	const { emdash } = locals;
 
 	try {
 		// Check session for user (session.get returns a Promise)

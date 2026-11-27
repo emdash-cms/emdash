@@ -32,14 +32,14 @@ export function startingRevisionId(collection: string, entryId: string, createdA
 	return encodeTime(time, 10) + suffix;
 }
 
-export interface Revision {
+export type Revision = {
 	id: string;
 	collection: string;
 	entryId: string;
 	data: Record<string, unknown>;
 	authorId: string | null;
 	createdAt: string;
-}
+};
 
 export type RevisionKind = "autosave" | "recovery";
 

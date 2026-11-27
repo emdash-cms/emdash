@@ -14,6 +14,8 @@ import type {
 	TaxonomyAccessWithWrite,
 } from "emdash";
 
+import type { deleteMedia } from "./bridge-media.js";
+
 const COLLECTION_NAME_REGEX = /^[a-z][a-z0-9_]*$/;
 const COMMENT_STATUSES = new Set<string>(["approved", "pending", "spam"]);
 const CONTENT_ACTION_ERROR_CODE_REGEX = /^[A-Z][A-Z0-9_]*$/;
@@ -67,6 +69,7 @@ export class PluginRuntimeBridge extends RpcTarget {
 	#commentModerate: SandboxCommentModerateCallback | null;
 	#i18nConfig: I18nConfig | null;
 	#beforeContentWrite: SandboxOptions["beforeContentWrite"];
+	#mediaDelete?: (id: string) => ReturnType<typeof deleteMedia>;
 
 	constructor(
 		pluginId: string,
@@ -79,6 +82,7 @@ export class PluginRuntimeBridge extends RpcTarget {
 			commentModerate?: SandboxCommentModerateCallback | null;
 			i18nConfig?: I18nConfig | null;
 			beforeContentWrite?: SandboxOptions["beforeContentWrite"];
+			mediaDelete?: (id: string) => ReturnType<typeof deleteMedia>;
 		},
 	) {
 		super();
@@ -91,6 +95,7 @@ export class PluginRuntimeBridge extends RpcTarget {
 		this.#commentModerate = callbacks.commentModerate ?? null;
 		this.#i18nConfig = callbacks.i18nConfig ?? null;
 		this.#beforeContentWrite = callbacks.beforeContentWrite;
+		this.#mediaDelete = callbacks.mediaDelete;
 	}
 
 	#requireCapability(capability: string): void {
@@ -274,6 +279,18 @@ export class PluginRuntimeBridge extends RpcTarget {
 				),
 			),
 		);
+	}
+
+	mediaDelete(id: string): Promise<boolean> {
+		this.#requireCapability("media:write");
+		if (!this.#mediaDelete) throw new Error("Media deletion is not configured");
+		return this.#runInContext(async () => {
+			const { deleted, cacheKey } = await this.#mediaDelete!(id);
+			if (cacheKey) {
+				await this.#contentActions?.invalidateMedia?.(this.#pluginId, cacheKey, this.#invocationId);
+			}
+			return deleted;
+		});
 	}
 
 	taxonomyCreateTerm(

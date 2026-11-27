@@ -495,18 +495,18 @@ export function generateBlockComponentsModule(descriptors: PluginDescriptor[]): 
  *
  * Under @astrojs/cloudflare, re-exports `waitUntil` from `cloudflare:workers`
  * so `after(fn)` in core can extend the worker's lifetime past the response
- * for deferred bookkeeping. For any other adapter, exports `undefined` —
- * Node's long-lived event loop keeps deferred promises running without a
- * lifetime extender.
+ * for deferred bookkeeping. For any other adapter, exports `undefined` so
+ * core can probe for workerd at runtime.
  *
- * Keeping the adapter check here — rather than in core — means core itself
- * has no Cloudflare-specific imports or code paths.
+ * `longLivedProcess` is true under @astrojs/node, whose event loop keeps
+ * deferred promises running without a lifetime extender.
  */
 export function generateWaitUntilModule(adapterName: string | undefined): string {
+	const longLived = `export const longLivedProcess = ${adapterName === "@astrojs/node"};`;
 	if (adapterName === "@astrojs/cloudflare") {
-		return `export { waitUntil } from "cloudflare:workers";`;
+		return `export { waitUntil } from "cloudflare:workers";\n${longLived}`;
 	}
-	return `export const waitUntil = undefined;`;
+	return `export const waitUntil = undefined;\n${longLived}`;
 }
 
 /**

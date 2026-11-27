@@ -324,6 +324,27 @@ describe("httpUrl validator", () => {
 });
 
 describe("createFieldBody / updateFieldBody — allowedMimeTypes", () => {
+	it("preserves allowedMimeTypes on image repeater sub-fields", () => {
+		const result = createFieldBody.parse({
+			slug: "cards",
+			label: "Cards",
+			type: "repeater",
+			validation: {
+				subFields: [
+					{
+						slug: "logo",
+						label: "Logo",
+						type: "image",
+						validation: { allowedMimeTypes: ["image/svg+xml"] },
+					},
+				],
+			},
+		});
+		expect(result.validation?.subFields?.[0]?.validation?.allowedMimeTypes).toEqual([
+			"image/svg+xml",
+		]);
+	});
+
 	it("preserves allowedMimeTypes through createFieldBody parse", () => {
 		const result = createFieldBody.parse({
 			slug: "attachment",

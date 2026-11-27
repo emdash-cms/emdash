@@ -237,7 +237,7 @@ function VerifyStep({ verifyResult, token, onBack: _onBack }: VerifyStepProps) {
 			{/* Passkey registration */}
 			<div className="pt-4 border-t">
 				<PasskeyRegistration
-					optionsEndpoint="/_emdash/api/setup/admin"
+					optionsEndpoint="/_emdash/api/auth/signup/register-options"
 					verifyEndpoint="/_emdash/api/auth/signup/complete"
 					onSuccess={handleSignupSuccess}
 					additionalData={{ token, name: name || undefined }}

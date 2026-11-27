@@ -9,7 +9,7 @@
 
 import type { APIRoute } from "astro";
 
-import { requireEntryEditPerm } from "#api/authorize.js";
+import { requireAnyPerm, requireEntryEditPerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import {
 	handleEntryLockAcquire,
@@ -18,10 +18,12 @@ import {
 } from "#api/handlers/entry-lock.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
 import { entryLockAcquireBody } from "#api/schemas.js";
+import type { EmDashHandlers } from "#types";
 
 export const prerender = false;
 
 interface ResolvedEntry {
+	emdash: EmDashHandlers;
 	resolvedId: string;
 	userId: string;
 }
@@ -37,11 +39,14 @@ async function resolveEntry(
 	locale: string | undefined,
 ): Promise<ResolvedEntry | Response> {
 	const { emdash, user } = locals;
-	if (!emdash?.handleContentGet) {
+	if (!emdash?.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
-	const existing = await emdash.handleContentGet(collection, id, locale);
+	const roleDenied = requireAnyPerm(user, ["content:edit_own", "content:edit_own_drafts"]);
+	if (roleDenied) return roleDenied;
+
+	const existing = await emdash.handleContentGetForWrite(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",
@@ -50,22 +55,14 @@ async function resolveEntry(
 		);
 	}
 
-	const existingData =
-		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
-				(existing.data as Record<string, unknown>)
-			: undefined;
-	const existingItem =
-		existingData?.item && typeof existingData.item === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
-				(existingData.item as Record<string, unknown>)
-			: existingData;
-	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
-	const denied = requireEntryEditPerm(user, { authorId, status: existingItem?.status });
+	const existingItem = existing.data.item;
+	const authorId = existingItem.authorId ?? "";
+	const denied = requireEntryEditPerm(user, { authorId, status: existingItem.status });
 	if (denied) return denied;
 
 	return {
-		resolvedId: typeof existingItem?.id === "string" ? existingItem.id : id,
+		emdash,
+		resolvedId: existingItem.id,
 		userId: user!.id,
 	};
 }
@@ -82,9 +79,15 @@ export const GET: APIRoute = async ({ params, locals, url }) => {
 	if (resolved instanceof Response) return resolved;
 
 	return unwrapResult(
-		await handleEntryLockRead(locals.emdash.db, collection, resolved.resolvedId, resolved.userId, {
-			rooms: locals.emdash.rooms,
-		}),
+		await handleEntryLockRead(
+			resolved.emdash.db,
+			collection,
+			resolved.resolvedId,
+			resolved.userId,
+			{
+				rooms: resolved.emdash.rooms,
+			},
+		),
 	);
 };
 
@@ -104,11 +107,11 @@ export const POST: APIRoute = async ({ params, request, locals, url }) => {
 
 	return unwrapResult(
 		await handleEntryLockAcquire(
-			locals.emdash.db,
+			resolved.emdash.db,
 			collection,
 			resolved.resolvedId,
 			resolved.userId,
-			{ takeover: body?.takeover, token: body?.token, rooms: locals.emdash.rooms },
+			{ takeover: body?.takeover, token: body?.token, rooms: resolved.emdash.rooms },
 		),
 	);
 };
@@ -126,7 +129,7 @@ export const DELETE: APIRoute = async ({ params, locals, url }) => {
 
 	return unwrapResult(
 		await handleEntryLockRelease(
-			locals.emdash.db,
+			resolved.emdash.db,
 			collection,
 			resolved.resolvedId,
 			resolved.userId,

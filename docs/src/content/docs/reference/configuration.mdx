@@ -109,7 +109,7 @@ See [Storage Options](/deployment/storage/) for details.
 
 **Optional.** Controls whether EmDash integrates stored media with Astro's image optimization. The default is `true`.
 
-When enabled, EmDash wraps Astro's image endpoint so `<Image>` and `getImage()` can read source bytes directly from the configured storage adapter. This also works when the original media URL is behind Cloudflare Access. Requests to the wrapped endpoint skip EmDash's runtime startup, so on them `locals.emdash` holds only `storage`, plus `db` for a signed-in user. `locals.user` is set as on other public routes. Set `images: false` when another image service handles the media or when every image should render without EmDash's endpoint wrapper.
+When enabled, EmDash wraps Astro's image endpoint so `<Image>` and `getImage()` can read source bytes directly from the configured storage adapter. On pages rendered on demand, locally stored media is optimized without `siteUrl` and without `EMDASH_SITE_URL` or `SITE_URL` at build time. To optimize this media on prerendered pages, set one of the three when `astro build` runs. This also works when the original media URL is behind Cloudflare Access. On Node without `sharp` installed, the endpoint serves the original file instead of a resized one. Requests to the wrapped endpoint skip EmDash's runtime startup, so on them `locals.emdash` holds only `storage`, plus `db` for a signed-in user. `locals.user` is set as on other public routes. Set `images: false` when another image service handles the media or when every image should render without EmDash's endpoint wrapper.
 
 ```js
 emdash({
@@ -304,7 +304,7 @@ emdash({
 });
 ```
 
-Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. The following example uses the object form:
+Pass the registry service URL as a string, or use an object when the site needs moderation sources or a release-age policy. In either form, use the service's final URL. The server does not follow redirects from the registry service, so plugin verification, installs, updates, update checks, and registry images fail when the URL redirects. The following example uses the object form:
 
 ```js title="astro.config.mjs"
 import { sandbox } from "@emdash-cms/cloudflare";
@@ -324,7 +324,7 @@ emdash({
 
 | Option                            | Type                   | Description                                                                                   |
 | --------------------------------- | ---------------------- | --------------------------------------------------------------------------------------------- |
-| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production.                                    |
+| `aggregatorUrl`                   | `string`               | Base URL of the registry service. Use HTTPS in production, and a URL that does not redirect.  |
 | `acceptLabelers`                  | `string`               | Optional comma-separated decentralized identifiers (DIDs) for moderation services accepted by the request. A DID is a stable Atmosphere account identifier. This setting cannot override the registry service's policy. |
 | `policy.minimumReleaseAge`        | `string \| number`     | Hold back releases newer than this age. Duration string (`"48h"`, `"7d"`) or seconds.          |
 | `policy.minimumReleaseAgeExclude` | `string[]`             | Publisher DIDs, or `<did>/<plugin-slug>` pairs, exempt from the holdback.                     |
@@ -406,7 +406,8 @@ Options for `access()`:
 | `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)) |
 | `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
 | `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to make names editable in the admin |
-| `roleMapping`    | `object`  | —                      | Map IdP group names to EmDash role levels; first match wins                                  |
+| `roleMapping`    | `object`  | —                      | Map IdP group names or GitHub `org/team` names to EmDash role levels; [first match wins](/guides/authentication/#role-mapping)                                  |
+| `matchGroupsBy`  | `"name"` \| `"id"` | `"name"`         | Compare `roleMapping` keys with group display names or group IDs. Use `"id"` when directory members can create groups. See [Matching groups by ID](/guides/authentication/#matching-groups-by-id) |
 
 <Aside>
 	When an auth adapter is configured it becomes the only auth method: passkeys are disabled.
@@ -492,8 +493,6 @@ emdash({
 ```
 
 When `siteUrl` is not set in config, EmDash checks environment variables in order: `EMDASH_SITE_URL`, then `SITE_URL`. This is useful for container deployments where the public URL is set at runtime.
-
-Image optimization reads these environment variables at **build time**, because Astro records the allowed image origins in `image.remotePatterns` when `astro build` runs. If `EMDASH_SITE_URL` or `SITE_URL` is set only in the runtime environment, as on hosts that inject variables when the app starts, locally stored media is served unoptimized. Set the variable in the build environment as well, or set `siteUrl` in config.
 
 Setup fails with `SITE_URL_REQUIRED` on a non-loopback host when neither source is set. This prevents the first unauthenticated setup request from choosing the origin used in later authentication emails. A production build deployed to Cloudflare Workers is the exception: Cloudflare only routes requests for hostnames bound to the Worker, so setup records `https://` and the hostname it runs on. The same build served by `wrangler dev`, `astro preview`, or self-hosted workerd on a reachable address gets no such guarantee; set `siteUrl` or `EMDASH_SITE_URL` there first.
 
@@ -607,6 +606,8 @@ export default defineConfig({
 **Optional.** Headers to trust for client-IP resolution when running behind a reverse proxy you control. Used by auth rate limits (magic-link, signup, passkey, OAuth device flow, OAuth client registration) and the public comment endpoint.
 
 On Cloudflare the `cf` object attached to the request is used automatically — you normally do **not** need to set this. On self-hosted deployments behind nginx, Caddy, Traefik, Fly, Railway, or similar, set this to the header your proxy writes so rate limits can count requests per real client IP.
+
+Rate limits and comment reactions count an IPv6 client by its /64 network, because one client can send from any address in that network. IPv4 clients are counted by address.
 
 The following example trusts the `x-real-ip` header set by nginx, Caddy, or Traefik:
 
@@ -1040,7 +1041,7 @@ emdash({
 });
 ```
 
-`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, `syncName`, and `roleMapping`. The [`auth`](#auth) option documents their defaults, role behavior, and name sync.
+`teamDomain` is required. The adapter can read the application audience from `audience` or from the variable named by `audienceEnvVar`; it also accepts `autoProvision`, `defaultRole`, `syncRoles`, `syncName`, `roleMapping`, and `matchGroupsBy`. The [`auth`](#auth) option documents their defaults, role behavior, and name sync.
 
 ### `sandbox()`
 

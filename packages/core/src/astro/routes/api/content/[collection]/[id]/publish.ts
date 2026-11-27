@@ -13,7 +13,7 @@
 import { hasPermission } from "@emdash-cms/auth";
 import type { APIContext, APIRoute } from "astro";
 
-import { requireOwnerPerm } from "#api/authorize.js";
+import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, mapErrorStatus, unwrapResult } from "#api/error.js";
 import { claimEntryLockForWrite } from "#api/handlers/entry-lock.js";
 import { isParseError, parseOptionalBody } from "#api/parse.js";
@@ -30,7 +30,7 @@ export async function publishContent(
 	const collection = params.collection!;
 	const id = params.id!;
 
-	if (!emdash?.handleContentPublish || !emdash?.handleContentGet) {
+	if (!emdash?.handleContentPublish || !emdash?.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
@@ -41,8 +41,11 @@ export async function publishContent(
 
 	const locale = url.searchParams.get("locale") || undefined;
 
+	const roleDenied = requirePerm(user, "content:publish_own");
+	if (roleDenied) return roleDenied;
+
 	// Fetch item to check ownership
-	const existing = await emdash.handleContentGet(collection, id, locale);
+	const existing = await emdash.handleContentGetForWrite(collection, id, locale);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "UNKNOWN_ERROR",
@@ -51,17 +54,8 @@ export async function publishContent(
 		);
 	}
 
-	const existingData =
-		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
-				(existing.data as Record<string, unknown>)
-			: undefined;
-	const existingItem =
-		existingData?.item && typeof existingData.item === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
-				(existingData.item as Record<string, unknown>)
-			: existingData;
-	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
+	const existingItem = existing.data.item;
+	const authorId = existingItem.authorId ?? "";
 	const denied = requireOwnerPerm(user, authorId, "content:publish_own", "content:publish_any");
 	if (denied) return denied;
 
@@ -79,7 +73,7 @@ export async function publishContent(
 		);
 	}
 
-	const resolvedId = typeof existingItem?.id === "string" ? existingItem.id : id;
+	const resolvedId = existingItem.id;
 
 	const refusal = await claimEntryLockForWrite(emdash.db, collection, resolvedId, user!.id, {
 		override: body?.overrideLock,

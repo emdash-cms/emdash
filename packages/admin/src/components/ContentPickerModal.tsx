@@ -71,6 +71,8 @@ interface ContentPickerModalProps {
 	 * `selectedIds` is matched by group for the same reason.
 	 */
 	locale?: string;
+	/** Restrict results to this locale, without translation fallback (menus). */
+	filterLocale?: string;
 }
 
 const EMPTY_SELECTED: ReadonlySet<string> = new Set<string>();
@@ -84,6 +86,7 @@ export function ContentPickerModal({
 	onConfirm,
 	title,
 	locale,
+	filterLocale,
 }: ContentPickerModalProps) {
 	const { t } = useLingui();
 	const locked = !!collection;
@@ -130,12 +133,13 @@ export function ContentPickerModal({
 	const trimmedSearch = debouncedSearch.trim();
 	const { data, isLoading, error, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
 		useInfiniteQuery({
-			queryKey: ["content-picker", activeCollection, trimmedSearch],
+			queryKey: ["content-picker", activeCollection, trimmedSearch, filterLocale],
 			queryFn: ({ pageParam }) =>
 				fetchContentList(activeCollection, {
 					limit: 50,
 					cursor: pageParam,
 					search: trimmedSearch || undefined,
+					locale: filterLocale,
 				}),
 			initialPageParam: undefined as string | undefined,
 			getNextPageParam: (lastPage) => lastPage.nextCursor,

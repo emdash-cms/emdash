@@ -430,8 +430,12 @@ export const contentItemSchema = z
 		publishedAt: z.string().nullable(),
 		scheduledAt: z.string().nullable(),
 		liveRevisionId: z.string().nullable(),
-		draftRevisionId: z.string().nullable(),
-		version: z.number().int(),
+		draftRevisionId: z.string().nullable().optional().meta({
+			description: "Omitted for callers without content:read_drafts",
+		}),
+		version: z.number().int().optional().meta({
+			description: "Omitted for callers without content:read_drafts",
+		}),
 		locale: z.string().nullable(),
 		translationGroup: z.string().nullable(),
 		seo: contentSeoSchema.optional(),
@@ -476,7 +480,8 @@ export const contentAuthorSchema = z
 	.object({
 		id: z.string(),
 		name: z.string().nullable(),
-		email: z.string(),
+		/** Omitted for callers without `users:read`. */
+		email: z.string().optional(),
 		avatarUrl: z.string().nullable(),
 	})
 	.meta({ id: "ContentAuthor" });

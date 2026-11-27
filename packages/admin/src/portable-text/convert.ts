@@ -13,7 +13,9 @@ import {
 	PORTABLE_TEXT_SPAN_MARK,
 } from "../components/editor/portableTextIdentity.js";
 import { htmlBlockFields } from "../html-block.js";
+import { normalizeAdjacentLinks } from "../internal/portable-text-links.js";
 import { isVideoBlock, videoBlockFields, videoNodeAttrs } from "../internal/video-block.js";
+import { equalJsonValues } from "../lib/json-values.js";
 import { canonicalMediaProviderId, localMediaFileUrl } from "../lib/media-utils.js";
 import {
 	UnsupportedPortableTextMarksError,
@@ -26,6 +28,8 @@ import {
 	proseMirrorTableToPortableText,
 	type PortableTextTableProseMirrorNode,
 } from "../portable-text-table.js";
+
+export { equalJsonValues } from "../lib/json-values.js";
 
 interface PortableTextSpan {
 	_type: "span";
@@ -349,25 +353,6 @@ export function withoutTrailingParagraph(doc: { content: unknown[] }): unknown[]
 	return doc.content.length > 1 && last && isUnkeyedEmptyParagraph(last)
 		? doc.content.slice(0, -1)
 		: doc.content;
-}
-
-export function equalJsonValues(left: unknown, right: unknown): boolean {
-	if (Object.is(left, right)) return true;
-	if (Array.isArray(left) || Array.isArray(right)) {
-		return (
-			Array.isArray(left) &&
-			Array.isArray(right) &&
-			left.length === right.length &&
-			left.every((value, index) => equalJsonValues(value, right[index]))
-		);
-	}
-	if (!isRecord(left) || !isRecord(right)) return false;
-	const leftKeys = Object.keys(left).filter((key) => left[key] !== undefined);
-	const rightKeys = Object.keys(right).filter((key) => right[key] !== undefined);
-	return (
-		leftKeys.length === rightKeys.length &&
-		leftKeys.every((key) => Object.hasOwn(right, key) && equalJsonValues(left[key], right[key]))
-	);
 }
 
 const MAX_ORDERED_LIST_START = 2_147_483_647;
@@ -1014,7 +999,18 @@ function convertInlineContent(
 		});
 	}
 
-	return { children, markDefs };
+	return {
+		children,
+		markDefs: normalizeAdjacentLinks(
+			children,
+			markDefs,
+			new Set(
+				typedNodes.flatMap((node) =>
+					portableTextMarkDefsFromMarks(node.marks).map((def) => def._key),
+				),
+			),
+		),
+	};
 }
 
 function convertMark(

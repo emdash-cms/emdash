@@ -69,6 +69,16 @@ const fieldTypeValues = z.enum([
 	"blocks",
 ]);
 
+const repeaterSubFieldValidation = z.object({
+	allowedMimeTypes: z
+		.array(
+			z.string().regex(/^[a-z0-9][a-z0-9!#$&^_+\-.]*\/[a-z0-9!#$&^_+\-.]*$/i, "Invalid MIME type"),
+		)
+		.min(1, "allowedMimeTypes must not be empty — omit the field to allow all types")
+		.max(64, "allowedMimeTypes may contain at most 64 entries")
+		.optional(),
+});
+
 const repeaterSubFieldSchema = z.object({
 	slug: z.string().min(1).max(63).regex(slugPattern, "Invalid slug format"),
 	// Keep in sync with REPEATER_SUB_FIELD_TYPES in schema/types.ts.
@@ -87,6 +97,10 @@ const repeaterSubFieldSchema = z.object({
 	label: z.string().min(1),
 	required: z.boolean().optional(),
 	options: z.array(z.string()).optional(),
+	validation: repeaterSubFieldValidation
+		.nullish()
+		.transform((value) => value ?? undefined)
+		.pipe(repeaterSubFieldValidation.optional()),
 });
 
 const urlPatternValue = z.string().superRefine((pattern, ctx) => {

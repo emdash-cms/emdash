@@ -260,7 +260,9 @@ export function createRequestScopedDb(opts: RequestScopedDbOpts): RequestScopedD
 			// request that became authenticated mid-flight (login, signup,
 			// invite) counts: its follow-up request reads authenticated and
 			// needs this bookmark to see the rows just written to the primary.
-			if (!sessionEnabled || (!opts.isAuthenticated && !opts.endedAuthenticated?.())) return;
+			// `isAuthenticated` is also set by an unverified Bearer header, so
+			// `endedAuthenticated` (verified callers only) decides when provided.
+			if (!sessionEnabled || !(opts.endedAuthenticated?.() ?? opts.isAuthenticated)) return;
 			const newBookmark = bookmarkSink.latest;
 			if (!newBookmark) return;
 			// Don't emit a cookie the browser will silently drop (~4 KB limit),

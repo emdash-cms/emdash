@@ -10,7 +10,7 @@ import type { APIRoute } from "astro";
 import { sql } from "kysely";
 
 import { requireAnyPerm, requireEntryEditPerm, requirePerm } from "#api/authorize.js";
-import { apiError, apiSuccess, handleError, requireDb } from "#api/error.js";
+import { apiError, apiSuccess, handleError, mapErrorStatus } from "#api/error.js";
 import { parseBody, isParseError } from "#api/parse.js";
 import { contentTermsBody } from "#api/schemas.js";
 import { taxonomyTag } from "#cache/chrome-tags.js";
@@ -32,7 +32,18 @@ export const prerender = false;
 
 const MAX_CACHE_PURGE_TAGS = 100;
 
-function assignmentResponse(assignments: TaxonomyAssignmentResolution[], entryLocale: string) {
+/**
+ * `includeUnresolved` must be false for a caller without `content:read_drafts`.
+ * Assignments span the content translation group, so one with no variant in
+ * this entry's locale chain was made while editing another translation, which
+ * may be unpublished. The site never renders those for this entry; only the
+ * editor's taxonomy sidebar needs them.
+ */
+function assignmentResponse(
+	assignments: TaxonomyAssignmentResolution[],
+	entryLocale: string,
+	includeUnresolved: boolean,
+) {
 	const config = getI18nConfig();
 	const defaultLocale = config?.defaultLocale ?? "en";
 	return {
@@ -51,13 +62,15 @@ function assignmentResponse(assignments: TaxonomyAssignmentResolution[], entryLo
 					]
 				: [],
 		),
-		unresolved: assignments
-			.filter(({ term }) => term === null)
-			.map(({ translationGroup, availableLocales, translations }) => ({
-				translationGroup,
-				availableLocales,
-				translations,
-			})),
+		unresolved: includeUnresolved
+			? assignments
+					.filter(({ term }) => term === null)
+					.map(({ translationGroup, availableLocales, translations }) => ({
+						translationGroup,
+						availableLocales,
+						translations,
+					}))
+			: [],
 		entryLocale,
 		defaultLocale,
 		implicitDefaultLocale: config === null,
@@ -71,8 +84,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 	const { emdash, user } = locals;
 	const { collection, id, taxonomy } = params;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requirePerm(user, "content:read");
 	if (denied) return denied;
 
@@ -100,7 +114,9 @@ export const GET: APIRoute = async ({ params, locals }) => {
 			defaultLocale,
 		);
 
-		return apiSuccess(assignmentResponse(assignments, locale));
+		return apiSuccess(
+			assignmentResponse(assignments, locale, hasPermission(user, "content:read_drafts")),
+		);
 	} catch (error) {
 		return handleError(error, "Failed to get entry terms", "TERMS_GET_ERROR");
 	}
@@ -117,44 +133,35 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 		return apiError("VALIDATION_ERROR", "Collection, id, and taxonomy required", 400);
 	}
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 	const denied = requireAnyPerm(user, ["content:edit_own", "content:edit_own_drafts"]);
 	if (denied) return denied;
 
-	if (!emdash.handleContentGet) {
+	if (!emdash.handleContentGetForWrite) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
 	}
 
 	// Verify the content exists before modifying its terms
-	const existing = await emdash.handleContentGet(collection, id);
+	const existing = await emdash.handleContentGetForWrite(collection, id);
 	if (!existing.success) {
 		return apiError(
 			existing.error?.code ?? "NOT_FOUND",
 			existing.error?.message ?? "Content not found",
-			existing.error?.code === "NOT_FOUND" ? 404 : 500,
+			mapErrorStatus(existing.error?.code),
 		);
 	}
 
 	// Check ownership for edit permission
-	const existingData =
-		existing.data && typeof existing.data === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check above
-				(existing.data as Record<string, unknown>)
-			: undefined;
-	// Handler returns { item, _rev } — extract the item for ownership check
-	const existingItem =
-		existingData?.item && typeof existingData.item === "object"
-			? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check above
-				(existingData.item as Record<string, unknown>)
-			: existingData;
-	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
-	const editDenied = requireEntryEditPerm(user, { authorId, status: existingItem?.status });
+	const existingItem = existing.data.item;
+	const authorId = existingItem.authorId ?? "";
+	const editDenied = requireEntryEditPerm(user, { authorId, status: existingItem.status });
 	if (editDenied) return editDenied;
 
 	// Resolve the canonical content ID from the handler result.
 	// The URL `id` param may be a slug; we must use the real ID for term storage.
-	const canonicalId = typeof existingItem?.id === "string" ? existingItem.id : id;
+	const canonicalId = existingItem.id;
 	// The assignment spans the content translation group, while the response
 	// includes only the term variant matching this entry's locale.
 	const entryLocale =
@@ -259,7 +266,9 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 			getI18nConfig()?.defaultLocale ?? "en",
 		);
 
-		return apiSuccess(assignmentResponse(assignments, entryLocale));
+		return apiSuccess(
+			assignmentResponse(assignments, entryLocale, hasPermission(user, "content:read_drafts")),
+		);
 	} catch (error) {
 		return handleError(error, "Failed to set entry terms", "TERMS_SET_ERROR");
 	}

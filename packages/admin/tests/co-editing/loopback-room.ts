@@ -28,6 +28,8 @@ export class FakeSocket implements RoomSocket {
 	open = false;
 	closed = false;
 	clientId: number | null = null;
+	/** Who the room says the client is. */
+	user: { id: string; name: string } | null = null;
 	/** Every message the client sent, decoded. */
 	readonly received: Message[] = [];
 	/** Room-to-client and client-to-room messages not yet delivered, in manual mode. */
@@ -98,6 +100,8 @@ export class LoopbackRoom {
 	stall = false;
 	/** `save` messages from editors. */
 	saves = 0;
+	/** The people the next clients are, in the order they join. The rest are "User <client id>". */
+	readonly users: Array<{ id: string; name: string }> = [];
 	readonly sockets: FakeSocket[] = [];
 	#checkpoint: Y.Snapshot;
 	#rev = 0;
@@ -205,7 +209,11 @@ export class LoopbackRoom {
 				for (const entry of message.entries) {
 					socket.clientId ??= entry.clientId;
 					if (entry.clientId !== socket.clientId) continue;
-					const user = { id: `user-${entry.clientId}`, name: `User ${entry.clientId}` };
+					socket.user ??= this.users.shift() ?? {
+						id: `user-${entry.clientId}`,
+						name: `User ${entry.clientId}`,
+					};
+					const { user } = socket;
 					const state = socket.access === "edit" ? { ...entry.state, user } : { user };
 					const stamped = { clientId: entry.clientId, clock: entry.clock, state };
 					this.#presence.set(entry.clientId, stamped);

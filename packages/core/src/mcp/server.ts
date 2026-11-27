@@ -31,7 +31,7 @@ import {
 } from "#api/schemas.js";
 
 import { after } from "../after.js";
-import { entryEditAccess } from "../api/authorize.js";
+import { entryEditAccess, toPublishedListView, toPublishedView } from "../api/authorize.js";
 import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
@@ -42,6 +42,7 @@ import { convertDataForRead, convertDataForWrite } from "../client/portable-text
 import type { FieldSchema } from "../client/portable-text.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
+import { isRouteCachedMedia, mediaCacheTag } from "../media/image-endpoint.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -91,6 +92,10 @@ const REV_MISSING_ERROR =
  * see the tool schema, and re-reading never clears ENTRY_LOCKED, so when to
  * override is stated here.
  */
+const SLUG_LOCALE_PARAM_DESCRIPTION =
+	"Locale to scope slug lookup (e.g. 'fr'). Required when the slug exists in more " +
+	"than one locale. IDs are globally unique.";
+
 const OVERRIDE_LOCK_PARAM_DESCRIPTION =
 	"Write even though someone else has this item open in the admin. Without it, " +
 	"the call fails with ENTRY_LOCKED and the error names who is editing; calling " +
@@ -645,7 +650,7 @@ async function convertWriteData(
 async function applyReadMarkdown(
 	ec: EmDashHandlers,
 	collection: string,
-	items: Array<Record<string, unknown>>,
+	items: Array<{ data?: unknown }>,
 ): Promise<void> {
 	const fields = await getCollectionFields(ec, collection);
 	if (!fields) return;
@@ -1103,8 +1108,9 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			// Subscribers must only see published content; force the status
 			// filter regardless of caller-supplied value.
-			const status = canReadDrafts(extra) ? args.status : "published";
-			const result = await ec.handleContentList(args.collection, {
+			const readDrafts = canReadDrafts(extra);
+			const status = readDrafts ? args.status : "published";
+			const listed = await ec.handleContentList(args.collection, {
 				status,
 				limit: args.limit,
 				cursor: args.cursor,
@@ -1112,6 +1118,11 @@ export function createMcpServer(
 				order: args.order,
 				locale: args.locale,
 			});
+			// A published entry can still carry a pending draft.
+			const result =
+				listed.success && !readDrafts
+					? { ...listed, data: toPublishedListView(listed.data) }
+					: listed;
 			if (result.success && args.markdown) {
 				const payload = result.data;
 				if (
@@ -1133,7 +1144,8 @@ export function createMcpServer(
 			title: "Get Content",
 			description:
 				"Get a single content item by its ID or slug. Returns the full content data " +
-				"including all field values, metadata, and a _rev token. content_update, " +
+				"including all field values, metadata, and a _rev token (omitted for callers " +
+				"without content:read_drafts). content_update, " +
 				"content_publish, content_unpublish and content_discard_draft require that " +
 				"token, so read the item here before calling them.",
 			inputSchema: z.object({
@@ -1158,40 +1170,25 @@ export function createMcpServer(
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			const result = await ec.handleContentGet(args.collection, args.id, args.locale);
-			// Hide non-published items from users without draft access. Return a
-			// not-found error so subscribers can't enumerate draft IDs by status.
-			if (result.success && !canReadDrafts(extra)) {
-				const data =
-					result.data && typeof result.data === "object"
-						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check
-							(result.data as Record<string, unknown>)
-						: undefined;
-				const item =
-					data?.item && typeof data.item === "object"
-						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check
-							(data.item as Record<string, unknown>)
-						: undefined;
-				const status = typeof item?.status === "string" ? item.status : null;
-				if (status !== "published") {
-					return unwrap({
-						success: false,
-						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
-					});
-				}
-				// handleContentGet overlays the draft revision onto item.data and
-				// moves the published values to item.liveData.
-				if (item) {
-					if (item.liveData && typeof item.liveData === "object") {
-						item.data = item.liveData;
-					}
-					delete item.liveData;
-					delete item.draftRevisionId;
-				}
+			if (!result.success) return unwrap(result);
+			const readDrafts = canReadDrafts(extra);
+			// Not-found, not forbidden, so subscribers can't enumerate draft IDs.
+			if (!readDrafts && result.data.item.status !== "published") {
+				return unwrap({
+					success: false,
+					error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
+				});
 			}
-			if (result.success && args.markdown && result.data?.item) {
-				await applyReadMarkdown(ec, args.collection, [result.data.item]);
+			// handleContentGet overlays the draft revision onto item.data and
+			// moves the published values to item.liveData.
+			const { _rev: _unusedRev, ...published } = result.data;
+			const data = readDrafts
+				? result.data
+				: { ...published, item: toPublishedView(result.data.item) };
+			if (args.markdown) {
+				await applyReadMarkdown(ec, args.collection, [data.item]);
 			}
-			return unwrap(result);
+			return unwrap({ success: true, data });
 		},
 	);
 
@@ -1285,7 +1282,7 @@ export function createMcpServer(
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
-				const source = await emdash.handleContentGet(args.collection, args.translationOf);
+				const source = await emdash.handleContentGetById(args.collection, args.translationOf);
 				if (!source.success) return unwrap(source);
 				requireOwnership(
 					extra,
@@ -1440,7 +1437,7 @@ export function createMcpServer(
 			const actor = { id: userId, role: userRole };
 
 			// Fetch item to check ownership
-			const existing = await emdash.handleContentGet(args.collection, args.id, args.locale);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1605,6 +1602,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
@@ -1615,7 +1613,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1649,6 +1647,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1657,7 +1656,9 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 
 			// Fetch trashed item to check ownership
-			const existing = await ec.handleContentGetIncludingTrashed(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale, {
+				includeTrashed: true,
+			});
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1687,6 +1688,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1694,10 +1696,15 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale, {
+				includeTrashed: true,
+			});
+			if (!existing.success) return unwrap(existing);
+			const resolvedId = extractContentId(existing.data) ?? args.id;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentPermanentDelete(args.collection, args.id),
-				[args.collection, args.id],
+				await ec.handleContentPermanentDelete(args.collection, resolvedId),
+				[args.collection, resolvedId],
 			);
 		},
 	);
@@ -1717,6 +1724,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				publishedAt: contentDateTimeInputSchema
 					.optional()
@@ -1732,7 +1740,7 @@ export function createMcpServer(
 			const { emdash, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await emdash.handleContentGet(args.collection, args.id);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1778,6 +1786,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
@@ -1788,7 +1797,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1825,6 +1834,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				scheduledAt: contentDateTimeInputSchema.describe(
 					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
@@ -1838,7 +1848,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1875,6 +1885,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
@@ -1883,7 +1894,7 @@ export function createMcpServer(
 			requireRole(extra, Role.AUTHOR);
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1939,6 +1950,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
@@ -1950,7 +1962,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -2019,7 +2031,7 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId } = getExtra(extra);
-			const existing = await emdash.handleContentGet(args.collection, args.id);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id);
 			if (!existing.success) return unwrap(existing);
 			requireOwnership(
 				extra,
@@ -2768,7 +2780,9 @@ export function createMcpServer(
 				"POST /_emdash/api/media/upload-url. `storageKey` must be the key returned " +
 				"for the same user. Confirmation checks that the stored file exists and " +
 				"matches the size fixed when the URL was issued, then makes it available " +
-				"through media_list / media_get. To upload through MCP, use media_upload instead.",
+				"through media_list / media_get. The confirmed item is stored under a new " +
+				"key, so reference the storageKey and url of the returned item, not the " +
+				"key passed in. To upload through MCP, use media_upload instead.",
 			inputSchema: z.object({
 				storageKey: z.string().describe("Storage key returned by the signed upload URL request"),
 			}),
@@ -2882,10 +2896,7 @@ export function createMcpServer(
 			if (!existing.success) {
 				return unwrap(existing);
 			}
-			const media = (existing.data as Record<string, unknown> | undefined)?.item as
-				| Record<string, unknown>
-				| undefined;
-			const authorId = typeof media?.authorId === "string" ? media.authorId : "";
+			const authorId = existing.data.item.authorId ?? "";
 			requireOwnership(extra, authorId, "media:edit_own", "media:edit_any");
 
 			return unwrap(
@@ -2922,13 +2933,18 @@ export function createMcpServer(
 			if (!existing.success) {
 				return unwrap(existing);
 			}
-			const media = (existing.data as Record<string, unknown> | undefined)?.item as
-				| Record<string, unknown>
-				| undefined;
-			const authorId = typeof media?.authorId === "string" ? media.authorId : "";
+			const authorId = existing.data.item.authorId ?? "";
 			requireOwnership(extra, authorId, "media:delete_own", "media:delete_any");
 
-			return unwrap(await ec.handleMediaDelete(args.id));
+			const result = await ec.handleMediaDelete(args.id);
+			if (
+				result.success &&
+				result.data?.storageDeleted &&
+				isRouteCachedMedia(result.data.storageKey, result.data.mimeType)
+			) {
+				await invalidateRouteCache(getExtra(extra).cache, [mediaCacheTag(result.data.storageKey)]);
+			}
+			return unwrap(result);
 		},
 	);
 
@@ -3487,7 +3503,12 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuList } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuList(ec.db, { locale: args.locale }));
+				return unwrap(
+					await handleMenuList(ec.db, {
+						locale: args.locale,
+						includeDrafts: canReadDrafts(extra),
+					}),
+				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_LIST_ERROR");
 			}
@@ -3512,7 +3533,12 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuGet } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuGet(ec.db, args.name, { locale: args.locale }));
+				return unwrap(
+					await handleMenuGet(ec.db, args.name, {
+						locale: args.locale,
+						includeDrafts: canReadDrafts(extra),
+					}),
+				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_GET_ERROR");
 			}
@@ -3780,7 +3806,7 @@ export function createMcpServer(
 			}
 
 			// Fetch the content entry to check ownership
-			const existing = await emdash.handleContentGet(revItem.collection, revItem.entryId);
+			const existing = await emdash.handleContentGetById(revItem.collection, revItem.entryId);
 			if (!existing.success) {
 				return unwrap(existing);
 			}

@@ -51,6 +51,7 @@ import {
 } from "emdash/plugins/secret-redactor";
 
 import { sandboxHttpFetch } from "./bridge-http.js";
+import { deleteMedia } from "./bridge-media.js";
 import type { RedirectBridgeResult, StorageUpdateIfResponse } from "./types.js";
 
 let bridgeRuntimePromise: Promise<typeof import("./bridge-runtime.js")> | undefined;
@@ -1730,33 +1731,19 @@ export class PluginBridge extends WorkerEntrypoint<PluginBridgeEnv, PluginBridge
 		};
 	}
 
-	async mediaDelete(id: string): Promise<boolean> {
+	async mediaDelete(id: string, invocationId?: string): Promise<boolean> {
 		const { capabilities } = this.ctx.props;
 		if (!capabilities.includes("media:write")) {
 			throw new Error("Missing capability: media:write");
 		}
 
-		// Look up the storage key before deleting
-		const media = await this.env.DB.prepare("SELECT storage_key FROM media WHERE id = ?")
-			.bind(id)
-			.first<{ storage_key: string }>();
-
-		if (!media) return false;
-
-		// Delete the DB row
-		const result = await this.env.DB.prepare("DELETE FROM media WHERE id = ?").bind(id).run();
-
-		// Delete from R2 if the binding is available
-		if (this.env.MEDIA && media.storage_key) {
-			try {
-				await this.env.MEDIA.delete(media.storage_key);
-			} catch {
-				// Log but don't fail - the DB row is already deleted
-				console.warn(`[plugin-bridge] Failed to delete R2 object: ${media.storage_key}`);
-			}
+		const { deleted, cacheKey } = await deleteMedia(this.env, id);
+		if (cacheKey) {
+			const runtimeId = this.ctx.props.contentActionsRuntimeId;
+			const callbacks = runtimeId ? contentActionCallbacks().get(runtimeId) : undefined;
+			await callbacks?.invalidateMedia?.(this.ctx.props.pluginId, cacheKey, invocationId);
 		}
-
-		return (result.meta?.changes ?? 0) > 0;
+		return deleted;
 	}
 
 	// =========================================================================

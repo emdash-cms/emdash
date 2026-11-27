@@ -31,10 +31,22 @@ import {
 	type AssessmentWorkflowControlBinding,
 } from "../reconciliation/workflows.js";
 import { readAssessmentVersions } from "../runtime-config.js";
+import {
+	codeFindings,
+	draftPublisherNotification,
+	readPublisherNotification,
+	securityEmails,
+	sendPublisherNotification,
+	type NotificationFinding,
+	type PublisherEmailSender,
+	type PublisherNotificationDraft,
+} from "./publisher-notification.js";
 import { resolveTakedownSubject } from "./takedown-subject.js";
 
 const ASSESSMENT_ACTION_RE =
 	/^\/_admin\/api\/assessments\/([A-Za-z0-9._:-]{1,200})\/(approve|block|rerun)$/;
+const ASSESSMENT_NOTIFY_RE =
+	/^\/_admin\/api\/assessments\/([A-Za-z0-9._:-]{1,200})\/notify-publisher$/;
 const ASSESSMENT_MEDIA_RE =
 	/^\/_admin\/api\/assessments\/([A-Za-z0-9._:-]{1,200})\/media\/(icon|banner|screenshot)\/([0-9]{1,3})$/;
 const ASSESSMENT_DETAIL_RE = /^\/_admin\/api\/assessments\/([A-Za-z0-9._:-]{1,200})$/;
@@ -55,6 +67,8 @@ const OPERATOR_ASSESSMENT_STATES = new Set([
 	"superseded",
 	"cancelled",
 ]);
+/** Lists assessments in every state, most recently updated first. */
+const ALL_ASSESSMENTS = "all";
 const EFFECTIVE_OPERATOR_STATE_SQL = `CASE
 	WHEN assessment.state IN ('superseded', 'cancelled') THEN assessment.state
 	WHEN current_subject.uri IS NOT NULL AND current_subject.deleted_at IS NOT NULL THEN 'cancelled'
@@ -148,6 +162,7 @@ export interface OperatorApiDependencies {
 	readIssuance?(): Promise<OperatorIssuanceStatus>;
 	listEvaluations?(limit: number, cursor?: string): Promise<OperatorEvaluationPage>;
 	listActivity?(limit: number, cursor?: string): Promise<OperatorActivityPage>;
+	publisherEmail?: PublisherEmailSender;
 	now(): Date;
 }
 
@@ -182,9 +197,10 @@ export async function handleOperatorApi(
 				? "resume"
 				: null;
 	const evalAction = url.pathname === "/_admin/api/evals/run";
+	const notifyAction = ASSESSMENT_NOTIFY_RE.exec(url.pathname);
 	const requiredRole: OperatorRole =
-		takedownAction || issuanceAction || evalAction ? "admin" : "reviewer";
-	if (!assessmentAction && !takedownAction && !issuanceAction && !evalAction) {
+		takedownAction || issuanceAction || evalAction || notifyAction ? "admin" : "reviewer";
+	if (!assessmentAction && !takedownAction && !issuanceAction && !evalAction && !notifyAction) {
 		return apiError("NOT_FOUND", "Operator action was not found", 404);
 	}
 	if (!hasOperatorRole(identity, requiredRole)) {
@@ -253,6 +269,17 @@ export async function handleOperatorApi(
 					now,
 				}),
 			);
+		}
+		if (notifyAction) {
+			return await notifyPublisher(env, dependencies, {
+				runKey: notifyAction[1]!,
+				body,
+				actorDid,
+				role,
+				reason,
+				idempotencyKey,
+				now,
+			});
 		}
 		const issuer = dependencies?.issuer ?? (await createProductionListingLabelIssuer(env));
 		if (assessmentAction) {
@@ -499,14 +526,7 @@ async function handleOperatorRead(
 			.bind(runKey)
 			.first();
 		if (!row) return apiError("NOT_FOUND", "Assessment was not found", 404);
-		const findings = await env.DB.prepare(
-			`SELECT finding_index, category, confidence, reason_code, public_summary,
-			        evidence_refs_json, created_at
-			 FROM findings WHERE assessment_id = ?
-			 ORDER BY finding_index ASC, id ASC`,
-		)
-			.bind(runKey)
-			.all();
+		const decodedFindings = await readAssessmentFindings(env.DB, runKey);
 		const manualDecision = await readProductionManualDecision(
 			env.DB,
 			row["subject_uri"],
@@ -524,6 +544,13 @@ async function handleOperatorRead(
 						resolveProductionPublisherHandle,
 					)
 				: null;
+		const publisherNotification =
+			row["subject_kind"] === "release"
+				? {
+						...draftForAssessment(row, canonicalInput, decodedFindings, relatedProfile),
+						record: await readPublisherNotification(env.DB, runKey),
+					}
+				: null;
 		return mutationResponse({
 			assessment: {
 				...row,
@@ -534,21 +561,18 @@ async function handleOperatorRead(
 				canonical_input_json: undefined,
 				summary_json: undefined,
 			},
-			findings: findings.results.map((finding) => ({
-				...finding,
-				evidenceRefs: parseStoredJson(finding["evidence_refs_json"]),
-				evidence_refs_json: undefined,
-			})),
+			findings: decodedFindings,
 			manualDecision,
 			relatedProfile,
 			publisherHandle,
+			publisherNotification,
 		});
 	}
 	if (url.pathname !== "/_admin/api/assessments") {
 		return apiError("NOT_FOUND", "Operator resource was not found", 404);
 	}
 	const state = url.searchParams.get("state") ?? "review";
-	if (!OPERATOR_ASSESSMENT_STATES.has(state)) {
+	if (state !== ALL_ASSESSMENTS && !OPERATOR_ASSESSMENT_STATES.has(state)) {
 		return apiError("INVALID_REQUEST", "Assessment state filter is invalid", 400);
 	}
 	const limit = readPageLimit(url);
@@ -575,6 +599,168 @@ async function handleOperatorRead(
 		}
 		throw error;
 	}
+}
+
+async function notifyPublisher(
+	env: Env,
+	dependencies: OperatorApiDependencies | undefined,
+	input: {
+		runKey: string;
+		body: Record<string, unknown>;
+		actorDid: string;
+		role: "reviewer" | "admin";
+		reason: string;
+		idempotencyKey: string;
+		now: Date;
+	},
+): Promise<Response> {
+	const sender = dependencies?.publisherEmail ?? env.PUBLISHER_EMAIL;
+	if (!sender) {
+		return apiError("EMAIL_NOT_CONFIGURED", "Publisher email is not configured", 503);
+	}
+	const run = await (dependencies?.getRun(input.runKey) ??
+		createD1AssessmentLifecycleStore(env.DB).getRun(input.runKey));
+	if (!run) return apiError("NOT_FOUND", "Assessment was not found", 404);
+	if (run.deleted) return apiError("SUBJECT_DELETED", "Assessment subject was deleted", 409);
+	if (input.body["uri"] !== run.subject.uri || input.body["cid"] !== run.subject.cid) {
+		return apiError("SUBJECT_CHANGED", "Assessment URI or CID no longer matches", 409);
+	}
+	if (run.subject.kind !== "release" || run.state === "cancelled" || run.state === "superseded") {
+		return apiError("INVALID_STATE", "Assessment cannot notify its publisher", 409);
+	}
+	const current = dependencies
+		? await dependencies.isCurrentSubject(run.subject.uri, run.subject.cid)
+		: await createAggregatorReconciliationClient(
+				env.AGGREGATOR_RECONCILIATION,
+				env.RECONCILIATION_TOKEN,
+			).isCurrentSubject(run.subject.uri, run.subject.cid);
+	if (!current) {
+		return apiError("SUBJECT_CHANGED", "Assessment subject is no longer current", 409);
+	}
+	const row = await env.DB.prepare(
+		"SELECT subject_uri, canonical_input_json FROM assessments WHERE run_key = ?",
+	)
+		.bind(input.runKey)
+		.first();
+	if (!row) return apiError("NOT_FOUND", "Assessment was not found", 404);
+	const canonicalInput = parseStoredJson(row["canonical_input_json"]);
+	const prepared = draftForAssessment(
+		row,
+		canonicalInput,
+		await readAssessmentFindings(env.DB, input.runKey),
+		await readOperatorRelatedProfile(env.DB, canonicalInput),
+	);
+	if (!prepared.draft) {
+		return prepared.unavailable === "NO_CODE_FINDINGS"
+			? apiError("NO_CODE_FINDINGS", "Assessment has no code findings to send", 409)
+			: apiError("NO_SECURITY_CONTACT", "Package has no security contact email", 409);
+	}
+	const result = await sendPublisherNotification({
+		db: env.DB,
+		sender,
+		runKey: input.runKey,
+		subject: run.subject,
+		draft: prepared.draft,
+		actorDid: input.actorDid,
+		actorRole: input.role,
+		reason: input.reason,
+		idempotencyKey: input.idempotencyKey,
+		now: input.now,
+	});
+	if (!result.ok) {
+		switch (result.code) {
+			case "ALREADY_NOTIFIED":
+				return apiError(
+					result.code,
+					"The publisher was already notified about this assessment",
+					409,
+				);
+			case "NOTIFICATION_IN_PROGRESS":
+				return apiError(
+					result.code,
+					"A notification for this assessment is already being sent",
+					409,
+				);
+			case "IDEMPOTENCY_CONFLICT":
+				return apiError(result.code, "Idempotency key was used for another assessment", 409);
+			default:
+				return apiError("EMAIL_SEND_FAILED", "The notification email could not be sent", 502);
+		}
+	}
+	return mutationResponse({
+		action: "notify-publisher",
+		subject: run.subject,
+		recipients: result.recipients,
+		sentAt: result.sentAt,
+	});
+}
+
+async function readAssessmentFindings(
+	db: D1Database,
+	runKey: string,
+): Promise<Record<string, unknown>[]> {
+	const findings = await db
+		.prepare(
+			`SELECT finding_index, category, confidence, reason_code, public_summary,
+			        evidence_refs_json, severity, source, excerpts_json, created_at
+			 FROM findings WHERE assessment_id = ?
+			 ORDER BY finding_index ASC, id ASC`,
+		)
+		.bind(runKey)
+		.all();
+	return findings.results.map((finding) => ({
+		...finding,
+		evidenceRefs: parseStoredJson(finding["evidence_refs_json"]),
+		excerpts: parseStoredJson(finding["excerpts_json"]),
+		evidence_refs_json: undefined,
+		excerpts_json: undefined,
+	}));
+}
+
+function draftForAssessment(
+	row: Record<string, unknown>,
+	canonicalInput: unknown,
+	findings: readonly Record<string, unknown>[],
+	relatedProfile: unknown,
+): {
+	draft?: PublisherNotificationDraft;
+	unavailable?: "NO_CODE_FINDINGS" | "NO_SECURITY_CONTACT";
+} {
+	const selected = codeFindings(
+		findings.flatMap((finding): NotificationFinding[] => {
+			const refs = finding["evidenceRefs"];
+			return typeof finding["category"] === "string" &&
+				typeof finding["public_summary"] === "string"
+				? [
+						{
+							category: finding["category"],
+							severity: typeof finding["severity"] === "string" ? finding["severity"] : null,
+							summary: finding["public_summary"],
+							evidenceRefs: Array.isArray(refs)
+								? refs.filter((ref): ref is string => typeof ref === "string")
+								: [],
+						},
+					]
+				: [];
+		}),
+	);
+	if (selected.length === 0) return { unavailable: "NO_CODE_FINDINGS" };
+	const recipients = securityEmails(relatedProfile);
+	if (recipients.length === 0) return { unavailable: "NO_SECURITY_CONTACT" };
+	const release = isRecord(canonicalInput) ? canonicalInput["input"] : undefined;
+	const slug = isRecord(release) ? release["packageSlug"] : undefined;
+	const version = isRecord(release) ? release["version"] : undefined;
+	const name = isRecord(relatedProfile) ? relatedProfile["name"] : undefined;
+	return {
+		draft: draftPublisherNotification({
+			subjectUri: String(row["subject_uri"]),
+			packageName:
+				typeof name === "string" && name ? name : typeof slug === "string" ? slug : "your package",
+			version: typeof version === "string" ? version : "",
+			recipients,
+			findings: selected,
+		}),
+	};
 }
 
 async function resolveAssessmentPublisherHandle(
@@ -784,18 +970,26 @@ export async function readOperatorAssessmentPage(
 	reader: OperatorAssessmentReader,
 	options: { state: string; limit: number; cursor?: string },
 ): Promise<OperatorAssessmentPage> {
-	if (!OPERATOR_ASSESSMENT_STATES.has(options.state)) {
+	const all = options.state === ALL_ASSESSMENTS;
+	if (!all && !OPERATOR_ASSESSMENT_STATES.has(options.state)) {
 		throw new TypeError("operator assessment state is invalid");
 	}
 	if (!Number.isSafeInteger(options.limit) || options.limit < 1 || options.limit > 100) {
 		throw new RangeError("operator assessment page limit is invalid");
 	}
 	const cursor = options.cursor ? decodeAssessmentCursor(options.cursor) : null;
-	const bindings: Array<string | number> = [options.state];
-	const after = cursor
-		? `AND (assessment.updated_at > ?
-		        OR (assessment.updated_at = ? AND assessment.run_key > ?))`
-		: "";
+	const bindings: Array<string | number> = all ? [] : [options.state];
+	const beyond = all ? "<" : ">";
+	const conditions = [
+		...(all ? [] : [`${EFFECTIVE_OPERATOR_STATE_SQL} = ?`]),
+		...(cursor
+			? [
+					`(assessment.updated_at ${beyond} ?
+					  OR (assessment.updated_at = ? AND assessment.run_key ${beyond} ?))`,
+				]
+			: []),
+	];
+	const direction = all ? "DESC" : "ASC";
 	if (cursor) bindings.push(cursor.updatedAt, cursor.updatedAt, cursor.runKey);
 	bindings.push(options.limit + 1);
 	const rows = await reader.all(
@@ -803,7 +997,12 @@ export async function readOperatorAssessmentPage(
 		        assessment.subject_kind, ${EFFECTIVE_OPERATOR_STATE_SQL} AS state,
 		        assessment.state AS assessment_state, assessment.state_version,
 		        assessment.policy_version, assessment.created_at, assessment.updated_at,
-		        assessment.completed_at
+		        assessment.completed_at,
+		        CASE WHEN json_valid(assessment.coverage_json)
+		             THEN json_extract(assessment.coverage_json, '$.code') END AS code_coverage,
+		        CASE WHEN json_valid(assessment.summary_json)
+		             THEN json_array_length(assessment.summary_json, '$.codeReviews') END
+		          AS code_review_count
 		 FROM assessments assessment
 		 LEFT JOIN operator_actions decision ON decision.id = (
 		   SELECT candidate.id
@@ -819,9 +1018,8 @@ export async function readOperatorAssessmentPage(
 		  AND current_assessment.subject_cid = assessment.subject_cid
 		 LEFT JOIN current_subjects current_subject
 		   ON current_subject.uri = assessment.subject_uri
-		 WHERE ${EFFECTIVE_OPERATOR_STATE_SQL} = ?
-		   ${after}
-		 ORDER BY assessment.updated_at ASC, assessment.run_key ASC
+		 ${conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : ""}
+		 ORDER BY assessment.updated_at ${direction}, assessment.run_key ${direction}
 		 LIMIT ?`,
 		bindings,
 	);

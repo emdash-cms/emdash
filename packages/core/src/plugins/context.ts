@@ -23,7 +23,10 @@ import { createRedirectBody, updateRedirectBody } from "../api/schemas/redirects
 import { CommentRepository, type Comment } from "../database/repositories/comment.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { EntryLockRepository } from "../database/repositories/entry-locks.js";
-import { MediaRepository } from "../database/repositories/media.js";
+import {
+	MediaRepository,
+	SIGNED_UPLOAD_URL_EXPIRES_IN_SECONDS,
+} from "../database/repositories/media.js";
 import { OptionsRepository } from "../database/repositories/options.js";
 import { PluginStorageRepository } from "../database/repositories/plugin-storage.js";
 import {
@@ -47,6 +50,7 @@ import {
 	stripCredentialHeaders,
 } from "../import/ssrf.js";
 import { enrichImageMetadata } from "../media/enrich.js";
+import { isRouteCachedMedia } from "../media/image-endpoint.js";
 import { matchesMimeAllowlist, normalizeMime } from "../media/mime.js";
 import { markContentMediaUsageCollectionStaleSafely } from "../media/usage/content-refresh.js";
 import { SchemaRegistry } from "../schema/registry.js";
@@ -1020,6 +1024,7 @@ export function createMediaAccessWithWrite(
 		| undefined,
 	storage?: Storage,
 	imagePlaceholders = true,
+	invalidateMedia?: (storageKey: string) => Promise<void>,
 ): MediaAccessWithWrite {
 	const mediaRepo = new MediaRepository(db);
 	const readAccess = createMediaAccess(db);
@@ -1046,7 +1051,7 @@ export function createMediaAccessWithWrite(
 				const signed = await storage.getSignedUploadUrl({
 					key: storageKey,
 					contentType: mimeType,
-					expiresIn: 3600,
+					expiresIn: SIGNED_UPLOAD_URL_EXPIRES_IN_SECONDS,
 				});
 
 				return { uploadUrl: signed.url, mediaId: media.id };
@@ -1125,6 +1130,12 @@ export function createMediaAccessWithWrite(
 			// 404s. Matches the invalidation in
 			// `EmDashRuntime.handleMediaDelete`.
 			invalidateSiteSettingsCache();
+			if (
+				result.data.storageDeleted &&
+				isRouteCachedMedia(result.data.storageKey, result.data.mimeType)
+			) {
+				await invalidateMedia?.(result.data.storageKey);
+			}
 			return true;
 		},
 	};
@@ -1572,8 +1583,19 @@ export interface ContentActionCallbacks {
 		invocationId: string,
 		invalidateContentCache?: (tags: string[]) => Promise<void>,
 	): void;
-	/** Release queued after-hooks; `final: false` keeps late actions self-scheduling after timeout. */
+	/** Release queued after-hooks; `final: false` keeps late content hooks self-scheduling after timeout. */
 	flush(pluginId: string, invocationId?: string, final?: boolean): Promise<void>;
+	/**
+	 * Purge cached responses for a storage key after a plugin deleted its file. Never throws.
+	 * Within an active invocation, including one released after timeout, the purge is queued for
+	 * the invocation's next flush or grace-period expiry. Execution requires the host to remain alive.
+	 */
+	invalidateMedia?(
+		pluginId: string,
+		storageKey: string,
+		invocationId?: string,
+		invalidateContentCache?: (tags: string[]) => Promise<void>,
+	): Promise<void>;
 	getVersioned(
 		pluginId: string,
 		collection: string,
@@ -1793,11 +1815,13 @@ export class PluginContextFactory {
 		}
 		if (capabilities.has("media:write")) {
 			if (this.getUploadUrl || this.storage) {
+				const invalidateMedia = this.contentActions?.invalidateMedia?.bind(this.contentActions);
 				media = createMediaAccessWithWrite(
 					db,
 					this.getUploadUrl,
 					this.storage,
 					this.imagePlaceholders,
+					invalidateMedia && ((storageKey) => invalidateMedia(plugin.id, storageKey)),
 				);
 			} else {
 				if (!this.warnedMissingMediaBackend.has(plugin.id)) {
