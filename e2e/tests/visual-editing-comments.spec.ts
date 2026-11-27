@@ -505,6 +505,8 @@ test.describe("Editorial comments in visual editing", () => {
 				.setTextSelection({ from, to: from + wanted.length })
 				.run();
 		}, text);
+		// Tiptap focuses the view on the next frame, so keys pressed before then miss the editor.
+		await expect(page.locator(".emdash-inline-editor")).toBeFocused();
 	}
 
 	test("highlights a text thread in the inline editor, and opens it without leaving the editor", async ({
