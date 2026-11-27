@@ -19,6 +19,12 @@ Type `@` in a comment to mention someone who can take part in threads. A comment
 
 When the site has an email provider, a new comment emails the people it mentions, the thread's creator and the authors of its earlier comments that weren't deleted, except its own author, anyone who can no longer take part, and users whose email address isn't verified. Editing a comment to mention someone new emails only that person. The email has the entry's title, an excerpt of the comment and a link to the thread. Without an email provider, nothing is sent, and the comment is still saved. See [Comment on an entry](https://docs.emdashcms.com/guides/working-with-content/#comment-on-an-entry) for mentions and comment emails.
 
+#### MCP tools
+
+AI agents can review entries through five MCP tools: `editorial_thread_list`, `editorial_mentionable_list`, `editorial_thread_create`, `editorial_comment_create` and `editorial_thread_resolve`. A token needs the `content:read` scope for `editorial_thread_list` and `editorial_mentionable_list`, and the `content:write` scope for the other three. `editorial_mentionable_list` finds the user IDs that comment bodies mention as `<@USER_ID>`. The user behind the token needs the `editorial:comment` and `content:read_drafts` permissions for every tool.
+
+`editorial_thread_create` starts a thread on the whole entry, or on one field when you pass `field`. To comment on specific text, pass `field` and the exact `quote`, with optional `prefix` and `suffix` to tell repeated text apart. The tool finds the quote in the entry's current draft. Passing `prefix` or `suffix` without `quote` fails with `VALIDATION_ERROR`.
+
 #### Permissions
 
 Two permissions are new in `@emdash-cms/auth`. Every editorial route also needs `content:read_drafts`.
