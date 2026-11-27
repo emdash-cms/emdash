@@ -93,7 +93,7 @@ The author replies with a link and resolves the thread. The entry's content and 
 - Keep text and block anchors attached through edits made in the admin editor, and re-attach them by quoted text after edits made anywhere else.
 - Show a thread whose anchor can no longer be found, together with the text it originally referred to, instead of discarding it.
 - Notify mentioned users and thread participants by email when the site has an email provider.
-- Expose field- and entry-level threads in the visual editing toolbar.
+- Expose threads in the visual editing toolbar, and let editors comment on text in the inline editor.
 - Add no queries, HTML, or script to logged-out page renders.
 
 ## Non-goals
@@ -275,9 +275,9 @@ All strings go through Lingui. The panel and highlights use logical Tailwind cla
 
 ### Visual editing toolbar
 
-When edit mode is active, the toolbar script collects the distinct entries referenced by `data-emdash-ref` attributes on the page and fetches their open threads, with at most 4 requests in flight. It adds a badge to annotated elements whose entry or field has open threads. Each annotated element offers a **Comment** action that opens a popover with the element's threads, a reply box, a resolve control, and an **Open in admin** link to the deep link above. The toolbar creates only entry and field threads.
+When edit mode is active, the toolbar script collects the distinct entries referenced by `data-emdash-ref` attributes on the page and fetches their open threads, with at most 4 requests in flight. It adds a badge to annotated elements whose entry or field has open threads. Each annotated element offers a **Comment** action that opens a popover with the element's threads, a reply box, a resolve control, and an **Open in admin** link to the deep link above. From the badge, the toolbar creates entry and field threads.
 
-Text and block threads appear in the toolbar as a count on their field's badge. Creating text anchors from the inline editor is a later slice, because `InlinePortableTextEditor` currently assigns a new `_key` to every block on each save, which would orphan block anchors and leave text anchors dependent on quote matching. Preserving block keys in the inline editor is a bug fix that can land independently.
+`InlinePortableTextEditor` keeps each block's `_key` as a node attribute and gives new, split and pasted blocks keys of their own with the admin editor's key plugin, so a save no longer replaces every key. The editor and the toolbar talk through document events. The editor announces itself once it mounts, and the toolbar gives it a badge, reusing the badge of an annotated element that contains it. The toolbar sends the editor its field's open threads, and the editor highlights the text and block threads with the admin editor's decorations. Selecting text and choosing **Comment** in the formatting toolbar, or pressing Mod-Alt-M, opens the field's popover with a draft text anchor. Clicking a highlight opens the popover on that thread without moving focus out of the editor. After each inline save, the editor recomputes its threads' anchors and stores the changed ones through the anchors route, using the `_rev` that the save returned.
 
 Toolbar strings use the existing toolbar labels mechanism that the admin writes for each browser.
 
@@ -342,7 +342,7 @@ Each slice is usable on its own and ships without a feature flag:
 3. Mentions, the mentionable endpoint, and email notifications.
 4. Visual editing toolbar: badges, the popover, and entry and field threads.
 5. MCP tools.
-6. Text anchors in the inline editor, after `InlinePortableTextEditor` preserves block keys.
+6. Text anchors in the inline editor, which preserves block keys.
 
 ## Alternatives
 
@@ -354,7 +354,7 @@ Each slice is usable on its own and ships without a feature flag:
 
 ## Drawbacks
 
-- Anchors detach when the quoted text itself changes outside an open admin editor, through the API, MCP, the inline editor, or a revision restore.
+- Anchors detach when the quoted text itself changes outside an open admin or inline editor, through the API, MCP, or a revision restore.
 - The admin and the visual editing toolbar are two clients to maintain, and the toolbar version has fewer features.
 - Comments arrive up to 30 seconds late, and there is no presence information.
 - Without notification preferences, active threads can generate a lot of email.

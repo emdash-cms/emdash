@@ -66,6 +66,17 @@ describe("visual editing toolbar localization", () => {
 			"visualEditing.onBlock": ["Sobre un bloque"],
 			"visualEditing.commentsLoadFailed": ["No se pudieron cargar los comentarios"],
 			"visualEditing.commentActionFailed": ["No se pudo guardar. Inténtalo de nuevo."],
+			"visualEditing.commentOnSelection": ["Comentar la selección"],
+			"visualEditing.selectionTooLong": ["La selección es demasiado larga para comentarla"],
+			"visualEditing.selectionOneParagraph": [
+				"Selecciona texto de un solo párrafo para comentarlo",
+			],
+			"visualEditing.selectionUnsupported": [
+				"Este texto no admite comentarios. Comenta el campo entero.",
+			],
+			"visualEditing.selectionUnkeyed": [
+				"Este bloque aún no admite comentarios. Guarda la entrada y vuelve a intentarlo.",
+			],
 		};
 
 		expect(translateVisualEditingToolbarLabels(messages)).toEqual({
@@ -119,6 +130,12 @@ describe("visual editing toolbar localization", () => {
 			onBlock: "Sobre un bloque",
 			commentsLoadFailed: "No se pudieron cargar los comentarios",
 			commentActionFailed: "No se pudo guardar. Inténtalo de nuevo.",
+			commentOnSelection: "Comentar la selección",
+			selectionTooLong: "La selección es demasiado larga para comentarla",
+			selectionOneParagraph: "Selecciona texto de un solo párrafo para comentarlo",
+			selectionUnsupported: "Este texto no admite comentarios. Comenta el campo entero.",
+			selectionUnkeyed:
+				"Este bloque aún no admite comentarios. Guarda la entrada y vuelve a intentarlo.",
 		});
 	});
 

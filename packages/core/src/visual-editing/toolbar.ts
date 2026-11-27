@@ -69,6 +69,11 @@ export interface ToolbarLabels {
 	onBlock: string;
 	commentsLoadFailed: string;
 	commentActionFailed: string;
+	commentOnSelection: string;
+	selectionTooLong: string;
+	selectionOneParagraph: string;
+	selectionUnsupported: string;
+	selectionUnkeyed: string;
 }
 
 const SCRIPT_LINE_SEPARATOR_RE = /\u2028/g;
@@ -1719,6 +1724,9 @@ export function renderToolbar(config: ToolbarConfig): string {
   var commentTargetsByElement = new Map();
   var commentLayer = null;
   var openCommentTarget = null;
+  var openCommentThreadId = null;
+  var openCommentToken = 0;
+  var commentOpenCount = 0;
   var hoveredCommentTarget = null;
   var focusedCommentTarget = null;
   var commentLayoutFrame = null;
@@ -1838,6 +1846,31 @@ export function renderToolbar(config: ToolbarConfig): string {
       if (entryKey(target.annotation.collection, target.annotation.id) === key && target.button) renderCommentTrigger(target);
     });
     scheduleCommentLayout();
+    sendThreadsToEditors(annotation.collection, annotation.id);
+  }
+
+  function sameAnnotation(a, b) {
+    return a.collection === b.collection && a.id === b.id && (a.field || null) === (b.field || null);
+  }
+
+  // Inline editors highlight the text and block threads of their field, and
+  // can start new ones once this entry's threads have loaded.
+  function sendThreadsToEditors(collection, id) {
+    var key = entryKey(collection, id);
+    var canComment = threadsByEntry.has(key) && !failedCommentEntries.has(key);
+    commentTargets.forEach(function(target) {
+      var annotation = target.annotation;
+      if (!target.inlineEditor || entryKey(annotation.collection, annotation.id) !== key) return;
+      document.dispatchEvent(new CustomEvent("emdash:editorial-threads", {
+        detail: {
+          collection: annotation.collection,
+          id: annotation.id,
+          field: annotation.field,
+          threads: threadsFor(annotation),
+          labels: canComment ? toolbarLabels : null,
+        },
+      }));
+    });
   }
 
   function commentTitle(annotation) {
@@ -2084,43 +2117,34 @@ export function renderToolbar(config: ToolbarConfig): string {
 
   function toggleComments(target) {
     if (commentsUnavailable) {
+      openComments(target, null);
+      return;
+    }
+    loadCommentsPopover().then(
+      function(popover) {
+        if (openCommentTarget === target) popover.close();
+        else showComments(popover, target, null);
+      },
+      function() { openComments(target, null); }
+    );
+  }
+
+  function dispatchCommentsClosed(target) {
+    if (!target.inlineEditor) return;
+    document.dispatchEvent(new CustomEvent("emdash:editorial-closed", {
+      detail: { collection: target.annotation.collection, id: target.annotation.id, field: target.annotation.field },
+    }));
+  }
+
+  // request: null for the badge, { threadId } to show one thread, or
+  // { draft: { anchor } } to start a thread on text in an inline editor.
+  function openComments(target, request) {
+    if (commentsUnavailable) {
       window.open(commentFallbackUrl(target), adminWindowName(target.annotation.collection, target.annotation.id));
       return;
     }
     loadCommentsPopover()
-      .then(function(popover) {
-        if (openCommentTarget === target) {
-          popover.close();
-          return;
-        }
-        openCommentTarget = target;
-        target.button.setAttribute("aria-expanded", "true");
-        var annotation = target.annotation;
-        var threads = threadsFor(annotation);
-        var fieldLabels = {};
-        threads.forEach(function(thread) {
-          var field = thread.anchor && thread.anchor.field;
-          if (field) fieldLabels[field] = fieldLabel({ collection: annotation.collection, field: field });
-        });
-        popover.open({
-          anchor: target.button,
-          title: commentTitle(annotation),
-          field: anchorField(annotation),
-          threads: threads,
-          fieldLabels: fieldLabels,
-          loadFailed: failedCommentEntries.has(entryKey(annotation.collection, annotation.id)),
-          labels: toolbarLabels,
-          threadsUrl: threadsUrl(annotation),
-          adminUrl: adminEntryUrl(annotation),
-          adminTarget: adminWindowName(annotation.collection, annotation.id),
-          request: sendThreadRequest,
-          onThreadChange: function(thread) { storeThread(annotation, thread); },
-          onClose: function() {
-            target.button.setAttribute("aria-expanded", "false");
-            if (openCommentTarget === target) openCommentTarget = null;
-          },
-        });
-      })
+      .then(function(popover) { showComments(popover, target, request); })
       .catch(function(err) {
         console.error("[emdash] The comment popover failed to load; comment badges now open the admin:", err);
         useCommentLinks();
@@ -2128,45 +2152,165 @@ export function renderToolbar(config: ToolbarConfig): string {
       });
   }
 
-  function startEditorialComments() {
-    var entries = new Map();
-    document.querySelectorAll("[data-emdash-ref]").forEach(function(element) {
-      if (toolbar.contains(element)) return;
-      var annotation = parseAnnotation(element);
-      if (!annotation) return;
-      var target = { element: element, annotation: annotation, button: null };
-      commentTargets.push(target);
-      commentTargetsByElement.set(element, target);
-      var key = entryKey(annotation.collection, annotation.id);
-      if (!entries.has(key)) entries.set(key, { annotation: annotation, targets: [] });
-      entries.get(key).targets.push(target);
+  function showComments(popover, target, request) {
+    var threadId = request && typeof request.threadId === "string" ? request.threadId : null;
+    if (openCommentTarget === target && threadId && openCommentThreadId === threadId) return;
+    var token = ++commentOpenCount;
+    openCommentToken = token;
+    openCommentTarget = target;
+    openCommentThreadId = threadId;
+    target.button.setAttribute("aria-expanded", "true");
+    var annotation = target.annotation;
+    var threads = threadsFor(annotation);
+    var fieldLabels = {};
+    threads.forEach(function(thread) {
+      var field = thread.anchor && thread.anchor.field;
+      if (field) fieldLabels[field] = fieldLabel({ collection: annotation.collection, field: field });
     });
-    if (!entries.size) return;
+    popover.open({
+      anchor: target.button,
+      title: commentTitle(annotation),
+      field: anchorField(annotation),
+      threads: threads,
+      fieldLabels: fieldLabels,
+      loadFailed: failedCommentEntries.has(entryKey(annotation.collection, annotation.id)),
+      labels: toolbarLabels,
+      threadsUrl: threadsUrl(annotation),
+      adminUrl: adminEntryUrl(annotation),
+      adminTarget: adminWindowName(annotation.collection, annotation.id),
+      draft: request && request.draft ? request.draft : null,
+      focusThreadId: threadId,
+      request: sendThreadRequest,
+      onThreadChange: function(thread) { storeThread(annotation, thread); },
+      onClose: function() {
+        // A popover that replaced this one on the same target keeps it open.
+        if (openCommentToken !== token && openCommentTarget === target) return;
+        target.button.setAttribute("aria-expanded", "false");
+        if (openCommentToken === token) {
+          openCommentToken = 0;
+          openCommentTarget = null;
+          openCommentThreadId = null;
+        }
+        dispatchCommentsClosed(target);
+      },
+    });
+  }
 
+  var commentEntries = new Map();
+  var commentObserver = null;
+  var commentManifest = null;
+
+  function addCommentTarget(element, annotation) {
+    var target = { element: element, annotation: annotation, button: null, inlineEditor: false };
+    var next = commentTargets.findIndex(function(other) {
+      return other.element.compareDocumentPosition(element) & Node.DOCUMENT_POSITION_PRECEDING;
+    });
+    if (next === -1) commentTargets.push(target);
+    else commentTargets.splice(next, 0, target);
+    commentTargetsByElement.set(element, target);
+    if (commentObserver) commentObserver.observe(element);
+    var key = entryKey(annotation.collection, annotation.id);
+    if (!commentEntries.has(key)) commentEntries.set(key, { annotation: annotation, targets: [], state: null });
+    commentEntries.get(key).targets.push(target);
+    return target;
+  }
+
+  function showEntryComments(entry) {
+    return commentManifest.then(function() {
+      entry.targets.forEach(renderCommentTrigger);
+      scheduleCommentLayout();
+      sendThreadsToEditors(entry.annotation.collection, entry.annotation.id);
+    });
+  }
+
+  function loadEntryThreads(entry) {
+    var key = entryKey(entry.annotation.collection, entry.annotation.id);
+    entry.state = "loading";
+    return fetchOpenThreads(entry.annotation)
+      .then(function(threads) {
+        threadsByEntry.set(key, threads);
+        failedCommentEntries.delete(key);
+        entry.state = "done";
+        return showEntryComments(entry);
+      })
+      .catch(function(err) {
+        console.error("Failed to load comments:", err);
+        entry.state = "done";
+        // 401 and 403 mean this user can't take part in editorial comments.
+        if (err && (err.status === 401 || err.status === 403)) return;
+        if (!threadsByEntry.has(key)) failedCommentEntries.add(key);
+        return showEntryComments(entry);
+      });
+  }
+
+  function commentTargetFor(node) {
+    for (var element = node; element && element !== document.body; element = element.parentElement) {
+      var target = commentTargetsByElement.get(element);
+      if (target) return target;
+    }
+    return null;
+  }
+
+  function registerInlineEditor(detail) {
+    if (!detail || !(detail.element instanceof Element)) return;
+    if (typeof detail.collection !== "string" || typeof detail.id !== "string" || typeof detail.field !== "string") return;
+    var annotation = { collection: detail.collection, id: detail.id, field: detail.field };
+    var target = commentTargets.find(function(candidate) {
+      return candidate.element === detail.element ||
+        (sameAnnotation(candidate.annotation, annotation) && candidate.element.contains(detail.element));
+    });
+    var added = !target;
+    if (added) target = addCommentTarget(detail.element, annotation);
+    target.inlineEditor = true;
+    var entry = commentEntries.get(entryKey(annotation.collection, annotation.id));
+    if (entry.state === null) {
+      loadEntryThreads(entry);
+    } else if (entry.state === "done") {
+      if (added) showEntryComments(entry);
+      else sendThreadsToEditors(annotation.collection, annotation.id);
+    }
+  }
+
+  function inlineEditorTarget(detail) {
+    if (!detail) return null;
+    return commentTargets.find(function(target) {
+      return target.inlineEditor && target.button &&
+        target.annotation.collection === detail.collection &&
+        target.annotation.id === detail.id &&
+        target.annotation.field === detail.field;
+    }) || null;
+  }
+
+  function startEditorialComments() {
     commentLayer = document.createElement("div");
     commentLayer.className = "emdash-cm-layer";
     document.body.appendChild(commentLayer);
+    commentManifest = fetchManifest().catch(function() { return null; });
+    if (typeof ResizeObserver === "function") {
+      commentObserver = new ResizeObserver(scheduleCommentLayout);
+      commentObserver.observe(document.body);
+    }
 
-    var manifestReady = fetchManifest().catch(function() { return null; });
-    eachWithLimit(Array.from(entries.values()), COMMENT_REQUEST_LIMIT, function(entry) {
-      return fetchOpenThreads(entry.annotation)
-        .then(function(threads) {
-          threadsByEntry.set(entryKey(entry.annotation.collection, entry.annotation.id), threads);
-          return manifestReady.then(function() {
-            entry.targets.forEach(renderCommentTrigger);
-            scheduleCommentLayout();
-          });
-        })
-        .catch(function(err) {
-          console.error("Failed to load comments:", err);
-          // 401 and 403 mean this user can't take part in editorial comments.
-          if (err && (err.status === 401 || err.status === 403)) return;
-          failedCommentEntries.add(entryKey(entry.annotation.collection, entry.annotation.id));
-          return manifestReady.then(function() {
-            entry.targets.forEach(renderCommentTrigger);
-            scheduleCommentLayout();
-          });
-        });
+    document.querySelectorAll("[data-emdash-ref]").forEach(function(element) {
+      if (toolbar.contains(element)) return;
+      var annotation = parseAnnotation(element);
+      if (annotation) addCommentTarget(element, annotation);
+    });
+    eachWithLimit(Array.from(commentEntries.values()), COMMENT_REQUEST_LIMIT, loadEntryThreads);
+
+    document.addEventListener("emdash:inline-editor-ready", function(e) {
+      registerInlineEditor(e.detail);
+    });
+    document.addEventListener("emdash:editorial-open", function(e) {
+      var target = inlineEditorTarget(e.detail);
+      if (!target) return;
+      var detail = e.detail;
+      openComments(target, detail.draft && detail.draft.anchor ? { draft: { anchor: detail.draft.anchor } } : { threadId: detail.threadId });
+    });
+    document.addEventListener("emdash:editorial-anchors-changed", function(e) {
+      var detail = e.detail;
+      var entry = detail && commentEntries.get(entryKey(detail.collection, detail.id));
+      if (entry && entry.state === "done") loadEntryThreads(entry);
     });
 
     document.addEventListener("mouseover", function(e) {
@@ -2177,8 +2321,7 @@ export function renderToolbar(config: ToolbarConfig): string {
       if (trigger) {
         target = commentTargets.find(function(candidate) { return candidate.button === trigger; }) || null;
       } else if (!node.closest("[data-emdash-comments]")) {
-        var element = node.closest("[data-emdash-ref]");
-        target = element ? commentTargetsByElement.get(element) || null : null;
+        target = commentTargetFor(node);
       } else {
         return;
       }
@@ -2188,8 +2331,7 @@ export function renderToolbar(config: ToolbarConfig): string {
     document.addEventListener("focusin", function(e) {
       var node = e.target;
       if (!node || !node.closest || node.closest(".emdash-cm-trigger, [data-emdash-comments]")) return;
-      var element = node.closest("[data-emdash-ref]");
-      setFocusedCommentTarget(element ? commentTargetsByElement.get(element) || null : null);
+      setFocusedCommentTarget(commentTargetFor(node));
     });
     document.addEventListener("focusout", function(e) {
       if (!e.relatedTarget) setFocusedCommentTarget(null);
@@ -2198,11 +2340,8 @@ export function renderToolbar(config: ToolbarConfig): string {
     document.addEventListener("scroll", scheduleCommentLayout, { capture: true, passive: true });
     window.addEventListener("resize", scheduleCommentLayout);
     window.addEventListener("load", scheduleCommentLayout);
-    if (typeof ResizeObserver === "function") {
-      var observer = new ResizeObserver(scheduleCommentLayout);
-      observer.observe(document.body);
-      commentTargets.forEach(function(target) { observer.observe(target.element); });
-    }
+    // Inline editors hydrate after this script; any already on the page announce themselves.
+    document.dispatchEvent(new CustomEvent("emdash:editorial-comments-start"));
   }
 
   if (isEditMode) {

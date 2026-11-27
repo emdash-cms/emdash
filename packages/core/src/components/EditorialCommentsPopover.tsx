@@ -82,6 +82,10 @@ export interface CommentsPopoverOptions {
 	/** `/_emdash/admin/content/{collection}/{id}` */
 	adminUrl: string;
 	adminTarget: string;
+	/** Starts a thread on text in an inline editor: the new comment goes on this anchor. */
+	draft?: { anchor: { type: string; field?: string; quote?: string } } | null;
+	/** A thread to scroll to and mark, opened from its highlight, so focus stays in the editor. */
+	focusThreadId?: string | null;
 	/** Sends a thread write and resolves to the thread it returns. */
 	request: (url: string, method: "POST" | "PATCH", payload: unknown) => Promise<CommentsThreadView>;
 	onThreadChange: (thread: CommentsThreadView) => void;
@@ -268,11 +272,13 @@ function Thread({
 	options,
 	textareaRef,
 	onChange,
+	marked,
 }: {
 	thread: CommentsThreadView;
 	options: CommentsPopoverOptions;
 	textareaRef: (element: HTMLTextAreaElement | null) => void;
 	onChange: (thread: CommentsThreadView, focus: string) => void;
+	marked: boolean;
 }) {
 	const { labels } = options;
 	const names = new Map<string, string>();
@@ -281,10 +287,15 @@ function Thread({
 	}
 	const threadUrl = `${options.threadsUrl}/${encodeURIComponent(thread.id)}`;
 	const [resolving, setResolving] = React.useState(false);
+	const itemRef = React.useRef<HTMLLIElement>(null);
 	const otherField = options.field === null ? thread.anchor.field : undefined;
 
+	React.useEffect(() => {
+		if (marked) itemRef.current?.scrollIntoView({ block: "nearest" });
+	}, [marked]);
+
 	return (
-		<li className="emdash-comments-thread">
+		<li ref={itemRef} className="emdash-comments-thread" data-marked={marked ? "" : undefined}>
 			{otherField && (
 				<p className="emdash-comments-quote">
 					{fillLabel(labels.onField, { field: options.fieldLabels?.[otherField] ?? otherField })}
@@ -373,6 +384,9 @@ function CommentsPopover({
 }) {
 	const { anchor, labels } = options;
 	const [threads, setThreads] = React.useState(options.threads);
+	// Once its thread is saved, the next comment goes on the field again.
+	const [draft, setDraft] = React.useState(options.draft ?? null);
+	const draftQuote = draft?.anchor.type === "text" ? (draft.anchor.quote ?? "") : null;
 	const [focus, setFocus] = React.useState<string | null>(null);
 	const dialogRef = React.useRef<HTMLDivElement | null>(null);
 	const anchorRef = React.useRef<HTMLElement | null>(anchor);
@@ -421,8 +435,8 @@ function CommentsPopover({
 		<FloatingFocusManager
 			context={context}
 			modal={false}
-			initialFocus={dialogRef}
-			returnFocus={anchorRef}
+			initialFocus={options.draft ? newCommentRef : options.focusThreadId ? -1 : dialogRef}
+			returnFocus={options.focusThreadId ? false : anchorRef}
 		>
 			<div
 				ref={setDialog}
@@ -461,6 +475,7 @@ function CommentsPopover({
 									thread={thread}
 									options={options}
 									onChange={change}
+									marked={thread.id === options.focusThreadId}
 									textareaRef={(element) => {
 										if (element) replyRefs.current.set(thread.id, element);
 										else replyRefs.current.delete(thread.id);
@@ -471,6 +486,11 @@ function CommentsPopover({
 					) : options.loadFailed ? null : (
 						<p className="emdash-comments-empty">{labels.noOpenComments}</p>
 					)}
+					{draftQuote !== null && (
+						<p className="emdash-comments-quote" dir="auto">
+							{fillLabel(labels.onQuote, { quote: draftQuote })}
+						</p>
+					)}
 					<CommentForm
 						label={labels.newComment}
 						submitLabel={labels.comment}
@@ -478,13 +498,14 @@ function CommentsPopover({
 						draftKey={`${options.threadsUrl} new ${options.field ?? ""}`}
 						textareaRef={newCommentRef}
 						onSubmit={async (body) => {
-							const anchorValue = options.field
-								? { type: "field", field: options.field }
-								: { type: "entry" };
+							const anchorValue =
+								draft?.anchor ??
+								(options.field ? { type: "field", field: options.field } : { type: "entry" });
 							change(
 								await options.request(options.threadsUrl, "POST", { anchor: anchorValue, body }),
 								"new",
 							);
+							setDraft(null);
 						}}
 					/>
 				</div>
@@ -613,6 +634,9 @@ const COMMENTS_STYLES = `
 		padding: 10px;
 		border-radius: 8px;
 		background: var(--emdash-ui-tint);
+	}
+	.emdash-comments-thread[data-marked] {
+		box-shadow: inset 0 0 0 2px var(--emdash-ui-brand);
 	}
 	.emdash-comments-quote {
 		display: -webkit-box;

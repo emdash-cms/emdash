@@ -386,4 +386,83 @@ describe("editorial comments in the toolbar", () => {
 		await new Promise((resolve) => setTimeout(resolve, 10));
 		expect(document.querySelector(".emdash-cm-trigger")).toBeNull();
 	});
+
+	describe("inline editors", () => {
+		const TEXT_THREAD = thread("t-text", {
+			type: "text",
+			field: "body",
+			blockKey: "b1",
+			start: 0,
+			end: 3,
+			quote: "One",
+		});
+
+		function announce(element: Element, id = "post-1") {
+			document.dispatchEvent(
+				new CustomEvent("emdash:inline-editor-ready", {
+					detail: { collection: "posts", id, field: "body", element },
+				}),
+			);
+		}
+
+		function captureThreads() {
+			const sent: Array<{ threads: Array<{ id: string }>; labels: unknown }> = [];
+			document.addEventListener("emdash:editorial-threads", (event) => {
+				sent.push((event as CustomEvent).detail);
+			});
+			return sent;
+		}
+
+		it("badges an editor that hydrates after the toolbar, and sends it its field's threads", async () => {
+			const fetchMock = stubApi(() => listOf([TEXT_THREAD]));
+			const sent = captureThreads();
+			mountPage(`<div id="editor">One fish</div>`);
+			const editor = document.getElementById("editor")!;
+
+			announce(editor);
+
+			const badge = await waitForTrigger("Comments on Body: 1 open");
+			expect(badge.isConnected).toBe(true);
+			await vi.waitFor(() => expect(sent.at(-1)?.threads.map((t) => t.id)).toEqual(["t-text"]));
+			expect(sent.at(-1)?.labels).toMatchObject({ commentOnSelection: "Comment on the selection" });
+			expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/threads"))).toHaveLength(
+				1,
+			);
+		});
+
+		it("keeps one badge for an editor inside its field's annotated element", async () => {
+			stubApi(() => listOf([TEXT_THREAD]));
+			const sent = captureThreads();
+			mountPage(
+				`<div data-emdash-ref='${ref("post-1", "body")}'><div id="editor">One fish</div></div>`,
+			);
+			await waitForTrigger("Comments on Body: 1 open");
+
+			announce(document.getElementById("editor")!);
+
+			await vi.waitFor(() => expect(sent).toHaveLength(1));
+			expect(document.querySelectorAll(".emdash-cm-trigger")).toHaveLength(1);
+		});
+
+		it("asks editors already on the page to announce themselves when comments start", () => {
+			stubApi(() => listOf([]));
+			const started = vi.fn();
+			document.addEventListener("emdash:editorial-comments-start", started);
+
+			mountPage(annotated("post-1", "title"));
+
+			expect(started).toHaveBeenCalledTimes(1);
+		});
+
+		it("sends no Comment labels when the entry's threads couldn't load", async () => {
+			stubApi(() => new Response("{}", { status: 500 }));
+			const sent = captureThreads();
+			mountPage(`<div id="editor">One fish</div>`);
+
+			announce(document.getElementById("editor")!);
+
+			await vi.waitFor(() => expect(sent).toHaveLength(1));
+			expect(sent[0]!.labels).toBeNull();
+		});
+	});
 });

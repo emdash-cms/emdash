@@ -7,6 +7,7 @@
 
 import {
 	CaretDown,
+	ChatCircleText,
 	Check,
 	Code,
 	DotsThree,
@@ -451,10 +452,13 @@ export function InlineBubbleMenu({
 	editor,
 	uiRoot,
 	onImageReplaced,
+	comment,
 }: {
 	editor: Editor;
 	uiRoot: HTMLElement;
 	onImageReplaced: () => void;
+	/** Shown while the visual editing toolbar takes comments on this field. */
+	comment?: { label: string; onClick: () => void };
 }) {
 	const [editingLink, setEditingLink] = React.useState(false);
 	const [openMenu, setOpenMenu] = React.useState<"turnInto" | "more" | null>(null);
@@ -693,6 +697,14 @@ export function InlineBubbleMenu({
 										trigger={<DotsThree weight="bold" aria-hidden="true" />}
 										groups={moreGroups}
 									/>
+									{comment && (
+										<>
+											<ToolbarSeparator />
+											<ToolbarButton label={comment.label} onClick={comment.onClick}>
+												<ChatCircleText />
+											</ToolbarButton>
+										</>
+									)}
 								</div>
 							)}
 						</ToolbarTooltipGroup>

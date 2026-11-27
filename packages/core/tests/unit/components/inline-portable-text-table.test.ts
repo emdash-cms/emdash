@@ -105,7 +105,7 @@ describe("inline editor table preservation", () => {
 		const node = document.content?.[0];
 
 		expect(node?.type).toBe("table");
-		expect(node?.attrs).toEqual({ rawTable: table });
+		expect(node?.attrs).toEqual({ rawTable: table, emdashKey: "table-original" });
 		expect(node?.attrs).not.toHaveProperty("id");
 	});
 

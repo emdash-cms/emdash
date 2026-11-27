@@ -340,4 +340,90 @@ describe("editorial comments popover", () => {
 
 		expect(dialog().querySelector(".emdash-comments-quote")!.textContent).toBe("On Theme colour");
 	});
+
+	const TEXT_ANCHOR = {
+		type: "text",
+		field: "body",
+		blockKey: "b1",
+		start: 4,
+		end: 8,
+		quote: "fish",
+		prefix: "One ",
+		suffix: ".",
+	};
+
+	it("starts a thread on an inline editor's selection, then goes back to field threads", async () => {
+		const created = thread("t-text", { anchor: TEXT_ANCHOR });
+		const request = vi.fn(async () => created);
+		await act(async () =>
+			handle.open({
+				anchor,
+				title: "Comments on Body",
+				field: "body",
+				threads: [],
+				loadFailed: false,
+				labels: LABELS,
+				threadsUrl: THREADS_URL,
+				adminUrl: "/_emdash/admin/content/posts/post-1",
+				adminTarget: "emdash-admin-posts/post-1",
+				draft: { anchor: TEXT_ANCHOR },
+				request,
+				onThreadChange: vi.fn(),
+				onClose: vi.fn(),
+			}),
+		);
+		const textarea = () =>
+			dialog().querySelector<HTMLTextAreaElement>(".emdash-comments-body > form textarea")!;
+		await vi.waitFor(() => expect(document.activeElement).toBe(textarea()));
+		expect(
+			dialog().querySelector(".emdash-comments-body > .emdash-comments-quote")!.textContent,
+		).toBe("On “fish”");
+
+		await type(textarea(), "Which fish?");
+		await act(async () => button("Comment").click());
+		await type(textarea(), "And the title?");
+		await act(async () => button("Comment").click());
+
+		expect(request.mock.calls.map((call) => (call as unknown[])[2])).toEqual([
+			{ anchor: TEXT_ANCHOR, body: "Which fish?" },
+			{ anchor: { type: "field", field: "body" }, body: "And the title?" },
+		]);
+		expect(dialog().querySelector(".emdash-comments-body > .emdash-comments-quote")).toBeNull();
+	});
+
+	it("marks the thread opened from its highlight and leaves focus where it was", async () => {
+		const scrolled: Element[] = [];
+		Element.prototype.scrollIntoView = function (this: Element) {
+			scrolled.push(this);
+		};
+		const editor = document.createElement("div");
+		editor.tabIndex = 0;
+		document.body.append(editor);
+		editor.focus();
+		await act(async () =>
+			handle.open({
+				anchor,
+				title: "Comments on Body",
+				field: "body",
+				threads: [thread("t-1"), thread("t-2", { anchor: TEXT_ANCHOR })],
+				loadFailed: false,
+				labels: LABELS,
+				threadsUrl: THREADS_URL,
+				adminUrl: "/_emdash/admin/content/posts/post-1",
+				adminTarget: "emdash-admin-posts/post-1",
+				focusThreadId: "t-2",
+				request: vi.fn(),
+				onThreadChange: vi.fn(),
+				onClose: vi.fn(),
+			}),
+		);
+		await act(async () => new Promise((resolve) => setTimeout(resolve, 20)));
+
+		const marked = dialog().querySelectorAll(".emdash-comments-thread[data-marked]");
+		expect(marked).toHaveLength(1);
+		expect(marked[0]!.textContent).toContain("On “fish”");
+		expect(scrolled).toEqual([marked[0]]);
+		expect(document.activeElement).toBe(editor);
+		delete (Element.prototype as Partial<Element>).scrollIntoView;
+	});
 });
