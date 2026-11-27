@@ -196,7 +196,7 @@ it.each(["asc", "desc"] as const)(
 			});
 			const plan = getListPlan();
 			expectIndexSearch(plan, "idx_ec_post_deleted_published_id");
-			if (afterUndated && direction === "desc") {
+			if (afterUndated && direction === "asc") {
 				expect(plan.map((row) => row.detail).join("\n")).toContain("published_at=?");
 			}
 			afterUndated = page.items.at(-1)?.publishedAt === null;

@@ -103,6 +103,20 @@ describeEachDialect("content list numbered pages", (dialect) => {
 		expect(pages.totals).toEqual([7]);
 	});
 
+	it.each([
+		["asc", ["a", "e", "c", "g", "b", "d", "f"]],
+		["desc", ["f", "d", "b", "g", "c", "e", "a"]],
+	] as const)(
+		"orders publishedAt numbered pages with nulls and ID ties %s",
+		async (direction, expected) => {
+			await seedPosts();
+
+			const pages = await numberedPages({ orderBy: { field: "publishedAt", direction } });
+
+			expect(pages.ids).toEqual(expected);
+		},
+	);
+
 	it("filters the page rows and the total together", async () => {
 		await seedPosts();
 		const options: ListOptions = {

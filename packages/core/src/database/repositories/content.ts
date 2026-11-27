@@ -225,9 +225,7 @@ function decodeNullableOrderCursor(
 
 /**
  * Keyset condition for the rows after (`value`, `cursorId`) in a sort by the
- * nullable `column`, then `id`. The ORDER BY keeps each dialect's own NULL
- * position, lowest on SQLite and highest on Postgres, so the condition follows
- * it.
+ * nullable `column`, then `id`, with the same NULL position as the ORDER BY.
  */
 function nullableOrderCondition(
 	db: Kysely<Database>,
@@ -235,11 +233,11 @@ function nullableOrderCondition(
 	direction: "ASC" | "DESC",
 	value: NullableOrderValue,
 	cursorId: string,
+	nullsFirst = (direction === "ASC") !== isPostgres(db),
 ): RawBuilder<boolean> {
 	const sort = sql.ref(column);
 	const id = sql.ref("id");
 	const cmp = direction === "ASC" ? sql.raw(">") : sql.raw("<");
-	const nullsFirst = (direction === "ASC") !== isPostgres(db);
 	if (value === null) {
 		return nullsFirst
 			? sql<boolean>`(${sort} IS NOT NULL OR ${id} ${cmp} ${cursorId})`
@@ -1078,7 +1076,14 @@ export class ContentRepository {
 					acceptPlain: true,
 				});
 				query = query.where(
-					nullableOrderCondition(this.db, dbField, safeOrderDirection, value, cursorId),
+					nullableOrderCondition(
+						this.db,
+						dbField,
+						safeOrderDirection,
+						value,
+						cursorId,
+						dbField === "published_at" ? safeOrderDirection === "DESC" : undefined,
+					),
 				);
 			} else {
 				const { orderValue, id: cursorId } = decodeCursor(options.cursor);
@@ -1111,7 +1116,12 @@ export class ContentRepository {
 				safeOrderDirection === "ASC" ? "asc" : "desc",
 			);
 		}
-		if (indexedOrderFilter?.kind !== "null") {
+		if (dbField === "published_at") {
+			// Keep unpublished drafts first in newest-first lists without an expression sort.
+			query = query.orderBy(dbField as any, (ob) =>
+				safeOrderDirection === "ASC" ? ob.asc().nullsLast() : ob.desc().nullsFirst(),
+			);
+		} else if (indexedOrderFilter?.kind !== "null") {
 			query = query.orderBy(dbField as any, safeOrderDirection === "ASC" ? "asc" : "desc");
 		}
 		query = query.orderBy("id", safeOrderDirection === "ASC" ? "asc" : "desc");
