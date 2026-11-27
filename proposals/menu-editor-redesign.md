@@ -130,6 +130,7 @@ With no menus, the page shows the same empty-slot drawing, "No menus yet", "Menu
   - on the Menus list, one `GET /_emdash/api/menus/{name}` per card as it nears the viewport.
 
   Anonymous page renders don't change, so the logged-out query count doesn't change.
+
 - **Depth.** The API accepts any depth, and menus created through the API or MCP can be deeper than three levels. The editor shows those items at their depth but never moves an item below the third level. Lifting an item that sits deeper and dropping it in place moves it up to the third level. A parent whose own subtree is already three or more levels deep can only be dropped at the top level.
 - **Custom link fields at creation.** The old custom link dialog set the link's target and CSS classes when it was created. The new dialog takes a label and URL, and **Open in new tab** and **CSS classes** are set from the Edit dialog afterwards.
 - **Opening in a new tab.** Choosing "Same window" in the old Edit dialog sent no target, so a link that opened in a new tab couldn't be switched back. Turning **Open in new tab** off clears the target.
@@ -147,6 +148,7 @@ With no menus, the page shows the same empty-slot drawing, "No menus yet", "Menu
   - terms are looked up in the menu's locale only, while the site falls back to another locale's term, so a row can say "Not found" for a term the site renders.
 
   Server-resolved targets, in Open questions, would remove these differences.
+
 - **Orphaned items.** An item whose parent no longer exists shows at the top level, where the site renders it.
 - **Cycles.** Items in a `parentId` cycle from older writes don't show in the editor or on the site, and reorders leave them out.
 - **Deleting a parent.** The confirmation says the item's nested items are removed with it.
