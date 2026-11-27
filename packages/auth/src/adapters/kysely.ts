@@ -187,6 +187,16 @@ export function createKyselyAdapter<T extends AuthTables | GeneratedAuthTables>(
 			await kdb.updateTable("users").set(update).where("id", "=", id).execute();
 		},
 
+		async markEmailVerified(id: string, email: string): Promise<boolean> {
+			const result = await kdb
+				.updateTable("users")
+				.set({ email_verified: 1, updated_at: new Date().toISOString() })
+				.where("id", "=", id)
+				.where((eb) => eb(eb.fn("lower", ["email"]), "=", email.toLowerCase()))
+				.executeTakeFirst();
+			return result.numUpdatedRows > 0n;
+		},
+
 		async deleteUser(id: string): Promise<void> {
 			await kdb.deleteFrom("users").where("id", "=", id).execute();
 		},

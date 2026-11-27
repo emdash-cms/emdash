@@ -227,6 +227,23 @@ describe("POST /setup/admin/verify — success path", () => {
 		expect(sessionSet).toHaveBeenCalledWith("user", { id: body.data!.user!.id });
 	});
 
+	it("stores the owner's setup email as verified", async () => {
+		const { cookies } = createCookieJar();
+		expect((await postAdmin(buildContext(db, buildAdminRequest(adminBody), cookies))).status).toBe(
+			200,
+		);
+		const verifyRes = await postAdminVerify(
+			buildContext(db, buildVerifyRequest(fakeCredential), cookies, {
+				set: vi.fn(),
+				regenerate: vi.fn(async () => {}),
+			}),
+		);
+		expect(verifyRes.status).toBe(200);
+
+		const owner = await db.selectFrom("users").select("email_verified").executeTakeFirstOrThrow();
+		expect(owner.email_verified).toBe(1);
+	});
+
 	it("rejects verification when no Astro session is available", async () => {
 		const { cookies } = createCookieJar();
 		expect((await postAdmin(buildContext(db, buildAdminRequest(adminBody), cookies))).status).toBe(

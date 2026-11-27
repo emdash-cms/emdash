@@ -1,6 +1,6 @@
 import type { AuthAdapter, EmailSendFn } from "@emdash-cms/auth";
 import type { EmailMessage } from "@emdash-cms/auth";
-import { Role, sendMagicLink, verifyMagicLink } from "@emdash-cms/auth";
+import { createMagicLinkUrl, Role, sendMagicLink, verifyMagicLink } from "@emdash-cms/auth";
 import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import type { Kysely } from "kysely";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
@@ -78,5 +78,89 @@ describe("Magic Link", () => {
 		expect(results.filter((r) => r.status === "rejected")).toMatchObject([
 			{ reason: { code: "invalid_token" } },
 		]);
+	});
+
+	describe("email verification", () => {
+		async function emailedToken(email: string) {
+			await sendMagicLink(
+				{ baseUrl: "https://example.com", siteName: "Test Site", email: mockEmailSend },
+				adapter,
+				email,
+			);
+			return new URL(sentEmails.at(-1)!.text.match(/https:\/\/\S+/)![0]).searchParams.get("token")!;
+		}
+
+		function createUnverifiedUser() {
+			return adapter.createUser({
+				email: "owner@example.com",
+				name: "Owner",
+				role: Role.ADMIN,
+				emailVerified: false,
+			});
+		}
+
+		it("marks the address verified when an emailed link is used", async () => {
+			const user = await createUnverifiedUser();
+			const token = await emailedToken("owner@example.com");
+
+			const signedIn = await verifyMagicLink(adapter, token);
+
+			expect(signedIn.emailVerified).toBe(true);
+			expect((await adapter.getUserById(user.id))?.emailVerified).toBe(true);
+		});
+
+		it("does not verify the address for a link that was not emailed", async () => {
+			const user = await createUnverifiedUser();
+			const url = await createMagicLinkUrl(adapter, user, "https://example.com");
+
+			await verifyMagicLink(adapter, new URL(url).searchParams.get("token")!);
+
+			expect((await adapter.getUserById(user.id))?.emailVerified).toBe(false);
+		});
+
+		it("does not verify a new address when the email changed after the link was sent", async () => {
+			const user = await createUnverifiedUser();
+			const token = await emailedToken("owner@example.com");
+			await adapter.updateUser(user.id, { email: "new@example.com" });
+
+			await verifyMagicLink(adapter, token);
+
+			expect((await adapter.getUserById(user.id))?.emailVerified).toBe(false);
+		});
+
+		it("does not verify a new address set between reading the user and verifying", async () => {
+			const user = await createUnverifiedUser();
+			const token = await emailedToken("owner@example.com");
+			const racing: AuthAdapter = {
+				...adapter,
+				async getUserById(id) {
+					const found = await adapter.getUserById(id);
+					await adapter.updateUser(id, { email: "new@example.com" });
+					return found;
+				},
+			};
+
+			const signedIn = await verifyMagicLink(racing, token);
+
+			expect(signedIn.emailVerified).toBe(false);
+			expect((await adapter.getUserById(user.id))?.emailVerified).toBe(false);
+		});
+
+		it("still signs the user in when marking the address verified fails", async () => {
+			const user = await createUnverifiedUser();
+			const token = await emailedToken("owner@example.com");
+			const failing: AuthAdapter = {
+				...adapter,
+				async markEmailVerified() {
+					throw new Error("write failed");
+				},
+			};
+			vi.spyOn(console, "error").mockImplementation(() => {});
+
+			const signedIn = await verifyMagicLink(failing, token);
+
+			expect(signedIn.id).toBe(user.id);
+			expect(signedIn.emailVerified).toBe(false);
+		});
 	});
 });

@@ -194,7 +194,7 @@ The following example treats every Microsoft address as verified:
 emdash({ authProviders: [microsoft({ emailVerified: true })] });
 ```
 
-Set `emailVerified: true` only when you trust every directory whose accounts can sign in. Microsoft does not verify the email address it reports, and an administrator of an account's directory can change it. Set `emailVerified: false` to treat every address as unverified, so that only accounts already linked to an EmDash user can sign in.
+Set `emailVerified: true` only when you trust every directory whose accounts can sign in. Microsoft does not verify the email address it reports, and an administrator of an account's directory can change it. Signing in with an account whose address matches an EmDash user also marks that user's address verified, so EmDash sends notification emails to it. Set `emailVerified: false` to treat every address as unverified, so that only accounts already linked to an EmDash user can sign in.
 
 #### Manage Microsoft access
 

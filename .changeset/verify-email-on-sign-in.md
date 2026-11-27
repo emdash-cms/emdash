@@ -1,0 +1,14 @@
+---
+"@emdash-cms/auth": patch
+"emdash": patch
+---
+
+Fixes users staying unverified after they prove they own their email address. Signing in with an emailed magic link or recovery link now marks the address verified. So does signing in through, or linking, a GitHub, Google, or Microsoft account whose provider has verified the same address. Links from `createMagicLinkUrl()`, such as sign-in handover links, are not emailed, so using one does not verify the address.
+
+The owner created through passkey setup now starts with a verified address, so comment notifications reach them.
+
+Includes database migration `100_verify_setup_owner_email`, which runs with your site's other migrations. It changes no schema. It marks the owner of an existing site verified: the first user created on the site, if they are still an admin, have a passkey, and have no linked provider account. It changes at most one row and is safe to rerun. Rolling it back does not unverify the owner.
+
+Other existing users, including owners who don't match those conditions, stay unverified after upgrading until they next sign in with a magic link, a recovery link, or a provider account. Signing in with a passkey does not verify an address.
+
+Custom `AuthAdapter` implementations can add the optional `markEmailVerified(id, email)` method, which marks the address verified only if it still matches. Without it, EmDash falls back to `updateUser()`.
