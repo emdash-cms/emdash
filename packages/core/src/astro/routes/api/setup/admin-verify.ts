@@ -112,6 +112,7 @@ export const POST: APIRoute = async ({ cookies, request, locals, session }) => {
 		const user = await createFirstAdmin(emdash.db, {
 			email: setupState.email,
 			name: setupState.name ?? null,
+			emailVerified: true,
 		});
 		if (!user) {
 			return apiError("ADMIN_EXISTS", "Admin user already exists", 400);

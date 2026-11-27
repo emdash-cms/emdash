@@ -134,6 +134,20 @@ describe("acceptInviteViaOAuth", () => {
 		).rejects.toMatchObject({ code: "invite_invalid" });
 	});
 
+	it("marks a pre-existing unverified account verified when linking it", async () => {
+		const token = await invite("invitee@example.com");
+		const existing = await adapter.createUser({
+			email: "invitee@example.com",
+			name: "Invitee",
+			role: Role.AUTHOR,
+			emailVerified: false,
+		});
+
+		await acceptInviteViaOAuth(adapter, "google", makeProfile(), token);
+
+		expect((await adapter.getUserById(existing.id))?.emailVerified).toBe(true);
+	});
+
 	it("rejects (and does not consume) when the already-linked account's user has a different email", async () => {
 		const token = await invite("invitee@example.com");
 		// An OAuth identity is already linked to a user whose EmDash email differs

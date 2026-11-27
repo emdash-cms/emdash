@@ -6,6 +6,7 @@ import { sha256 } from "@oslojs/crypto/sha2";
 import { encodeBase64urlNoPadding } from "@oslojs/encoding";
 import { z } from "zod";
 
+import { markEmailVerified } from "../email-verified.js";
 import { completeInvite, InviteError, validateInvite } from "../invite.js";
 import { hashToken } from "../tokens.js";
 import type { AuthAdapter, NewUser, User, RoleLevel } from "../types.js";
@@ -199,7 +200,7 @@ export async function acceptInviteViaOAuth(
 			);
 		}
 		await adapter.deleteToken(hashToken(inviteToken));
-		return user;
+		return markEmailVerifiedByProvider(adapter, user, profile);
 	}
 
 	// The invited email already belongs to a user (invite already accepted, or a
@@ -213,7 +214,7 @@ export async function acceptInviteViaOAuth(
 			userId: existingUser.id,
 		});
 		await adapter.deleteToken(hashToken(inviteToken));
-		return existingUser;
+		return markEmailVerifiedByProvider(adapter, existingUser, profile);
 	}
 
 	// Consume the invite: create the user with the invited role, then link.
@@ -443,20 +444,13 @@ export async function findOrCreateOAuthUser(
 	throw new OAuthError("signup_not_allowed", "Self-signup not allowed for this email domain");
 }
 
-async function markEmailVerifiedByProvider(
+function markEmailVerifiedByProvider(
 	adapter: AuthAdapter,
 	user: User,
 	profile: OAuthProfile,
 ): Promise<User> {
-	if (
-		user.emailVerified ||
-		!profile.emailVerified ||
-		profile.email.toLowerCase() !== user.email.toLowerCase()
-	) {
-		return user;
-	}
-	await adapter.updateUser(user.id, { emailVerified: true });
-	return { ...user, emailVerified: true };
+	if (!profile.emailVerified) return Promise.resolve(user);
+	return markEmailVerified(adapter, user, profile.email);
 }
 
 function getProvider(

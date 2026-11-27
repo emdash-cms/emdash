@@ -2,6 +2,7 @@
  * Magic link authentication
  */
 
+import { markEmailVerified } from "../email-verified.js";
 import { escapeHtml, localeDir } from "../invite.js";
 import { generateTokenWithHash, hashToken } from "../tokens.js";
 import type { AuthAdapter, User, EmailMessage } from "../types.js";
@@ -220,16 +221,7 @@ export async function verifyMagicLink(adapter: AuthAdapter, token: string): Prom
 		throw new MagicLinkError("user_not_found", "User not found");
 	}
 
-	if (
-		!user.emailVerified &&
-		authToken.email !== null &&
-		authToken.email.toLowerCase() === user.email.toLowerCase()
-	) {
-		await adapter.updateUser(user.id, { emailVerified: true });
-		return { ...user, emailVerified: true };
-	}
-
-	return user;
+	return authToken.email === null ? user : markEmailVerified(adapter, user, authToken.email);
 }
 
 export class MagicLinkError extends Error {

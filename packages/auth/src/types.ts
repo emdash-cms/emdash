@@ -265,6 +265,12 @@ export interface AuthAdapter {
 	getUserByEmail(email: string): Promise<User | null>;
 	createUser(user: NewUser): Promise<User>;
 	updateUser(id: string, data: UpdateUser): Promise<void>;
+	/**
+	 * Mark the user's address verified only if it still equals `email`
+	 * (case-insensitive), in a single write. Resolves to whether a row was
+	 * updated. When omitted, EmDash falls back to `updateUser()`.
+	 */
+	markEmailVerified?(id: string, email: string): Promise<boolean>;
 	deleteUser(id: string): Promise<void>;
 	countUsers(): Promise<number>;
 

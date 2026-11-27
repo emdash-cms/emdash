@@ -127,5 +127,40 @@ describe("Magic Link", () => {
 
 			expect((await adapter.getUserById(user.id))?.emailVerified).toBe(false);
 		});
+
+		it("does not verify a new address set between reading the user and verifying", async () => {
+			const user = await createUnverifiedUser();
+			const token = await emailedToken("owner@example.com");
+			const racing: AuthAdapter = {
+				...adapter,
+				async getUserById(id) {
+					const found = await adapter.getUserById(id);
+					await adapter.updateUser(id, { email: "new@example.com" });
+					return found;
+				},
+			};
+
+			const signedIn = await verifyMagicLink(racing, token);
+
+			expect(signedIn.emailVerified).toBe(false);
+			expect((await adapter.getUserById(user.id))?.emailVerified).toBe(false);
+		});
+
+		it("still signs the user in when marking the address verified fails", async () => {
+			const user = await createUnverifiedUser();
+			const token = await emailedToken("owner@example.com");
+			const failing: AuthAdapter = {
+				...adapter,
+				async markEmailVerified() {
+					throw new Error("write failed");
+				},
+			};
+			vi.spyOn(console, "error").mockImplementation(() => {});
+
+			const signedIn = await verifyMagicLink(failing, token);
+
+			expect(signedIn.id).toBe(user.id);
+			expect(signedIn.emailVerified).toBe(false);
+		});
 	});
 });
