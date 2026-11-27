@@ -224,6 +224,7 @@ function InlineImageView({ node, editor, getPos, updateAttributes }: NodeViewPro
 		// The caption selects the image once it has focus, so the toolbar sees that focus.
 		if (event.target instanceof Element && event.target.closest("figcaption")) return;
 		select();
+		editor.view.focus();
 	};
 
 	const onCaptionKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
