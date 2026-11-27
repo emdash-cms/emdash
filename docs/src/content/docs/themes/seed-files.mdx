@@ -557,6 +557,8 @@ Redirects require local source and destination paths:
 
 Both paths must start with one `/`. Protocol-relative URLs, path traversal segments, and newlines are rejected. Allowed status codes are `301`, `302`, `307`, and `308`.
 
+Seeded rules use the same [query-string behavior as admin-created redirects](/guides/seo/#redirects-and-the-404-log), including the empty-query opt-out for discarding incoming parameters.
+
 ## Widget areas
 
 A widget area contains `content`, `menu`, or `component` widgets:

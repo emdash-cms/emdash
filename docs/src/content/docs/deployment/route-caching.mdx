@@ -135,6 +135,8 @@ Other error responses, such as a 500 returned from a cached route, inherit the r
 
 ### Redirects in middleware
 
+EmDash redirect-table responses opt out of route caching because they [preserve request query strings](/guides/seo/#redirects-and-the-404-log), including tracking parameters that a cache provider may omit from its key. Redirect rules still use their in-memory cache: warm redirect hits need no database reads, and an expired rule cache revalidates in the background. Terminal `410` and `451` responses remain eligible for route caching and verify rule freshness before being stored.
+
 Middleware that short-circuits with a redirect (for example, host canonicalization) must opt out with `context.cache?.set(false)`. Otherwise the redirect is cached under the route rule's TTL, and on a CDN provider that doesn't separate cache entries by hostname it can be served to requests for the canonical hostname too, causing an instant redirect loop. Use optional chaining: `context.cache` is undefined on some responses, such as the 404 page for a URL that matches no route.
 
 ## Editors and cached pages

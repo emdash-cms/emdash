@@ -99,6 +99,16 @@ function redirectResponse(
 	}
 	recordHitInBackground(repo, redirect.id);
 	const code = isRedirectCode(redirect.type) ? redirect.type : 301;
+	// Route-cache keys can omit tracking parameters, but Location varies with them.
+	if (context.cache?.enabled) context.cache.set(false);
+	if (context.url.search) {
+		const hashIndex = destination.indexOf("#");
+		const pathAndQuery = hashIndex === -1 ? destination : destination.slice(0, hashIndex);
+		const fragment = hashIndex === -1 ? "" : destination.slice(hashIndex);
+		if (!pathAndQuery.includes("?")) {
+			destination = `${pathAndQuery}${context.url.search}${fragment}`;
+		}
+	}
 	return context.redirect(encodeLocation(destination), code);
 }
 
@@ -213,6 +223,13 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// is purged, so before one is returned the rules are verified current.
 			cached = await loadCachedRedirects(source);
 			match = matchRedirect(cached, pathname, !isFilePath);
+			if (
+				match &&
+				!isTerminalStatus(match.redirect.type) &&
+				isSiteRelativeDestination(match.destination)
+			) {
+				routeCache?.set(false);
+			}
 			if (match && routeCacheStores(routeCache)) {
 				cached = await loadCachedRedirects(source, { verify: true });
 				verified = true;
