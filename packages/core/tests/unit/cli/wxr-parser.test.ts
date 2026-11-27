@@ -848,3 +848,34 @@ describe("parseWxrString", () => {
 		});
 	});
 });
+
+describe("WXR attachment captions and alt text", () => {
+	const wxr = `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0"
+  xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+  xmlns:wp="http://wordpress.org/export/1.2/">
+  <channel>
+    <item>
+      <title>Harbour</title>
+      <excerpt:encoded><![CDATA[The harbour at dusk]]></excerpt:encoded>
+      <wp:post_id>21</wp:post_id>
+      <wp:post_type>attachment</wp:post_type>
+      <wp:attachment_url>https://example.com/wp-content/uploads/harbour.jpg</wp:attachment_url>
+      <wp:postmeta>
+        <wp:meta_key>_wp_attachment_image_alt</wp:meta_key>
+        <wp:meta_value><![CDATA[Boats in a harbour]]></wp:meta_value>
+      </wp:postmeta>
+    </item>
+  </channel>
+</rss>`;
+
+	it.each([
+		["parseWxr", () => parseWxr(createStream(wxr))],
+		["parseWxrString", () => parseWxrString(wxr)],
+	])("%s returns the caption and the alt text meta", async (_name, parse) => {
+		const result = await parse();
+
+		expect(result.attachments[0]?.caption).toBe("The harbour at dusk");
+		expect(result.attachments[0]?.meta.get("_wp_attachment_image_alt")).toBe("Boats in a harbour");
+	});
+});

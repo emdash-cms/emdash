@@ -278,6 +278,8 @@ export interface WxrAttachment {
 	title?: string;
 	url?: string;
 	postDate?: string;
+	/** WordPress stores an attachment's caption as its excerpt */
+	caption?: string;
 	meta: Map<string, string>;
 }
 
@@ -613,6 +615,7 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 					case "item":
 						// End of item - categorize and store
 						if (currentAttachment) {
+							currentAttachment.caption = currentItem.excerpt || undefined;
 							data.attachments.push(currentAttachment);
 							currentAttachment = null;
 						} else if (currentItem.postType === "nav_menu_item") {
@@ -956,7 +959,7 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 								title: currentItem.title,
 								url: currentItem.link,
 								postDate: currentItem.postDate,
-								meta: new Map(),
+								meta: currentItem.meta,
 							};
 						}
 						break;
@@ -990,6 +993,7 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 					case "item":
 						// End of item - categorize and store
 						if (currentAttachment) {
+							currentAttachment.caption = currentItem.excerpt || undefined;
 							data.attachments.push(currentAttachment);
 							currentAttachment = null;
 						} else if (currentItem.postType === "nav_menu_item") {
