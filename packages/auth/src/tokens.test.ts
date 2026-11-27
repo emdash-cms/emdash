@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
 	generateToken,
 	hashToken,
+	hashPrefixedToken,
 	generateTokenWithHash,
 	generateSessionId,
 	generateAuthSecret,
@@ -19,6 +20,7 @@ import {
 
 const BASE64URL_REGEX = /^[A-Za-z0-9_-]+$/;
 const NO_PADDING_REGEX = /^[A-Za-z0-9_-]+$/;
+const KNOWN_TOKEN = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk";
 
 describe("tokens", () => {
 	describe("validateScopes", () => {
@@ -85,6 +87,14 @@ describe("tokens", () => {
 	});
 
 	describe("hashToken", () => {
+		it("hashes a token to the SHA-256 digest of its decoded bytes", () => {
+			expect(hashToken(KNOWN_TOKEN)).toBe("38v3YOi6zQgk1xkqk6Y5dvSDoBHqZrTh3mmWHxxWvyk");
+		});
+
+		it("hashes a malformed token to the SHA-256 digest of its UTF-8 bytes", () => {
+			expect(hashToken("not a token")).toBe("cDjQF8J7irPPj8kh1WCJ5rgOTHuBhs7_zZUkp7kivoE");
+		});
+
 		it("produces consistent hashes", () => {
 			const token = generateToken();
 			const hash1 = hashToken(token);
@@ -109,6 +119,14 @@ describe("tokens", () => {
 			const token = generateToken();
 			expect(hashToken("!!!")).toBe(hashToken("!!!"));
 			expect(hashToken("!!!")).not.toBe(hashToken(token));
+		});
+	});
+
+	describe("hashPrefixedToken", () => {
+		it("hashes the full prefixed token string with SHA-256", () => {
+			expect(hashPrefixedToken(`ec_pat_${KNOWN_TOKEN}`)).toBe(
+				"u36tClPXQ-_XHcLfJ1q5L7MAi1hxjdOYl3WIX9Kup8A",
+			);
 		});
 	});
 

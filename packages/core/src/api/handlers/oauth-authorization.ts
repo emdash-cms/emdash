@@ -4,13 +4,11 @@
  * Implements the server side of the authorization code grant for MCP clients
  * (Claude Desktop, VS Code, etc.) per the MCP authorization spec (draft).
  *
- * Uses arctic for PKCE challenge generation and @emdash-cms/auth for token
- * utilities. Token infrastructure is shared with the device flow.
+ * Token infrastructure is shared with the device flow.
  */
 
-import { clampScopes, computeS256Challenge, secureCompare } from "@emdash-cms/auth";
+import { clampScopes, computeS256Challenge, generateToken, secureCompare } from "@emdash-cms/auth";
 import type { RoleLevel } from "@emdash-cms/auth";
-import { generateCodeVerifier } from "arctic";
 import type { Kysely } from "kysely";
 
 import {
@@ -188,7 +186,7 @@ export async function handleAuthorizationApproval(
 		}
 
 		// Generate authorization code (high entropy, base64url)
-		const code = generateCodeVerifier(); // 32 bytes random, base64url
+		const code = generateToken(); // 32 bytes random, base64url
 		const codeHash = hashApiToken(code);
 
 		// Store the authorization code

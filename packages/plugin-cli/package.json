@@ -37,7 +37,7 @@
 		"@emdash-cms/registry-client": "workspace:*",
 		"@emdash-cms/registry-lexicons": "workspace:*",
 		"@emdash-cms/registry-verification": "workspace:*",
-		"@oslojs/crypto": "catalog:",
+		"@noble/hashes": "catalog:",
 		"chokidar": "catalog:",
 		"citty": "^0.2.2",
 		"consola": "^3.4.2",
