@@ -37,15 +37,17 @@ test("menu content picker only offers entries in the menu locale", async ({
 	// Omit the URL locale to exercise the loaded menu's locale fallback.
 	await page.goto(`/_emdash/admin/menus/${name}`);
 	await admin.waitForLoading();
-	await page.getByRole("button", { name: "Add Content" }).first().click();
-	const dialog = page.getByRole("dialog", { name: "Select content" });
-	await dialog.getByRole("combobox").click();
+	await page.getByRole("button", { name: "Add items" }).first().click();
+	const dialog = page.getByRole("dialog", { name: "Add items", exact: true });
+	await dialog.getByRole("combobox", { name: "Source" }).click();
 	await page.getByRole("option", { name: "Pages", exact: true }).click();
-	await dialog.getByPlaceholder("Search content...").fill("Menu Contact");
-	await expect(dialog.getByRole("button", { name: /Menu Contact/ })).toHaveCount(1);
-	await dialog.getByRole("button", { name: /Menu Contact/ }).click();
+	await dialog.getByRole("textbox", { name: "Search" }).fill("Menu Contact");
+	const pick = dialog.getByRole("checkbox", { name: "Menu Contact", exact: true });
+	await expect(pick).toHaveCount(1);
+	await pick.click();
+	await dialog.getByRole("button", { name: "Add 1 item", exact: true }).click();
 	await expect(dialog).not.toBeVisible();
-	await expect(page.getByRole("dialog", { name: "Item added", exact: true })).toBeVisible();
+	await expect(page.getByRole("dialog", { name: "Added 1 item", exact: true })).toBeVisible();
 	const menuResponse = await page.request.get(`/_emdash/api/menus/${name}?locale=fr`, {
 		headers,
 	});

@@ -4,7 +4,7 @@
  * Provides a clean API for interacting with the EmDash admin UI.
  */
 
-import { type Page, expect } from "@playwright/test";
+import { type Locator, type Page, expect } from "@playwright/test";
 
 // Regex patterns
 const ADMIN_URL_PATTERN = /\/_emdash\/admin/;
@@ -436,47 +436,79 @@ export class AdminPage {
 	}
 
 	/**
-	 * Add a custom link to current menu
+	 * Add a custom link to the current menu
 	 */
 	async addMenuLink(label: string, url: string): Promise<void> {
-		// Click add link button
-		await this.page.getByRole("button", { name: "Add Custom Link" }).first().click();
-
-		// Wait for dialog to appear
-		await this.page.waitForSelector('[role="dialog"]', { state: "visible", timeout: 5000 });
-
-		// Fill form (scope to dialog to avoid ambiguity)
-		const dialog = this.page.locator('[role="dialog"]');
-		await dialog.getByLabel("Label").fill(label);
-		await dialog.getByLabel("URL").fill(url);
-
-		// Submit
-		await dialog.getByRole("button", { name: "Add" }).click();
-
-		// Wait for dialog to close
-		await this.page.waitForSelector('[role="dialog"]', { state: "hidden" });
+		await this.addMenuLinks([{ label, url }]);
 	}
 
 	/**
-	 * Delete a menu
+	 * Add custom links to the current menu, all from one Add items dialog
 	 */
-	async deleteMenu(name: string): Promise<void> {
-		// Find menu row and click delete
-		const menuRow = this.page.locator(`a[href*="/menus/${name}"]`).first();
-		const row = menuRow.locator("..");
-		await row.locator('button:has(svg[class*="Trash"])').click();
+	async addMenuLinks(links: { label: string; url: string }[]): Promise<void> {
+		await this.page.getByRole("main").getByRole("button", { name: "Add items" }).click();
 
-		// Confirm deletion
-		await this.page.click('button:has-text("Delete"):not([disabled])');
+		const dialog = this.page.getByRole("dialog", { name: "Add items", exact: true });
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole("combobox", { name: "Source" }).click();
+		await this.page.getByRole("option", { name: "Custom link" }).click();
+
+		for (const link of links) {
+			await dialog.getByLabel("Label", { exact: true }).fill(link.label);
+			await dialog.getByLabel("URL", { exact: true }).fill(link.url);
+			await dialog.getByRole("button", { name: "Add to list" }).click();
+		}
+
+		const count = links.length;
+		await dialog
+			.getByRole("button", { name: `Add ${count} ${count === 1 ? "item" : "items"}`, exact: true })
+			.click();
+		await expect(dialog).not.toBeVisible();
+	}
+
+	/**
+	 * Choose an action from the "⋯" menu of a menu card (Menus list) or a menu item row (menu editor)
+	 */
+	async chooseMenuAction(label: string, action: string): Promise<void> {
+		await this.page.getByRole("button", { name: `Actions for ${label}`, exact: true }).click();
+		await this.page.getByRole("menuitem", { name: action, exact: true }).click();
+	}
+
+	/**
+	 * Delete a menu from the Menus list
+	 */
+	async deleteMenu(label: string): Promise<void> {
+		await this.chooseMenuAction(label, "Delete");
+		const dialog = this.page.getByRole("dialog", { name: "Delete menu", exact: true });
+		await dialog.getByRole("button", { name: "Delete", exact: true }).click();
+		await expect(dialog).not.toBeVisible();
+	}
+
+	/**
+	 * The menu editor's item labels, in menu order
+	 */
+	menuItemLabels(): Locator {
+		return this.page
+			.getByRole("list", { name: "Menu items" })
+			.getByRole("listitem")
+			.locator("button[title]");
+	}
+
+	/**
+	 * The menu editor row for the item with this label
+	 */
+	menuItemRow(label: string): Locator {
+		return this.page
+			.getByRole("list", { name: "Menu items" })
+			.getByRole("listitem")
+			.filter({ has: this.page.getByRole("button", { name: label, exact: true }) });
 	}
 
 	/**
 	 * Get list of menu items
 	 */
 	async getMenuItems(): Promise<string[]> {
-		const items = this.page.locator(".border.rounded-lg.p-4 .font-medium");
-		const texts = await items.allTextContents();
-		return texts;
+		return this.menuItemLabels().allTextContents();
 	}
 
 	// ============================================
