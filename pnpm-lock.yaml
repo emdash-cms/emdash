@@ -910,6 +910,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.10.13
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.33.0
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260820.1)
@@ -944,6 +947,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260820.1
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.33.0
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260820.1)
@@ -1067,6 +1073,9 @@ importers:
       '@types/node':
         specifier: 'catalog:'
         version: 24.10.13
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.33.0
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260820.1)
@@ -1317,6 +1326,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260820.1
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.33.0
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260820.1)
@@ -1360,6 +1372,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260820.1
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.33.0
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260820.1)
@@ -1418,6 +1433,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260820.1
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.33.0
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260820.1)
@@ -1461,6 +1479,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: 'catalog:'
         version: 5.20260820.1
+      lightningcss:
+        specifier: 'catalog:'
+        version: 1.33.0
       wrangler:
         specifier: 'catalog:'
         version: 4.125.0(@cloudflare/workers-types@5.20260820.1)
