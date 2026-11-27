@@ -12,9 +12,9 @@ import { cn } from "../../lib/utils.js";
 
 const MENTION_TOKEN = /<@([^<>\s]{1,64})>/g;
 const SEARCH_DEBOUNCE_MS = 200;
-const MENTION_TRIGGER = /(?<![A-Za-z0-9])@([^\s@]{0,30})$/;
+const MENTION_TRIGGER = /(?<![A-Za-z0-9/])@([^\s@]{0,30})$/;
 const TYPED_TOKEN_START = /<@/g;
-const WORD_START = /^[\p{L}\p{N}]/u;
+const WORD_START = /^[\p{L}\p{N}\p{M}]/u;
 
 export function mentionLabel(person: Pick<EditorialPerson, "name">, unnamedLabel: string): string {
 	return person.name?.trim() || unnamedLabel;
@@ -78,8 +78,9 @@ export function draftToBody(draft: MentionDraft): string {
 
 /**
  * Replaces `text.slice(from, to)` with `insert`. Mentions after the change
- * move with their text; a mention the change touches, or that a letter or
- * digit is typed straight after, is no longer a mention.
+ * move with their text; a mention the change touches, or that the change
+ * leaves a letter, digit or combining mark straight after, is no longer a
+ * mention.
  */
 export function editDraft(
 	draft: MentionDraft,
@@ -88,8 +89,9 @@ export function editDraft(
 	insert: string,
 ): MentionDraft {
 	const shift = insert.length - (to - from);
+	const after = insert + draft.text.slice(to);
 	const mentions = draft.mentions.flatMap((mention) => {
-		if (mention.to < from || (mention.to === from && !WORD_START.test(insert))) return [mention];
+		if (mention.to < from || (mention.to === from && !WORD_START.test(after))) return [mention];
 		if (mention.from >= to) {
 			return [{ ...mention, from: mention.from + shift, to: mention.to + shift }];
 		}
