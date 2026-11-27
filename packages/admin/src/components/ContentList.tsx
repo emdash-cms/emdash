@@ -648,27 +648,72 @@ export function ContentList({
 				</RouterLinkButton>
 			</div>
 
-			{/* Tabs */}
-			<Tabs
-				variant="underline"
-				value={activeTab}
-				onValueChange={(v) => {
-					if (v === "all" || v === "trash") setActiveTab(v);
-				}}
-				tabs={[
-					{ value: "all", label: t`All` },
-					{
-						value: "trash",
-						label: (
-							<span className="flex items-center gap-2">
-								<Trash className="h-4 w-4" aria-hidden="true" />
-								{t`Trash`}
-								{trashedCount > 0 && <Badge variant="secondary">{trashedCount}</Badge>}
-							</span>
-						),
-					},
-				]}
-			/>
+			<div className="flex items-start gap-4 border-b border-kumo-hairline">
+				<Tabs
+					variant="underline"
+					className="min-w-0 flex-1"
+					listClassName="border-b-0"
+					value={activeTab}
+					onValueChange={(v) => {
+						if (v === "all" || v === "trash") setActiveTab(v);
+					}}
+					tabs={[
+						{ value: "all", label: t`All` },
+						{
+							value: "trash",
+							label: (
+								<span className="flex items-center gap-2">
+									<Trash className="h-4 w-4" aria-hidden="true" />
+									{t`Trash`}
+									{trashedCount > 0 && <Badge variant="secondary">{trashedCount}</Badge>}
+								</span>
+							),
+						},
+					]}
+				/>
+				{activeTab === "trash" && onEmptyTrash && (trashedCount > 0 || emptyTrashOpen) && (
+					<ConfirmDialog
+						open={emptyTrashOpen}
+						onClose={() => setEmptyTrashOpen(false)}
+						trigger={
+							<Button
+								size="sm"
+								variant="secondary-destructive"
+								icon={<Trash />}
+								disabled={trashBulkBusy}
+								onClick={() => {
+									setEmptyTrashError(null);
+									setEmptyTrashOpen(true);
+								}}
+							>
+								{t`Empty trash`}
+							</Button>
+						}
+						title={t`Empty trash?`}
+						description={
+							<>
+								{emptyTrashLocale
+									? plural(trashedCount, {
+											one: `Permanently delete the # ${emptyTrashLocale} item in the trash? This cannot be undone.`,
+											other: `Permanently delete all # ${emptyTrashLocale} items in the trash? This cannot be undone.`,
+										})
+									: plural(trashedCount, {
+											one: "Permanently delete the # item in the trash? This cannot be undone.",
+											other: "Permanently delete all # items in the trash? This cannot be undone.",
+										})}
+								<span role="status" className="sr-only">
+									{emptyTrashProgress ? emptyTrashProgressLabel : ""}
+								</span>
+							</>
+						}
+						confirmLabel={t`Empty trash`}
+						pendingLabel={emptyTrashProgressLabel}
+						isPending={!!emptyTrashProgress}
+						error={emptyTrashError}
+						onConfirm={() => void emptyTrash()}
+					/>
+				)}
+			</div>
 
 			{/* Content based on active tab */}
 			{activeTab === "all" ? (
@@ -1065,52 +1110,6 @@ export function ContentList({
 				</>
 			) : (
 				<>
-					{onEmptyTrash && (trashedCount > 0 || emptyTrashOpen) && (
-						<div className="flex justify-end">
-							<ConfirmDialog
-								open={emptyTrashOpen}
-								onClose={() => setEmptyTrashOpen(false)}
-								trigger={
-									<Button
-										size="sm"
-										variant="secondary-destructive"
-										icon={<Trash />}
-										disabled={trashBulkBusy}
-										onClick={() => {
-											setEmptyTrashError(null);
-											setEmptyTrashOpen(true);
-										}}
-									>
-										{t`Empty trash (${trashedCount})`}
-									</Button>
-								}
-								title={t`Empty trash?`}
-								description={
-									<>
-										{emptyTrashLocale
-											? plural(trashedCount, {
-													one: `Permanently delete the # ${emptyTrashLocale} item in the trash? This cannot be undone.`,
-													other: `Permanently delete all # ${emptyTrashLocale} items in the trash? This cannot be undone.`,
-												})
-											: plural(trashedCount, {
-													one: "Permanently delete the # item in the trash? This cannot be undone.",
-													other:
-														"Permanently delete all # items in the trash? This cannot be undone.",
-												})}
-										<span role="status" className="sr-only">
-											{emptyTrashProgress ? emptyTrashProgressLabel : ""}
-										</span>
-									</>
-								}
-								confirmLabel={t`Empty trash`}
-								pendingLabel={emptyTrashProgressLabel}
-								isPending={!!emptyTrashProgress}
-								error={emptyTrashError}
-								onConfirm={() => void emptyTrash()}
-							/>
-						</div>
-					)}
-
 					{trashBulkEnabled && trashSelectedIds.size > 0 && (
 						<DataTableBulkBar
 							selectedCount={trashSelectedIds.size}

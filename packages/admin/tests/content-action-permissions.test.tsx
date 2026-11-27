@@ -295,7 +295,7 @@ describe("content trash actions", () => {
 			.element(screen.getByRole("menuitem", { name: "Delete permanently" }))
 			.toBeVisible();
 		await userEvent.keyboard("{Escape}");
-		await expect.element(screen.getByRole("button", { name: "Empty trash (2)" })).toBeVisible();
+		await expect.element(screen.getByRole("button", { name: "Empty trash" })).toBeVisible();
 	});
 
 	it("empties the trash in batches, showing progress, after a confirmation that opens on Cancel", async () => {
@@ -316,7 +316,7 @@ describe("content trash actions", () => {
 		const screen = await renderAt({ to: "/content/$collection", params: { collection: "posts" } });
 		await screen.getByRole("tab", { name: /Trash/ }).click();
 
-		await screen.getByRole("button", { name: "Empty trash (2)" }).click();
+		await screen.getByRole("button", { name: "Empty trash" }).click();
 		const dialog = screen.getByRole("dialog", { name: "Empty trash?" });
 		await expect.element(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
 		await expect
@@ -358,7 +358,7 @@ describe("content trash actions", () => {
 		const screen = await renderAt({ to: "/content/$collection", params: { collection: "posts" } });
 		await screen.getByRole("tab", { name: /Trash/ }).click();
 
-		await screen.getByRole("button", { name: "Empty trash (2)" }).click();
+		await screen.getByRole("button", { name: "Empty trash" }).click();
 		const dialog = screen.getByRole("dialog", { name: "Empty trash?" });
 		await expect
 			.element(
