@@ -166,6 +166,10 @@ msgstr "„{0}“ bus pašalinta iš šio meniu. Šio veiksmo atšaukti negalima
 msgid "\"{0}\" will be removed from this widget area. This action cannot be undone."
 msgstr "„{0}“ bus pašalinta iš šios valdiklių srities. Šio veiksmo atšaukti negalima."
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:1103
+msgid "(edited)"
+msgstr ""
+
 #: packages/admin/src/components/OptionalLabel.tsx:14
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:15
 msgid "(optional)"
@@ -191,12 +195,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# elementas)} few {(# elementai)} many {(# elemento)} other {(# elementų)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4824
+#: packages/admin/src/components/ContentEditor.tsx:5031
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} iš # ženklo, bent {min}} few {{counted} iš # ženklų, bent {min}} many {{counted} iš # ženklo, bent {min}} other {{counted} iš # ženklų, bent {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4829
+#: packages/admin/src/components/ContentEditor.tsx:5036
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} iš # ženklo} few {{counted} iš # ženklų} many {{counted} iš # ženklo} other {{counted} iš # ženklų}}"
 
@@ -218,7 +222,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {Importuotas # komentaras} few {Importuoti # komentarai} many {Importuota # komentaro} other {Importuota # komentarų}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:3148
+#: packages/admin/src/router.tsx:3150
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {Atnaujintas # komentaras} few {Atnaujinti # komentarai} many {Atnaujinta # komentaro} other {Atnaujinta # komentarų}}"
 
@@ -370,7 +374,7 @@ msgstr "{0, plural, one {# ryšys su šiuo turinio tipu} few {# ryšiai su šiuo
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:4257
+#: packages/admin/src/components/PortableTextEditor.tsx:4337
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "Pasirinkta: {0, plural, one {# eilutė} few {# eilutės} many {# eilutės} other {# eilučių}} × {1, plural, one {# stulpelis} few {# stulpeliai} many {# stulpelio} other {# stulpelių}}"
 
@@ -420,7 +424,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {Pridėti # vaizdo įrašą} few {Pridėti # vaizdo įrašus} many {Pridėti # vaizdo įrašo} other {Pridėti # vaizdo įrašų}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:4834
+#: packages/admin/src/components/ContentEditor.tsx:5041
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Bent # ženklas} few {Bent # ženklai} many {Bent # ženklo} other {Bent # ženklų}}"
 
@@ -645,8 +649,8 @@ msgstr "Atnaujinta: {added} · nepavyko: {0}"
 msgid "{base} to: {0}"
 msgstr "{base} į: {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2039
-#: packages/admin/src/components/PortableTextEditor.tsx:2051
+#: packages/admin/src/components/PortableTextEditor.tsx:2045
+#: packages/admin/src/components/PortableTextEditor.tsx:2057
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# ženklas} few {# ženklai} many {# ženklo} other {# ženklų}}"
 
@@ -671,6 +675,10 @@ msgstr "Įkelta: {completedCount} iš {0}"
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:419
 msgid "{count, plural, one {# block} other {# blocks}}"
 msgstr "{count, plural, one {# blokas} few {# blokai} many {# bloko} other {# blokų}}"
+
+#: packages/admin/src/components/editorial/FieldCommentsButton.tsx:60
+msgid "{count, plural, one {# comment thread on {label}} other {# comment threads on {label}}}"
+msgstr ""
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:420
 msgid "{count, plural, one {# entry} other {# entries}}"
@@ -731,6 +739,10 @@ msgstr "{hidden, plural, one {Dar +#} few {Dar +#} many {Dar +#} other {Dar +#}}
 #: packages/admin/src/components/revisions/RevisionList.tsx:392
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {Rodyti dar #} few {Rodyti dar #} many {Rodyti dar #} other {Rodyti dar #}}"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:890
+msgid "{hiddenReplies, plural, one {# reply} other {# replies}}"
+msgstr ""
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:44
 msgid "{host} does not resolve to a public address"
@@ -876,7 +888,7 @@ msgstr "{name} · redaguoja lauką „{field}“"
 msgid "{name} · Viewing"
 msgstr "{name} · peržiūri"
 
-#: packages/admin/src/router.tsx:1279
+#: packages/admin/src/router.tsx:1280
 msgid "{name} changed this entry"
 msgstr "{name} pakeitė šį įrašą"
 
@@ -990,8 +1002,8 @@ msgstr "{position} iš {total}"
 msgid "{previewRows} × {previewColumns} table"
 msgstr "{previewRows} × {previewColumns} lentelė"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2041
-#: packages/admin/src/components/PortableTextEditor.tsx:2052
+#: packages/admin/src/components/PortableTextEditor.tsx:2047
+#: packages/admin/src/components/PortableTextEditor.tsx:2058
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr "{readingTime, plural, one {Skaitymo trukmė: # min.} few {Skaitymo trukmė: # min.} many {Skaitymo trukmė: # min.} other {Skaitymo trukmė: # min.}}"
 
@@ -1020,7 +1032,7 @@ msgstr "{row} × {column} lentelė"
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
 msgstr "{rows, plural, one {Ištrinta # eilutė} few {Ištrintos # eilutės} many {Ištrinta # eilutės} other {Ištrinta # eilučių}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2329
+#: packages/admin/src/components/PortableTextEditor.tsx:2352
 msgid "{rows} × {columns} table pasted"
 msgstr "Įklijuota {rows} × {columns} lentelė"
 
@@ -1140,8 +1152,8 @@ msgstr "{when}, paskelbta, {author}"
 msgid "{widgetType} in {areaName}"
 msgstr "{widgetType} srityje „{areaName}“"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2037
-#: packages/admin/src/components/PortableTextEditor.tsx:2050
+#: packages/admin/src/components/PortableTextEditor.tsx:2043
+#: packages/admin/src/components/PortableTextEditor.tsx:2056
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# žodis} few {# žodžiai} many {# žodžio} other {# žodžių}}"
 
@@ -1193,21 +1205,21 @@ msgid "<0>{name}</0> now holds this entry, so your changes are no longer being s
 msgstr "Įrašą dabar redaguoja <0>{name}</0>, todėl pakeitimai nebesaugomi. Jei norite tęsti, perimkite redagavimą."
 
 #: packages/admin/src/components/BlocksField.tsx:1515
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:242
 msgid "<0>Alt-click</0> to add above"
 msgstr "<0>Alt + spustelėjimas</0> prideda viršuje"
 
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:235
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:238
 msgid "<0>Click</0> to add below"
 msgstr "<0>Spustelėjimas</0> prideda apačioje"
 
 #: packages/admin/src/components/BlocksField.tsx:1561
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:284
 msgid "<0>Click</0> to open menu"
 msgstr "<0>Spustelėjimas</0> atveria meniu"
 
 #: packages/admin/src/components/BlocksField.tsx:1557
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:280
 msgid "<0>Drag</0> to move"
 msgstr "<0>Vilkimas</0> perkelia"
 
@@ -1366,7 +1378,7 @@ msgstr "Trūksta paketo failo"
 msgid "A publication time has not been selected"
 msgstr "Nepasirinktas skelbimo laikas"
 
-#: packages/admin/src/components/ContentEditor.tsx:2312
+#: packages/admin/src/components/ContentEditor.tsx:2443
 msgid "A publishing action is already in progress"
 msgstr "Skelbimo veiksmas jau vykdomas"
 
@@ -1465,7 +1477,7 @@ msgstr "Priimti kvietimą"
 msgid "Access denied"
 msgstr "Prieiga uždrausta"
 
-#: packages/admin/src/router.tsx:3170
+#: packages/admin/src/router.tsx:3172
 msgid "Access Denied"
 msgstr "Prieiga uždrausta"
 
@@ -1560,7 +1572,7 @@ msgstr "Pridėti"
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
 #: packages/admin/src/components/ContentList.tsx:716
-#: packages/admin/src/components/PortableTextEditor.tsx:1633
+#: packages/admin/src/components/PortableTextEditor.tsx:1639
 #: packages/admin/src/components/TaxonomyManager.tsx:716
 #: packages/admin/src/components/TaxonomyManager.tsx:1249
 msgid "Add {0}"
@@ -1581,6 +1593,10 @@ msgstr "Pridėti „{singularLower}“ prie įrašų"
 #: packages/admin/src/components/BlocksField.tsx:2329
 msgid "Add a caption"
 msgstr "Pridėti užrašą"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:651
+msgid "Add a comment. Type @ to mention someone."
+msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:334
 msgid "Add a detail every byline can fill in, such as a job title."
@@ -1641,12 +1657,12 @@ msgstr "Pridėti autoriaus profilį"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:321
 #: packages/admin/src/components/editor/VideoNode.tsx:323
-#: packages/admin/src/components/PortableTextEditor.tsx:4719
+#: packages/admin/src/components/PortableTextEditor.tsx:4799
 msgid "Add caption"
 msgstr "Pridėti užrašą"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:4270
+#: packages/admin/src/components/PortableTextEditor.tsx:4350
 msgid "Add column after"
 msgstr "Pridėti stulpelį dešinėje"
 
@@ -1709,7 +1725,7 @@ msgid "Add images to gallery"
 msgstr "Pridėti paveikslėlių į galeriją"
 
 #: packages/admin/src/components/BlockListField.tsx:900
-#: packages/admin/src/components/PortableTextEditor.tsx:1633
+#: packages/admin/src/components/PortableTextEditor.tsx:1639
 msgid "Add item"
 msgstr "Pridėti elementą"
 
@@ -1729,9 +1745,9 @@ msgstr "Pridėti elementą apačioje"
 msgid "Add item to {label}"
 msgstr "Pridėti elementą prie „{label}“"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3894
-#: packages/admin/src/components/PortableTextEditor.tsx:4712
-#: packages/admin/src/components/PortableTextEditor.tsx:5161
+#: packages/admin/src/components/PortableTextEditor.tsx:3960
+#: packages/admin/src/components/PortableTextEditor.tsx:4792
+#: packages/admin/src/components/PortableTextEditor.tsx:5241
 msgid "Add link"
 msgstr "Pridėti nuorodą"
 
@@ -1757,7 +1773,7 @@ msgstr "Pridėti naują aplanką"
 msgid "Add noindex meta tag"
 msgstr "Pridėti metagairę „noindex“"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2409
+#: packages/admin/src/components/PortableTextEditor.tsx:2432
 msgid "Add one or more link buttons"
 msgstr "Pridėkite vieną ar kelis nuorodų mygtukus"
 
@@ -1765,8 +1781,8 @@ msgstr "Pridėkite vieną ar kelis nuorodų mygtukus"
 msgid "Add Passkey"
 msgstr "Pridėti prieigos raktą"
 
-#: packages/admin/src/components/ContentEditor.tsx:4738
-#: packages/admin/src/components/ContentEditor.tsx:4738
+#: packages/admin/src/components/ContentEditor.tsx:4945
+#: packages/admin/src/components/ContentEditor.tsx:4945
 msgid "Add reference"
 msgstr "Pridėti nuorodą į įrašą"
 
@@ -1779,7 +1795,7 @@ msgid "Add row above"
 msgstr "Pridėti eilutę viršuje"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:4263
+#: packages/admin/src/components/PortableTextEditor.tsx:4343
 msgid "Add row below"
 msgstr "Pridėti eilutę apačioje"
 
@@ -1935,7 +1951,7 @@ msgid "Administrator"
 msgstr "Administratorius"
 
 #: packages/admin/src/components/BlocksField.tsx:2451
-#: packages/admin/src/components/PortableTextEditor.tsx:501
+#: packages/admin/src/components/PortableTextEditor.tsx:507
 msgid "Advanced"
 msgstr "Išplėstiniai"
 
@@ -1977,26 +1993,26 @@ msgstr "„{0}“ agentų prieiga atnaujinta"
 msgid "Agent-callable MCP tools"
 msgstr "MCP įrankiai, kuriuos gali iškviesti agentai"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:4158
+#: packages/admin/src/components/editor/BlockMenu.tsx:181
+#: packages/admin/src/components/PortableTextEditor.tsx:4238
 msgid "Align"
 msgstr "Lygiuoti"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5335
+#: packages/admin/src/components/PortableTextEditor.tsx:5415
 msgid "Align center"
 msgstr "Centruoti"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5327
+#: packages/admin/src/components/PortableTextEditor.tsx:5407
 msgid "Align left"
 msgstr "Lygiuoti kairėje"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5343
+#: packages/admin/src/components/PortableTextEditor.tsx:5423
 msgid "Align right"
 msgstr "Lygiuoti dešinėje"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:726
-#: packages/admin/src/components/PortableTextEditor.tsx:4693
+#: packages/admin/src/components/PortableTextEditor.tsx:4773
 msgid "Alignment"
 msgstr "Lygiuotė"
 
@@ -2081,7 +2097,7 @@ msgid "Allowed block types"
 msgstr "Leidžiami blokų tipai"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:3258
+#: packages/admin/src/router.tsx:3260
 msgid "Allowed Domains"
 msgstr "Leidžiami domenai"
 
@@ -2114,7 +2130,7 @@ msgid "Also requested, but not available to your role:"
 msgstr "Taip pat prašoma leidimų, kurių jūsų rolė nesuteikia:"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:65
+#: packages/admin/src/locales/server.ts:87
 msgid "visualEditing.altText"
 msgstr "Alternatyvusis tekstas"
 
@@ -2122,8 +2138,8 @@ msgstr "Alternatyvusis tekstas"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:520
 #: packages/admin/src/components/MediaLibrary.tsx:1153
-#: packages/admin/src/components/PortableTextEditor.tsx:4624
-#: packages/admin/src/components/PortableTextEditor.tsx:4690
+#: packages/admin/src/components/PortableTextEditor.tsx:4704
+#: packages/admin/src/components/PortableTextEditor.tsx:4770
 msgid "Alt text"
 msgstr "Alternatyvusis tekstas"
 
@@ -2198,18 +2214,18 @@ msgstr "Šifruotas skaitmeninis raktas, kurį atrakinate piršto atspaudu, veido
 #: packages/admin/src/router.tsx:755
 #: packages/admin/src/router.tsx:776
 #: packages/admin/src/router.tsx:1001
-#: packages/admin/src/router.tsx:1224
-#: packages/admin/src/router.tsx:1390
-#: packages/admin/src/router.tsx:1458
-#: packages/admin/src/router.tsx:1817
-#: packages/admin/src/router.tsx:1995
-#: packages/admin/src/router.tsx:2020
-#: packages/admin/src/router.tsx:2107
-#: packages/admin/src/router.tsx:2139
-#: packages/admin/src/router.tsx:3120
-#: packages/admin/src/router.tsx:3156
-#: packages/admin/src/router.tsx:3691
-#: packages/admin/src/router.tsx:3885
+#: packages/admin/src/router.tsx:1225
+#: packages/admin/src/router.tsx:1391
+#: packages/admin/src/router.tsx:1459
+#: packages/admin/src/router.tsx:1818
+#: packages/admin/src/router.tsx:1996
+#: packages/admin/src/router.tsx:2021
+#: packages/admin/src/router.tsx:2108
+#: packages/admin/src/router.tsx:2140
+#: packages/admin/src/router.tsx:3122
+#: packages/admin/src/router.tsx:3158
+#: packages/admin/src/router.tsx:3693
+#: packages/admin/src/router.tsx:3887
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Įvyko klaida"
@@ -2312,7 +2328,7 @@ msgstr "Tekstas, kurį atkūrimo metu įrašysite į atkuriamus laukus, bus prar
 #: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:3272
+#: packages/admin/src/router.tsx:3274
 msgid "API Tokens"
 msgstr "API raktai"
 
@@ -2329,7 +2345,7 @@ msgid "Applies to every collection. Sections a collection doesn't use are skippe
 msgstr "Taikoma visoms kolekcijoms. Kolekcijoje nenaudojamos skiltys praleidžiamos."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:611
-#: packages/admin/src/components/PortableTextEditor.tsx:5426
+#: packages/admin/src/components/PortableTextEditor.tsx:5506
 msgid "Apply"
 msgstr "Taikyti"
 
@@ -2337,8 +2353,8 @@ msgstr "Taikyti"
 msgid "Apply changes"
 msgstr "Taikyti pakeitimus"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3868
-#: packages/admin/src/components/PortableTextEditor.tsx:4665
+#: packages/admin/src/components/PortableTextEditor.tsx:3934
+#: packages/admin/src/components/PortableTextEditor.tsx:4745
 msgid "Apply link"
 msgstr "Taikyti nuorodą"
 
@@ -2443,11 +2459,11 @@ msgstr "Per MCP prisijungusiems asistentams reikia administratoriaus patvirtinim
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:4857
+#: packages/admin/src/components/ContentEditor.tsx:5064
 msgid "At least {min}"
 msgstr "Bent {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4854
+#: packages/admin/src/components/ContentEditor.tsx:5061
 msgid "At most {max}"
 msgstr "Ne daugiau kaip {max}"
 
@@ -2581,11 +2597,11 @@ msgstr "Automatinės atsarginės kopijos"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Automatinėms atsarginėms kopijoms reikia saugyklos (R2, S3 arba vietinės). Norėdami jas įjungti, nurodykite saugyklą „EmDash“ konfigūracijoje."
 
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:1963
 msgid "Autosave failed"
 msgstr "Nepavyko automatiškai išsaugoti"
 
-#: packages/admin/src/components/ContentEditor.tsx:282
+#: packages/admin/src/components/ContentEditor.tsx:283
 msgid "Autosave paused"
 msgstr "Automatinis išsaugojimas pristabdytas"
 
@@ -2612,7 +2628,7 @@ msgid "Avatar"
 msgstr "Profilio paveikslėlis"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:74
+#: packages/admin/src/locales/server.ts:96
 msgid "visualEditing.back"
 msgstr "Atgal"
 
@@ -2628,7 +2644,7 @@ msgstr "Atgal"
 msgid "Back"
 msgstr "Atgal"
 
-#: packages/admin/src/components/ContentEditor.tsx:2761
+#: packages/admin/src/components/ContentEditor.tsx:2892
 msgid "Back to {collectionLabel} list"
 msgstr "Grįžti į „{collectionLabel}“ sąrašą"
 
@@ -2686,7 +2702,7 @@ msgstr "Atsarginių kopijų nustatymai išsaugoti"
 
 #: packages/admin/src/components/Settings.tsx:126
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:3299
+#: packages/admin/src/router.tsx:3301
 msgid "Backups"
 msgstr "Atsarginės kopijos"
 
@@ -2698,7 +2714,7 @@ msgstr "Saugomų atsarginių kopijų skaičius"
 msgid "Bash"
 msgstr "Bash"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:499
+#: packages/admin/src/components/PortableTextEditor.tsx:505
 msgid "Basic blocks"
 msgstr "Pagrindiniai blokai"
 
@@ -2714,7 +2730,7 @@ msgstr "Prieš siunčiant:"
 msgid "Before you continue:"
 msgstr "Prieš tęsdami:"
 
-#: packages/admin/src/components/ContentEditor.tsx:4851
+#: packages/admin/src/components/ContentEditor.tsx:5058
 msgid "Between {min} and {max}"
 msgstr "Nuo {min} iki {max}"
 
@@ -2726,15 +2742,15 @@ msgstr "„Bing“ patvirtinimas"
 msgid "Bio"
 msgstr "Biografija"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:92
+#: packages/admin/src/components/editor/BlockMenu.tsx:100
 msgid "Block"
 msgstr "Blokas"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:138
+#: packages/admin/src/components/editor/BlockMenu.tsx:152
 msgid "Block actions"
 msgstr "Bloko veiksmai"
 
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:299
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:302
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "Bloko veiksmai: vilkite tvarkai pakeisti, spustelėkite meniu atverti"
 
@@ -2766,8 +2782,8 @@ msgstr "Kliūtys"
 msgid "Blocks"
 msgstr "Blokai"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3645
-#: packages/admin/src/components/PortableTextEditor.tsx:5195
+#: packages/admin/src/components/PortableTextEditor.tsx:3681
+#: packages/admin/src/components/PortableTextEditor.tsx:5275
 msgid "Bold"
 msgstr "Pusjuodis"
 
@@ -2831,17 +2847,17 @@ msgid "Build provenance verified"
 msgstr "Patvirtinta surinkimo kilmė"
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
-#: packages/admin/src/components/PortableTextEditor.tsx:542
-#: packages/admin/src/components/PortableTextEditor.tsx:5252
+#: packages/admin/src/components/PortableTextEditor.tsx:548
+#: packages/admin/src/components/PortableTextEditor.tsx:5332
 msgid "Bullet List"
 msgstr "Ženklintas sąrašas"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2426
+#: packages/admin/src/components/PortableTextEditor.tsx:2449
 msgid "button"
 msgstr "mygtukas"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2407
-#: packages/admin/src/components/PortableTextEditor.tsx:2425
+#: packages/admin/src/components/PortableTextEditor.tsx:2430
+#: packages/admin/src/components/PortableTextEditor.tsx:2448
 msgid "Buttons"
 msgstr "Mygtukai"
 
@@ -2888,7 +2904,7 @@ msgid "Byline schema"
 msgstr "Autoriaus profilio schema"
 
 #: packages/admin/src/components/Sidebar.tsx:584
-#: packages/admin/src/router.tsx:3628
+#: packages/admin/src/router.tsx:3630
 msgid "Byline Schema"
 msgstr "Autoriaus profilio schema"
 
@@ -2903,7 +2919,7 @@ msgstr "Autoriaus profilis atnaujintas"
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:550
 #: packages/admin/src/lib/editor-sections.ts:34
-#: packages/admin/src/router.tsx:3617
+#: packages/admin/src/router.tsx:3619
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "Autorių profiliai"
@@ -2959,6 +2975,7 @@ msgstr "Nepavyko prisijungti prie „EmDash“"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:128
+#: packages/admin/src/components/editorial/MarginComments.tsx:738
 #: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
@@ -2967,10 +2984,10 @@ msgstr "Nepavyko prisijungti prie „EmDash“"
 #: packages/admin/src/components/MenuEditor.tsx:664
 #: packages/admin/src/components/MenuEditor.tsx:895
 #: packages/admin/src/components/MenuList.tsx:238
-#: packages/admin/src/components/PortableTextEditor.tsx:1431
-#: packages/admin/src/components/PortableTextEditor.tsx:4636
-#: packages/admin/src/components/PortableTextEditor.tsx:4662
-#: packages/admin/src/components/PortableTextEditor.tsx:5410
+#: packages/admin/src/components/PortableTextEditor.tsx:1437
+#: packages/admin/src/components/PortableTextEditor.tsx:4716
+#: packages/admin/src/components/PortableTextEditor.tsx:4742
+#: packages/admin/src/components/PortableTextEditor.tsx:5490
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:384
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
@@ -3081,10 +3098,10 @@ msgstr "Langeliai"
 msgid "Cells merged"
 msgstr "Langeliai sujungti"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:54
+#: packages/admin/src/components/editor/BlockMenu.tsx:57
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:4162
-#: packages/admin/src/components/PortableTextEditor.tsx:4283
+#: packages/admin/src/components/PortableTextEditor.tsx:4242
+#: packages/admin/src/components/PortableTextEditor.tsx:4363
 msgid "Center"
 msgstr "Centre"
 
@@ -3216,7 +3233,7 @@ msgstr "Pakeitimų žurnalas"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Pakeitimai taikomi visur, kur rodomas šis autoriaus profilis."
 
-#: packages/admin/src/router.tsx:2038
+#: packages/admin/src/router.tsx:2039
 msgid "Changes discarded"
 msgstr "Pakeitimai atmesti"
 
@@ -3498,7 +3515,7 @@ msgstr "Pašalinti užbaigtus"
 msgid "Clear filters"
 msgstr "Išvalyti filtrus"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4172
+#: packages/admin/src/components/PortableTextEditor.tsx:4252
 msgid "Clear formatting"
 msgstr "Pašalinti formatavimą"
 
@@ -3548,6 +3565,11 @@ msgstr "Norėdami prisijungti prie „{siteName}“, spustelėkite šią nuorod�
 msgid "Click to copy"
 msgstr ""
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:119
+msgid "visualEditing.close"
+msgstr ""
+
 #: packages/admin/src/components/BulkTagDialog.tsx:275
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:324
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
@@ -3591,7 +3613,7 @@ msgstr "Užverti paveikslėlio nustatymus"
 msgid "Close panel"
 msgstr "Užverti skydelį"
 
-#: packages/admin/src/components/ContentEditor.tsx:3580
+#: packages/admin/src/components/ContentEditor.tsx:3782
 msgid "Close settings"
 msgstr "Užverti nustatymus"
 
@@ -3606,8 +3628,8 @@ msgid "Code"
 msgstr "Kodas"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
-#: packages/admin/src/components/PortableTextEditor.tsx:572
-#: packages/admin/src/components/PortableTextEditor.tsx:5294
+#: packages/admin/src/components/PortableTextEditor.tsx:578
+#: packages/admin/src/components/PortableTextEditor.tsx:5374
 msgid "Code Block"
 msgstr "Kodo blokas"
 
@@ -3645,7 +3667,7 @@ msgstr "Kolekcija „{0}“ sukurta šioje svetainėje"
 
 #: packages/admin/src/router.tsx:865
 #: packages/admin/src/router.tsx:1068
-#: packages/admin/src/router.tsx:2560
+#: packages/admin/src/router.tsx:2561
 msgid "Collection \"{collection}\" not found"
 msgstr "Kolekcija „{collection}“ nerasta"
 
@@ -3671,7 +3693,7 @@ msgid "Collections created:"
 msgstr "Sukurtos kolekcijos:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:4268
+#: packages/admin/src/components/PortableTextEditor.tsx:4348
 msgid "Column added after"
 msgstr "Dešinėje pridėtas stulpelis"
 
@@ -3687,7 +3709,7 @@ msgstr "Stulpelis susiaurintas"
 msgid "Column width increased"
 msgstr "Stulpelis praplatintas"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2329
+#: packages/admin/src/components/PortableTextEditor.tsx:2352
 msgid "Column width resized"
 msgstr "Stulpelio plotis pakeistas"
 
@@ -3709,32 +3731,120 @@ msgstr "Stulpelių pločiai suvienodinti"
 msgid "Comma-separated keywords for search."
 msgstr "Paieškos raktažodžiai, atskirti kableliais."
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:115
+msgid "visualEditing.comment"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentDetail.tsx:98
 #: packages/admin/src/components/comments/CommentInbox.tsx:357
+#: packages/admin/src/components/editor/BlockMenu.tsx:218
+#: packages/admin/src/components/editorial/MarginComments.tsx:498
+#: packages/admin/src/components/editorial/MarginComments.tsx:650
+#: packages/admin/src/components/editorial/MarginComments.tsx:652
+#: packages/admin/src/components/editorial/MarginComments.tsx:1091
+#: packages/admin/src/components/PortableTextEditor.tsx:3911
+#: packages/admin/src/components/PortableTextEditor.tsx:3973
 msgid "Comment"
 msgstr "Komentaras"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:1044
+msgid "Comment actions"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:120
+msgid "visualEditing.commentDeleted"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:1099
+msgid "Comment deleted"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:59
 msgid "Comment Detail"
 msgstr "Komentaro informacija"
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:294
+msgid "Comment not deleted"
+msgstr ""
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:247
+#: packages/admin/src/components/editorial/useEditorialComments.ts:255
+#: packages/admin/src/components/editorial/useEditorialComments.ts:283
+msgid "Comment not saved"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:102
+msgid "visualEditing.commentOnField"
+msgstr ""
+
+#: packages/admin/src/components/editorial/FieldCommentsButton.tsx:49
+#: packages/admin/src/components/editorial/FieldCommentsButton.tsx:50
+msgid "Comment on {label}"
+msgstr ""
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:570
+msgid "Comment on the whole field instead."
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:101
+msgid "visualEditing.commentOnEntry"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:35
 #: packages/admin/src/components/settings/transfer/labels.ts:89
 msgid "Comment reactions"
 msgstr "Reakcijos į komentarus"
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:802
+msgid "Comment thread"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentInbox.tsx:194
 #: packages/admin/src/components/ContentTypeEditor.tsx:702
+#: packages/admin/src/components/editorial/MarginComments.tsx:475
+#: packages/admin/src/components/editorial/MarginComments.tsx:477
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:514
-#: packages/admin/src/router.tsx:3045
+#: packages/admin/src/router.tsx:3047
 msgid "Comments"
 msgstr "Komentarai"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:511
+msgid "Comments couldn’t be loaded"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:512
+msgid "Comments couldn’t be refreshed"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:759
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "Prisijungusių TVS naudotojų komentarai patvirtinami automatiškai"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:112
+msgid "visualEditing.commentsOnField"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:107
+msgid "visualEditing.commentsOnFieldCount"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:111
+msgid "visualEditing.commentsOnEntry"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:103
+msgid "visualEditing.commentsOnEntryCount"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:642
 msgid "Comments with this status will appear here."
@@ -3858,7 +3968,7 @@ msgstr "Turinio klaidos ({0})"
 msgid "Content found:"
 msgstr "Rasta turinio:"
 
-#: packages/admin/src/router.tsx:2088
+#: packages/admin/src/router.tsx:2089
 msgid "Content has been scheduled for publishing"
 msgstr "Turinio paskelbimas suplanuotas"
 
@@ -3866,7 +3976,7 @@ msgstr "Turinio paskelbimas suplanuotas"
 msgid "Content ID:"
 msgstr "Turinio ID:"
 
-#: packages/admin/src/router.tsx:1989
+#: packages/admin/src/router.tsx:1990
 msgid "Content is now live"
 msgstr "Turinys paskelbtas"
 
@@ -3891,11 +4001,11 @@ msgstr "Turinyje yra netinkama nuoroda į medijos failą"
 msgid "Content refers to media that is not in the package"
 msgstr "Turinys nurodo medijos failą, kurio pakete nėra"
 
-#: packages/admin/src/router.tsx:2014
+#: packages/admin/src/router.tsx:2015
 msgid "Content removed from public view"
 msgstr "Turinys neberodomas viešai"
 
-#: packages/admin/src/router.tsx:2100
+#: packages/admin/src/router.tsx:2101
 msgid "Content reverted to draft"
 msgstr "Turinys grąžintas į juodraštį"
 
@@ -3922,7 +4032,7 @@ msgstr "Turinio tipai"
 #: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:580
-#: packages/admin/src/router.tsx:3636
+#: packages/admin/src/router.tsx:3638
 msgid "Content Types"
 msgstr "Turinio tipai"
 
@@ -3957,8 +4067,8 @@ msgstr "Tęsti →"
 msgid "Continue Import"
 msgstr "Tęsti importavimą"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:5269
+#: packages/admin/src/components/editor/BlockMenu.tsx:203
+#: packages/admin/src/components/PortableTextEditor.tsx:5349
 msgid "Continue numbering"
 msgstr "Tęsti numeravimą"
 
@@ -4077,7 +4187,7 @@ msgstr "Nepavyko nukopijuoti automatiškai. Pažymėkite aukščiau esantį URL 
 msgid "Could not create {singularLower}"
 msgstr "Nepavyko sukurti „{singularLower}“"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3434
+#: packages/admin/src/components/PortableTextEditor.tsx:3467
 msgid "Could not insert section"
 msgstr "Nepavyko įterpti skilties"
 
@@ -4149,7 +4259,7 @@ msgstr "Nepavyko aptikti „WordPress“"
 msgid "Couldn’t join. Try again."
 msgstr "Nepavyko prisijungti. Bandykite dar kartą."
 
-#: packages/admin/src/components/ContentEditor.tsx:4715
+#: packages/admin/src/components/ContentEditor.tsx:4922
 msgid "Couldn't load all references."
 msgstr "Nepavyko įkelti visų nuorodų į įrašus."
 
@@ -4160,6 +4270,11 @@ msgstr "Nepavyko įkelti patvirtinimo užklausų"
 #: packages/admin/src/routes/byline-schema.tsx:252
 msgid "Couldn't load byline fields."
 msgstr "Nepavyko įkelti autoriaus profilio laukų."
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:127
+msgid "visualEditing.commentsLoadFailed"
+msgstr ""
 
 #: packages/admin/src/components/ContentPickerModal.tsx:280
 msgid "Couldn't load content."
@@ -4220,6 +4335,11 @@ msgstr "Nepavyko iš naujo įkelti importavimo plano"
 #: packages/admin/src/lib/api/admin-layout.ts:277
 msgid "Couldn't save your sidebars"
 msgstr "Nepavyko išsaugoti jūsų šoninių juostų"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:131
+msgid "visualEditing.commentActionFailed"
+msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:368
 msgid "Couldn’t search bylines."
@@ -4287,7 +4407,7 @@ msgstr "Sukurti „{singularLower}“"
 msgid "Create a block type before adding a blocks field."
 msgstr "Prieš pridėdami blokų lauką, sukurkite bloko tipą."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:543
+#: packages/admin/src/components/PortableTextEditor.tsx:549
 msgid "Create a bullet list"
 msgstr "Sukurti ženklintą sąrašą"
 
@@ -4300,7 +4420,7 @@ msgstr "Sukurti naują „{0}“"
 msgid "Create a new {singularLabel}"
 msgstr "Sukurti naują „{singularLabel}“"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:553
+#: packages/admin/src/components/PortableTextEditor.tsx:559
 msgid "Create a numbered list"
 msgstr "Sukurti numeruotą sąrašą"
 
@@ -4473,7 +4593,7 @@ msgid "Created {0}"
 msgstr "Sukurta „{0}“"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:2131
+#: packages/admin/src/router.tsx:2132
 msgid "Created {0} translation"
 msgstr "Sukurtas vertimas: {0}"
 
@@ -4587,7 +4707,7 @@ msgstr "Pasirinktinė skiltis"
 msgid "Custom Taxonomies"
 msgstr "Pasirinktinės taksonomijos"
 
-#: packages/admin/src/components/ContentEditor.tsx:3235
+#: packages/admin/src/components/ContentEditor.tsx:3437
 #: packages/admin/src/components/Sidebar.tsx:797
 msgid "Customize sidebar"
 msgstr "Pritaikyti šoninę juostą"
@@ -4658,7 +4778,7 @@ msgstr "Deklaruojami leidimai"
 msgid "Decrease column width"
 msgstr "Susiaurinti stulpelį"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2435
+#: packages/admin/src/components/PortableTextEditor.tsx:2458
 msgctxt "button style"
 msgid "Default"
 msgstr "Numatytasis"
@@ -4709,8 +4829,11 @@ msgstr "Apibrėžta kode"
 #: packages/admin/src/components/ContentTypeEditor.tsx:908
 #: packages/admin/src/components/ContentTypeList.tsx:266
 #: packages/admin/src/components/ContentTypeList.tsx:393
-#: packages/admin/src/components/editor/BlockMenu.tsx:218
+#: packages/admin/src/components/editor/BlockMenu.tsx:244
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
+#: packages/admin/src/components/editorial/MarginComments.tsx:940
+#: packages/admin/src/components/editorial/MarginComments.tsx:957
+#: packages/admin/src/components/editorial/MarginComments.tsx:1065
 #: packages/admin/src/components/MediaDetailPanel.tsx:1808
 #: packages/admin/src/components/MediaDetailPanel.tsx:1910
 #: packages/admin/src/components/MediaFolderDialog.tsx:198
@@ -4817,6 +4940,11 @@ msgstr "Ištrinti stulpelį"
 msgid "Delete columns"
 msgstr "Ištrinti stulpelius"
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:955
+#: packages/admin/src/components/editorial/MarginComments.tsx:1065
+msgid "Delete comment"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentInbox.tsx:461
 msgid "Delete Comment?"
 msgstr "Ištrinti komentarą?"
@@ -4845,7 +4973,7 @@ msgstr "Ištrinti aplanką"
 msgid "Delete gallery"
 msgstr "Ištrinti galeriją"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4731
+#: packages/admin/src/components/PortableTextEditor.tsx:4811
 msgid "Delete image"
 msgstr "Ištrinti paveikslėlį"
 
@@ -4913,6 +5041,11 @@ msgstr "Ištrinti taksonomiją"
 msgid "Delete Taxonomy"
 msgstr "Ištrinti taksonomiją"
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:938
+#: packages/admin/src/components/editorial/MarginComments.tsx:1074
+msgid "Delete thread"
+msgstr ""
+
 #: packages/admin/src/components/editor/VideoNode.tsx:336
 #: packages/admin/src/components/editor/VideoNode.tsx:337
 msgid "Delete video"
@@ -4935,6 +5068,15 @@ msgstr "Ištrinta"
 msgid "Deleted {name}"
 msgstr "Ištrinta „{name}“"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:121
+msgid "visualEditing.deletedUser"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:1011
+msgid "Deleted user"
+msgstr ""
+
 #. placeholder {0}: taxonomyDef.label
 #: packages/admin/src/components/TaxonomyManager.tsx:1429
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
@@ -4952,6 +5094,8 @@ msgstr "Ištrynus „{0}“, iš visų autorių profilių taip pat bus pašalint
 #: packages/admin/src/components/ContentList.tsx:1853
 #: packages/admin/src/components/ContentTypeEditor.tsx:909
 #: packages/admin/src/components/ContentTypeList.tsx:267
+#: packages/admin/src/components/editorial/MarginComments.tsx:941
+#: packages/admin/src/components/editorial/MarginComments.tsx:958
 #: packages/admin/src/components/MediaDetailPanel.tsx:1808
 #: packages/admin/src/components/MediaDetailPanel.tsx:1911
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
@@ -5010,12 +5154,12 @@ msgid "Descending"
 msgstr "Mažėjančia tvarka"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:66
+#: packages/admin/src/locales/server.ts:88
 msgid "visualEditing.altTextPlaceholder"
 msgstr "Apibūdinkite paveikslėlį"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:523
-#: packages/admin/src/components/PortableTextEditor.tsx:4625
+#: packages/admin/src/components/PortableTextEditor.tsx:4705
 msgid "Describe the image"
 msgstr "Apibūdinkite paveikslėlį"
 
@@ -5060,6 +5204,10 @@ msgstr "Paskirties kelias"
 #: packages/admin/src/components/PluginManager.tsx:636
 msgid "Destructive"
 msgstr "Naikinamasis"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:825
+msgid "Detached"
+msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1164
 #: packages/admin/src/components/MediaDetailPanel.tsx:1206
@@ -5173,6 +5321,7 @@ msgstr "Atmetama..."
 #: packages/admin/src/components/CoreUpdateBanner.tsx:76
 #: packages/admin/src/components/Dashboard.tsx:208
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:117
+#: packages/admin/src/components/editorial/MarginComments.tsx:541
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
 msgstr "Užverti"
@@ -5186,15 +5335,15 @@ msgstr "Užverti užbaigtą „{0}“"
 msgid "Dismiss import suggestion"
 msgstr "Slėpti importavimo pasiūlymą"
 
-#: packages/admin/src/components/ContentEditor.tsx:3535
+#: packages/admin/src/components/ContentEditor.tsx:3737
 msgid "Dismiss save error"
 msgstr "Užverti įrašymo klaidos pranešimą"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3455
+#: packages/admin/src/components/PortableTextEditor.tsx:3488
 msgid "Dismiss section error"
 msgstr "Užverti skilties klaidos pranešimą"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3422
+#: packages/admin/src/components/PortableTextEditor.tsx:3455
 msgid "Dismiss table paste error"
 msgstr "Užverti lentelės įklijavimo klaidos pranešimą"
 
@@ -5235,8 +5384,8 @@ msgstr "Rodoma po paveikslėliu kaip matomas užrašas."
 msgid "Distribute columns evenly"
 msgstr "Suvienodinti stulpelių plotį"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:46
-#: packages/admin/src/components/PortableTextEditor.tsx:582
+#: packages/admin/src/components/editor/BlockMenu.tsx:49
+#: packages/admin/src/components/PortableTextEditor.tsx:588
 msgid "Divider"
 msgstr "Skirtukas"
 
@@ -5358,7 +5507,7 @@ msgid "Downloading the package"
 msgstr "Atsisiunčiamas paketas"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:53
+#: packages/admin/src/locales/server.ts:75
 msgid "visualEditing.draft"
 msgstr "Juodraštis"
 
@@ -5402,7 +5551,7 @@ msgstr "Nuvilkite failą arba spustelėkite ir jį pasirinkite (.xml)"
 msgid "Drag here to add"
 msgstr "Nuvilkite čia, kad pridėtumėte"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1809
+#: packages/admin/src/components/PortableTextEditor.tsx:1815
 msgid "Drag to reorder"
 msgstr "Vilkite tvarkai pakeisti"
 
@@ -5458,7 +5607,7 @@ msgid "Dropped {label}."
 msgstr "„{label}“ padėta."
 
 #: packages/admin/src/components/ContentList.tsx:1673
-#: packages/admin/src/components/editor/BlockMenu.tsx:201
+#: packages/admin/src/components/editor/BlockMenu.tsx:227
 #: packages/admin/src/components/RowMenuItems.tsx:68
 msgid "Duplicate"
 msgstr "Dubliuoti"
@@ -5512,6 +5661,7 @@ msgstr "Anksčiausia išsaugota versija"
 #: packages/admin/src/components/ContentTypeList.tsx:382
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
+#: packages/admin/src/components/editorial/MarginComments.tsx:1056
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:786
 #: packages/admin/src/components/Redirects.tsx:530
@@ -5529,7 +5679,7 @@ msgstr "Redaguoti"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:379
-#: packages/admin/src/components/PortableTextEditor.tsx:1372
+#: packages/admin/src/components/PortableTextEditor.tsx:1378
 #: packages/admin/src/components/RelationFormPanel.tsx:128
 #: packages/admin/src/components/RelationList.tsx:183
 #: packages/admin/src/components/RelationsPanel.tsx:203
@@ -5547,12 +5697,12 @@ msgstr "Redaguoti „{0}“"
 msgid "Edit {0} field"
 msgstr "Redaguoti lauką „{0}“"
 
-#: packages/admin/src/components/ContentEditor.tsx:2423
-#: packages/admin/src/components/ContentEditor.tsx:2431
+#: packages/admin/src/components/ContentEditor.tsx:2554
+#: packages/admin/src/components/ContentEditor.tsx:2562
 msgid "Edit {itemLabel}"
 msgstr "Redaguoti „{itemLabel}“"
 
-#: packages/admin/src/components/ContentEditor.tsx:2430
+#: packages/admin/src/components/ContentEditor.tsx:2561
 msgid "Edit {itemLabel}: {tabEntryTitle}"
 msgstr "Redaguoti „{itemLabel}“: {tabEntryTitle}"
 
@@ -5583,16 +5733,20 @@ msgstr "Redaguoti autoriaus profilio lauką"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:321
 #: packages/admin/src/components/editor/VideoNode.tsx:323
-#: packages/admin/src/components/PortableTextEditor.tsx:4719
+#: packages/admin/src/components/PortableTextEditor.tsx:4799
 msgid "Edit caption"
 msgstr "Redaguoti užrašą"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:1090
+msgid "Edit comment"
+msgstr ""
 
 #: packages/admin/src/router.tsx:1112
 msgid "Edit content"
 msgstr "Redaguoti turinį"
 
-#: packages/admin/src/router.tsx:3831
-#: packages/admin/src/router.tsx:3850
+#: packages/admin/src/router.tsx:3833
+#: packages/admin/src/router.tsx:3852
 msgid "Edit content type"
 msgstr "Redaguoti turinio tipą"
 
@@ -5628,10 +5782,10 @@ msgstr "Redaguoti paveikslėlį"
 msgid "Edit image {0}"
 msgstr "Redaguoti paveikslėlį „{0}“"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3894
-#: packages/admin/src/components/PortableTextEditor.tsx:4003
-#: packages/admin/src/components/PortableTextEditor.tsx:4712
-#: packages/admin/src/components/PortableTextEditor.tsx:5160
+#: packages/admin/src/components/PortableTextEditor.tsx:3960
+#: packages/admin/src/components/PortableTextEditor.tsx:4083
+#: packages/admin/src/components/PortableTextEditor.tsx:4792
+#: packages/admin/src/components/PortableTextEditor.tsx:5240
 msgid "Edit link"
 msgstr "Redaguoti nuorodą"
 
@@ -5644,7 +5798,7 @@ msgid "Edit media alt text, captions, and focal points"
 msgstr "Redaguoti medijos alternatyvųjį tekstą, užrašus ir fokusavimo taškus"
 
 #: packages/admin/src/components/MenuEditor.tsx:186
-#: packages/admin/src/router.tsx:3531
+#: packages/admin/src/router.tsx:3533
 msgid "Edit menu"
 msgstr "Redaguoti meniu"
 
@@ -5657,7 +5811,7 @@ msgid "Edit menu items"
 msgstr "Redaguoti meniu punktus"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:50
+#: packages/admin/src/locales/server.ts:72
 msgid "visualEditing.editMode"
 msgstr "Redagavimo veiksena"
 
@@ -5675,7 +5829,7 @@ msgid "Edit role"
 msgstr "Redaguoti rolę"
 
 #: packages/admin/src/components/SectionEditor.tsx:50
-#: packages/admin/src/router.tsx:3581
+#: packages/admin/src/router.tsx:3583
 msgid "Edit section"
 msgstr "Redaguoti skiltį"
 
@@ -5749,7 +5903,7 @@ msgid "Editing on this site is paused until the import finishes."
 msgstr "Kol vyksta importavimas, šios svetainės redagavimas pristabdytas."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:41
+#: packages/admin/src/locales/server.ts:63
 msgid "visualEditing.sessionExpired"
 msgstr "Redagavimo seansas baigėsi. Norėdami tęsti, įkelkite puslapį iš naujo."
 
@@ -5792,7 +5946,7 @@ msgstr "em1.…"
 #: packages/admin/src/components/Settings.tsx:120
 #: packages/admin/src/components/SignupPage.tsx:220
 #: packages/admin/src/components/users/UserDetail.tsx:158
-#: packages/admin/src/router.tsx:3286
+#: packages/admin/src/router.tsx:3288
 msgid "Email"
 msgstr "El. paštas"
 
@@ -5833,7 +5987,7 @@ msgstr "El. pašto paslaugos teikėjas aktyvus"
 
 #: packages/admin/src/components/Settings.tsx:116
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:3285
+#: packages/admin/src/router.tsx:3287
 msgid "Email Settings"
 msgstr "El. pašto nustatymai"
 
@@ -5853,17 +6007,17 @@ msgstr "El. pašto adresas patvirtintas"
 msgid "Email verified!"
 msgstr "El. pašto adresas patvirtintas!"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:49
+#: packages/admin/src/components/editor/BlockMenu.tsx:52
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:496
 msgid "Embed"
 msgstr "Įterpinys"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2539
+#: packages/admin/src/components/PortableTextEditor.tsx:2562
 msgid "Embed a {0}"
 msgstr "Įterpti {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:626
+#: packages/admin/src/components/PortableTextEditor.tsx:632
 msgid "Embed a page from another site"
 msgstr "Įterpti kitos svetainės puslapį"
 
@@ -5875,7 +6029,7 @@ msgstr "Įterpimo kodas"
 msgid "Embedded content"
 msgstr "Įterptasis turinys"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:502
+#: packages/admin/src/components/PortableTextEditor.tsx:508
 msgid "Embeds"
 msgstr "Įterpiniai"
 
@@ -5921,7 +6075,7 @@ msgstr "„EmDash“ peržiūri esamą turinį."
 msgid "EmDash never receives your PIN, password, or biometric information."
 msgstr "„EmDash“ niekada negauna jūsų PIN kodo, slaptažodžio ar biometrinių duomenų."
 
-#: packages/admin/src/router.tsx:2602
+#: packages/admin/src/router.tsx:2603
 msgid "EmDash or this entry’s fields changed since you opened it."
 msgstr "Nuo tada, kai atvėrėte šį įrašą, pasikeitė „EmDash“ arba įrašo laukai."
 
@@ -6033,7 +6187,7 @@ msgstr "Įveskite aplanko pavadinimą."
 msgid "Enter a full URL that starts with https:// or http://."
 msgstr "Įveskite visą URL adresą, prasidedantį https:// arba http://."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1205
+#: packages/admin/src/components/PortableTextEditor.tsx:1211
 msgid "Enter a full URL, such as https://example.com."
 msgstr "Įveskite visą URL adresą, pvz., https://example.com."
 
@@ -6060,15 +6214,15 @@ msgstr "Įveskite didžiausią reikšmę, lygią mažiausiai reikšmei arba už 
 msgid "Enter a name."
 msgstr "Įveskite pavadinimą."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1190
+#: packages/admin/src/components/PortableTextEditor.tsx:1196
 msgid "Enter a number between {min} and {max}."
 msgstr "Įveskite skaičių nuo {min} iki {max}."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1192
+#: packages/admin/src/components/PortableTextEditor.tsx:1198
 msgid "Enter a number of {max} or less."
 msgstr "Įveskite {max} arba mažesnį skaičių."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1191
+#: packages/admin/src/components/PortableTextEditor.tsx:1197
 msgid "Enter a number of {min} or more."
 msgstr "Įveskite {min} arba didesnį skaičių."
 
@@ -6131,7 +6285,7 @@ msgid "Enter a valid time"
 msgstr "Įveskite galiojantį laiką"
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:4905
+#: packages/admin/src/components/ContentEditor.tsx:5112
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Įveskite galiojantį URL adresą (pvz., https://example.com)"
 
@@ -6164,7 +6318,7 @@ msgstr "Įvesti prisijungimo duomenis rankiniu būdu"
 msgid "Enter email"
 msgstr "Įveskite el. pašto adresą"
 
-#: packages/admin/src/components/ContentEditor.tsx:4056
+#: packages/admin/src/components/ContentEditor.tsx:4263
 msgid "Enter markdown content..."
 msgstr "Įveskite tekstą „Markdown“ formatu..."
 
@@ -6186,7 +6340,7 @@ msgstr "Toliau įveskite domeną. Prieš pakeisdama domeną, „EmDash“ patikr
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:127
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:136
-#: packages/admin/src/components/PortableTextEditor.tsx:1416
+#: packages/admin/src/components/PortableTextEditor.tsx:1422
 msgid "Enter URL..."
 msgstr "Įveskite URL adresą..."
 
@@ -6229,7 +6383,7 @@ msgstr "įrašas, kuriame pateikta nuoroda"
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:4171
+#: packages/admin/src/router.tsx:4173
 msgid "Error"
 msgstr "Klaida"
 
@@ -6249,7 +6403,7 @@ msgstr "Nepavyko išsaugoti skilties"
 msgid "Error updating widget"
 msgstr "Nepavyko atnaujinti valdiklio"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1126
+#: packages/admin/src/components/PortableTextEditor.tsx:1132
 msgid "esc"
 msgstr "esc"
 
@@ -6415,6 +6569,10 @@ msgstr "Nepavyko pridėti prieigos rakto"
 msgid "Failed to add term to entries"
 msgstr "Nepavyko priskirti termino įrašams"
 
+#: packages/admin/src/lib/api/editorial-threads.ts:121
+msgid "Failed to add the comment"
+msgstr ""
+
 #: packages/admin/src/lib/api/import.ts:386
 msgid "Failed to analyze file"
 msgstr "Nepavyko išanalizuoti failo"
@@ -6565,7 +6723,7 @@ msgid "Failed to create term translation"
 msgstr "Nepavyko sukurti termino vertimo"
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:874
-#: packages/admin/src/router.tsx:2136
+#: packages/admin/src/router.tsx:2137
 msgid "Failed to create translation"
 msgstr "Nepavyko sukurti vertimo"
 
@@ -6657,6 +6815,14 @@ msgstr "Nepavyko ištrinti taksonomijos"
 msgid "Failed to delete term"
 msgstr "Nepavyko ištrinti termino"
 
+#: packages/admin/src/lib/api/editorial-threads.ts:180
+msgid "Failed to delete the comment"
+msgstr ""
+
+#: packages/admin/src/lib/api/editorial-threads.ts:152
+msgid "Failed to delete the thread"
+msgstr ""
+
 #: packages/admin/src/lib/api/widgets.ts:146
 msgid "Failed to delete widget"
 msgstr "Nepavyko ištrinti valdiklio"
@@ -6706,6 +6872,10 @@ msgstr "Nepavyko sukurti kopijos"
 #: packages/admin/src/lib/api/content.ts:415
 msgid "Failed to duplicate content"
 msgstr "Nepavyko sukurti turinio kopijos"
+
+#: packages/admin/src/lib/api/editorial-threads.ts:166
+msgid "Failed to edit the comment"
+msgstr ""
 
 #: packages/admin/src/lib/api/settings.ts:114
 msgid "Failed to email users"
@@ -6965,7 +7135,7 @@ msgstr "Nepavyko gauti naujinimo būsenos"
 #: packages/admin/src/lib/api/current-user.ts:30
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:3066
+#: packages/admin/src/router.tsx:3068
 msgid "Failed to fetch user"
 msgstr "Nepavyko gauti naudotojo duomenų"
 
@@ -6984,6 +7154,10 @@ msgstr "Nepavyko gauti valdiklių sričių"
 #: packages/admin/src/lib/api/widgets.ts:168
 msgid "Failed to fetch widget components"
 msgstr "Nepavyko gauti valdiklių komponentų"
+
+#: packages/admin/src/lib/api/editorial-threads.ts:111
+msgid "Failed to find people to mention"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:263
 msgid "Failed to generate preview"
@@ -7060,6 +7234,10 @@ msgstr "Nepavyko įkelti atsarginių kopijų nustatymų"
 msgid "Failed to load bylines: {0}"
 msgstr "Nepavyko įkelti autorių profilių: {0}"
 
+#: packages/admin/src/lib/api/editorial-threads.ts:95
+msgid "Failed to load comments"
+msgstr ""
+
 #: packages/admin/src/components/settings/EmailSettings.tsx:203
 #: packages/admin/src/components/settings/EmailSettings.tsx:204
 msgid "Failed to load email settings"
@@ -7095,7 +7273,7 @@ msgid "Failed to load imports"
 msgstr "Nepavyko įkelti importavimo sąrašo"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:77
+#: packages/admin/src/locales/server.ts:99
 msgid "visualEditing.mediaLoadFailed"
 msgstr "Nepavyko įkelti medijos failų"
 
@@ -7154,7 +7332,7 @@ msgid "Failed to lock the entry"
 msgstr "Nepavyko užrakinti įrašo"
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:3155
+#: packages/admin/src/router.tsx:3157
 msgid "Failed to perform bulk action"
 msgstr "Nepavyko atlikti masinio veiksmo"
 
@@ -7172,8 +7350,8 @@ msgid "Failed to probe URL"
 msgstr "Nepavyko patikrinti URL adreso"
 
 #: packages/admin/src/router.tsx:800
-#: packages/admin/src/router.tsx:1994
-#: packages/admin/src/router.tsx:2346
+#: packages/admin/src/router.tsx:1995
+#: packages/admin/src/router.tsx:2347
 msgid "Failed to publish"
 msgstr "Nepavyko paskelbti"
 
@@ -7185,7 +7363,7 @@ msgstr "Nepavyko paskelbti turinio"
 msgid "Failed to read byline field usage"
 msgstr "Nepavyko nuskaityti autoriaus profilio lauko naudojimo duomenų"
 
-#: packages/admin/src/router.tsx:3690
+#: packages/admin/src/router.tsx:3692
 msgid "Failed to register {slug}"
 msgstr "Nepavyko užregistruoti „{slug}“"
 
@@ -7240,6 +7418,10 @@ msgstr "Nepavyko pakeisti valdiklių eilės tvarkos"
 msgid "Failed to replace media image"
 msgstr "Nepavyko pakeisti medijos paveikslėlio"
 
+#: packages/admin/src/lib/api/editorial-threads.ts:133
+msgid "Failed to reply"
+msgstr ""
+
 #: packages/admin/src/router.tsx:754
 msgid "Failed to restore"
 msgstr "Nepavyko atkurti"
@@ -7262,11 +7444,11 @@ msgstr "Nepavyko atšaukti API rakto"
 msgid "Failed to rewrite URLs"
 msgstr "Nepavyko perrašyti URL adresų"
 
-#: packages/admin/src/components/ContentEditor.tsx:3275
-#: packages/admin/src/components/ContentEditor.tsx:3527
+#: packages/admin/src/components/ContentEditor.tsx:3477
+#: packages/admin/src/components/ContentEditor.tsx:3729
 #: packages/admin/src/router.tsx:996
-#: packages/admin/src/router.tsx:1812
-#: packages/admin/src/router.tsx:3884
+#: packages/admin/src/router.tsx:1813
+#: packages/admin/src/router.tsx:3886
 msgid "Failed to save"
 msgstr "Nepavyko išsaugoti"
 
@@ -7342,8 +7524,8 @@ msgstr "Nepavyko pradėti importavimo"
 msgid "Failed to uninstall plugin"
 msgstr "Nepavyko pašalinti įskiepio"
 
-#: packages/admin/src/router.tsx:2019
-#: packages/admin/src/router.tsx:2393
+#: packages/admin/src/router.tsx:2020
+#: packages/admin/src/router.tsx:2394
 msgid "Failed to unpublish"
 msgstr "Nepavyko atšaukti paskelbimo"
 
@@ -7351,8 +7533,8 @@ msgstr "Nepavyko atšaukti paskelbimo"
 msgid "Failed to unpublish content"
 msgstr "Nepavyko atšaukti turinio paskelbimo"
 
-#: packages/admin/src/router.tsx:2106
-#: packages/admin/src/router.tsx:2487
+#: packages/admin/src/router.tsx:2107
+#: packages/admin/src/router.tsx:2488
 msgid "Failed to unschedule"
 msgstr "Nepavyko atšaukti tvarkaraščio"
 
@@ -7392,6 +7574,10 @@ msgstr "Nepavyko atnaujinti autoriaus profilio lauko"
 #: packages/admin/src/lib/api/schema.ts:394
 msgid "Failed to update collection"
 msgstr "Nepavyko atnaujinti kolekcijos"
+
+#: packages/admin/src/lib/api/editorial-threads.ts:191
+msgid "Failed to update comment positions"
+msgstr ""
 
 #: packages/admin/src/lib/api/comments.ts:104
 msgid "Failed to update comment status"
@@ -7451,13 +7637,17 @@ msgstr "Nepavyko atnaujinti skilties"
 msgid "Failed to update settings"
 msgstr "Nepavyko atnaujinti nustatymų"
 
-#: packages/admin/src/router.tsx:3119
+#: packages/admin/src/router.tsx:3121
 msgid "Failed to update status"
 msgstr "Nepavyko atnaujinti būsenos"
 
 #: packages/admin/src/lib/api/taxonomies.ts:239
 msgid "Failed to update term"
 msgstr "Nepavyko atnaujinti termino"
+
+#: packages/admin/src/lib/api/editorial-threads.ts:145
+msgid "Failed to update the thread"
+msgstr ""
 
 #: packages/admin/src/lib/api/users.ts:112
 msgid "Failed to update user"
@@ -7591,16 +7781,16 @@ msgstr "Įkėlus failą jo pavadinimo keisti negalima"
 msgid "Files upload as soon as you add them."
 msgstr "Failai pradedami įkelti iškart juos pridėjus."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2437
+#: packages/admin/src/components/PortableTextEditor.tsx:2460
 msgctxt "button style"
 msgid "Fill"
 msgstr "Su užpildu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1208
+#: packages/admin/src/components/PortableTextEditor.tsx:1214
 msgid "Fill in at least one field."
 msgstr "Užpildykite bent vieną lauką."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1375
+#: packages/admin/src/components/PortableTextEditor.tsx:1381
 msgid "Fill in what this block shows."
 msgstr "Įveskite, ką rodyti šiame bloke."
 
@@ -7663,7 +7853,7 @@ msgstr "Filtruoti pagal autoriaus profilio tipą"
 msgid "Filter: {activeCount} selected"
 msgstr "Filtras: pasirinkta {activeCount}"
 
-#: packages/admin/src/router.tsx:1235
+#: packages/admin/src/router.tsx:1236
 msgid "Find it in this entry’s revisions."
 msgstr "Rasite šio įrašo versijų istorijoje."
 
@@ -7688,19 +7878,19 @@ msgstr "Pirmoji versija"
 msgid "First-time commenters only"
 msgstr "Tik pirmą kartą komentuojantiems"
 
-#: packages/admin/src/components/ContentEditor.tsx:286
+#: packages/admin/src/components/ContentEditor.tsx:287
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr "Pataisykite bloko „{block}“ lauką „{field}“, kad išsaugojimas būtų tęsiamas."
 
-#: packages/admin/src/components/ContentEditor.tsx:2405
+#: packages/admin/src/components/ContentEditor.tsx:2536
 msgid "Fix invalid fields before changing the publication date"
 msgstr "Prieš keisdami paskelbimo datą pataisykite klaidingai užpildytus laukus"
 
-#: packages/admin/src/components/ContentEditor.tsx:2328
+#: packages/admin/src/components/ContentEditor.tsx:2459
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Prieš keisdami tvarkaraštį pataisykite klaidingai užpildytus laukus"
 
-#: packages/admin/src/components/ContentEditor.tsx:285
+#: packages/admin/src/components/ContentEditor.tsx:286
 msgid "Fix the {block} block to resume saving."
 msgstr "Pataisykite bloką „{block}“, kad išsaugojimas būtų tęsiamas."
 
@@ -7718,7 +7908,7 @@ msgid "Focal point. Use arrow keys to move it."
 msgstr "Fokusavimo taškas. Perkelkite jį rodyklių klavišais."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1247
-#: packages/admin/src/router.tsx:2976
+#: packages/admin/src/router.tsx:2978
 msgid "Folder"
 msgstr "Aplankas"
 
@@ -7726,7 +7916,7 @@ msgstr "Aplankas"
 msgid "Folder deleted"
 msgstr "Aplankas ištrintas"
 
-#: packages/admin/src/router.tsx:2769
+#: packages/admin/src/router.tsx:2771
 msgid "Folder no longer exists"
 msgstr "Aplanko nebėra"
 
@@ -7770,7 +7960,7 @@ msgstr "Jei norite importuoti visą turinį, įskaitant juodraščius, eksportuo
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "Kad importuoti būtų patogiau, „WordPress“ svetainėje įdiekite įskiepį <0>„EmDash Exporter“</0>."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3846
+#: packages/admin/src/components/PortableTextEditor.tsx:3897
 msgid "Format selection"
 msgstr "Formatuoti pažymėtą tekstą"
 
@@ -7816,9 +8006,9 @@ msgstr "Visos prieigos teisės"
 msgid "Full admin access"
 msgstr "Visos administratoriaus teisės"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:44
+#: packages/admin/src/components/editor/BlockMenu.tsx:47
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:2487
+#: packages/admin/src/components/PortableTextEditor.tsx:2510
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:437
 msgid "Gallery"
 msgstr "Galerija"
@@ -7829,12 +8019,12 @@ msgid "Gallery settings"
 msgstr "Galerijos nustatymai"
 
 #: packages/admin/src/components/Settings.tsx:56
-#: packages/admin/src/router.tsx:3341
+#: packages/admin/src/router.tsx:3343
 msgid "General"
 msgstr "Bendrieji"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:3340
+#: packages/admin/src/router.tsx:3342
 msgid "General Settings"
 msgstr "Bendrieji nustatymai"
 
@@ -7866,7 +8056,7 @@ msgstr "Pavadinkite šį prieigos raktą, kad vėliau jį atpažintumėte."
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:2315
+#: packages/admin/src/components/ContentEditor.tsx:2446
 msgid "Go back to editing first."
 msgstr "Pirmiausia grįžkite prie redagavimo."
 
@@ -7878,14 +8068,22 @@ msgstr "Paskelbti"
 msgid "Go live {countdown}"
 msgstr "Paskelbti {countdown}"
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:905
+msgid "Go to block"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2527
-#: packages/admin/src/router.tsx:4191
+#: packages/admin/src/router.tsx:4193
 msgid "Go to Dashboard"
 msgstr "Atverti valdymo skydą"
 
 #: packages/admin/src/locales/emails.ts:74
 msgid "Go to sign-in"
 msgstr "Eiti į prisijungimo puslapį"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:905
+msgid "Go to text"
+msgstr ""
 
 #: packages/admin/src/components/BlocksField.tsx:1028
 msgid "Go to the next problem"
@@ -7976,37 +8174,37 @@ msgstr "Antraštės"
 
 #: packages/admin/src/components/editor/blockTypes.ts:85
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:537
+#: packages/admin/src/components/PortableTextEditor.tsx:543
 msgid "Heading 1"
 msgstr "1 lygio antraštė"
 
 #: packages/admin/src/components/editor/blockTypes.ts:86
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:538
+#: packages/admin/src/components/PortableTextEditor.tsx:544
 msgid "Heading 2"
 msgstr "2 lygio antraštė"
 
 #: packages/admin/src/components/editor/blockTypes.ts:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:539
+#: packages/admin/src/components/PortableTextEditor.tsx:545
 msgid "Heading 3"
 msgstr "3 lygio antraštė"
 
 #: packages/admin/src/components/editor/blockTypes.ts:88
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:608
+#: packages/admin/src/components/PortableTextEditor.tsx:614
 msgid "Heading 4"
 msgstr "4 lygio antraštė"
 
 #: packages/admin/src/components/editor/blockTypes.ts:89
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:609
+#: packages/admin/src/components/PortableTextEditor.tsx:615
 msgid "Heading 5"
 msgstr "5 lygio antraštė"
 
 #: packages/admin/src/components/editor/blockTypes.ts:90
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:38
-#: packages/admin/src/components/PortableTextEditor.tsx:610
+#: packages/admin/src/components/PortableTextEditor.tsx:616
 msgid "Heading 6"
 msgstr "6 lygio antraštė"
 
@@ -8037,6 +8235,11 @@ msgstr "Paslėpta nuo paieškos sistemų"
 msgid "Hidden from search engines until you go live"
 msgstr "Paslėpta nuo paieškos sistemų, kol paskelbsite svetainę"
 
+#: packages/admin/src/components/ContentEditor.tsx:3015
+#: packages/admin/src/components/ContentEditor.tsx:3016
+msgid "Hide comments"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:119
 msgid "Hide earlier entries"
 msgstr "Slėpti ankstesnius įrašus"
@@ -8050,7 +8253,11 @@ msgstr "Slėpti iš naršymo"
 msgid "Hide from search engines"
 msgstr "Slėpti nuo paieškos sistemų"
 
-#: packages/admin/src/components/SettingsPanelToggle.tsx:211
+#: packages/admin/src/components/editorial/MarginComments.tsx:487
+msgid "Hide resolved"
+msgstr ""
+
+#: packages/admin/src/components/SettingsPanelToggle.tsx:222
 msgid "Hide settings"
 msgstr "Slėpti nustatymus"
 
@@ -8060,7 +8267,7 @@ msgid "Hide token"
 msgstr "Slėpti API raktą"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:52
+#: packages/admin/src/locales/server.ts:74
 msgid "visualEditing.hideToolbar"
 msgstr "Slėpti įrankių juostą"
 
@@ -8081,7 +8288,7 @@ msgstr "Kreipiniai"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Užrakinti redaguojamą įrašą, kad kiti negalėtų jo keisti"
 
-#: packages/admin/src/components/ContentEditor.tsx:4289
+#: packages/admin/src/components/ContentEditor.tsx:4496
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Čia saugomas įrašo ID. Jei norite rinktis įrašus iš sąrašo, turinio tipų nustatymuose nurodykite tikslinę kolekciją."
 
@@ -8097,7 +8304,7 @@ msgstr "Pradžios puslapis"
 msgid "Hooks"
 msgstr "Įvykių apdorojimo funkcijos"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2418
+#: packages/admin/src/components/PortableTextEditor.tsx:2441
 msgid "Horizontal"
 msgstr "Horizontaliai"
 
@@ -8135,10 +8342,10 @@ msgstr "Kiek"
 msgid "How to create an Application Password"
 msgstr "Kaip sukurti programos slaptažodį"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:47
+#: packages/admin/src/components/editor/BlockMenu.tsx:50
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:51
-#: packages/admin/src/components/PortableTextEditor.tsx:615
+#: packages/admin/src/components/PortableTextEditor.tsx:621
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:502
 msgid "HTML"
 msgstr "HTML"
@@ -8217,8 +8424,8 @@ msgstr "Jei svetainė dar nepasiekiama internetu, pvz., veikia tik vietiniame ko
 msgid "If you didn't request this, you can safely ignore this email."
 msgstr "Jei to neprašėte, galite nekreipti dėmesio į šį laišką."
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:48
-#: packages/admin/src/components/PortableTextEditor.tsx:625
+#: packages/admin/src/components/editor/BlockMenu.tsx:51
+#: packages/admin/src/components/PortableTextEditor.tsx:631
 msgid "Iframe"
 msgstr "Įterptasis rėmelis"
 
@@ -8227,14 +8434,14 @@ msgid "Iframe block options"
 msgstr "Įterptojo rėmelio bloko parinktys"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:63
+#: packages/admin/src/locales/server.ts:85
 msgid "visualEditing.image"
 msgstr "Paveikslėlis"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:42
+#: packages/admin/src/components/editor/BlockMenu.tsx:45
 #: packages/admin/src/components/FieldEditor.tsx:711
 #: packages/admin/src/components/FieldEditor.tsx:1708
-#: packages/admin/src/components/PortableTextEditor.tsx:2474
+#: packages/admin/src/components/PortableTextEditor.tsx:2497
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
 msgid "Image"
@@ -8256,7 +8463,7 @@ msgstr "Paveikslėlis {0}"
 msgid "Image actions"
 msgstr "Veiksmai su paveikslėliu"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4590
+#: packages/admin/src/components/PortableTextEditor.tsx:4670
 msgid "Image controls"
 msgstr "Paveikslėlio valdikliai"
 
@@ -8264,7 +8471,7 @@ msgstr "Paveikslėlio valdikliai"
 msgid "Image from media library"
 msgstr "Paveikslėlis iš medijos bibliotekos"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5158
+#: packages/admin/src/components/PortableTextEditor.tsx:5238
 msgid "Image link"
 msgstr "Paveikslėlio nuoroda"
 
@@ -8286,7 +8493,7 @@ msgid "Image replaced."
 msgstr "Paveikslėlis pakeistas."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:392
-#: packages/admin/src/components/PortableTextEditor.tsx:4724
+#: packages/admin/src/components/PortableTextEditor.tsx:4804
 msgid "Image settings"
 msgstr "Paveikslėlio nustatymai"
 
@@ -8377,7 +8584,7 @@ msgid "Import failed"
 msgstr "Importuoti nepavyko"
 
 #: packages/admin/src/components/WordPressImport.tsx:746
-#: packages/admin/src/router.tsx:3516
+#: packages/admin/src/router.tsx:3518
 msgid "Import from WordPress"
 msgstr "Importuoti iš „WordPress“"
 
@@ -8518,67 +8725,67 @@ msgstr "Įterptasis"
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Įterptiesiems blokams taikomi svetainės stiliai. Svetainė pašalina scenarijus, stiliaus žymas bei atributus ir išvalo visų įterptųjų rėmelių turinį, išskyrus „YouTube“ ir „Vimeo“."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3649
-#: packages/admin/src/components/PortableTextEditor.tsx:5227
+#: packages/admin/src/components/PortableTextEditor.tsx:3685
+#: packages/admin/src/components/PortableTextEditor.tsx:5307
 msgid "Inline Code"
 msgstr "Kodas tekste"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1433
+#: packages/admin/src/components/PortableTextEditor.tsx:1439
 msgid "Insert"
 msgstr "Įterpti"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1372
+#: packages/admin/src/components/PortableTextEditor.tsx:1378
 msgid "Insert {0}"
 msgstr "Įterpti „{0}“"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:563
+#: packages/admin/src/components/PortableTextEditor.tsx:569
 msgid "Insert a blockquote"
 msgstr "Įterpti citatos bloką"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:573
+#: packages/admin/src/components/PortableTextEditor.tsx:579
 msgid "Insert a code block"
 msgstr "Įterpti kodo bloką"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:583
+#: packages/admin/src/components/PortableTextEditor.tsx:589
 msgid "Insert a horizontal rule"
 msgstr "Įterpti horizontalią liniją"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2518
+#: packages/admin/src/components/PortableTextEditor.tsx:2541
 msgid "Insert a reusable section"
 msgstr "Įterpti daugkartinio naudojimo skiltį"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:601
+#: packages/admin/src/components/PortableTextEditor.tsx:607
 msgid "Insert a table"
 msgstr "Įterpti lentelę"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2475
+#: packages/admin/src/components/PortableTextEditor.tsx:2498
 msgid "Insert an image"
 msgstr "Įterpti paveikslėlį"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2488
+#: packages/admin/src/components/PortableTextEditor.tsx:2511
 msgid "Insert an image gallery"
 msgstr "Įterpti paveikslėlių galeriją"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1022
+#: packages/admin/src/components/PortableTextEditor.tsx:1028
 msgid "Insert block"
 msgstr "Įterpti bloką"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5174
-#: packages/admin/src/components/PortableTextEditor.tsx:5184
+#: packages/admin/src/components/PortableTextEditor.tsx:5254
+#: packages/admin/src/components/PortableTextEditor.tsx:5264
 msgid "Insert block after current block"
 msgstr "Įterpti bloką po dabartinio bloko"
 
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:267
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:270
 msgid "Insert block below"
 msgstr "Įterpti bloką žemiau"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5308
+#: packages/admin/src/components/PortableTextEditor.tsx:5388
 msgid "Insert HTML"
 msgstr "Įterpti HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3555
-#: packages/admin/src/components/PortableTextEditor.tsx:5301
+#: packages/admin/src/components/PortableTextEditor.tsx:3591
+#: packages/admin/src/components/PortableTextEditor.tsx:5381
 msgid "Insert image"
 msgstr "Įterpti paveikslėlį"
 
@@ -8594,7 +8801,7 @@ msgstr "Įterpti pastraipą po šio elemento"
 msgid "Insert paragraph before"
 msgstr "Įterpti pastraipą prieš šį elementą"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:616
+#: packages/admin/src/components/PortableTextEditor.tsx:622
 msgid "Insert raw HTML"
 msgstr "Įterpti neapdorotą HTML"
 
@@ -8607,7 +8814,7 @@ msgstr "Įterpti skiltį"
 msgid "Insert table"
 msgstr "Įterpti lentelę"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3569
+#: packages/admin/src/components/PortableTextEditor.tsx:3605
 msgid "Insert video"
 msgstr "Įterpti vaizdo įrašą"
 
@@ -8669,7 +8876,7 @@ msgstr "NETINKAMAS NAUDOTOJO IDENTIFIKATORIUS"
 msgid "Invalid invite link"
 msgstr "Negaliojanti kvietimo nuoroda"
 
-#: packages/admin/src/components/ContentEditor.tsx:4998
+#: packages/admin/src/components/ContentEditor.tsx:5205
 msgid "Invalid JSON"
 msgstr "Netinkamas JSON"
 
@@ -8727,7 +8934,11 @@ msgstr "Vykdyti tik įjungtus šio įskiepio MCP įrankius"
 msgid "Isolated frame"
 msgstr "Izoliuotas rėmelis"
 
-#: packages/admin/src/components/ContentEditor.tsx:2968
+#: packages/admin/src/components/editorial/useEditorialComments.ts:564
+msgid "It can once someone who may edit the entry saves it."
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:3118
 msgid "It has formatting this editor can’t keep."
 msgstr "Turinyje yra formatavimo, kurio ši rengyklė negali išsaugoti."
 
@@ -8739,18 +8950,18 @@ msgstr "Jį saugo tapatybės patvirtinimo priemonė arba prisijungimo duomenų t
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "Procesas pradėtas kitur, todėl jo plano keisti nebegalima. Jo eigą matysite čia."
 
-#: packages/admin/src/router.tsx:2623
+#: packages/admin/src/router.tsx:2624
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
 msgstr "Įrašą galima tik peržiūrėti. Jei jis yra šiukšlinėje, galite jį iš ten atkurti."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3646
-#: packages/admin/src/components/PortableTextEditor.tsx:5203
+#: packages/admin/src/components/PortableTextEditor.tsx:3682
+#: packages/admin/src/components/PortableTextEditor.tsx:5283
 msgid "Italic"
 msgstr "Kursyvas"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/BlockListField.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:1795
+#: packages/admin/src/components/PortableTextEditor.tsx:1801
 #: packages/admin/src/components/RepeaterField.tsx:268
 msgid "Item {0}"
 msgstr "Elementas {0}"
@@ -8814,7 +9025,7 @@ msgstr "Jungiamasi prie įrašo redagavimo"
 msgid "Joining..."
 msgstr "Jungiamasi..."
 
-#: packages/admin/src/components/ContentEditor.tsx:3261
+#: packages/admin/src/components/ContentEditor.tsx:3463
 #: packages/admin/src/components/SaveButton.tsx:54
 msgid "Joining…"
 msgstr "Jungiamasi…"
@@ -8929,7 +9140,7 @@ msgstr "Gulsčias"
 msgid "Language"
 msgstr "Kalba"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:537
+#: packages/admin/src/components/PortableTextEditor.tsx:543
 msgid "Large section heading"
 msgstr "Didelė skilties antraštė"
 
@@ -8980,7 +9191,7 @@ msgstr "Paskutinį kartą naudota {0}"
 msgid "Later entries weren't loaded. The range has more entries than the calendar can show."
 msgstr "Vėlesni įrašai neįkelti. Pasirinktu laikotarpiu įrašų yra daugiau, nei telpa kalendoriuje."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2415
+#: packages/admin/src/components/PortableTextEditor.tsx:2438
 msgid "Layout"
 msgstr "Išdėstymas"
 
@@ -9009,10 +9220,10 @@ msgstr "Nepriskirti"
 msgid "Leave without saving?"
 msgstr "Išeiti neišsaugojus?"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:53
+#: packages/admin/src/components/editor/BlockMenu.tsx:56
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:4161
-#: packages/admin/src/components/PortableTextEditor.tsx:4282
+#: packages/admin/src/components/PortableTextEditor.tsx:4241
+#: packages/admin/src/components/PortableTextEditor.tsx:4362
 msgid "Left"
 msgstr "Kairėje"
 
@@ -9034,7 +9245,7 @@ msgid "Limit"
 msgstr "Riba"
 
 #: packages/admin/src/components/BlocksField.tsx:2345
-#: packages/admin/src/components/PortableTextEditor.tsx:5387
+#: packages/admin/src/components/PortableTextEditor.tsx:5467
 msgid "Link"
 msgstr "Nuoroda"
 
@@ -9042,7 +9253,7 @@ msgstr "Nuoroda"
 msgid "Link expired"
 msgstr "Nuorodos galiojimas baigėsi"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3981
+#: packages/admin/src/components/PortableTextEditor.tsx:4061
 msgid "Link options"
 msgstr "Nuorodos parinktys"
 
@@ -9130,7 +9341,7 @@ msgstr "Nuorodos į"
 msgid "Links to {0}"
 msgstr "Nuorodos į {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2250
+#: packages/admin/src/components/PortableTextEditor.tsx:2273
 msgid "List"
 msgstr "Sąrašas"
 
@@ -9189,8 +9400,8 @@ msgid "Load preview"
 msgstr "Įkelti peržiūrą"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/components/ContentEditor.tsx:3011
-#: packages/admin/src/router.tsx:4146
+#: packages/admin/src/components/ContentEditor.tsx:3168
+#: packages/admin/src/router.tsx:4148
 msgid "Loading"
 msgstr "Įkeliama"
 
@@ -9219,8 +9430,8 @@ msgstr "Įkeliamos kolekcijos..."
 msgid "Loading comments..."
 msgstr "Įkeliami komentarai..."
 
-#: packages/admin/src/router.tsx:4148
-#: packages/admin/src/router.tsx:4160
+#: packages/admin/src/router.tsx:4150
+#: packages/admin/src/router.tsx:4162
 msgid "Loading configuration..."
 msgstr "Įkeliama konfigūracija..."
 
@@ -9228,7 +9439,7 @@ msgstr "Įkeliama konfigūracija..."
 msgid "Loading content..."
 msgstr "Įkeliamas turinys..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3385
+#: packages/admin/src/components/PortableTextEditor.tsx:3418
 msgid "Loading editor..."
 msgstr "Įkeliama rengyklė..."
 
@@ -9278,7 +9489,7 @@ msgstr "Įkeliami įskiepiai..."
 msgid "Loading redirects..."
 msgstr "Įkeliami peradresavimai..."
 
-#: packages/admin/src/components/ContentEditor.tsx:4723
+#: packages/admin/src/components/ContentEditor.tsx:4930
 msgid "Loading references..."
 msgstr "Įkeliamos nuorodos..."
 
@@ -9331,7 +9542,7 @@ msgstr "Įkeliami valdikliai..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:1731
 #: packages/admin/src/components/MediaLibrary.tsx:1254
 #: packages/admin/src/components/MediaUsedIn.tsx:245
-#: packages/admin/src/components/PortableTextEditor.tsx:1925
+#: packages/admin/src/components/PortableTextEditor.tsx:1931
 #: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
@@ -9351,7 +9562,7 @@ msgid "Loading..."
 msgstr "Įkeliama..."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:75
+#: packages/admin/src/locales/server.ts:97
 msgid "visualEditing.loading"
 msgstr "Įkeliama…"
 
@@ -9529,11 +9740,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Prekyvietė"
 
-#: packages/admin/src/router.tsx:3504
+#: packages/admin/src/router.tsx:3506
 msgid "Marketplace browsing is no longer available."
 msgstr "Prekyvietės naršyti nebegalima."
 
-#: packages/admin/src/router.tsx:3477
+#: packages/admin/src/router.tsx:3479
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Prekyvietės naršyti nebegalima. Įdiegtus įskiepius galite tvarkyti skiltyje „Įskiepiai“."
 
@@ -9577,7 +9788,7 @@ msgstr "Didžiausias žymų skaičius"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:500
+#: packages/admin/src/components/PortableTextEditor.tsx:506
 #: packages/admin/src/components/Settings.tsx:75
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
@@ -9585,7 +9796,7 @@ msgstr "MDX"
 #: packages/admin/src/components/WordPressImport.tsx:807
 #: packages/admin/src/components/WordPressImport.tsx:1214
 #: packages/admin/src/components/WordPressImport.tsx:1407
-#: packages/admin/src/router.tsx:2728
+#: packages/admin/src/router.tsx:2730
 msgid "Media"
 msgstr "Medija"
 
@@ -9621,7 +9832,7 @@ msgid "Media in this folder will return to Main library. No files will be delete
 msgstr "Šio aplanko medijos failai grįš į pagrindinę biblioteką. Nė vienas failas nebus ištrintas."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:73
+#: packages/admin/src/locales/server.ts:95
 msgid "visualEditing.mediaLibrary"
 msgstr "Medijos biblioteka"
 
@@ -9647,13 +9858,13 @@ msgstr "Medijos skaitymas"
 msgid "Media results"
 msgstr "Medijos paieškos rezultatai"
 
-#: packages/admin/src/router.tsx:3223
+#: packages/admin/src/router.tsx:3225
 msgid "Media Usage"
 msgstr "Medijos naudojimas"
 
 #: packages/admin/src/components/Settings.tsx:79
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
-#: packages/admin/src/router.tsx:3224
+#: packages/admin/src/router.tsx:3226
 msgid "Media usage tracking"
 msgstr "Medijos naudojimo stebėjimas"
 
@@ -9681,7 +9892,7 @@ msgstr "Reikia patikrinti medijos naudojimo stebėjimą"
 msgid "Media Write"
 msgstr "Medijos įrašymas"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:538
+#: packages/admin/src/components/PortableTextEditor.tsx:544
 msgid "Medium section heading"
 msgstr "Vidutinio lygio skilties antraštė"
 
@@ -9744,7 +9955,7 @@ msgstr "Meniu pervadintas"
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:522
 #: packages/admin/src/components/WordPressImport.tsx:1218
-#: packages/admin/src/router.tsx:3524
+#: packages/admin/src/router.tsx:3526
 msgid "Menus"
 msgstr "Meniu"
 
@@ -9803,7 +10014,7 @@ msgstr "Mažiausia reikšmė"
 msgid "Minimum blocks"
 msgstr "Mažiausias blokų skaičius"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:609
+#: packages/admin/src/components/PortableTextEditor.tsx:615
 msgid "Minor section heading"
 msgstr "Žemesnio lygio skilties antraštė"
 
@@ -9852,7 +10063,7 @@ msgstr "Mėnesių ir metų archyvai"
 msgid "More actions for {0}"
 msgstr "Daugiau veiksmų su {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4128
+#: packages/admin/src/components/PortableTextEditor.tsx:4208
 msgid "More formatting"
 msgstr "Daugiau formatavimo parinkčių"
 
@@ -9896,7 +10107,7 @@ msgstr "Perkelti „{title}“ į šiukšlinę? Vėliau šį įrašą galėsite 
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4690
+#: packages/admin/src/components/ContentEditor.tsx:4897
 #: packages/admin/src/components/FieldEditor.tsx:1527
 msgid "Move {0} down"
 msgstr "Perkelti {0} žemyn"
@@ -9913,12 +10124,12 @@ msgstr "Perkelti {0} arčiau pabaigos"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4679
+#: packages/admin/src/components/ContentEditor.tsx:4886
 #: packages/admin/src/components/FieldEditor.tsx:1508
 msgid "Move {0} up"
 msgstr "Perkelti {0} aukštyn"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:212
+#: packages/admin/src/components/editor/BlockMenu.tsx:238
 #: packages/admin/src/components/MenuEditor.tsx:779
 #: packages/admin/src/components/RowMenuItems.tsx:83
 #: packages/admin/src/components/TaxonomyManager.tsx:429
@@ -9965,7 +10176,7 @@ msgstr "Perkelti į šiukšlinę"
 msgid "Move to Trash?"
 msgstr "Perkelti į šiukšlinę?"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:206
+#: packages/admin/src/components/editor/BlockMenu.tsx:232
 #: packages/admin/src/components/MenuEditor.tsx:770
 #: packages/admin/src/components/RowMenuItems.tsx:76
 #: packages/admin/src/components/TaxonomyManager.tsx:421
@@ -10151,7 +10362,7 @@ msgstr "Reikia patikrinti"
 msgid "Never"
 msgstr "Niekada"
 
-#: packages/admin/src/router.tsx:2131
+#: packages/admin/src/router.tsx:2132
 msgid "new"
 msgstr "nauja"
 
@@ -10159,8 +10370,8 @@ msgstr "nauja"
 msgid "NEW"
 msgstr "NAUJA"
 
-#: packages/admin/src/components/ContentEditor.tsx:2423
-#: packages/admin/src/components/ContentEditor.tsx:2428
+#: packages/admin/src/components/ContentEditor.tsx:2554
+#: packages/admin/src/components/ContentEditor.tsx:2559
 msgid "New {itemLabel}"
 msgstr "Kurti: {itemLabel}"
 
@@ -10186,7 +10397,7 @@ msgstr "Nauja kolekcija"
 msgid "New content"
 msgstr "Naujas turinys"
 
-#: packages/admin/src/router.tsx:3733
+#: packages/admin/src/router.tsx:3735
 msgid "New content type"
 msgstr "Naujas turinio tipas"
 
@@ -10412,7 +10623,7 @@ msgstr "Turinio tipų dar nėra."
 msgid "No custom fields yet"
 msgstr "Pasirinktinių laukų dar nėra"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4686
+#: packages/admin/src/components/PortableTextEditor.tsx:4766
 msgid "No description yet"
 msgstr "Aprašymo dar nėra"
 
@@ -10487,12 +10698,12 @@ msgid "No iframe found in this code. For an embed that runs a script, use an HTM
 msgstr "Šiame kode nerastas „iframe“ elementas. Jei įterpiamas turinys vykdo scenarijų, naudokite HTML bloką."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:64
+#: packages/admin/src/locales/server.ts:86
 msgid "visualEditing.noImageSelected"
 msgstr "Nepasirinktas paveikslėlis"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:76
+#: packages/admin/src/locales/server.ts:98
 msgid "visualEditing.noImagesFound"
 msgstr "Paveikslėlių nerasta"
 
@@ -10509,7 +10720,7 @@ msgid "No invite token provided"
 msgstr "Nepateiktas kvietimo raktas"
 
 #: packages/admin/src/components/BlockListField.tsx:885
-#: packages/admin/src/components/PortableTextEditor.tsx:1718
+#: packages/admin/src/components/PortableTextEditor.tsx:1724
 #: packages/admin/src/components/RepeaterField.tsx:179
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
@@ -10600,6 +10811,11 @@ msgstr "Apatinės ribos nėra"
 msgid "No moderation (auto-approve all)"
 msgstr "Nemoderuoti (viską patvirtinti automatiškai)"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:113
+msgid "visualEditing.noOpenComments"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:482
 msgid "No parent (top level)"
 msgstr "Be pirminio elemento (aukščiausias lygis)"
@@ -10648,7 +10864,7 @@ msgstr "Nė vienas peradresavimas neatitinka šių filtrų"
 msgid "No redirects yet"
 msgstr "Peradresavimų dar nėra"
 
-#: packages/admin/src/components/ContentEditor.tsx:4633
+#: packages/admin/src/components/ContentEditor.tsx:4840
 msgid "No references selected."
 msgstr "Nepasirinkta nė viena nuoroda."
 
@@ -10660,7 +10876,7 @@ msgstr "Ryšių dar nėra"
 msgid "No relations yet."
 msgstr "Ryšių dar nėra."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1064
+#: packages/admin/src/components/PortableTextEditor.tsx:1070
 #: packages/admin/src/components/RepeaterField.tsx:434
 msgid "No results"
 msgstr "Rezultatų nėra"
@@ -10734,7 +10950,7 @@ msgid "Non-guest"
 msgstr "Nuolatiniai autoriai"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:4281
+#: packages/admin/src/components/PortableTextEditor.tsx:4361
 msgid "None"
 msgstr "Nėra"
 
@@ -10763,13 +10979,13 @@ msgstr "Nesusieta"
 msgid "Not recorded in this version"
 msgstr "Šioje versijoje neužfiksuota"
 
-#: packages/admin/src/components/ContentEditor.tsx:3265
+#: packages/admin/src/components/ContentEditor.tsx:3467
 #: packages/admin/src/components/SaveButton.tsx:56
 #: packages/admin/src/components/SaveButton.tsx:57
 msgid "Not saved"
 msgstr "Neišsaugota"
 
-#: packages/admin/src/components/ContentEditor.tsx:3277
+#: packages/admin/src/components/ContentEditor.tsx:3479
 msgid "Not saved yet"
 msgstr "Dar neišsaugota"
 
@@ -10823,8 +11039,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "Viename sąrašo puslapyje rodomų įrašų skaičius"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
-#: packages/admin/src/components/PortableTextEditor.tsx:552
-#: packages/admin/src/components/PortableTextEditor.tsx:5260
+#: packages/admin/src/components/PortableTextEditor.tsx:558
+#: packages/admin/src/components/PortableTextEditor.tsx:5340
 msgid "Numbered List"
 msgstr "Numeruotas sąrašas"
 
@@ -10837,7 +11053,7 @@ msgstr "„OAuth“ autorizacijai būtinas HTTPS. Įveskite prisijungimo duomeni
 msgid "Off"
 msgstr "Išjungta"
 
-#: packages/admin/src/components/ContentEditor.tsx:3263
+#: packages/admin/src/components/ContentEditor.tsx:3465
 #: packages/admin/src/components/SaveButton.tsx:55
 msgid "Offline"
 msgstr "Nėra ryšio"
@@ -10853,6 +11069,21 @@ msgstr "Senesnė versija"
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:425
 msgid "On"
 msgstr "Įjungta"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:125
+msgid "visualEditing.onQuote"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:124
+msgid "visualEditing.onField"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:126
+msgid "visualEditing.onBlock"
+msgstr ""
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
 msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
@@ -10909,7 +11140,7 @@ msgid "Open"
 msgstr "Atverti"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4668
+#: packages/admin/src/components/ContentEditor.tsx:4875
 msgid "Open {0} in a new tab"
 msgstr "Atverti „{0}“ naujame skirtuke"
 
@@ -10921,7 +11152,7 @@ msgid "Open folder {0}"
 msgstr "Atverti aplanką „{0}“"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:51
+#: packages/admin/src/locales/server.ts:73
 msgid "visualEditing.openInAdmin"
 msgstr "Atverti administravimo sąsajoje"
 
@@ -11078,7 +11309,7 @@ msgstr "Kitų žmonių pakeitimai čia vėl bus rodomi, kai tik vėl prisijungsi
 msgid "Outline"
 msgstr "Dokumento struktūra"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2436
+#: packages/admin/src/components/PortableTextEditor.tsx:2459
 msgctxt "button style"
 msgid "Outline"
 msgstr "Su kontūru"
@@ -11118,11 +11349,11 @@ msgstr "Paketo maišos reikšmė"
 msgid "Package downloaded"
 msgstr "Paketas atsisiųstas"
 
-#: packages/admin/src/router.tsx:4058
+#: packages/admin/src/router.tsx:4060
 msgid "Page not found"
 msgstr "Puslapis nerastas"
 
-#: packages/admin/src/router.tsx:4186
+#: packages/admin/src/router.tsx:4188
 msgid "Page Not Found"
 msgstr "Puslapis nerastas"
 
@@ -11142,7 +11373,7 @@ msgid "Pages"
 msgstr "Puslapiai"
 
 #: packages/admin/src/components/editor/blockTypes.ts:80
-#: packages/admin/src/components/PortableTextEditor.tsx:530
+#: packages/admin/src/components/PortableTextEditor.tsx:536
 msgid "Paragraph"
 msgstr "Pastraipa"
 
@@ -11261,7 +11492,7 @@ msgstr "Slaptažodžiu apsaugoti įrašai ({0})"
 msgid "Paste an embed code or an https link…"
 msgstr "Įklijuokite įterpimo kodą arba HTTPS nuorodą…"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1375
+#: packages/admin/src/components/PortableTextEditor.tsx:1381
 msgid "Paste the address of what to embed."
 msgstr "Įklijuokite turinio, kurį norite įterpti, adresą."
 
@@ -11328,6 +11559,10 @@ msgstr "Šio įrašo dalyviai"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:545
 msgid "People shown publicly on this post."
 msgstr "Žmonės, viešai nurodomi šiame įraše."
+
+#: packages/admin/src/components/editorial/mentions.tsx:308
+msgid "People to mention"
+msgstr ""
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:128
 msgid "Per page"
@@ -11410,7 +11645,7 @@ msgid "Please enter a valid URL"
 msgstr "Įveskite galiojantį URL"
 
 #: packages/admin/src/components/WordPressImport.tsx:1251
-#: packages/admin/src/router.tsx:4034
+#: packages/admin/src/router.tsx:4036
 msgid "Plugin"
 msgstr "Įskiepis"
 
@@ -11435,7 +11670,7 @@ msgstr "Nepavyko atlikti įskiepio veiksmo"
 msgid "Plugin actions"
 msgstr "Įskiepio veiksmai"
 
-#: packages/admin/src/components/ContentEditor.tsx:203
+#: packages/admin/src/components/ContentEditor.tsx:204
 msgid "Plugin changes were not applied"
 msgstr "Įskiepio pakeitimai nepritaikyti"
 
@@ -11448,8 +11683,8 @@ msgid "Plugin details"
 msgstr "Įskiepio informacija"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:461
-#: packages/admin/src/router.tsx:3446
-#: packages/admin/src/router.tsx:3454
+#: packages/admin/src/router.tsx:3448
+#: packages/admin/src/router.tsx:3456
 msgid "Plugin Details"
 msgstr "Įskiepio informacija"
 
@@ -11474,7 +11709,7 @@ msgstr "Įskiepio klaida ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "Norint įdiegti įskiepį, reikia aiškaus sutikimo"
 
-#: packages/admin/src/router.tsx:3438
+#: packages/admin/src/router.tsx:3440
 msgid "Plugin Marketplace"
 msgstr "Įskiepių prekyvietė"
 
@@ -11514,7 +11749,7 @@ msgid "Plugin Permissions"
 msgstr "Įskiepio leidimai"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:3395
+#: packages/admin/src/router.tsx:3397
 msgid "Plugin Registry"
 msgstr "Įskiepių registras"
 
@@ -11523,8 +11758,8 @@ msgstr "Įskiepių registras"
 msgid "Plugin registry configuration error"
 msgstr "Įskiepių registro konfigūracijos klaida"
 
-#: packages/admin/src/router.tsx:3431
-#: packages/admin/src/router.tsx:3468
+#: packages/admin/src/router.tsx:3433
+#: packages/admin/src/router.tsx:3470
 msgid "Plugin registry is not configured."
 msgstr "Įskiepių registras nesukonfigūruotas."
 
@@ -11534,7 +11769,7 @@ msgid "Plugin responded with {0}: {text}"
 msgstr "Įskiepis grąžino atsakymą {0}: {text}"
 
 #: packages/admin/src/components/PluginSettings.tsx:38
-#: packages/admin/src/router.tsx:4019
+#: packages/admin/src/router.tsx:4021
 msgid "Plugin Settings"
 msgstr "Įskiepio nustatymai"
 
@@ -11567,7 +11802,7 @@ msgstr "Įskiepio valdiklio klaida"
 #: packages/admin/src/components/PluginManager.tsx:200
 #: packages/admin/src/components/Sidebar.tsx:462
 #: packages/admin/src/components/Sidebar.tsx:588
-#: packages/admin/src/router.tsx:3380
+#: packages/admin/src/router.tsx:3382
 msgid "Plugins"
 msgstr "Įskiepiai"
 
@@ -11683,7 +11918,7 @@ msgstr "Peržiūrėti juodraštį"
 msgid "Preview of {0}"
 msgstr "Peržiūra: {0}"
 
-#: packages/admin/src/router.tsx:1467
+#: packages/admin/src/router.tsx:1468
 msgid "Preview opens once your edits are saved"
 msgstr "Peržiūra atsivers išsaugojus pakeitimus"
 
@@ -11767,7 +12002,7 @@ msgid "Publication date"
 msgstr "Paskelbimo data"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:39
+#: packages/admin/src/locales/server.ts:61
 msgid "visualEditing.publish"
 msgstr "Skelbti"
 
@@ -11789,7 +12024,7 @@ msgid "Publish changes?"
 msgstr "Skelbti pakeitimus?"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:46
+#: packages/admin/src/locales/server.ts:68
 msgid "visualEditing.publishFailed"
 msgstr "Nepavyko paskelbti. Patikrinkite savo leidimus ir bandykite dar kartą."
 
@@ -11807,7 +12042,7 @@ msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Skelbti turinį, atšaukti paskelbimą, suplanuoti skelbimą ir atšaukti suplanuotą skelbimą"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
+#: packages/admin/src/locales/server.ts:76
 msgid "visualEditing.published"
 msgstr "Paskelbta"
 
@@ -11820,7 +12055,7 @@ msgstr "Paskelbta"
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:164
-#: packages/admin/src/router.tsx:1989
+#: packages/admin/src/router.tsx:1990
 msgid "Published"
 msgstr "Paskelbta"
 
@@ -11870,7 +12105,7 @@ msgid "Publishing summary"
 msgstr "Skelbimo suvestinė"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:40
+#: packages/admin/src/locales/server.ts:62
 msgid "visualEditing.publishing"
 msgstr "Skelbiama…"
 
@@ -11895,9 +12130,9 @@ msgid "Quick create names the relationship after this field and this collection,
 msgstr "Kuriant ryšį sparčiuoju būdu, jo pavadinimas sudaromas iš šio lauko ir kolekcijos pavadinimų. Kiek įrašų galima susieti, nustatoma pirmiau esančiu jungikliu. Atgalinių nuorodų skaičius neribojamas. Jei norite nurodyti nuorodos dalį, abiejų ryšio pusių pavadinimus ir abu apribojimus, <0>sukurkite ryšį patys</0>, tada pasirinkite jį pirmiau."
 
 #: packages/admin/src/components/editor/blockTypes.ts:109
-#: packages/admin/src/components/PortableTextEditor.tsx:562
-#: packages/admin/src/components/PortableTextEditor.tsx:2251
-#: packages/admin/src/components/PortableTextEditor.tsx:5286
+#: packages/admin/src/components/PortableTextEditor.tsx:568
+#: packages/admin/src/components/PortableTextEditor.tsx:2274
+#: packages/admin/src/components/PortableTextEditor.tsx:5366
 msgid "Quote"
 msgstr "Citata"
 
@@ -11973,7 +12208,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Skaityti jūsų taksonomijas ir terminus"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:96
-#: packages/admin/src/router.tsx:2585
+#: packages/admin/src/router.tsx:2586
 msgid "Read-only"
 msgstr "Tik skaityti"
 
@@ -12064,7 +12299,7 @@ msgstr "Peradresuojama į prisijungimo puslapį..."
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:529
-#: packages/admin/src/router.tsx:3566
+#: packages/admin/src/router.tsx:3568
 msgid "Redirects"
 msgstr "Peradresavimai"
 
@@ -12072,7 +12307,7 @@ msgstr "Peradresavimai"
 msgid "Redirects that loop will be imported turned off"
 msgstr "Ciklą sudarantys peradresavimai bus importuoti išjungti"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5449
+#: packages/admin/src/components/PortableTextEditor.tsx:5529
 msgid "Redo"
 msgstr "Pakartoti"
 
@@ -12095,7 +12330,7 @@ msgid "Referenced favicon unavailable."
 msgstr "Nurodyta svetainės piktograma nepasiekiama."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:45
+#: packages/admin/src/locales/server.ts:67
 msgid "visualEditing.refreshPage"
 msgstr "Atnaujinti puslapį"
 
@@ -12135,7 +12370,7 @@ msgstr "Registracija atšaukta arba baigėsi jai skirtas laikas. Bandykite dar k
 #: packages/admin/src/components/PluginManager.tsx:218
 #: packages/admin/src/components/PluginManager.tsx:463
 #: packages/admin/src/components/Sidebar.tsx:597
-#: packages/admin/src/router.tsx:3395
+#: packages/admin/src/router.tsx:3397
 msgid "Registry"
 msgstr "Registras"
 
@@ -12144,7 +12379,7 @@ msgstr "Registras"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3769
+#: packages/admin/src/router.tsx:3771
 msgid "Relations"
 msgstr "Ryšiai"
 
@@ -12168,7 +12403,7 @@ msgid "Release notes"
 msgstr "Versijos pastabos"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:109
-#: packages/admin/src/router.tsx:2610
+#: packages/admin/src/router.tsx:2611
 msgid "Reload"
 msgstr "Įkelti iš naujo"
 
@@ -12180,7 +12415,7 @@ msgstr "Atnaujinę „EmDash“, iš naujo įkelkite puslapį ir bandykite dar k
 msgid "Reload page"
 msgstr "Įkelti puslapį iš naujo"
 
-#: packages/admin/src/router.tsx:2601
+#: packages/admin/src/router.tsx:2602
 msgid "Reloading the admin"
 msgstr "Administravimo sąsaja įkeliama iš naujo"
 
@@ -12189,13 +12424,13 @@ msgid "Reloading the plan…"
 msgstr "Planas įkeliamas iš naujo…"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:72
+#: packages/admin/src/locales/server.ts:94
 msgid "visualEditing.removeImage"
 msgstr "Pašalinti"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:109
-#: packages/admin/src/components/ContentEditor.tsx:5191
-#: packages/admin/src/components/ContentEditor.tsx:5257
+#: packages/admin/src/components/ContentEditor.tsx:5398
+#: packages/admin/src/components/ContentEditor.tsx:5464
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:359
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:823
@@ -12204,7 +12439,7 @@ msgstr "Pašalinti"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:605
 #: packages/admin/src/components/ImageFieldRenderer.tsx:846
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
-#: packages/admin/src/components/PortableTextEditor.tsx:5422
+#: packages/admin/src/components/PortableTextEditor.tsx:5502
 #: packages/admin/src/components/settings/GeneralSettings.tsx:478
 #: packages/admin/src/components/settings/GeneralSettings.tsx:538
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -12216,7 +12451,7 @@ msgstr "Pašalinti"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:4703
+#: packages/admin/src/components/ContentEditor.tsx:4910
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -12234,8 +12469,8 @@ msgid "Remove {entry}"
 msgstr "Pašalinti „{entry}“"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:5189
-#: packages/admin/src/components/ContentEditor.tsx:5255
+#: packages/admin/src/components/ContentEditor.tsx:5396
+#: packages/admin/src/components/ContentEditor.tsx:5462
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -12279,14 +12514,14 @@ msgid "Remove image?"
 msgstr "Pašalinti paveikslėlį?"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1834
+#: packages/admin/src/components/PortableTextEditor.tsx:1840
 #: packages/admin/src/components/RepeaterField.tsx:304
 msgid "Remove item {0}"
 msgstr "Pašalinti elementą „{0}“"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3872
-#: packages/admin/src/components/PortableTextEditor.tsx:4015
-#: packages/admin/src/components/PortableTextEditor.tsx:4658
+#: packages/admin/src/components/PortableTextEditor.tsx:3938
+#: packages/admin/src/components/PortableTextEditor.tsx:4095
+#: packages/admin/src/components/PortableTextEditor.tsx:4738
 msgid "Remove link"
 msgstr "Pašalinti nuorodą"
 
@@ -12426,6 +12661,11 @@ msgstr "Pervadinti prieigos raktą"
 msgid "Rename this folder, or delete it."
 msgstr "Pervadinkite arba ištrinkite šį aplanką."
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:847
+#: packages/admin/src/components/editorial/MarginComments.tsx:848
+msgid "Reopen"
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeList.tsx:213
 msgid "Reorder"
 msgstr "Keisti eiliškumą"
@@ -12452,15 +12692,15 @@ msgid "Repeating group of fields"
 msgstr "Pasikartojanti laukų grupė"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:70
+#: packages/admin/src/locales/server.ts:92
 msgid "visualEditing.replaceImage"
 msgstr "Pakeisti"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:99
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:198
-#: packages/admin/src/components/ContentEditor.tsx:5146
-#: packages/admin/src/components/ContentEditor.tsx:5181
-#: packages/admin/src/components/ContentEditor.tsx:5247
+#: packages/admin/src/components/ContentEditor.tsx:5353
+#: packages/admin/src/components/ContentEditor.tsx:5388
+#: packages/admin/src/components/ContentEditor.tsx:5454
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12473,8 +12713,8 @@ msgstr "Pakeisti"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:739
 #: packages/admin/src/components/ImageFieldRenderer.tsx:742
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
-#: packages/admin/src/components/PortableTextEditor.tsx:4680
-#: packages/admin/src/components/PortableTextEditor.tsx:4762
+#: packages/admin/src/components/PortableTextEditor.tsx:4760
+#: packages/admin/src/components/PortableTextEditor.tsx:4842
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
@@ -12482,7 +12722,7 @@ msgstr "Pakeisti"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:97
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:5145
+#: packages/admin/src/components/ContentEditor.tsx:5352
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12502,7 +12742,7 @@ msgstr "Pakeisti „{label}“ tamsiosios veiksenos variantą"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
 #: packages/admin/src/components/MediaDetailPanel.tsx:1819
 #: packages/admin/src/components/MediaDetailPanel.tsx:1942
-#: packages/admin/src/components/PortableTextEditor.tsx:4761
+#: packages/admin/src/components/PortableTextEditor.tsx:4841
 msgid "Replace image"
 msgstr "Pakeisti paveikslėlį"
 
@@ -12520,7 +12760,7 @@ msgstr "Pakeisti pradinį paveikslėlį?"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Originalą galima pakeisti pasirinkus pradinį kraštinių santykį."
 
-#: packages/admin/src/components/ContentEditor.tsx:4738
+#: packages/admin/src/components/ContentEditor.tsx:4945
 msgid "Replace reference"
 msgstr "Pakeisti nuorodą į įrašą"
 
@@ -12552,6 +12792,21 @@ msgstr "Keičiamas paveikslėlis..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:1992
 msgid "Replacing original..."
 msgstr "Keičiamas originalas..."
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:117
+msgid "visualEditing.reply"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:916
+#: packages/admin/src/components/editorial/MarginComments.tsx:917
+#: packages/admin/src/components/editorial/MarginComments.tsx:918
+msgid "Reply"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:917
+msgid "Reply to reopen"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:120
 msgid "Reply to:"
@@ -12679,20 +12934,34 @@ msgstr "Keiskite apkirpimo srities dydį nuo viršutinio kairiojo kampo naudodam
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Keiskite apkirpimo srities dydį nuo viršutinio dešiniojo kampo naudodami rodyklių klavišus."
 
-#: packages/admin/src/components/ContentEditor.tsx:3355
+#: packages/admin/src/components/ContentEditor.tsx:3557
 msgid "Resize settings panel"
 msgstr "Keisti nustatymų skydelio dydį"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:118
+msgid "visualEditing.resolve"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:847
+#: packages/admin/src/components/editorial/MarginComments.tsx:848
+msgid "Resolve"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:492
 msgid "Resolve the blockers to continue."
 msgstr "Kad galėtumėte tęsti, pašalinkite kliūtis."
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:826
+msgid "Resolved"
+msgstr ""
+
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:100
 msgid "Resolving publisher handle..."
 msgstr "Tikrinamas leidėjo identifikatorius..."
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:5276
+#: packages/admin/src/components/editor/BlockMenu.tsx:209
+#: packages/admin/src/components/PortableTextEditor.tsx:5356
 msgid "Restart numbering"
 msgstr "Pradėti numeravimą iš naujo"
 
@@ -12736,7 +13005,7 @@ msgid "Retired"
 msgstr "Nebenaudojama"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:4717
+#: packages/admin/src/components/ContentEditor.tsx:4924
 #: packages/admin/src/components/ContentPickerModal.tsx:282
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12753,7 +13022,7 @@ msgstr "Nebenaudojama"
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:92
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:319
-#: packages/admin/src/router.tsx:4174
+#: packages/admin/src/router.tsx:4176
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12804,7 +13073,7 @@ msgstr "Bandoma dar kartą…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Daugkartinio naudojimo blokai, kuriuos galite įterpti į bet kokį turinį"
 
-#: packages/admin/src/router.tsx:2039
+#: packages/admin/src/router.tsx:2040
 msgid "Reverted to published version"
 msgstr "Grąžinta paskelbta versija"
 
@@ -12894,14 +13163,14 @@ msgid "Rich text content"
 msgstr "Raiškiojo teksto turinys"
 
 #: packages/admin/src/components/FieldEditor.tsx:706
-#: packages/admin/src/components/PortableTextEditor.tsx:2737
+#: packages/admin/src/components/PortableTextEditor.tsx:2761
 msgid "Rich text editor"
 msgstr "Raiškiojo teksto rengyklė"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:55
+#: packages/admin/src/components/editor/BlockMenu.tsx:58
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:4163
-#: packages/admin/src/components/PortableTextEditor.tsx:4284
+#: packages/admin/src/components/PortableTextEditor.tsx:4243
+#: packages/admin/src/components/PortableTextEditor.tsx:4364
 msgid "Right"
 msgstr "Dešinėje"
 
@@ -12956,7 +13225,7 @@ msgid "Row added above"
 msgstr "Viršuje pridėta eilutė"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:4261
+#: packages/admin/src/components/PortableTextEditor.tsx:4341
 msgid "Row added below"
 msgstr "Apačioje pridėta eilutė"
 
@@ -13000,11 +13269,12 @@ msgstr "Pavyzdinis turinys"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:830
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:432
+#: packages/admin/src/components/editorial/MarginComments.tsx:1092
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
 #: packages/admin/src/components/MenuEditor.tsx:897
-#: packages/admin/src/components/PortableTextEditor.tsx:1433
+#: packages/admin/src/components/PortableTextEditor.tsx:1439
 #: packages/admin/src/components/Redirects.tsx:313
 #: packages/admin/src/components/SaveButton.tsx:51
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
@@ -13016,11 +13286,11 @@ msgstr "Išsaugoti"
 msgid "Save (Enter)"
 msgstr "Išsaugoti („Enter“)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4639
+#: packages/admin/src/components/PortableTextEditor.tsx:4719
 msgid "Save alt text"
 msgstr "Išsaugoti alternatyvųjį tekstą"
 
-#: packages/admin/src/components/ContentEditor.tsx:2995
+#: packages/admin/src/components/ContentEditor.tsx:3152
 msgid "Save anyway"
 msgstr "Vis tiek išsaugoti"
 
@@ -13045,13 +13315,13 @@ msgstr "Prieš paskelbiant išsaugoti turinį kaip juodraštį"
 msgid "Save date"
 msgstr "Išsaugoti datą"
 
-#: packages/admin/src/components/ContentEditor.tsx:3165
+#: packages/admin/src/components/ContentEditor.tsx:3367
 #: packages/admin/src/components/ContentSettingsPanel.tsx:749
 msgid "Save draft"
 msgstr "Išsaugoti juodraštį"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:62
+#: packages/admin/src/locales/server.ts:84
 msgid "visualEditing.saveFailed"
 msgstr "Nepavyko išsaugoti"
 
@@ -13082,12 +13352,12 @@ msgid "Save Settings"
 msgstr "Išsaugoti nustatymus"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:61
+#: packages/admin/src/locales/server.ts:83
 msgid "visualEditing.saved"
 msgstr "Išsaugota"
 
-#: packages/admin/src/components/ContentEditor.tsx:3271
-#: packages/admin/src/components/ContentEditor.tsx:3280
+#: packages/admin/src/components/ContentEditor.tsx:3473
+#: packages/admin/src/components/ContentEditor.tsx:3482
 #: packages/admin/src/components/SaveButton.tsx:53
 msgid "Saved"
 msgstr "Išsaugota"
@@ -13110,8 +13380,8 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr "Išsaugojus sukuriamas juodraštis, kurio svetainės lankytojai nemato. Pirmą kartą išsaugoję galėsite jį paskelbti."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:3268
-#: packages/admin/src/components/ContentEditor.tsx:3273
+#: packages/admin/src/components/ContentEditor.tsx:3470
+#: packages/admin/src/components/ContentEditor.tsx:3475
 #: packages/admin/src/components/FieldEditor.tsx:1832
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
@@ -13131,7 +13401,7 @@ msgid "Saving..."
 msgstr "Saugoma..."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:60
+#: packages/admin/src/locales/server.ts:82
 msgid "visualEditing.saving"
 msgstr "Saugoma…"
 
@@ -13178,7 +13448,7 @@ msgstr "Suplanuotas skelbimas atšauktas"
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:420
 #: packages/admin/src/components/ContentList.tsx:1074
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:2087
+#: packages/admin/src/router.tsx:2088
 msgid "Scheduled"
 msgstr "Suplanuota"
 
@@ -13469,7 +13739,7 @@ msgstr "Galima ieškoti"
 msgid "Searching…"
 msgstr "Ieškoma…"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2517
+#: packages/admin/src/components/PortableTextEditor.tsx:2540
 msgid "Section"
 msgstr "Skiltis"
 
@@ -13502,7 +13772,7 @@ msgstr "Skilties pavadinimas"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:543
-#: packages/admin/src/router.tsx:3573
+#: packages/admin/src/router.tsx:3575
 msgid "Sections"
 msgstr "Skiltys"
 
@@ -13518,7 +13788,7 @@ msgstr "Apsaugokite savo paskyrą"
 #: packages/admin/src/components/Settings.tsx:90
 #: packages/admin/src/components/settings/EmailSettings.tsx:261
 #: packages/admin/src/components/settings/EmailSettings.tsx:350
-#: packages/admin/src/router.tsx:3235
+#: packages/admin/src/router.tsx:3237
 msgid "Security"
 msgstr "Saugumas"
 
@@ -13560,7 +13830,7 @@ msgstr "Saugumo klaida. Įsitikinkite, kad naudojate saugų ryšį."
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:3234
+#: packages/admin/src/router.tsx:3236
 msgid "Security Settings"
 msgstr "Saugumo nustatymai"
 
@@ -13581,9 +13851,9 @@ msgid "Select"
 msgstr ""
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:5145
-#: packages/admin/src/components/ContentEditor.tsx:5206
-#: packages/admin/src/components/ContentEditor.tsx:5267
+#: packages/admin/src/components/ContentEditor.tsx:5352
+#: packages/admin/src/components/ContentEditor.tsx:5413
+#: packages/admin/src/components/ContentEditor.tsx:5474
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13632,7 +13902,7 @@ msgstr "Pasirinkti viską šiame puslapyje"
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr "Pasirinkite ir sukonfigūruokite teikėją, kuris pristatys visus siunčiamus el. laiškus."
 
-#: packages/admin/src/components/ContentEditor.tsx:4741
+#: packages/admin/src/components/ContentEditor.tsx:4948
 msgid "Select at least one entry."
 msgstr "Pasirinkite bent vieną įrašą."
 
@@ -13665,13 +13935,13 @@ msgstr "Pasirinkti svetainės piktogramą"
 msgid "Select Favicon"
 msgstr "Pasirinkti svetainės piktogramą"
 
-#: packages/admin/src/components/ContentEditor.tsx:5208
-#: packages/admin/src/components/ContentEditor.tsx:5273
+#: packages/admin/src/components/ContentEditor.tsx:5415
+#: packages/admin/src/components/ContentEditor.tsx:5480
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Pasirinkti failą"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3583
+#: packages/admin/src/components/PortableTextEditor.tsx:3619
 msgid "Select gallery images"
 msgstr "Pasirinkti galerijos paveikslėlius"
 
@@ -13679,7 +13949,7 @@ msgstr "Pasirinkti galerijos paveikslėlius"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
 #: packages/admin/src/components/ImageFieldRenderer.tsx:964
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:3554
+#: packages/admin/src/components/PortableTextEditor.tsx:3590
 msgid "Select image"
 msgstr "Pasirinkti paveikslėlį"
 
@@ -13707,12 +13977,21 @@ msgstr "Pasirinkti eilutę"
 msgid "Select table"
 msgstr "Pasirinkti lentelę"
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:560
+msgid "Select text and press Comment, or comment on the whole entry."
+msgstr ""
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:566
+#: packages/admin/src/components/editorial/useEditorialComments.ts:567
+msgid "Select text within one paragraph to comment on it"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:722
 msgid "Select up to 50 posts at a time."
 msgstr "Vienu metu pasirinkite iki 50 įrašų."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:3568
+#: packages/admin/src/components/PortableTextEditor.tsx:3604
 msgid "Select video"
 msgstr "Pasirinkti vaizdo įrašą"
 
@@ -13721,7 +14000,7 @@ msgid "Select which content types to import."
 msgstr "Pasirinkite importuojamo turinio tipus."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:1933
+#: packages/admin/src/components/PortableTextEditor.tsx:1939
 #: packages/admin/src/components/RepeaterField.tsx:432
 msgid "Select..."
 msgstr "Pasirinkti..."
@@ -13730,7 +14009,7 @@ msgstr "Pasirinkti..."
 msgid "Selected {label}"
 msgstr "Pasirinkta „{label}“"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1055
+#: packages/admin/src/components/PortableTextEditor.tsx:1061
 msgid "Selected {selectedItemTitle}"
 msgstr "Pasirinkta „{selectedItemTitle}“"
 
@@ -13753,10 +14032,14 @@ msgstr "Pasirinkti įrašai"
 msgid "Selection"
 msgstr "Pasirinkimas"
 
+#: packages/admin/src/components/PortableTextEditor.tsx:3897
+msgid "Selection actions"
+msgstr ""
+
 #: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:219
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
-#: packages/admin/src/router.tsx:3259
+#: packages/admin/src/router.tsx:3261
 msgid "Self-Signup Domains"
 msgstr "Domenai su savarankiška registracija"
 
@@ -13822,7 +14105,7 @@ msgstr "Siunčiama..."
 #: packages/admin/src/components/ContentTypeEditor.tsx:689
 #: packages/admin/src/components/Settings.tsx:68
 #: packages/admin/src/lib/editor-sections.ts:37
-#: packages/admin/src/router.tsx:3371
+#: packages/admin/src/router.tsx:3373
 msgid "SEO"
 msgstr "SEO"
 
@@ -13833,7 +14116,7 @@ msgid "SEO settings"
 msgstr "SEO nustatymai"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:3370
+#: packages/admin/src/router.tsx:3372
 msgid "SEO Settings"
 msgstr "SEO nustatymai"
 
@@ -13909,14 +14192,14 @@ msgid "Setting up..."
 msgstr "Ruošiama..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:247
-#: packages/admin/src/components/ContentEditor.tsx:3132
+#: packages/admin/src/components/ContentEditor.tsx:3334
 #: packages/admin/src/components/ContentTypeEditor.tsx:485
 #: packages/admin/src/components/Header.tsx:122
 #: packages/admin/src/components/PluginManager.tsx:546
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:611
 #: packages/admin/src/components/WordPressImport.tsx:1878
-#: packages/admin/src/router.tsx:3215
+#: packages/admin/src/router.tsx:3217
 msgid "Settings"
 msgstr "Nustatymai"
 
@@ -13967,7 +14250,7 @@ msgstr "Trumpas tekstas"
 msgid "Short Text"
 msgstr "Trumpas tekstas"
 
-#: packages/admin/src/components/ContentEditor.tsx:291
+#: packages/admin/src/components/ContentEditor.tsx:292
 msgid "Show"
 msgstr "Rodyti"
 
@@ -13978,6 +14261,12 @@ msgstr "Rodyti {label}"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:226
 msgid "Show changes"
 msgstr "Rodyti pakeitimus"
+
+#: packages/admin/src/components/ContentEditor.tsx:3015
+#: packages/admin/src/components/ContentEditor.tsx:3016
+#: packages/admin/src/components/editorial/FieldCommentsButton.tsx:71
+msgid "Show comments"
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:162
 msgid "Show count"
@@ -13999,7 +14288,11 @@ msgstr "Rodyti senesnes versijas"
 msgid "Show post count"
 msgstr "Rodyti įrašų skaičių"
 
-#: packages/admin/src/components/SettingsPanelToggle.tsx:211
+#: packages/admin/src/components/editorial/MarginComments.tsx:487
+msgid "Show resolved"
+msgstr ""
+
+#: packages/admin/src/components/SettingsPanelToggle.tsx:222
 msgid "Show settings"
 msgstr "Rodyti nustatymus"
 
@@ -14038,7 +14331,7 @@ msgstr "Rodo naujo įrašo kūrimo mygtuką"
 
 #: packages/admin/src/components/Settings.tsx:142
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:80
-#: packages/admin/src/router.tsx:3320
+#: packages/admin/src/router.tsx:3322
 msgid "Sidebars"
 msgstr "Šoninės juostos"
 
@@ -14244,7 +14537,7 @@ msgstr "Praleista"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentEditor.tsx:2730
+#: packages/admin/src/components/ContentEditor.tsx:2861
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1020
 #: packages/admin/src/components/ContentTypeEditor.tsx:133
 #: packages/admin/src/components/ContentTypeEditor.tsx:507
@@ -14278,15 +14571,15 @@ msgstr "Nuorodos dalis nukopijuota į iškarpinę"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "Sukūrus lauką, jo nuorodos dalies keisti nebegalima."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:539
+#: packages/admin/src/components/PortableTextEditor.tsx:545
 msgid "Small section heading"
 msgstr "Nedidelė skilties antraštė"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:608
+#: packages/admin/src/components/PortableTextEditor.tsx:614
 msgid "Smaller section heading"
 msgstr "Mažesnė skilties antraštė"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:610
+#: packages/admin/src/components/PortableTextEditor.tsx:616
 msgid "Smallest section heading"
 msgstr "Mažiausia skilties antraštė"
 
@@ -14317,7 +14610,7 @@ msgstr "smtp.example.com"
 
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
-#: packages/admin/src/router.tsx:3356
+#: packages/admin/src/router.tsx:3358
 msgid "Social Links"
 msgstr "Socialinių tinklų nuorodos"
 
@@ -14334,7 +14627,7 @@ msgstr "Socialinių tinklų profilių nuorodos"
 msgid "Social Profiles"
 msgstr "Socialinių tinklų profiliai"
 
-#: packages/admin/src/router.tsx:3355
+#: packages/admin/src/router.tsx:3357
 msgid "Social Settings"
 msgstr "Socialinių tinklų nustatymai"
 
@@ -14379,7 +14672,7 @@ msgstr "Kai kurioms medijos nuorodoms nepavyko rasti atitinkamų failų"
 msgid "Some references point to content that is not in the package"
 msgstr "Kai kurios nuorodos veda į turinį, kurio pakete nėra"
 
-#: packages/admin/src/router.tsx:1277
+#: packages/admin/src/router.tsx:1278
 msgid "Someone"
 msgstr "Kažkas"
 
@@ -14495,13 +14788,13 @@ msgstr "Pradėkite nuo šablone apibrėžtų turinio tipų. Turinį kursite paty
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr "Pradėkite nuo šablono pavyzdinių įrašų ir puslapių. Rekomenduojama naujoms svetainėms."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:531
+#: packages/admin/src/components/PortableTextEditor.tsx:537
 msgid "Start writing with plain text"
 msgstr "Pradėkite rašyti paprastąjį tekstą"
 
-#: packages/admin/src/components/ContentEditor.tsx:3978
-#: packages/admin/src/components/ContentEditor.tsx:4001
-#: packages/admin/src/components/PortableTextEditor.tsx:2239
+#: packages/admin/src/components/ContentEditor.tsx:4183
+#: packages/admin/src/components/ContentEditor.tsx:4207
+#: packages/admin/src/components/PortableTextEditor.tsx:2262
 msgid "Start writing, or type '/' for commands"
 msgstr "Pradėkite rašyti arba įveskite „/“, kad pamatytumėte komandas"
 
@@ -14579,8 +14872,8 @@ msgstr "Išsaugotos atsarginės kopijos"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Saugoma atskirai kiekvienai lokalei. Kiekvienas autoriaus profilio vertimas turi savo reikšmę."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3648
-#: packages/admin/src/components/PortableTextEditor.tsx:5219
+#: packages/admin/src/components/PortableTextEditor.tsx:3684
+#: packages/admin/src/components/PortableTextEditor.tsx:5299
 msgid "Strikethrough"
 msgstr "Perbraukimas"
 
@@ -14592,7 +14885,7 @@ msgstr "Struktūra"
 msgid "Structured"
 msgstr "Struktūrinis"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2433
+#: packages/admin/src/components/PortableTextEditor.tsx:2456
 msgid "Style"
 msgstr "Stilius"
 
@@ -14614,11 +14907,11 @@ msgstr "Polaukiai"
 msgid "Subscriber"
 msgstr "Prenumeratorius"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4142
+#: packages/admin/src/components/PortableTextEditor.tsx:4222
 msgid "Subscript"
 msgstr "Apatinis indeksas"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4148
+#: packages/admin/src/components/PortableTextEditor.tsx:4228
 msgid "Superscript"
 msgstr "Viršutinis indeksas"
 
@@ -14662,19 +14955,19 @@ msgstr "Sistema"
 msgid "System Fields"
 msgstr "Sistemos laukai"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:45
+#: packages/admin/src/components/editor/BlockMenu.tsx:48
 #: packages/admin/src/components/editor/TableControls.tsx:31
 #: packages/admin/src/components/editor/TableControls.tsx:368
-#: packages/admin/src/components/PortableTextEditor.tsx:600
+#: packages/admin/src/components/PortableTextEditor.tsx:606
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:505
 msgid "Table"
 msgstr "Lentelė"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3399
+#: packages/admin/src/components/PortableTextEditor.tsx:3432
 msgid "Table cells accept text, links, and formatting only."
 msgstr "Lentelės langeliuose galima naudoti tik tekstą, nuorodas ir teksto formatavimą."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4251
+#: packages/admin/src/components/PortableTextEditor.tsx:4331
 msgid "Table controls"
 msgstr "Lentelės valdikliai"
 
@@ -14683,7 +14976,7 @@ msgid "Table deleted"
 msgstr "Lentelė ištrinta"
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:3287
+#: packages/admin/src/components/PortableTextEditor.tsx:3320
 msgid "Table inserted"
 msgstr "Lentelė įterpta"
 
@@ -14691,7 +14984,7 @@ msgstr "Lentelė įterpta"
 msgid "Table size"
 msgstr "Lentelės dydis"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3396
+#: packages/admin/src/components/PortableTextEditor.tsx:3429
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Lentelių negalima įklijuoti į sąrašus ar citatas. Pabandykite įklijuoti lentelę į atskirą pastraipą."
 
@@ -14733,7 +15026,7 @@ msgstr "Vertimo kalba"
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:989
 #: packages/admin/src/lib/editor-sections.ts:36
-#: packages/admin/src/router.tsx:3544
+#: packages/admin/src/router.tsx:3546
 msgid "Taxonomies"
 msgstr "Taksonomijos"
 
@@ -14833,13 +15126,21 @@ msgid "test@example.com"
 msgstr "test@example.com"
 
 #: packages/admin/src/components/BlocksField.tsx:2344
-#: packages/admin/src/components/PortableTextEditor.tsx:2428
+#: packages/admin/src/components/PortableTextEditor.tsx:2451
 msgid "Text"
 msgstr "Tekstas"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5463
+#: packages/admin/src/components/PortableTextEditor.tsx:5543
 msgid "Text formatting"
 msgstr "Teksto formatavimas"
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:569
+msgid "Text here can’t take a comment"
+msgstr ""
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:561
+msgid "That selection is too long to comment on"
+msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:42
 msgid "That time does not exist in your time zone"
@@ -14861,7 +15162,7 @@ msgstr "laukas „{0}“ kolekcijoje „{1}“, kuriame rodomi į šį įrašą 
 msgid "the {0} field on {1}, which picks entries it links to"
 msgstr "laukas „{0}“ kolekcijoje „{1}“, kuriame pasirenkami susiję įrašai"
 
-#: packages/admin/src/router.tsx:1210
+#: packages/admin/src/router.tsx:1211
 msgid "The admin was updated"
 msgstr "Administravimo sąsaja atnaujinta"
 
@@ -15132,7 +15433,7 @@ msgstr "Paketo turinys bus įrašytas į šią svetainę. Pradėto importo atša
 msgid "The package’s file index is not valid."
 msgstr "Paketo failų rodyklė netinkama."
 
-#: packages/admin/src/router.tsx:4188
+#: packages/admin/src/router.tsx:4190
 msgid "The page you're looking for doesn't exist."
 msgstr "Puslapio, kurio ieškote, nėra."
 
@@ -15152,16 +15453,16 @@ msgstr "Nepavyko parodyti įskiepio lauko valdiklio."
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Įskiepis šių pakeitimų neišsaugojo. Prieš atnaujindami rengyklę juos peržiūrėkite."
 
-#: packages/admin/src/components/ContentEditor.tsx:2673
+#: packages/admin/src/components/ContentEditor.tsx:2804
 msgid "The plugin proposed a value this editor can't load."
 msgstr ""
 
-#: packages/admin/src/components/ContentEditor.tsx:2678
+#: packages/admin/src/components/ContentEditor.tsx:2809
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
 msgstr "Įskiepio rezultatas nepritaikytas, nes rengyklė negali parodyti jame naudojamo formatavimo."
 
-#: packages/admin/src/components/ContentEditor.tsx:1890
-#: packages/admin/src/components/ContentEditor.tsx:2667
+#: packages/admin/src/components/ContentEditor.tsx:2021
+#: packages/admin/src/components/ContentEditor.tsx:2798
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Įskiepio rezultatas paseno, nes jam veikiant pasikeitė rengyklės turinys."
 
@@ -15287,7 +15588,7 @@ msgstr "Tema"
 msgid "Theme \"{id}\" not found"
 msgstr "Tema „{id}“ nerasta"
 
-#: packages/admin/src/router.tsx:3495
+#: packages/admin/src/router.tsx:3497
 msgid "Theme Details"
 msgstr "Temos informacija"
 
@@ -15296,7 +15597,7 @@ msgstr "Temos informacija"
 msgid "Theme ID: {0}"
 msgstr "Temos ID: {0}"
 
-#: packages/admin/src/router.tsx:3487
+#: packages/admin/src/router.tsx:3489
 msgid "Theme Marketplace"
 msgstr "Temų prekyvietė"
 
@@ -15328,17 +15629,25 @@ msgstr "Peradresavimų per daug, kad prieš importuojant būtų galima patikrint
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr "Šie įrašai „WordPress“ svetainėje apsaugoti slaptažodžiais. „EmDash“ nepalaiko atskirų įrašų slaptažodžių, todėl įrašai importuoti kaip juodraščiai. Prieš skelbdami peržiūrėkite kiekvieną įrašą."
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:516
+msgid "These may not be the latest comments."
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:295
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
 msgstr "Įdiegus šie įrankiai bus išjungti, kol patys suteiksite agentams prieigą."
 
-#: packages/admin/src/router.tsx:1280
+#: packages/admin/src/router.tsx:1281
 msgid "They changed its publishing or schedule, or replaced its draft."
 msgstr "Buvo pakeista paskelbimo būsena ar laikas arba juodraštis pakeistas kitu."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:921
 msgid "This also removes:"
 msgstr "Taip pat bus pašalinta:"
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:563
+msgid "This block can’t take a comment yet"
+msgstr ""
 
 #: packages/admin/src/components/BlocksField.tsx:1784
 msgid "This block cannot be edited because its stored definition is unavailable."
@@ -15365,7 +15674,7 @@ msgstr "Šio tipo blokų į lauką pridėti nebegalima, todėl ištrinto bloko a
 msgid "This block uses an older version of its type, so it can't be restored after you delete it."
 msgstr "Bloke naudojama senesnė jo tipo versija, todėl ištrinto bloko atkurti nepavyks."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3222
+#: packages/admin/src/components/PortableTextEditor.tsx:3255
 msgid "This block was deleted, so your changes can't be saved."
 msgstr "Blokas ištrintas, todėl pakeitimų išsaugoti negalima."
 
@@ -15399,7 +15708,7 @@ msgstr "Kodas netinkamas arba jau panaudotas."
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Kolekcija apibrėžta kode. Kai kurių nustatymų čia keisti negalima. Norėdami pakeisti schemą, redaguokite failą live.config.ts."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3371
+#: packages/admin/src/components/PortableTextEditor.tsx:3404
 msgid "This content cannot be edited safely"
 msgstr "Šio turinio negalima saugiai redaguoti"
 
@@ -15410,6 +15719,10 @@ msgstr "Turinys iš karto bus matomas svetainėje."
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:546
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "Šios dienos nepavyko įkelti. Pasirinktu laikotarpiu įrašų yra daugiau, nei telpa kalendoriuje."
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:939
+msgid "This deletes the thread and every reply in it. This action cannot be undone."
+msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:370
 msgid "This device is requesting permission to use:"
@@ -15423,20 +15736,20 @@ msgstr "Tai nepanašu į galiojantį perkėlimo raktą. Sugeneruokite įskiepyje
 msgid "This domain is already in the list. Enter a different one."
 msgstr "Šis domenas jau yra sąraše. Įveskite kitą."
 
-#: packages/admin/src/components/ContentEditor.tsx:2991
+#: packages/admin/src/components/ContentEditor.tsx:3142
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Jums atidarius šį įrašą, jis buvo pakeistas kitur."
 
-#: packages/admin/src/components/ContentEditor.tsx:2334
-#: packages/admin/src/router.tsx:1583
+#: packages/admin/src/components/ContentEditor.tsx:2465
+#: packages/admin/src/router.tsx:1584
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Šis įrašas buvo pakeistas kitur. Galite vis tiek išsaugoti arba įkelti iš naujo ir gauti naujesnę versiją."
 
-#: packages/admin/src/router.tsx:2572
+#: packages/admin/src/router.tsx:2573
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Šio įrašo nėra arba jis nepaskelbtas. Jūsų rolė leidžia peržiūrėti tik paskelbtą turinį."
 
-#: packages/admin/src/router.tsx:2573
+#: packages/admin/src/router.tsx:2574
 msgid "This entry doesn't exist or was deleted."
 msgstr "Šio įrašo nėra arba jis buvo ištrintas."
 
@@ -15448,11 +15761,11 @@ msgstr "Kol įrašas nepaskelbtas, jis neturi URL. Vietoj to įklijuokite nuorod
 msgid "This entry is open somewhere else"
 msgstr "Įrašas atvertas kitur"
 
-#: packages/admin/src/components/ContentEditor.tsx:2978
+#: packages/admin/src/components/ContentEditor.tsx:3129
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Šį įrašą galima tik skaityti, nes jo schemoje yra laukų tipų, kurių ši „EmDash“ versija nepalaiko."
 
-#: packages/admin/src/components/ContentEditor.tsx:2318
+#: packages/admin/src/components/ContentEditor.tsx:2449
 msgid "This entry is still loading."
 msgstr "Įrašas dar įkeliamas."
 
@@ -15460,7 +15773,7 @@ msgstr "Įrašas dar įkeliamas."
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "Šis įrašas jau turėjo būti paskelbtas ({lateness}). Gali būti, kad suplanuotas skelbimas neveikia."
 
-#: packages/admin/src/router.tsx:2622
+#: packages/admin/src/router.tsx:2623
 msgid "This entry was moved to Trash or deleted"
 msgstr "Įrašas perkeltas į šiukšlinę arba ištrintas"
 
@@ -15472,17 +15785,17 @@ msgstr "Įrašas perkeltas į šiukšlinę arba ištrintas. Pakeitimai liko šia
 msgid "This export is large"
 msgstr "Eksportuojama daug duomenų"
 
-#: packages/admin/src/components/ContentEditor.tsx:3778
-#: packages/admin/src/components/ContentEditor.tsx:3786
+#: packages/admin/src/components/ContentEditor.tsx:3983
+#: packages/admin/src/components/ContentEditor.tsx:3991
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Šioje „EmDash“ versijoje šio lauko redaguoti negalima."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3354
+#: packages/admin/src/components/PortableTextEditor.tsx:3387
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "Lauke yra lentelės duomenų, kurių rengyklė negali išsaugoti. Prieš redaguodami ar išsaugodami turinį, atnaujinkite jį per API."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3373
+#: packages/admin/src/components/PortableTextEditor.tsx:3406
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "Lauke yra nepalaikomų „Portable Text“ žymų: <0>{markList}</0>. Prieš redaguodami ar išsaugodami turinį, pašalinkite jas per API."
 
@@ -15499,7 +15812,7 @@ msgstr "Šiame lauke {mimeType} failai neleidžiami."
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Šiame lauke turi būti sąrašas. Išsaugota reikšmė išliks, kol nepakeisite jos tuščiu sąrašu (tuomet ji bus ištrinta). Pirmiausia nukopijuokite tai, ko gali prireikti."
 
-#: packages/admin/src/components/ContentEditor.tsx:5279
+#: packages/admin/src/components/ContentEditor.tsx:5486
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "Šis laukas privalomas"
@@ -15562,6 +15875,10 @@ msgstr "Tai „WordPress“ svetainė."
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Importas pradėtas naudojant kitą paketą. Dar kartą pasirinkite tą patį failą."
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:956
+msgid "This is the thread's only comment, so deleting it deletes the thread too. This action cannot be undone."
+msgstr ""
+
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr "Ši nuoroda netinka. Įveskite žiniatinklio adresą, pvz., https://example.com."
@@ -15611,7 +15928,7 @@ msgstr "Paketas sukurtas naudojant naujesnę arba kitokią „EmDash“ versiją
 msgid "This passkey is already registered on this device."
 msgstr "Šis prieigos raktas įrenginyje jau užregistruotas."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3392
+#: packages/admin/src/components/PortableTextEditor.tsx:3425
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "Įklijuojama per daug duomenų. Vienu metu įklijuokite mažiau langelių arba teksto."
 
@@ -15688,12 +16005,12 @@ msgstr "Suplanuotas laikas atšaukiamas ir įrašas paskelbiamas iš karto."
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "Išsaugota laiko juosta neatpažinta. Pasirinkite iš siūlomų laiko juostų, kad datos būtų rodomos teisingai."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3437
+#: packages/admin/src/components/PortableTextEditor.tsx:3470
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "Šioje skiltyje yra lentelės duomenų, kurių rengyklė negali išsaugoti. Prieš įterpdami skiltį ją atnaujinkite."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3439
+#: packages/admin/src/components/PortableTextEditor.tsx:3472
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "Šioje skiltyje yra nepalaikomų „Portable Text“ žymų: <0>{0}</0>. Prieš įterpdami skiltį ją atnaujinkite."
 
@@ -15751,15 +16068,15 @@ msgstr "Kuriant svetainę pridėta pradinio turinio. Savų įrašų joje nėra. 
 msgid "This slug is reserved. Enter a different one."
 msgstr "Ši nuorodos dalis rezervuota. Įveskite kitą."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3394
+#: packages/admin/src/components/PortableTextEditor.tsx:3427
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "Skaičiuoklės duomenyse yra langelių su netinkamomis kabutėmis. Pataisykite kabutes arba pašalinkite tabuliacijos skirtukus ir bandykite dar kartą."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3352
+#: packages/admin/src/components/PortableTextEditor.tsx:3385
 msgid "This table cannot be edited safely"
 msgstr "Šios lentelės negalima saugiai redaguoti"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3398
+#: packages/admin/src/components/PortableTextEditor.tsx:3431
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "Lentelėje yra nepalaikomo langelių formatavimo, sujungtų langelių arba nepalaikomų stulpelių pločių. Įklijuokite kaip paprastąjį tekstą arba supaprastinkite lentelę ir bandykite dar kartą."
 
@@ -15812,6 +16129,10 @@ msgstr "Bus grąžinta paskelbta versija. Juodraščio pakeitimai bus prarasti."
 #: packages/admin/src/components/SetupWizard.tsx:153
 msgid "Thoughts, tutorials, and more"
 msgstr "Mintys, pamokos ir daugiau"
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:266
+msgid "Thread not updated"
+msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:214
 msgid "Time"
@@ -15931,7 +16252,7 @@ msgstr "Stebėkite, kur turinyje naudojami medijos failai."
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:3306
+#: packages/admin/src/router.tsx:3308
 msgid "Transfer"
 msgstr "Perkėlimas"
 
@@ -15960,7 +16281,7 @@ msgstr "Verčiama..."
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:870
-#: packages/admin/src/router.tsx:2130
+#: packages/admin/src/router.tsx:2131
 msgid "Translation created"
 msgstr "Vertimas sukurtas"
 
@@ -16023,6 +16344,7 @@ msgid "Try adjusting your search or filters."
 msgstr "Pakeiskite paieškos tekstą arba filtrus."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:122
+#: packages/admin/src/components/editorial/MarginComments.tsx:527
 #: packages/admin/src/components/MediaUsedIn.tsx:247
 #: packages/admin/src/components/MediaUsedIn.tsx:277
 #: packages/admin/src/components/RevisionHistory.tsx:86
@@ -16040,7 +16362,7 @@ msgstr "Bandyti dar kartą"
 msgid "Try Again"
 msgstr "Bandyti dar kartą"
 
-#: packages/admin/src/router.tsx:1468
+#: packages/admin/src/router.tsx:1469
 msgid "Try again in a moment."
 msgstr "Po akimirkos bandykite dar kartą."
 
@@ -16083,10 +16405,10 @@ msgstr "Išbandyti su savo duomenimis"
 msgid "TSX"
 msgstr "TSX"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:4065
-#: packages/admin/src/components/PortableTextEditor.tsx:4067
-#: packages/admin/src/components/PortableTextEditor.tsx:4084
+#: packages/admin/src/components/editor/BlockMenu.tsx:162
+#: packages/admin/src/components/PortableTextEditor.tsx:4145
+#: packages/admin/src/components/PortableTextEditor.tsx:4147
+#: packages/admin/src/components/PortableTextEditor.tsx:4164
 msgid "Turn into"
 msgstr "Paversti į"
 
@@ -16153,11 +16475,11 @@ msgstr "Įveskite vaizdo įrašo užrašą (nebūtina)"
 msgid "Type mismatch ({0})"
 msgstr "Tipo neatitiktis ({0})"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1123
+#: packages/admin/src/components/PortableTextEditor.tsx:1129
 msgid "Type to filter"
 msgstr "Įveskite filtruojamą tekstą"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3509
+#: packages/admin/src/components/PortableTextEditor.tsx:3544
 msgid "Type to search"
 msgstr "Įveskite paieškos tekstą"
 
@@ -16179,13 +16501,13 @@ msgstr "Nepavyko pasiekti prekyvietės"
 msgid "Unassigned"
 msgstr "Nepriskirta"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3647
-#: packages/admin/src/components/PortableTextEditor.tsx:5211
+#: packages/admin/src/components/PortableTextEditor.tsx:3683
+#: packages/admin/src/components/PortableTextEditor.tsx:5291
 msgid "Underline"
 msgstr "Pabraukimas"
 
 #: packages/admin/src/components/block-field-undo.tsx:219
-#: packages/admin/src/components/PortableTextEditor.tsx:5442
+#: packages/admin/src/components/PortableTextEditor.tsx:5522
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:68
 msgid "Undo"
 msgstr "Atšaukti"
@@ -16230,6 +16552,16 @@ msgstr "Nežinomas autorius"
 msgid "Unknown role"
 msgstr "Nežinoma rolė"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:122
+msgid "visualEditing.unknownUser"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:1007
+#: packages/admin/src/components/editorial/mentions.tsx:135
+msgid "Unknown user"
+msgstr ""
+
 #: packages/admin/src/routes/bylines.tsx:93
 msgid "Unlinked"
 msgstr "Atsieta"
@@ -16244,8 +16576,18 @@ msgstr "Atrakinti kraštinių santykį"
 msgid "Unnamed passkey"
 msgstr "Bevardis prieigos raktas"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:123
+msgid "visualEditing.unnamedUser"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:1133
 #: packages/admin/src/components/ContentList.tsx:1139
+#: packages/admin/src/components/editorial/MarginComments.tsx:1007
+#: packages/admin/src/components/editorial/MarginComments.tsx:1011
+#: packages/admin/src/components/editorial/mentions.tsx:135
+#: packages/admin/src/components/editorial/mentions.tsx:215
+#: packages/admin/src/components/editorial/mentions.tsx:332
 #: packages/admin/src/components/revisions/revision-format.ts:103
 msgid "Unnamed user"
 msgstr "Bevardis naudotojas"
@@ -16263,12 +16605,12 @@ msgstr "Atšaukti paskelbimą: {itemLabel}"
 msgid "Unpublish {itemLabel}?"
 msgstr ""
 
-#: packages/admin/src/router.tsx:2014
+#: packages/admin/src/router.tsx:2015
 msgid "Unpublished"
 msgstr "Nepaskelbta"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:55
+#: packages/admin/src/locales/server.ts:77
 msgid "visualEditing.unpublishedChanges"
 msgstr "Nepaskelbti pakeitimai"
 
@@ -16281,12 +16623,12 @@ msgid "Unresolved assignment"
 msgstr "Neišspręstas priskyrimas"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:59
+#: packages/admin/src/locales/server.ts:81
 msgid "visualEditing.unsaved"
 msgstr "Neišsaugota"
 
-#: packages/admin/src/components/ContentEditor.tsx:3270
-#: packages/admin/src/components/ContentEditor.tsx:3279
+#: packages/admin/src/components/ContentEditor.tsx:3472
+#: packages/admin/src/components/ContentEditor.tsx:3481
 msgid "Unsaved changes"
 msgstr "Neišsaugoti pakeitimai"
 
@@ -16294,7 +16636,7 @@ msgstr "Neišsaugoti pakeitimai"
 msgid "Unsaved content may leave your site"
 msgstr "Neišsaugotas turinys gali būti perduotas už svetainės ribų"
 
-#: packages/admin/src/router.tsx:2099
+#: packages/admin/src/router.tsx:2100
 msgid "Unscheduled"
 msgstr "Paskelbimo laikas atšauktas"
 
@@ -16319,7 +16661,7 @@ msgstr "Iki {0}"
 msgid "Untitled"
 msgstr "Be pavadinimo"
 
-#: packages/admin/src/components/ContentEditor.tsx:5105
+#: packages/admin/src/components/ContentEditor.tsx:5312
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Failas be pavadinimo"
@@ -16424,7 +16766,7 @@ msgid "Updating..."
 msgstr "Atnaujinama..."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:71
+#: packages/admin/src/locales/server.ts:93
 msgid "visualEditing.uploadImage"
 msgstr "Įkelti"
 
@@ -16498,7 +16840,7 @@ msgstr "Įkelkite medijos failus, kad galėtumėte juos rasti vienoje vietoje ir
 msgid "Upload not finished"
 msgstr "Įkėlimas nebaigtas"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2504
+#: packages/admin/src/components/PortableTextEditor.tsx:2527
 msgid "Upload or choose a video"
 msgstr "Įkelti arba pasirinkti vaizdo įrašą"
 
@@ -16534,7 +16876,7 @@ msgid "Uploading"
 msgstr "Įkeliama"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:78
+#: packages/admin/src/locales/server.ts:100
 msgid "visualEditing.uploadingFile"
 msgstr "Įkeliamas failas „{filename}“…"
 
@@ -16557,8 +16899,8 @@ msgstr "Įkeliamas vaizdo įrašas…"
 #: packages/admin/src/components/FieldEditor.tsx:1707
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/MenuEditor.tsx:848
-#: packages/admin/src/components/PortableTextEditor.tsx:1415
-#: packages/admin/src/components/PortableTextEditor.tsx:2429
+#: packages/admin/src/components/PortableTextEditor.tsx:1421
+#: packages/admin/src/components/PortableTextEditor.tsx:2452
 msgid "URL"
 msgstr "URL"
 
@@ -16700,7 +17042,7 @@ msgstr "Naudojamas kaip numatytasis „Open Graph“ paveikslėlis, kai puslapis
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Naudojamas kaip identifikatorius. Galimos tik mažosios raidės, skaitmenys ir pabraukimo brūkšniai."
 
-#: packages/admin/src/components/ContentEditor.tsx:4190
+#: packages/admin/src/components/ContentEditor.tsx:4397
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Pagrindinis įrašo paveikslėlis, rodomas įrašų sąrašuose ir įrašo viršuje"
 
@@ -16762,7 +17104,7 @@ msgstr "Naudotojo vardas"
 #: packages/admin/src/components/AdminCommandPalette.tsx:223
 #: packages/admin/src/components/Sidebar.tsx:585
 #: packages/admin/src/components/users/UserList.tsx:64
-#: packages/admin/src/router.tsx:3595
+#: packages/admin/src/router.tsx:3597
 msgid "Users"
 msgstr "Naudotojai"
 
@@ -16856,15 +17198,15 @@ msgstr "Versija ({when})"
 msgid "Version restored"
 msgstr "Versija atkurta"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2419
+#: packages/admin/src/components/PortableTextEditor.tsx:2442
 msgid "Vertical"
 msgstr "Vertikalus"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:99
-#: packages/admin/src/components/editor/BlockMenu.tsx:43
+#: packages/admin/src/components/editor/BlockMenu.tsx:46
 #: packages/admin/src/components/MediaLibrary.tsx:923
 #: packages/admin/src/components/MediaPickerModal.tsx:407
-#: packages/admin/src/components/PortableTextEditor.tsx:2503
+#: packages/admin/src/components/PortableTextEditor.tsx:2526
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
 msgid "Video"
 msgstr "Vaizdo įrašas"
@@ -17079,7 +17421,7 @@ msgstr "Kas bus importuota"
 msgid "What will happen when you import"
 msgstr "Kas vyks importuojant"
 
-#: packages/admin/src/components/ContentEditor.tsx:2992
+#: packages/admin/src/components/ContentEditor.tsx:3143
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Jūsų įvestas tekstas išliko. Išsaugojus juo bus pakeista naujesnė versija."
 
@@ -17111,6 +17453,10 @@ msgstr "Kur jis išsaugomas?"
 #: packages/admin/src/components/TaxonomyManager.tsx:1002
 msgid "Which content types can use this taxonomy"
 msgstr "Kurie turinio tipai gali naudoti šią taksonomiją"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:116
+msgid "Whole entry"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:676
 msgid "Whole number"
@@ -17196,7 +17542,7 @@ msgstr "Valdiklis atnaujintas"
 #: packages/admin/src/components/Sidebar.tsx:536
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1226
-#: packages/admin/src/router.tsx:3558
+#: packages/admin/src/router.tsx:3560
 msgid "Widgets"
 msgstr "Valdikliai"
 
@@ -17248,6 +17594,16 @@ msgstr "Apdorojami pasirinkti elementai (iš viso {selectedCount})…"
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:285
 msgid "Working…"
 msgstr "Vykdoma…"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:114
+msgid "visualEditing.newComment"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:116
+msgid "visualEditing.writeReply"
+msgstr ""
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:60
 msgid "Write CSS…"
@@ -17307,6 +17663,10 @@ msgstr "Vakar"
 #: packages/admin/src/components/WordPressImport.tsx:1229
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:643
+msgid "You"
+msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:221
 msgid "You can close this page and return to your terminal."
@@ -17369,7 +17729,7 @@ msgstr "Norint perkelti svetainę, reikia administratoriaus teisių."
 msgid "You need admin permissions to view this page."
 msgstr "Šiam puslapiui peržiūrėti reikia administratoriaus teisių."
 
-#: packages/admin/src/router.tsx:3171
+#: packages/admin/src/router.tsx:3173
 msgid "You need Editor permissions to moderate comments."
 msgstr "Norint moderuoti komentarus, reikia redaktoriaus teisių."
 
@@ -17450,7 +17810,7 @@ msgstr "Paskyra sukurta."
 msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
 msgstr "Ši naršyklė nepalaiko prieigos raktų. Naudokite šiuolaikinę naršyklę, pvz., „Chrome“, „Safari“, „Firefox“ arba „Edge“."
 
-#: packages/admin/src/components/ContentEditor.tsx:2967
+#: packages/admin/src/components/ContentEditor.tsx:3117
 msgid "Your change to {refusedFieldLabel} wasn’t saved"
 msgstr "Lauko „{refusedFieldLabel}“ pakeitimas neišsaugotas"
 
@@ -17497,11 +17857,11 @@ msgstr "Versija ({when}) pakeis jūsų juodraštį. Dabartinis juodraštis liks 
 msgid "Your earlier edits weren’t kept"
 msgstr "Ankstesnių pakeitimų nepavyko išsaugoti"
 
-#: packages/admin/src/router.tsx:1211
+#: packages/admin/src/router.tsx:1212
 msgid "Your edits are still on this page. Reload it to edit with others."
 msgstr "Pakeitimai liko šiame puslapyje. Iš naujo įkelkite puslapį, kad galėtumėte redaguoti kartu su kitais."
 
-#: packages/admin/src/router.tsx:1432
+#: packages/admin/src/router.tsx:1433
 msgid "Your edits couldn’t be saved, so this didn’t run. Try again."
 msgstr "Nepavyko išsaugoti pakeitimų, todėl veiksmas neatliktas. Bandykite dar kartą."
 
@@ -17525,7 +17885,7 @@ msgstr "Jūsų „Instagram“ naudotojo vardas"
 msgid "Your last edits weren’t saved"
 msgstr "Paskutiniai pakeitimai neišsaugoti"
 
-#: packages/admin/src/router.tsx:1244
+#: packages/admin/src/router.tsx:1245
 msgid "Your latest edits couldn’t be saved"
 msgstr "Nepavyko išsaugoti naujausių pakeitimų"
 
@@ -17551,11 +17911,11 @@ msgstr "Jūsų vardas (nebūtina)"
 msgid "Your Role"
 msgstr "Jūsų rolė"
 
-#: packages/admin/src/router.tsx:2588
+#: packages/admin/src/router.tsx:2589
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "Turėdami šią rolę galite redaguoti savo įrašus tik tol, kol jie yra juodraščiai."
 
-#: packages/admin/src/router.tsx:2589
+#: packages/admin/src/router.tsx:2590
 msgid "Your role can't edit this entry."
 msgstr "Jūsų rolė nesuteikia teisės redaguoti šio įrašo."
 
@@ -17590,15 +17950,15 @@ msgstr "Jūsų „Twitter“ / X naudotojo vardas (pvz., @username)"
 msgid "Your unsaved changes will be lost."
 msgstr "Neišsaugoti pakeitimai bus prarasti."
 
-#: packages/admin/src/router.tsx:1234
+#: packages/admin/src/router.tsx:1235
 msgid "Your unsaved edits are in a recovery revision"
 msgstr "Neišsaugoti pakeitimai išliko atkūrimo versijoje"
 
-#: packages/admin/src/router.tsx:1219
+#: packages/admin/src/router.tsx:1220
 msgid "Your unsaved edits are in a recovery revision. Reload the page to edit with others."
 msgstr "Neišsaugoti pakeitimai išliko atkūrimo versijoje. Iš naujo įkelkite puslapį, kad galėtumėte redaguoti kartu su kitais."
 
-#: packages/admin/src/router.tsx:1223
+#: packages/admin/src/router.tsx:1224
 msgid "Your unsaved edits couldn’t be kept"
 msgstr "Nepavyko išlaikyti neišsaugotų pakeitimų"
 

@@ -166,6 +166,10 @@ msgstr "Το «{0}» θα αφαιρεθεί από το μενού. Η ενέρ
 msgid "\"{0}\" will be removed from this widget area. This action cannot be undone."
 msgstr "Το «{0}» θα αφαιρεθεί από αυτή την περιοχή μικροεφαρμογών. Η ενέργεια δεν αναιρείται."
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:1103
+msgid "(edited)"
+msgstr ""
+
 #: packages/admin/src/components/OptionalLabel.tsx:14
 #: packages/admin/src/locales/KumoTranslationsProvider.tsx:15
 msgid "(optional)"
@@ -191,12 +195,12 @@ msgid "{0, plural, one {(# item)} other {(# items)}}"
 msgstr "{0, plural, one {(# στοιχείο)} other {(# στοιχεία)}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4824
+#: packages/admin/src/components/ContentEditor.tsx:5031
 msgid "{0, plural, one {{counted} of # character, at least {min}} other {{counted} of # characters, at least {min}}}"
 msgstr "{0, plural, one {{counted} από # χαρακτήρα, με ελάχιστο όριο {min}} other {{counted} από # χαρακτήρες, με ελάχιστο όριο {min}}}"
 
 #. placeholder {0}: bounds.max
-#: packages/admin/src/components/ContentEditor.tsx:4829
+#: packages/admin/src/components/ContentEditor.tsx:5036
 msgid "{0, plural, one {{counted} of # character} other {{counted} of # characters}}"
 msgstr "{0, plural, one {{counted} από # χαρακτήρα} other {{counted} από # χαρακτήρες}}"
 
@@ -218,7 +222,7 @@ msgid "{0, plural, one {# comment imported} other {# comments imported}}"
 msgstr "{0, plural, one {Εισήχθη # σχόλιο} other {Εισήχθησαν # σχόλια}}"
 
 #. placeholder {0}: result.affected
-#: packages/admin/src/router.tsx:3148
+#: packages/admin/src/router.tsx:3150
 msgid "{0, plural, one {# comment updated} other {# comments updated}}"
 msgstr "{0, plural, one {Ενημερώθηκε # σχόλιο} other {Ενημερώθηκαν # σχόλια}}"
 
@@ -370,7 +374,7 @@ msgstr "{0, plural, one {# σχέση στην οποία συμμετέχει �
 #. placeholder {1}: state.columns
 #: packages/admin/src/components/editor/TableControls.tsx:190
 #: packages/admin/src/components/editor/TableControls.tsx:223
-#: packages/admin/src/components/PortableTextEditor.tsx:4257
+#: packages/admin/src/components/PortableTextEditor.tsx:4337
 msgid "{0, plural, one {# row} other {# rows}} × {1, plural, one {# column} other {# columns}} selected"
 msgstr "Επιλογή: {0, plural, one {# γραμμή} other {# γραμμές}} × {1, plural, one {# στήλη} other {# στήλες}}"
 
@@ -420,7 +424,7 @@ msgid "{0, plural, one {Add # video} other {Add # videos}}"
 msgstr "{0, plural, one {Προσθήκη # βίντεο} other {Προσθήκη # βίντεο}}"
 
 #. placeholder {0}: bounds.min
-#: packages/admin/src/components/ContentEditor.tsx:4834
+#: packages/admin/src/components/ContentEditor.tsx:5041
 msgid "{0, plural, one {At least # character} other {At least # characters}}"
 msgstr "{0, plural, one {Τουλάχιστον # χαρακτήρας} other {Τουλάχιστον # χαρακτήρες}}"
 
@@ -645,8 +649,8 @@ msgstr "Ενημερώθηκαν: {added} · Απέτυχαν: {0}"
 msgid "{base} to: {0}"
 msgstr "{base} προς: {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2039
-#: packages/admin/src/components/PortableTextEditor.tsx:2051
+#: packages/admin/src/components/PortableTextEditor.tsx:2045
+#: packages/admin/src/components/PortableTextEditor.tsx:2057
 msgid "{characters, plural, one {# character} other {# characters}}"
 msgstr "{characters, plural, one {# χαρακτήρας} other {# χαρακτήρες}}"
 
@@ -671,6 +675,10 @@ msgstr "Ολοκληρώθηκαν {completedCount} από {0} μεταφορτ�
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:419
 msgid "{count, plural, one {# block} other {# blocks}}"
 msgstr "{count, plural, one {# μπλοκ} other {# μπλοκ}}"
+
+#: packages/admin/src/components/editorial/FieldCommentsButton.tsx:60
+msgid "{count, plural, one {# comment thread on {label}} other {# comment threads on {label}}}"
+msgstr ""
 
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:420
 msgid "{count, plural, one {# entry} other {# entries}}"
@@ -731,6 +739,10 @@ msgstr "{hidden, plural, one {+# ακόμη} other {+# ακόμη}}"
 #: packages/admin/src/components/revisions/RevisionList.tsx:392
 msgid "{hiddenCount, plural, one {Show # more} other {Show # more}}"
 msgstr "{hiddenCount, plural, one {Εμφάνιση # ακόμη} other {Εμφάνιση # ακόμη}}"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:890
+msgid "{hiddenReplies, plural, one {# reply} other {# replies}}"
+msgstr ""
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:44
 msgid "{host} does not resolve to a public address"
@@ -876,7 +888,7 @@ msgstr "{name} · Επεξεργασία πεδίου {field}"
 msgid "{name} · Viewing"
 msgstr "{name} · Προβολή"
 
-#: packages/admin/src/router.tsx:1279
+#: packages/admin/src/router.tsx:1280
 msgid "{name} changed this entry"
 msgstr "Ο/Η {name} τροποποίησε αυτή την καταχώριση."
 
@@ -990,8 +1002,8 @@ msgstr "Θέση {position} από {total}"
 msgid "{previewRows} × {previewColumns} table"
 msgstr "Πίνακας {previewRows} × {previewColumns}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2041
-#: packages/admin/src/components/PortableTextEditor.tsx:2052
+#: packages/admin/src/components/PortableTextEditor.tsx:2047
+#: packages/admin/src/components/PortableTextEditor.tsx:2058
 msgid "{readingTime, plural, one {# min read} other {# min read}}"
 msgstr "{readingTime, plural, one {# λεπτό ανάγνωσης} other {# λεπτά ανάγνωσης}}"
 
@@ -1020,7 +1032,7 @@ msgstr "Πίνακας με {row} γραμμές και {column} στήλες"
 msgid "{rows, plural, one {Row deleted} other {# rows deleted}}"
 msgstr "{rows, plural, one {Η γραμμή διαγράφηκε} other {Διαγράφηκαν # γραμμές}}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2329
+#: packages/admin/src/components/PortableTextEditor.tsx:2352
 msgid "{rows} × {columns} table pasted"
 msgstr "Πίνακας {rows} γραμμών × {columns} στηλών που επικολλήθηκε."
 
@@ -1140,8 +1152,8 @@ msgstr "{when}, δημοσιευμένη έκδοση, {author}"
 msgid "{widgetType} in {areaName}"
 msgstr "Το {widgetType} στην περιοχή {areaName}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2037
-#: packages/admin/src/components/PortableTextEditor.tsx:2050
+#: packages/admin/src/components/PortableTextEditor.tsx:2043
+#: packages/admin/src/components/PortableTextEditor.tsx:2056
 msgid "{words, plural, one {# word} other {# words}}"
 msgstr "{words, plural, one {# λέξη} other {# λέξεις}}"
 
@@ -1193,21 +1205,21 @@ msgid "<0>{name}</0> now holds this entry, so your changes are no longer being s
 msgstr "Την επεξεργασία ανέλαβε το άτομο με όνομα <0>{name}</0>. Οι αλλαγές σας δεν αποθηκεύονται πλέον. Για να συνεχίσετε, αναλάβετε ξανά την επεξεργασία."
 
 #: packages/admin/src/components/BlocksField.tsx:1515
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:239
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:242
 msgid "<0>Alt-click</0> to add above"
 msgstr "<0>Alt + κλικ</0> για προσθήκη από πάνω"
 
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:235
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:238
 msgid "<0>Click</0> to add below"
 msgstr "<0>Κλικ</0> για προσθήκη από κάτω"
 
 #: packages/admin/src/components/BlocksField.tsx:1561
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:281
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:284
 msgid "<0>Click</0> to open menu"
 msgstr "<0>Κλικ</0> για άνοιγμα του μενού"
 
 #: packages/admin/src/components/BlocksField.tsx:1557
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:277
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:280
 msgid "<0>Drag</0> to move"
 msgstr "<0>Σύρετε</0> για μετακίνηση"
 
@@ -1366,7 +1378,7 @@ msgstr "Ένα αρχείο πακέτου λείπει."
 msgid "A publication time has not been selected"
 msgstr "Δεν έχει επιλεγεί η ώρα δημοσίευσης."
 
-#: packages/admin/src/components/ContentEditor.tsx:2312
+#: packages/admin/src/components/ContentEditor.tsx:2443
 msgid "A publishing action is already in progress"
 msgstr "Μια ενέργεια δημοσίευσης είναι ήδη σε εξέλιξη"
 
@@ -1465,7 +1477,7 @@ msgstr "Αποδοχή πρόσκλησης"
 msgid "Access denied"
 msgstr "Δεν επιτρέπεται η πρόσβαση"
 
-#: packages/admin/src/router.tsx:3170
+#: packages/admin/src/router.tsx:3172
 msgid "Access Denied"
 msgstr "Δεν επιτρέπεται η πρόσβαση"
 
@@ -1560,7 +1572,7 @@ msgstr "Προσθήκη"
 #. placeholder {0}: option.byline.displayName
 #: packages/admin/src/components/BylineCreditsEditor.tsx:399
 #: packages/admin/src/components/ContentList.tsx:716
-#: packages/admin/src/components/PortableTextEditor.tsx:1633
+#: packages/admin/src/components/PortableTextEditor.tsx:1639
 #: packages/admin/src/components/TaxonomyManager.tsx:716
 #: packages/admin/src/components/TaxonomyManager.tsx:1249
 msgid "Add {0}"
@@ -1581,6 +1593,10 @@ msgstr "Προσθήκη «{singularLower}» σε άρθρα"
 #: packages/admin/src/components/BlocksField.tsx:2329
 msgid "Add a caption"
 msgstr "Προσθήκη λεζάντας"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:651
+msgid "Add a comment. Type @ to mention someone."
+msgstr ""
 
 #: packages/admin/src/components/BylineFieldEditor.tsx:334
 msgid "Add a detail every byline can fill in, such as a job title."
@@ -1641,12 +1657,12 @@ msgstr "Προσθήκη υπογραφής συντάκτη"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:321
 #: packages/admin/src/components/editor/VideoNode.tsx:323
-#: packages/admin/src/components/PortableTextEditor.tsx:4719
+#: packages/admin/src/components/PortableTextEditor.tsx:4799
 msgid "Add caption"
 msgstr "Προσθήκη λεζάντας"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:4270
+#: packages/admin/src/components/PortableTextEditor.tsx:4350
 msgid "Add column after"
 msgstr "Προσθήκη στήλης μετά"
 
@@ -1709,7 +1725,7 @@ msgid "Add images to gallery"
 msgstr "Προσθήκη εικόνων στη συλλογή"
 
 #: packages/admin/src/components/BlockListField.tsx:900
-#: packages/admin/src/components/PortableTextEditor.tsx:1633
+#: packages/admin/src/components/PortableTextEditor.tsx:1639
 msgid "Add item"
 msgstr "Προσθήκη στοιχείου"
 
@@ -1729,9 +1745,9 @@ msgstr "Προσθήκη στοιχείου από κάτω"
 msgid "Add item to {label}"
 msgstr "Προσθήκη στοιχείου στο {label}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3894
-#: packages/admin/src/components/PortableTextEditor.tsx:4712
-#: packages/admin/src/components/PortableTextEditor.tsx:5161
+#: packages/admin/src/components/PortableTextEditor.tsx:3960
+#: packages/admin/src/components/PortableTextEditor.tsx:4792
+#: packages/admin/src/components/PortableTextEditor.tsx:5241
 msgid "Add link"
 msgstr "Προσθήκη συνδέσμου"
 
@@ -1757,7 +1773,7 @@ msgstr "Προσθήκη νέου φακέλου"
 msgid "Add noindex meta tag"
 msgstr "Προσθέστε την ετικέτα meta \"noindex\""
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2409
+#: packages/admin/src/components/PortableTextEditor.tsx:2432
 msgid "Add one or more link buttons"
 msgstr "Προσθέστε ένα ή περισσότερα κουμπιά σύνδεσης."
 
@@ -1765,8 +1781,8 @@ msgstr "Προσθέστε ένα ή περισσότερα κουμπιά σύ�
 msgid "Add Passkey"
 msgstr "Προσθήκη κλειδιού πρόσβασης"
 
-#: packages/admin/src/components/ContentEditor.tsx:4738
-#: packages/admin/src/components/ContentEditor.tsx:4738
+#: packages/admin/src/components/ContentEditor.tsx:4945
+#: packages/admin/src/components/ContentEditor.tsx:4945
 msgid "Add reference"
 msgstr "Προσθήκη αναφοράς"
 
@@ -1779,7 +1795,7 @@ msgid "Add row above"
 msgstr "Προσθήκη γραμμής από πάνω"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:4263
+#: packages/admin/src/components/PortableTextEditor.tsx:4343
 msgid "Add row below"
 msgstr "Προσθήκη γραμμής από κάτω"
 
@@ -1935,7 +1951,7 @@ msgid "Administrator"
 msgstr "Διαχειριστής"
 
 #: packages/admin/src/components/BlocksField.tsx:2451
-#: packages/admin/src/components/PortableTextEditor.tsx:501
+#: packages/admin/src/components/PortableTextEditor.tsx:507
 msgid "Advanced"
 msgstr "Για προχωρημένους"
 
@@ -1977,26 +1993,26 @@ msgstr "Ενημερώθηκε η πρόσβαση των πρακτόρων AI 
 msgid "Agent-callable MCP tools"
 msgstr "Εργαλεία MCP που μπορούν να καλούν οι πράκτορες AI"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:165
-#: packages/admin/src/components/PortableTextEditor.tsx:4158
+#: packages/admin/src/components/editor/BlockMenu.tsx:181
+#: packages/admin/src/components/PortableTextEditor.tsx:4238
 msgid "Align"
 msgstr "Στοίχιση"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5335
+#: packages/admin/src/components/PortableTextEditor.tsx:5415
 msgid "Align center"
 msgstr "Ευθυγράμμιση στο κέντρο"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5327
+#: packages/admin/src/components/PortableTextEditor.tsx:5407
 msgid "Align left"
 msgstr "Ευθυγράμμιση αριστερά"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5343
+#: packages/admin/src/components/PortableTextEditor.tsx:5423
 msgid "Align right"
 msgstr "Ευθυγράμμιση δεξιά"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:485
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:726
-#: packages/admin/src/components/PortableTextEditor.tsx:4693
+#: packages/admin/src/components/PortableTextEditor.tsx:4773
 msgid "Alignment"
 msgstr "Στοίχιση"
 
@@ -2081,7 +2097,7 @@ msgid "Allowed block types"
 msgstr "Επιτρεπόμενοι τύποι μπλοκ"
 
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:265
-#: packages/admin/src/router.tsx:3258
+#: packages/admin/src/router.tsx:3260
 msgid "Allowed Domains"
 msgstr "Επιτρεπόμενοι τομείς"
 
@@ -2114,7 +2130,7 @@ msgid "Also requested, but not available to your role:"
 msgstr "Ζητήθηκε επίσης, αλλά δεν είναι διαθέσιμο για τον ρόλο σας:"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:65
+#: packages/admin/src/locales/server.ts:87
 msgid "visualEditing.altText"
 msgstr "Εναλλακτικό κείμενο"
 
@@ -2122,8 +2138,8 @@ msgstr "Εναλλακτικό κείμενο"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:516
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:520
 #: packages/admin/src/components/MediaLibrary.tsx:1153
-#: packages/admin/src/components/PortableTextEditor.tsx:4624
-#: packages/admin/src/components/PortableTextEditor.tsx:4690
+#: packages/admin/src/components/PortableTextEditor.tsx:4704
+#: packages/admin/src/components/PortableTextEditor.tsx:4770
 msgid "Alt text"
 msgstr "Εναλλακτικό κείμενο"
 
@@ -2198,18 +2214,18 @@ msgstr "Κρυπτογραφημένο ψηφιακό κλειδί που ξεκ
 #: packages/admin/src/router.tsx:755
 #: packages/admin/src/router.tsx:776
 #: packages/admin/src/router.tsx:1001
-#: packages/admin/src/router.tsx:1224
-#: packages/admin/src/router.tsx:1390
-#: packages/admin/src/router.tsx:1458
-#: packages/admin/src/router.tsx:1817
-#: packages/admin/src/router.tsx:1995
-#: packages/admin/src/router.tsx:2020
-#: packages/admin/src/router.tsx:2107
-#: packages/admin/src/router.tsx:2139
-#: packages/admin/src/router.tsx:3120
-#: packages/admin/src/router.tsx:3156
-#: packages/admin/src/router.tsx:3691
-#: packages/admin/src/router.tsx:3885
+#: packages/admin/src/router.tsx:1225
+#: packages/admin/src/router.tsx:1391
+#: packages/admin/src/router.tsx:1459
+#: packages/admin/src/router.tsx:1818
+#: packages/admin/src/router.tsx:1996
+#: packages/admin/src/router.tsx:2021
+#: packages/admin/src/router.tsx:2108
+#: packages/admin/src/router.tsx:2140
+#: packages/admin/src/router.tsx:3122
+#: packages/admin/src/router.tsx:3158
+#: packages/admin/src/router.tsx:3693
+#: packages/admin/src/router.tsx:3887
 #: packages/admin/src/routes/byline-schema.tsx:143
 msgid "An error occurred"
 msgstr "Παρουσιάστηκε σφάλμα"
@@ -2312,7 +2328,7 @@ msgstr "Οτιδήποτε πληκτραριστεί στα τροποποιη�
 #: packages/admin/src/components/Settings.tsx:109
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:210
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:351
-#: packages/admin/src/router.tsx:3272
+#: packages/admin/src/router.tsx:3274
 msgid "API Tokens"
 msgstr "API token"
 
@@ -2329,7 +2345,7 @@ msgid "Applies to every collection. Sections a collection doesn't use are skippe
 msgstr "Εφαρμόζεται σε κάθε συλλογή. Οι ενότητες που δεν χρησιμοποιεί μια συλλογή παραλείπονται."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:611
-#: packages/admin/src/components/PortableTextEditor.tsx:5426
+#: packages/admin/src/components/PortableTextEditor.tsx:5506
 msgid "Apply"
 msgstr "Εφαρμογή"
 
@@ -2337,8 +2353,8 @@ msgstr "Εφαρμογή"
 msgid "Apply changes"
 msgstr "Εφαρμόστε τις αλλαγές"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3868
-#: packages/admin/src/components/PortableTextEditor.tsx:4665
+#: packages/admin/src/components/PortableTextEditor.tsx:3934
+#: packages/admin/src/components/PortableTextEditor.tsx:4745
 msgid "Apply link"
 msgstr "Εφαρμογή συνδέσμου"
 
@@ -2443,11 +2459,11 @@ msgstr "Οι βοηθοί που συνδέονται μέσω MCP χρειάζ�
 msgid "Astro"
 msgstr "Astro"
 
-#: packages/admin/src/components/ContentEditor.tsx:4857
+#: packages/admin/src/components/ContentEditor.tsx:5064
 msgid "At least {min}"
 msgstr "Τουλάχιστον {min}"
 
-#: packages/admin/src/components/ContentEditor.tsx:4854
+#: packages/admin/src/components/ContentEditor.tsx:5061
 msgid "At most {max}"
 msgstr "Μέχρι {max}"
 
@@ -2581,11 +2597,11 @@ msgstr "Αυτόματα αντίγραφα ασφαλείας"
 msgid "Automatic backups need a storage backend (R2, S3, or local storage). Configure storage in your EmDash config to enable them."
 msgstr "Τα αυτόματα αντίγραφα ασφαλείας απαιτούν χώρο αποθήκευσης (R2, S3 ή τοπικό). Για να τα ενεργοποιήσετε, ορίστε τον χώρο αποθήκευσης στη διαμόρφωση του EmDash."
 
-#: packages/admin/src/router.tsx:1962
+#: packages/admin/src/router.tsx:1963
 msgid "Autosave failed"
 msgstr "Αποτυχία αυτόματης αποθήκευσης"
 
-#: packages/admin/src/components/ContentEditor.tsx:282
+#: packages/admin/src/components/ContentEditor.tsx:283
 msgid "Autosave paused"
 msgstr "Η αυτόματη αποθήκευση είναι σε παύση"
 
@@ -2612,7 +2628,7 @@ msgid "Avatar"
 msgstr "Εικόνα προφίλ"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:74
+#: packages/admin/src/locales/server.ts:96
 msgid "visualEditing.back"
 msgstr "Πίσω"
 
@@ -2628,7 +2644,7 @@ msgstr "Πίσω"
 msgid "Back"
 msgstr "Πίσω"
 
-#: packages/admin/src/components/ContentEditor.tsx:2761
+#: packages/admin/src/components/ContentEditor.tsx:2892
 msgid "Back to {collectionLabel} list"
 msgstr "Επιστροφή στη λίστα της συλλογής «{collectionLabel}»"
 
@@ -2686,7 +2702,7 @@ msgstr "Οι ρυθμίσεις αντιγράφων ασφαλείας αποθ
 
 #: packages/admin/src/components/Settings.tsx:126
 #: packages/admin/src/components/settings/BackupSettings.tsx:144
-#: packages/admin/src/router.tsx:3299
+#: packages/admin/src/router.tsx:3301
 msgid "Backups"
 msgstr "Αντίγραφα ασφαλείας"
 
@@ -2698,7 +2714,7 @@ msgstr "Πλήθος αντιγράφων ασφαλείας που θα δια�
 msgid "Bash"
 msgstr "Bash"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:499
+#: packages/admin/src/components/PortableTextEditor.tsx:505
 msgid "Basic blocks"
 msgstr "Βασικά μπλοκ"
 
@@ -2714,7 +2730,7 @@ msgstr "Πριν την αποστολή:"
 msgid "Before you continue:"
 msgstr "Πριν συνεχίσετε:"
 
-#: packages/admin/src/components/ContentEditor.tsx:4851
+#: packages/admin/src/components/ContentEditor.tsx:5058
 msgid "Between {min} and {max}"
 msgstr "Μεταξύ {min} και {max}"
 
@@ -2726,15 +2742,15 @@ msgstr "Επαλήθευση Bing"
 msgid "Bio"
 msgstr "Βιογραφικό σημείωμα"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:92
+#: packages/admin/src/components/editor/BlockMenu.tsx:100
 msgid "Block"
 msgstr "Μπλοκ"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:138
+#: packages/admin/src/components/editor/BlockMenu.tsx:152
 msgid "Block actions"
 msgstr "Ενέργειες μπλοκ"
 
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:299
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:302
 msgid "Block actions - drag to reorder, click for menu"
 msgstr "Ενέργειες μπλοκ - σύρετε για αναδιάταξη, κάντε κλικ για μενού"
 
@@ -2766,8 +2782,8 @@ msgstr "Εμπόδια"
 msgid "Blocks"
 msgstr "Μπλοκ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3645
-#: packages/admin/src/components/PortableTextEditor.tsx:5195
+#: packages/admin/src/components/PortableTextEditor.tsx:3681
+#: packages/admin/src/components/PortableTextEditor.tsx:5275
 msgid "Bold"
 msgstr "Έντονα"
 
@@ -2831,17 +2847,17 @@ msgid "Build provenance verified"
 msgstr "Επαληθεύτηκε η προέλευση της έκδοσης."
 
 #: packages/admin/src/components/editor/blockTypes.ts:93
-#: packages/admin/src/components/PortableTextEditor.tsx:542
-#: packages/admin/src/components/PortableTextEditor.tsx:5252
+#: packages/admin/src/components/PortableTextEditor.tsx:548
+#: packages/admin/src/components/PortableTextEditor.tsx:5332
 msgid "Bullet List"
 msgstr "Λίστα με κουκκίδες"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2426
+#: packages/admin/src/components/PortableTextEditor.tsx:2449
 msgid "button"
 msgstr "κουμπί"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2407
-#: packages/admin/src/components/PortableTextEditor.tsx:2425
+#: packages/admin/src/components/PortableTextEditor.tsx:2430
+#: packages/admin/src/components/PortableTextEditor.tsx:2448
 msgid "Buttons"
 msgstr "Κουμπιά"
 
@@ -2888,7 +2904,7 @@ msgid "Byline schema"
 msgstr "Δομή υπογραφών συντακτών"
 
 #: packages/admin/src/components/Sidebar.tsx:584
-#: packages/admin/src/router.tsx:3628
+#: packages/admin/src/router.tsx:3630
 msgid "Byline Schema"
 msgstr "Δομή υπογραφών συντακτών"
 
@@ -2903,7 +2919,7 @@ msgstr "Η υπογραφή συντάκτη ενημερώθηκε"
 #: packages/admin/src/components/settings/transfer/labels.ts:79
 #: packages/admin/src/components/Sidebar.tsx:550
 #: packages/admin/src/lib/editor-sections.ts:34
-#: packages/admin/src/router.tsx:3617
+#: packages/admin/src/router.tsx:3619
 #: packages/admin/src/routes/bylines.tsx:302
 msgid "Bylines"
 msgstr "Υπογραφές συντακτών"
@@ -2959,6 +2975,7 @@ msgstr "Δεν είναι δυνατή η σύνδεση με το EmDash"
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
 #: packages/admin/src/components/EditorDraftPatchPreview.tsx:128
+#: packages/admin/src/components/editorial/MarginComments.tsx:738
 #: packages/admin/src/components/FieldEditor.tsx:1825
 #: packages/admin/src/components/MediaDetailPanel.tsx:1839
 #: packages/admin/src/components/MediaFolderDialog.tsx:205
@@ -2967,10 +2984,10 @@ msgstr "Δεν είναι δυνατή η σύνδεση με το EmDash"
 #: packages/admin/src/components/MenuEditor.tsx:664
 #: packages/admin/src/components/MenuEditor.tsx:895
 #: packages/admin/src/components/MenuList.tsx:238
-#: packages/admin/src/components/PortableTextEditor.tsx:1431
-#: packages/admin/src/components/PortableTextEditor.tsx:4636
-#: packages/admin/src/components/PortableTextEditor.tsx:4662
-#: packages/admin/src/components/PortableTextEditor.tsx:5410
+#: packages/admin/src/components/PortableTextEditor.tsx:1437
+#: packages/admin/src/components/PortableTextEditor.tsx:4716
+#: packages/admin/src/components/PortableTextEditor.tsx:4742
+#: packages/admin/src/components/PortableTextEditor.tsx:5490
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:384
 #: packages/admin/src/components/Redirects.tsx:306
 #: packages/admin/src/components/RelationDialog.tsx:72
@@ -3081,10 +3098,10 @@ msgstr "Κελιά"
 msgid "Cells merged"
 msgstr "Τα κελιά συγχωνεύτηκαν"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:54
+#: packages/admin/src/components/editor/BlockMenu.tsx:57
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:277
-#: packages/admin/src/components/PortableTextEditor.tsx:4162
-#: packages/admin/src/components/PortableTextEditor.tsx:4283
+#: packages/admin/src/components/PortableTextEditor.tsx:4242
+#: packages/admin/src/components/PortableTextEditor.tsx:4363
 msgid "Center"
 msgstr "Κέντρο"
 
@@ -3216,7 +3233,7 @@ msgstr "Ιστορικό αλλαγών"
 msgid "Changes apply everywhere this byline appears."
 msgstr "Οι αλλαγές ισχύουν παντού όπου εμφανίζεται αυτή η υπογραφή συντάκτη."
 
-#: packages/admin/src/router.tsx:2038
+#: packages/admin/src/router.tsx:2039
 msgid "Changes discarded"
 msgstr "Αλλαγές ακυρώθηκαν"
 
@@ -3498,7 +3515,7 @@ msgstr "Εκκαθάριση ολοκληρωμένων στοιχείων"
 msgid "Clear filters"
 msgstr "Καθαρισμός φίλτρων"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4172
+#: packages/admin/src/components/PortableTextEditor.tsx:4252
 msgid "Clear formatting"
 msgstr "Αφαίρεση μορφοποίησης"
 
@@ -3548,6 +3565,11 @@ msgstr "Πατήστε σε αυτόν τον σύνδεσμο για να συ�
 msgid "Click to copy"
 msgstr "Κάντε κλικ για να αντιγράψετε"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:119
+msgid "visualEditing.close"
+msgstr ""
+
 #: packages/admin/src/components/BulkTagDialog.tsx:275
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:324
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
@@ -3591,7 +3613,7 @@ msgstr "Κλείσιμο ρυθμίσεων εικόνας"
 msgid "Close panel"
 msgstr "Κλείσιμο πάνελ"
 
-#: packages/admin/src/components/ContentEditor.tsx:3580
+#: packages/admin/src/components/ContentEditor.tsx:3782
 msgid "Close settings"
 msgstr "Κλείσιμο ρυθμίσεων"
 
@@ -3606,8 +3628,8 @@ msgid "Code"
 msgstr "Κώδικας"
 
 #: packages/admin/src/components/editor/blockTypes.ts:117
-#: packages/admin/src/components/PortableTextEditor.tsx:572
-#: packages/admin/src/components/PortableTextEditor.tsx:5294
+#: packages/admin/src/components/PortableTextEditor.tsx:578
+#: packages/admin/src/components/PortableTextEditor.tsx:5374
 msgid "Code Block"
 msgstr "Μπλοκ κώδικα"
 
@@ -3645,7 +3667,7 @@ msgstr "Η συλλογή \"{0}\" δημιουργήθηκε σε αυτόν τ�
 
 #: packages/admin/src/router.tsx:865
 #: packages/admin/src/router.tsx:1068
-#: packages/admin/src/router.tsx:2560
+#: packages/admin/src/router.tsx:2561
 msgid "Collection \"{collection}\" not found"
 msgstr "Η συλλογή \"{collection}\" δεν βρέθηκε."
 
@@ -3671,7 +3693,7 @@ msgid "Collections created:"
 msgstr "Δημιουργήθηκαν οι ακόλουθες συλλογές:"
 
 #: packages/admin/src/components/editor/TableControls.tsx:26
-#: packages/admin/src/components/PortableTextEditor.tsx:4268
+#: packages/admin/src/components/PortableTextEditor.tsx:4348
 msgid "Column added after"
 msgstr "Στήλη προστέθηκε μετά"
 
@@ -3687,7 +3709,7 @@ msgstr "Το πλάτος της στήλης μειώθηκε."
 msgid "Column width increased"
 msgstr "Αύξηση του πλάτους της στήλης"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2329
+#: packages/admin/src/components/PortableTextEditor.tsx:2352
 msgid "Column width resized"
 msgstr "Αλλαγή του πλάτους στήλης"
 
@@ -3709,32 +3731,120 @@ msgstr "Στήλες κατανεμημένες ομοιόμορφα"
 msgid "Comma-separated keywords for search."
 msgstr "Λέξεις-κλειδιά, διαχωρισμένες με κόμμα, για αναζήτηση."
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:115
+msgid "visualEditing.comment"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentDetail.tsx:98
 #: packages/admin/src/components/comments/CommentInbox.tsx:357
+#: packages/admin/src/components/editor/BlockMenu.tsx:218
+#: packages/admin/src/components/editorial/MarginComments.tsx:498
+#: packages/admin/src/components/editorial/MarginComments.tsx:650
+#: packages/admin/src/components/editorial/MarginComments.tsx:652
+#: packages/admin/src/components/editorial/MarginComments.tsx:1091
+#: packages/admin/src/components/PortableTextEditor.tsx:3911
+#: packages/admin/src/components/PortableTextEditor.tsx:3973
 msgid "Comment"
 msgstr "Σχόλιο"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:1044
+msgid "Comment actions"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:120
+msgid "visualEditing.commentDeleted"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:1099
+msgid "Comment deleted"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:59
 msgid "Comment Detail"
 msgstr "Λεπτομέρειες σχολίου"
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:294
+msgid "Comment not deleted"
+msgstr ""
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:247
+#: packages/admin/src/components/editorial/useEditorialComments.ts:255
+#: packages/admin/src/components/editorial/useEditorialComments.ts:283
+msgid "Comment not saved"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:102
+msgid "visualEditing.commentOnField"
+msgstr ""
+
+#: packages/admin/src/components/editorial/FieldCommentsButton.tsx:49
+#: packages/admin/src/components/editorial/FieldCommentsButton.tsx:50
+msgid "Comment on {label}"
+msgstr ""
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:570
+msgid "Comment on the whole field instead."
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:101
+msgid "visualEditing.commentOnEntry"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/labels.ts:35
 #: packages/admin/src/components/settings/transfer/labels.ts:89
 msgid "Comment reactions"
 msgstr "Αντιδράσεις σε σχόλια"
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:802
+msgid "Comment thread"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentInbox.tsx:194
 #: packages/admin/src/components/ContentTypeEditor.tsx:702
+#: packages/admin/src/components/editorial/MarginComments.tsx:475
+#: packages/admin/src/components/editorial/MarginComments.tsx:477
 #: packages/admin/src/components/settings/transfer/labels.ts:34
 #: packages/admin/src/components/settings/transfer/labels.ts:88
 #: packages/admin/src/components/Sidebar.tsx:514
-#: packages/admin/src/router.tsx:3045
+#: packages/admin/src/router.tsx:3047
 msgid "Comments"
 msgstr "Σχόλια"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:511
+msgid "Comments couldn’t be loaded"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:512
+msgid "Comments couldn’t be refreshed"
+msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:759
 msgid "Comments from logged-in CMS users are approved automatically"
 msgstr "Τα σχόλια από συνδεδεμένους χρήστες του CMS εγκρίνονται αυτόματα."
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:112
+msgid "visualEditing.commentsOnField"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:107
+msgid "visualEditing.commentsOnFieldCount"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:111
+msgid "visualEditing.commentsOnEntry"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:103
+msgid "visualEditing.commentsOnEntryCount"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentInbox.tsx:642
 msgid "Comments with this status will appear here."
@@ -3858,7 +3968,7 @@ msgstr "Σφάλματα περιεχομένου ({0})"
 msgid "Content found:"
 msgstr "Βρέθηκαν περιεχόμενα:"
 
-#: packages/admin/src/router.tsx:2088
+#: packages/admin/src/router.tsx:2089
 msgid "Content has been scheduled for publishing"
 msgstr "Το περιεχόμενο έχει προγραμματιστεί για δημοσίευση."
 
@@ -3866,7 +3976,7 @@ msgstr "Το περιεχόμενο έχει προγραμματιστεί γι
 msgid "Content ID:"
 msgstr "Αναγνωριστικό περιεχομένου:"
 
-#: packages/admin/src/router.tsx:1989
+#: packages/admin/src/router.tsx:1990
 msgid "Content is now live"
 msgstr "Το περιεχόμενο δημοσιεύτηκε"
 
@@ -3891,11 +4001,11 @@ msgstr "Το περιεχόμενο περιέχει μη έγκυρη αναφ�
 msgid "Content refers to media that is not in the package"
 msgstr "Το περιεχόμενο παραπέμπει σε πολυμέσα που δεν περιλαμβάνονται στο πακέτο"
 
-#: packages/admin/src/router.tsx:2014
+#: packages/admin/src/router.tsx:2015
 msgid "Content removed from public view"
 msgstr "Περιεχόμενο αφαιρέθηκε από την προβολή του κοινού"
 
-#: packages/admin/src/router.tsx:2100
+#: packages/admin/src/router.tsx:2101
 msgid "Content reverted to draft"
 msgstr "Το περιεχόμενο επανήλθε σε πρόχειρη μορφή."
 
@@ -3922,7 +4032,7 @@ msgstr "Τύποι περιεχομένου"
 #: packages/admin/src/components/AdminCommandPalette.tsx:197
 #: packages/admin/src/components/ContentTypeList.tsx:148
 #: packages/admin/src/components/Sidebar.tsx:580
-#: packages/admin/src/router.tsx:3636
+#: packages/admin/src/router.tsx:3638
 msgid "Content Types"
 msgstr "Τύποι περιεχομένου"
 
@@ -3957,8 +4067,8 @@ msgstr "Συνέχεια →"
 msgid "Continue Import"
 msgstr "Συνέχεια Εισαγωγής"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:187
-#: packages/admin/src/components/PortableTextEditor.tsx:5269
+#: packages/admin/src/components/editor/BlockMenu.tsx:203
+#: packages/admin/src/components/PortableTextEditor.tsx:5349
 msgid "Continue numbering"
 msgstr "Συνεχίστε την αρίθμηση"
 
@@ -4077,7 +4187,7 @@ msgstr "Δεν ήταν δυνατή η αυτόματη αντιγραφή. Π�
 msgid "Could not create {singularLower}"
 msgstr "Δεν ήταν δυνατή η δημιουργία του {singularLower}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3434
+#: packages/admin/src/components/PortableTextEditor.tsx:3467
 msgid "Could not insert section"
 msgstr "Δεν ήταν δυνατή η εισαγωγή της ενότητας."
 
@@ -4149,7 +4259,7 @@ msgstr "Δεν εντοπίστηκε εγκατάσταση WordPress."
 msgid "Couldn’t join. Try again."
 msgstr "Δεν ήταν δυνατή η συμμετοχή στην επεξεργασία. Δοκιμάστε ξανά."
 
-#: packages/admin/src/components/ContentEditor.tsx:4715
+#: packages/admin/src/components/ContentEditor.tsx:4922
 msgid "Couldn't load all references."
 msgstr "Δεν ήταν δυνατή η φόρτωση όλων των αναφορών."
 
@@ -4160,6 +4270,11 @@ msgstr "Δεν ήταν δυνατή η φόρτωση των αιτημάτων
 #: packages/admin/src/routes/byline-schema.tsx:252
 msgid "Couldn't load byline fields."
 msgstr "Δεν ήταν δυνατή η φόρτωση των πεδίων υπογραφής συντάκτη."
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:127
+msgid "visualEditing.commentsLoadFailed"
+msgstr ""
 
 #: packages/admin/src/components/ContentPickerModal.tsx:280
 msgid "Couldn't load content."
@@ -4220,6 +4335,11 @@ msgstr "Δεν ήταν δυνατή η επαναφόρτωση του σχεδ
 #: packages/admin/src/lib/api/admin-layout.ts:277
 msgid "Couldn't save your sidebars"
 msgstr "Δεν ήταν δυνατή η αποθήκευση των πλευρικών στηλών σας."
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:131
+msgid "visualEditing.commentActionFailed"
+msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:368
 msgid "Couldn’t search bylines."
@@ -4287,7 +4407,7 @@ msgstr "Δημιουργήστε ένα {singularLower}"
 msgid "Create a block type before adding a blocks field."
 msgstr "Δημιουργήστε έναν τύπο μπλοκ πριν προσθέσετε το πεδίο \"μπλοκ\"."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:543
+#: packages/admin/src/components/PortableTextEditor.tsx:549
 msgid "Create a bullet list"
 msgstr "Δημιουργήστε μια λίστα με κουκκίδες"
 
@@ -4300,7 +4420,7 @@ msgstr "Δημιουργήστε μια νέα {0}"
 msgid "Create a new {singularLabel}"
 msgstr "Δημιουργήστε μια νέα {singularLabel}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:553
+#: packages/admin/src/components/PortableTextEditor.tsx:559
 msgid "Create a numbered list"
 msgstr "Δημιουργήστε μια αριθμημένη λίστα"
 
@@ -4473,7 +4593,7 @@ msgid "Created {0}"
 msgstr "Δημιουργήθηκε στις {0}"
 
 #. placeholder {0}: result.locale?.toUpperCase() ?? t`new`
-#: packages/admin/src/router.tsx:2131
+#: packages/admin/src/router.tsx:2132
 msgid "Created {0} translation"
 msgstr "Δημιουργήθηκε η μετάφραση {0}"
 
@@ -4587,7 +4707,7 @@ msgstr "Προσαρμοσμένη ενότητα"
 msgid "Custom Taxonomies"
 msgstr "Προσαρμοσμένες ταξινομίες"
 
-#: packages/admin/src/components/ContentEditor.tsx:3235
+#: packages/admin/src/components/ContentEditor.tsx:3437
 #: packages/admin/src/components/Sidebar.tsx:797
 msgid "Customize sidebar"
 msgstr "Προσαρμογή πλευρικής στήλης"
@@ -4658,7 +4778,7 @@ msgstr "Δηλωμένα δικαιώματα"
 msgid "Decrease column width"
 msgstr "Μειώστε το πλάτος της στήλης"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2435
+#: packages/admin/src/components/PortableTextEditor.tsx:2458
 msgctxt "button style"
 msgid "Default"
 msgstr "Προεπιλογή"
@@ -4709,8 +4829,11 @@ msgstr "Ορισμένο στον κώδικα"
 #: packages/admin/src/components/ContentTypeEditor.tsx:908
 #: packages/admin/src/components/ContentTypeList.tsx:266
 #: packages/admin/src/components/ContentTypeList.tsx:393
-#: packages/admin/src/components/editor/BlockMenu.tsx:218
+#: packages/admin/src/components/editor/BlockMenu.tsx:244
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:392
+#: packages/admin/src/components/editorial/MarginComments.tsx:940
+#: packages/admin/src/components/editorial/MarginComments.tsx:957
+#: packages/admin/src/components/editorial/MarginComments.tsx:1065
 #: packages/admin/src/components/MediaDetailPanel.tsx:1808
 #: packages/admin/src/components/MediaDetailPanel.tsx:1910
 #: packages/admin/src/components/MediaFolderDialog.tsx:198
@@ -4817,6 +4940,11 @@ msgstr "Διαγραφή στήλης"
 msgid "Delete columns"
 msgstr "Διαγραφή στηλών"
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:955
+#: packages/admin/src/components/editorial/MarginComments.tsx:1065
+msgid "Delete comment"
+msgstr ""
+
 #: packages/admin/src/components/comments/CommentInbox.tsx:461
 msgid "Delete Comment?"
 msgstr "Διαγραφή σχολίου;"
@@ -4845,7 +4973,7 @@ msgstr "Διαγραφή φακέλου"
 msgid "Delete gallery"
 msgstr "Διαγραφή συλλογής"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4731
+#: packages/admin/src/components/PortableTextEditor.tsx:4811
 msgid "Delete image"
 msgstr "Διαγραφή εικόνας"
 
@@ -4913,6 +5041,11 @@ msgstr "Διαγραφή ταξινομίας"
 msgid "Delete Taxonomy"
 msgstr "Διαγραφή ταξινομίας"
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:938
+#: packages/admin/src/components/editorial/MarginComments.tsx:1074
+msgid "Delete thread"
+msgstr ""
+
 #: packages/admin/src/components/editor/VideoNode.tsx:336
 #: packages/admin/src/components/editor/VideoNode.tsx:337
 msgid "Delete video"
@@ -4935,6 +5068,15 @@ msgstr "Διαγράφηκε"
 msgid "Deleted {name}"
 msgstr "Διαγράφηκε: {name}"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:121
+msgid "visualEditing.deletedUser"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:1011
+msgid "Deleted user"
+msgstr ""
+
 #. placeholder {0}: taxonomyDef.label
 #: packages/admin/src/components/TaxonomyManager.tsx:1429
 msgid "Deleting \"{0}\" also deletes every term in it, in all languages, and removes those terms from the content filed under them. The entries themselves are kept. This cannot be undone."
@@ -4952,6 +5094,8 @@ msgstr "Αν διαγράψετε το «{0}», θα διαγραφούν επί
 #: packages/admin/src/components/ContentList.tsx:1853
 #: packages/admin/src/components/ContentTypeEditor.tsx:909
 #: packages/admin/src/components/ContentTypeList.tsx:267
+#: packages/admin/src/components/editorial/MarginComments.tsx:941
+#: packages/admin/src/components/editorial/MarginComments.tsx:958
 #: packages/admin/src/components/MediaDetailPanel.tsx:1808
 #: packages/admin/src/components/MediaDetailPanel.tsx:1911
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
@@ -5010,12 +5154,12 @@ msgid "Descending"
 msgstr "Φθίνουσα σειρά"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:66
+#: packages/admin/src/locales/server.ts:88
 msgid "visualEditing.altTextPlaceholder"
 msgstr "Περιγράψτε την εικόνα"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:523
-#: packages/admin/src/components/PortableTextEditor.tsx:4625
+#: packages/admin/src/components/PortableTextEditor.tsx:4705
 msgid "Describe the image"
 msgstr "Περιγράψτε την εικόνα"
 
@@ -5060,6 +5204,10 @@ msgstr "Διαδρομή προορισμού"
 #: packages/admin/src/components/PluginManager.tsx:636
 msgid "Destructive"
 msgstr "Καταστροφική ενέργεια"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:825
+msgid "Detached"
+msgstr ""
 
 #: packages/admin/src/components/MediaDetailPanel.tsx:1164
 #: packages/admin/src/components/MediaDetailPanel.tsx:1206
@@ -5173,6 +5321,7 @@ msgstr "Απόρριψη αλλαγών…"
 #: packages/admin/src/components/CoreUpdateBanner.tsx:76
 #: packages/admin/src/components/Dashboard.tsx:208
 #: packages/admin/src/components/editor/ImageUploadExtension.ts:117
+#: packages/admin/src/components/editorial/MarginComments.tsx:541
 #: packages/admin/src/components/settings/ApiTokenSettings.tsx:282
 msgid "Dismiss"
 msgstr "Κλείσιμο"
@@ -5186,15 +5335,15 @@ msgstr "Κλείσιμο ολοκληρωμένης μεταφόρτωσης γ�
 msgid "Dismiss import suggestion"
 msgstr "Αγνόηση πρότασης εισαγωγής"
 
-#: packages/admin/src/components/ContentEditor.tsx:3535
+#: packages/admin/src/components/ContentEditor.tsx:3737
 msgid "Dismiss save error"
 msgstr "Κλείσιμο μηνύματος σφάλματος αποθήκευσης"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3455
+#: packages/admin/src/components/PortableTextEditor.tsx:3488
 msgid "Dismiss section error"
 msgstr "Απορρίψτε σφάλμα τμήματος"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3422
+#: packages/admin/src/components/PortableTextEditor.tsx:3455
 msgid "Dismiss table paste error"
 msgstr "Απορρίψτε το σφάλμα επικόλλησης πίνακα"
 
@@ -5235,8 +5384,8 @@ msgstr "Εμφανίζεται κάτω από την εικόνα ως ορατ
 msgid "Distribute columns evenly"
 msgstr "Κατανομή των στηλών ομοιόμορφα"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:46
-#: packages/admin/src/components/PortableTextEditor.tsx:582
+#: packages/admin/src/components/editor/BlockMenu.tsx:49
+#: packages/admin/src/components/PortableTextEditor.tsx:588
 msgid "Divider"
 msgstr "Διαχωριστικό"
 
@@ -5358,7 +5507,7 @@ msgid "Downloading the package"
 msgstr "Λήψη του πακέτου"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:53
+#: packages/admin/src/locales/server.ts:75
 msgid "visualEditing.draft"
 msgstr "Πρόχειρο"
 
@@ -5402,7 +5551,7 @@ msgstr "Σύρετε και αποθέστε ή κάντε κλικ για να 
 msgid "Drag here to add"
 msgstr "Σύρετε εδώ για να προσθέσετε"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1809
+#: packages/admin/src/components/PortableTextEditor.tsx:1815
 msgid "Drag to reorder"
 msgstr "Μετακινήστε για να αλλάξετε τη σειρά"
 
@@ -5458,7 +5607,7 @@ msgid "Dropped {label}."
 msgstr "Το στοιχείο «{label}» τοποθετήθηκε."
 
 #: packages/admin/src/components/ContentList.tsx:1673
-#: packages/admin/src/components/editor/BlockMenu.tsx:201
+#: packages/admin/src/components/editor/BlockMenu.tsx:227
 #: packages/admin/src/components/RowMenuItems.tsx:68
 msgid "Duplicate"
 msgstr "Δημιουργία αντιγράφου"
@@ -5512,6 +5661,7 @@ msgstr "Πρώτη αποθηκευμένη έκδοση"
 #: packages/admin/src/components/ContentTypeList.tsx:382
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
+#: packages/admin/src/components/editorial/MarginComments.tsx:1056
 #: packages/admin/src/components/MenuCard.tsx:59
 #: packages/admin/src/components/MenuEditor.tsx:786
 #: packages/admin/src/components/Redirects.tsx:530
@@ -5529,7 +5679,7 @@ msgstr "Επεξεργασία"
 #. placeholder {0}: collection.label
 #. placeholder {0}: domain.domain
 #: packages/admin/src/components/ContentTypeList.tsx:379
-#: packages/admin/src/components/PortableTextEditor.tsx:1372
+#: packages/admin/src/components/PortableTextEditor.tsx:1378
 #: packages/admin/src/components/RelationFormPanel.tsx:128
 #: packages/admin/src/components/RelationList.tsx:183
 #: packages/admin/src/components/RelationsPanel.tsx:203
@@ -5547,12 +5697,12 @@ msgstr "Επεξεργαστείτε το {0}"
 msgid "Edit {0} field"
 msgstr "Επεξεργαστείτε το πεδίο {0}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2423
-#: packages/admin/src/components/ContentEditor.tsx:2431
+#: packages/admin/src/components/ContentEditor.tsx:2554
+#: packages/admin/src/components/ContentEditor.tsx:2562
 msgid "Edit {itemLabel}"
 msgstr "Επεξεργαστείτε το {itemLabel}"
 
-#: packages/admin/src/components/ContentEditor.tsx:2430
+#: packages/admin/src/components/ContentEditor.tsx:2561
 msgid "Edit {itemLabel}: {tabEntryTitle}"
 msgstr "Επεξεργαστείτε {itemLabel}: {tabEntryTitle}"
 
@@ -5583,16 +5733,20 @@ msgstr "Επεξεργασία πεδίου υπογραφής συντάκτη"
 
 #: packages/admin/src/components/editor/VideoNode.tsx:321
 #: packages/admin/src/components/editor/VideoNode.tsx:323
-#: packages/admin/src/components/PortableTextEditor.tsx:4719
+#: packages/admin/src/components/PortableTextEditor.tsx:4799
 msgid "Edit caption"
 msgstr "Επεξεργαστείτε την λεζάντα"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:1090
+msgid "Edit comment"
+msgstr ""
 
 #: packages/admin/src/router.tsx:1112
 msgid "Edit content"
 msgstr "Επεξεργαστείτε το περιεχόμενο"
 
-#: packages/admin/src/router.tsx:3831
-#: packages/admin/src/router.tsx:3850
+#: packages/admin/src/router.tsx:3833
+#: packages/admin/src/router.tsx:3852
 msgid "Edit content type"
 msgstr "Επεξεργαστείτε τον τύπο περιεχομένου"
 
@@ -5628,10 +5782,10 @@ msgstr "Επεξεργαστείτε εικόνα"
 msgid "Edit image {0}"
 msgstr "Επεξεργαστείτε την εικόνα {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3894
-#: packages/admin/src/components/PortableTextEditor.tsx:4003
-#: packages/admin/src/components/PortableTextEditor.tsx:4712
-#: packages/admin/src/components/PortableTextEditor.tsx:5160
+#: packages/admin/src/components/PortableTextEditor.tsx:3960
+#: packages/admin/src/components/PortableTextEditor.tsx:4083
+#: packages/admin/src/components/PortableTextEditor.tsx:4792
+#: packages/admin/src/components/PortableTextEditor.tsx:5240
 msgid "Edit link"
 msgstr "Επεξεργασία συνδέσμου"
 
@@ -5644,7 +5798,7 @@ msgid "Edit media alt text, captions, and focal points"
 msgstr "Επεξεργασία εναλλακτικού κειμένου, λεζάντας και σημείου εστίασης στα πολυμέσα"
 
 #: packages/admin/src/components/MenuEditor.tsx:186
-#: packages/admin/src/router.tsx:3531
+#: packages/admin/src/router.tsx:3533
 msgid "Edit menu"
 msgstr "Επεξεργασία μενού"
 
@@ -5657,7 +5811,7 @@ msgid "Edit menu items"
 msgstr "Επεξεργαστείτε τις επιλογές μενού"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:50
+#: packages/admin/src/locales/server.ts:72
 msgid "visualEditing.editMode"
 msgstr "Λειτουργία επεξεργασίας"
 
@@ -5675,7 +5829,7 @@ msgid "Edit role"
 msgstr "Επεξεργαστείτε τον ρόλο"
 
 #: packages/admin/src/components/SectionEditor.tsx:50
-#: packages/admin/src/router.tsx:3581
+#: packages/admin/src/router.tsx:3583
 msgid "Edit section"
 msgstr "Επεξεργαστείτε την ενότητα"
 
@@ -5749,7 +5903,7 @@ msgid "Editing on this site is paused until the import finishes."
 msgstr "Η επεξεργασία σε αυτόν τον ιστότοπο έχει διακοπεί μέχρι να ολοκληρωθεί η εισαγωγή."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:41
+#: packages/admin/src/locales/server.ts:63
 msgid "visualEditing.sessionExpired"
 msgstr "Η συνεδρία επεξεργασίας έληξε. Ανανεώστε τη σελίδα για να συνεχίσετε."
 
@@ -5792,7 +5946,7 @@ msgstr "em1.…"
 #: packages/admin/src/components/Settings.tsx:120
 #: packages/admin/src/components/SignupPage.tsx:220
 #: packages/admin/src/components/users/UserDetail.tsx:158
-#: packages/admin/src/router.tsx:3286
+#: packages/admin/src/router.tsx:3288
 msgid "Email"
 msgstr "Email"
 
@@ -5833,7 +5987,7 @@ msgstr "Ο πάροχος email είναι ενεργός"
 
 #: packages/admin/src/components/Settings.tsx:116
 #: packages/admin/src/components/settings/EmailSettings.tsx:181
-#: packages/admin/src/router.tsx:3285
+#: packages/admin/src/router.tsx:3287
 msgid "Email Settings"
 msgstr "Ρυθμίσεις email"
 
@@ -5853,17 +6007,17 @@ msgstr "Η διεύθυνση ηλεκτρονικού ταχυδρομείου 
 msgid "Email verified!"
 msgstr "Η διεύθυνση ηλεκτρονικού ταχυδρομείου επιβεβαιώθηκε!"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:49
+#: packages/admin/src/components/editor/BlockMenu.tsx:52
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:496
 msgid "Embed"
 msgstr "Ενσωμάτωση"
 
 #. placeholder {0}: block.label
-#: packages/admin/src/components/PortableTextEditor.tsx:2539
+#: packages/admin/src/components/PortableTextEditor.tsx:2562
 msgid "Embed a {0}"
 msgstr "Ενσωματώστε ένα {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:626
+#: packages/admin/src/components/PortableTextEditor.tsx:632
 msgid "Embed a page from another site"
 msgstr "Ενσωματώστε μια σελίδα από έναν άλλο ιστότοπο"
 
@@ -5875,7 +6029,7 @@ msgstr "Κώδικας ενσωμάτωσης"
 msgid "Embedded content"
 msgstr "Ενσωματωμένο περιεχόμενο"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:502
+#: packages/admin/src/components/PortableTextEditor.tsx:508
 msgid "Embeds"
 msgstr "Ενσωματώσεις"
 
@@ -5921,7 +6075,7 @@ msgstr "Το EmDash σαρώνει το υπάρχον περιεχόμενο."
 msgid "EmDash never receives your PIN, password, or biometric information."
 msgstr "Το EmDash δεν λαμβάνει ποτέ τον κωδικό πρόσβασής σας, τον κωδικό PIN ή πληροφορίες βιομετρικής αναγνώρισης."
 
-#: packages/admin/src/router.tsx:2602
+#: packages/admin/src/router.tsx:2603
 msgid "EmDash or this entry’s fields changed since you opened it."
 msgstr "Το EmDash ή κάποια πεδία αυτής της καταχώρισης έχουν τροποποιηθεί από την τελευταία φορά που την ανοίξατε."
 
@@ -6033,7 +6187,7 @@ msgstr "Εισαγάγετε το όνομα του φακέλου."
 msgid "Enter a full URL that starts with https:// or http://."
 msgstr "Πληκτρολογήστε ένα πλήρες URL που αρχίζει με https:// ή http://."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1205
+#: packages/admin/src/components/PortableTextEditor.tsx:1211
 msgid "Enter a full URL, such as https://example.com."
 msgstr "Πληκτρολογήστε ένα πλήρες URL, όπως https://example.com."
 
@@ -6060,15 +6214,15 @@ msgstr "Εισαγάγετε ένα μέγιστο όριο, το οποίο ν�
 msgid "Enter a name."
 msgstr "Εισαγάγετε ένα όνομα."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1190
+#: packages/admin/src/components/PortableTextEditor.tsx:1196
 msgid "Enter a number between {min} and {max}."
 msgstr "Εισαγάγετε έναν αριθμό μεταξύ {min} και {max}."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1192
+#: packages/admin/src/components/PortableTextEditor.tsx:1198
 msgid "Enter a number of {max} or less."
 msgstr "Εισαγάγετε έναν αριθμό μέχρι {max}."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1191
+#: packages/admin/src/components/PortableTextEditor.tsx:1197
 msgid "Enter a number of {min} or more."
 msgstr "Εισαγάγετε έναν αριθμό τουλάχιστον {min}."
 
@@ -6131,7 +6285,7 @@ msgid "Enter a valid time"
 msgstr "Εισαγάγετε μια έγκυρη ώρα"
 
 #: packages/admin/src/components/block-field-notes.tsx:51
-#: packages/admin/src/components/ContentEditor.tsx:4905
+#: packages/admin/src/components/ContentEditor.tsx:5112
 msgid "Enter a valid URL (e.g. https://example.com)"
 msgstr "Πληκτρολογήστε ένα έγκυρο URL (π.χ. https://example.com)"
 
@@ -6164,7 +6318,7 @@ msgstr "Εισαγάγετε τα στοιχεία σύνδεσης χειροκ
 msgid "Enter email"
 msgstr "Εισαγάγετε τη διεύθυνση ηλεκτρονικού ταχυδρομείου"
 
-#: packages/admin/src/components/ContentEditor.tsx:4056
+#: packages/admin/src/components/ContentEditor.tsx:4263
 msgid "Enter markdown content..."
 msgstr "Εισαγάγετε περιεχόμενο σε μορφή Markdown..."
 
@@ -6186,7 +6340,7 @@ msgstr "Πληκτρολογήστε παρακάτω τον τομέα. Πρι�
 
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:127
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:136
-#: packages/admin/src/components/PortableTextEditor.tsx:1416
+#: packages/admin/src/components/PortableTextEditor.tsx:1422
 msgid "Enter URL..."
 msgstr "Εισαγάγετε τη διεύθυνση URL..."
 
@@ -6229,7 +6383,7 @@ msgstr "καταχώριση από την οποία ξεκινά η σύνδε
 #: packages/admin/src/components/MenuEditor.tsx:358
 #: packages/admin/src/components/SetupWizard.tsx:603
 #: packages/admin/src/components/TaxonomyManager.tsx:1127
-#: packages/admin/src/router.tsx:4171
+#: packages/admin/src/router.tsx:4173
 msgid "Error"
 msgstr "Σφάλμα"
 
@@ -6249,7 +6403,7 @@ msgstr "Σφάλμα κατά την αποθήκευση του τμήματο�
 msgid "Error updating widget"
 msgstr "Δεν ήταν δυνατή η ενημέρωση της μικροεφαρμογής."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1126
+#: packages/admin/src/components/PortableTextEditor.tsx:1132
 msgid "esc"
 msgstr "esc"
 
@@ -6415,6 +6569,10 @@ msgstr "Δεν ήταν δυνατή η προσθήκη του κλειδιού
 msgid "Failed to add term to entries"
 msgstr "Δεν ήταν δυνατή η προσθήκη του όρου στις καταχωρίσεις."
 
+#: packages/admin/src/lib/api/editorial-threads.ts:121
+msgid "Failed to add the comment"
+msgstr ""
+
 #: packages/admin/src/lib/api/import.ts:386
 msgid "Failed to analyze file"
 msgstr "Δεν ήταν δυνατή η ανάλυση του αρχείου."
@@ -6565,7 +6723,7 @@ msgid "Failed to create term translation"
 msgstr "Δεν ήταν δυνατή η δημιουργία της μετάφρασης του όρου."
 
 #: packages/admin/src/components/TaxonomySidebar.tsx:874
-#: packages/admin/src/router.tsx:2136
+#: packages/admin/src/router.tsx:2137
 msgid "Failed to create translation"
 msgstr "Δεν ήταν δυνατή η δημιουργία της μετάφρασης."
 
@@ -6657,6 +6815,14 @@ msgstr "Δεν ήταν δυνατή η διαγραφή της ταξινομί
 msgid "Failed to delete term"
 msgstr "Δεν ήταν δυνατή η διαγραφή του όρου."
 
+#: packages/admin/src/lib/api/editorial-threads.ts:180
+msgid "Failed to delete the comment"
+msgstr ""
+
+#: packages/admin/src/lib/api/editorial-threads.ts:152
+msgid "Failed to delete the thread"
+msgstr ""
+
 #: packages/admin/src/lib/api/widgets.ts:146
 msgid "Failed to delete widget"
 msgstr "Δεν ήταν δυνατή η διαγραφή της μικροεφαρμογής."
@@ -6706,6 +6872,10 @@ msgstr "Δεν ήταν δυνατή η δημιουργία αντιγράφο�
 #: packages/admin/src/lib/api/content.ts:415
 msgid "Failed to duplicate content"
 msgstr "Δεν ήταν δυνατή η δημιουργία αντιγράφου του περιεχομένου."
+
+#: packages/admin/src/lib/api/editorial-threads.ts:166
+msgid "Failed to edit the comment"
+msgstr ""
 
 #: packages/admin/src/lib/api/settings.ts:114
 msgid "Failed to email users"
@@ -6965,7 +7135,7 @@ msgstr "Δεν ήταν δυνατή η ανάκτηση της κατάστασ
 #: packages/admin/src/lib/api/current-user.ts:30
 #: packages/admin/src/lib/api/users.ts:91
 #: packages/admin/src/lib/api/users.ts:96
-#: packages/admin/src/router.tsx:3066
+#: packages/admin/src/router.tsx:3068
 msgid "Failed to fetch user"
 msgstr "Δεν ήταν δυνατή η ανάκτηση του χρήστη."
 
@@ -6984,6 +7154,10 @@ msgstr "Δεν ήταν δυνατή η ανάκτηση των περιοχών
 #: packages/admin/src/lib/api/widgets.ts:168
 msgid "Failed to fetch widget components"
 msgstr "Δεν ήταν δυνατή η ανάκτηση των στοιχείων των μικροεφαρμογών."
+
+#: packages/admin/src/lib/api/editorial-threads.ts:111
+msgid "Failed to find people to mention"
+msgstr ""
 
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:263
 msgid "Failed to generate preview"
@@ -7060,6 +7234,10 @@ msgstr "Δεν ήταν δυνατή η φόρτωση των ρυθμίσεων
 msgid "Failed to load bylines: {0}"
 msgstr "Δεν ήταν δυνατή η φόρτωση των υπογραφών συντακτών: {0}"
 
+#: packages/admin/src/lib/api/editorial-threads.ts:95
+msgid "Failed to load comments"
+msgstr ""
+
 #: packages/admin/src/components/settings/EmailSettings.tsx:203
 #: packages/admin/src/components/settings/EmailSettings.tsx:204
 msgid "Failed to load email settings"
@@ -7095,7 +7273,7 @@ msgid "Failed to load imports"
 msgstr "Δεν ήταν δυνατή η φόρτωση των εισαγωγών."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:77
+#: packages/admin/src/locales/server.ts:99
 msgid "visualEditing.mediaLoadFailed"
 msgstr "Δεν ήταν δυνατή η φόρτωση των πολυμέσων."
 
@@ -7154,7 +7332,7 @@ msgid "Failed to lock the entry"
 msgstr "Δεν ήταν δυνατό το κλείδωμα της καταχώρισης."
 
 #: packages/admin/src/lib/api/comments.ts:131
-#: packages/admin/src/router.tsx:3155
+#: packages/admin/src/router.tsx:3157
 msgid "Failed to perform bulk action"
 msgstr "Δεν ήταν δυνατή η εκτέλεση της μαζικής ενέργειας."
 
@@ -7172,8 +7350,8 @@ msgid "Failed to probe URL"
 msgstr "Δεν ήταν δυνατή η δοκιμή της διεύθυνσης URL."
 
 #: packages/admin/src/router.tsx:800
-#: packages/admin/src/router.tsx:1994
-#: packages/admin/src/router.tsx:2346
+#: packages/admin/src/router.tsx:1995
+#: packages/admin/src/router.tsx:2347
 msgid "Failed to publish"
 msgstr "Δεν ήταν δυνατή η δημοσίευση."
 
@@ -7185,7 +7363,7 @@ msgstr "Δεν ήταν δυνατή η δημοσίευση του περιεχ
 msgid "Failed to read byline field usage"
 msgstr "Δεν ήταν δυνατός ο έλεγχος χρήσης του πεδίου υπογραφής συντάκτη."
 
-#: packages/admin/src/router.tsx:3690
+#: packages/admin/src/router.tsx:3692
 msgid "Failed to register {slug}"
 msgstr "Δεν ήταν δυνατή η καταχώριση του «{slug}»."
 
@@ -7240,6 +7418,10 @@ msgstr "Δεν ήταν δυνατή η αλλαγή σειράς των μικ�
 msgid "Failed to replace media image"
 msgstr "Δεν ήταν δυνατή η αντικατάσταση της εικόνας στη βιβλιοθήκη πολυμέσων."
 
+#: packages/admin/src/lib/api/editorial-threads.ts:133
+msgid "Failed to reply"
+msgstr ""
+
 #: packages/admin/src/router.tsx:754
 msgid "Failed to restore"
 msgstr "Δεν ήταν δυνατή η επαναφορά."
@@ -7262,11 +7444,11 @@ msgstr "Η ανάκληση του API token απέτυχε."
 msgid "Failed to rewrite URLs"
 msgstr "Δεν ήταν δυνατή η ενημέρωση των διευθύνσεων URL."
 
-#: packages/admin/src/components/ContentEditor.tsx:3275
-#: packages/admin/src/components/ContentEditor.tsx:3527
+#: packages/admin/src/components/ContentEditor.tsx:3477
+#: packages/admin/src/components/ContentEditor.tsx:3729
 #: packages/admin/src/router.tsx:996
-#: packages/admin/src/router.tsx:1812
-#: packages/admin/src/router.tsx:3884
+#: packages/admin/src/router.tsx:1813
+#: packages/admin/src/router.tsx:3886
 msgid "Failed to save"
 msgstr "Δεν ήταν δυνατή η αποθήκευση."
 
@@ -7342,8 +7524,8 @@ msgstr "Δεν ήταν δυνατή η έναρξη της εισαγωγής."
 msgid "Failed to uninstall plugin"
 msgstr "Δεν ήταν δυνατή η απεγκατάσταση του προσθέτου."
 
-#: packages/admin/src/router.tsx:2019
-#: packages/admin/src/router.tsx:2393
+#: packages/admin/src/router.tsx:2020
+#: packages/admin/src/router.tsx:2394
 msgid "Failed to unpublish"
 msgstr "Δεν ήταν δυνατή η απόσυρση της δημοσίευσης"
 
@@ -7351,8 +7533,8 @@ msgstr "Δεν ήταν δυνατή η απόσυρση της δημοσίευ
 msgid "Failed to unpublish content"
 msgstr "Δεν ήταν δυνατή η απόσυρση του δημοσιευμένου περιεχομένου"
 
-#: packages/admin/src/router.tsx:2106
-#: packages/admin/src/router.tsx:2487
+#: packages/admin/src/router.tsx:2107
+#: packages/admin/src/router.tsx:2488
 msgid "Failed to unschedule"
 msgstr "Δεν ήταν δυνατή η ακύρωση της προγραμματισμένης δημοσίευσης."
 
@@ -7392,6 +7574,10 @@ msgstr "Δεν ήταν δυνατή η ενημέρωση του πεδίου �
 #: packages/admin/src/lib/api/schema.ts:394
 msgid "Failed to update collection"
 msgstr "Δεν ήταν δυνατή η ενημέρωση της συλλογής."
+
+#: packages/admin/src/lib/api/editorial-threads.ts:191
+msgid "Failed to update comment positions"
+msgstr ""
 
 #: packages/admin/src/lib/api/comments.ts:104
 msgid "Failed to update comment status"
@@ -7451,13 +7637,17 @@ msgstr "Δεν ήταν δυνατή η ενημέρωση της ενότητα
 msgid "Failed to update settings"
 msgstr "Δεν ήταν δυνατή η ενημέρωση των ρυθμίσεων."
 
-#: packages/admin/src/router.tsx:3119
+#: packages/admin/src/router.tsx:3121
 msgid "Failed to update status"
 msgstr "Δεν ήταν δυνατή η ενημέρωση της κατάστασης."
 
 #: packages/admin/src/lib/api/taxonomies.ts:239
 msgid "Failed to update term"
 msgstr "Δεν ήταν δυνατή η ενημέρωση του όρου."
+
+#: packages/admin/src/lib/api/editorial-threads.ts:145
+msgid "Failed to update the thread"
+msgstr ""
 
 #: packages/admin/src/lib/api/users.ts:112
 msgid "Failed to update user"
@@ -7591,16 +7781,16 @@ msgstr "Το όνομα αρχείου δεν μπορεί να τροποποι
 msgid "Files upload as soon as you add them."
 msgstr "Τα αρχεία ανεβαίνουν αμέσως μόλις τα προσθέσετε."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2437
+#: packages/admin/src/components/PortableTextEditor.tsx:2460
 msgctxt "button style"
 msgid "Fill"
 msgstr "Γέμισμα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1208
+#: packages/admin/src/components/PortableTextEditor.tsx:1214
 msgid "Fill in at least one field."
 msgstr "Συμπληρώστε τουλάχιστον ένα πεδίο."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1375
+#: packages/admin/src/components/PortableTextEditor.tsx:1381
 msgid "Fill in what this block shows."
 msgstr "Εισαγάγετε τι εμφανίζει αυτό το μπλοκ."
 
@@ -7663,7 +7853,7 @@ msgstr "Φιλτράρισμα κατά τύπο υπογραφής συντάκ
 msgid "Filter: {activeCount} selected"
 msgstr "Φίλτρο: {activeCount} επιλεγμένα"
 
-#: packages/admin/src/router.tsx:1235
+#: packages/admin/src/router.tsx:1236
 msgid "Find it in this entry’s revisions."
 msgstr "Θα τη βρείτε στις αναθεωρήσεις αυτής της καταχώρισης."
 
@@ -7688,19 +7878,19 @@ msgstr "Πρώτη έκδοση"
 msgid "First-time commenters only"
 msgstr "Μόνο για όσους σχολιάζουν πρώτη φορά"
 
-#: packages/admin/src/components/ContentEditor.tsx:286
+#: packages/admin/src/components/ContentEditor.tsx:287
 msgid "Fix {field} in the {block} block to resume saving."
 msgstr "Διορθώστε το πεδίο «{field}» στο μπλοκ «{block}» για να συνεχιστεί η αποθήκευση."
 
-#: packages/admin/src/components/ContentEditor.tsx:2405
+#: packages/admin/src/components/ContentEditor.tsx:2536
 msgid "Fix invalid fields before changing the publication date"
 msgstr "Διορθώστε τα μη έγκυρα πεδία πριν τροποποιήσετε την ημερομηνία δημοσίευσης."
 
-#: packages/admin/src/components/ContentEditor.tsx:2328
+#: packages/admin/src/components/ContentEditor.tsx:2459
 msgid "Fix invalid fields before changing the schedule"
 msgstr "Διορθώστε τα μη έγκυρα πεδία πριν τροποποιήσετε το πρόγραμμα."
 
-#: packages/admin/src/components/ContentEditor.tsx:285
+#: packages/admin/src/components/ContentEditor.tsx:286
 msgid "Fix the {block} block to resume saving."
 msgstr "Διορθώστε το μπλοκ «{block}» για να συνεχιστεί η αποθήκευση."
 
@@ -7718,7 +7908,7 @@ msgid "Focal point. Use arrow keys to move it."
 msgstr "Σημείο εστίασης. Μετακινήστε το με τα πλήκτρα βέλους."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:1247
-#: packages/admin/src/router.tsx:2976
+#: packages/admin/src/router.tsx:2978
 msgid "Folder"
 msgstr "Φάκελος"
 
@@ -7726,7 +7916,7 @@ msgstr "Φάκελος"
 msgid "Folder deleted"
 msgstr "Ο φάκελος διαγράφηκε"
 
-#: packages/admin/src/router.tsx:2769
+#: packages/admin/src/router.tsx:2771
 msgid "Folder no longer exists"
 msgstr "Ο φάκελος δεν υπάρχει πλέον."
 
@@ -7770,7 +7960,7 @@ msgstr "Για μια πλήρη εισαγωγή, συμπεριλαμβανο�
 msgid "For the best import experience, install the <0>EmDash Exporter</0> plugin on your WordPress site."
 msgstr "Για την καλύτερη εμπειρία εισαγωγής, εγκαταστήστε το πρόσθετο <0>EmDash Exporter</0> στον ιστότοπό σας WordPress."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3846
+#: packages/admin/src/components/PortableTextEditor.tsx:3897
 msgid "Format selection"
 msgstr "Επιλογή μορφής"
 
@@ -7816,9 +8006,9 @@ msgstr "Πλήρης πρόσβαση"
 msgid "Full admin access"
 msgstr "Πλήρης πρόσβαση διαχείρισης"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:44
+#: packages/admin/src/components/editor/BlockMenu.tsx:47
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:235
-#: packages/admin/src/components/PortableTextEditor.tsx:2487
+#: packages/admin/src/components/PortableTextEditor.tsx:2510
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:437
 msgid "Gallery"
 msgstr "Συλλογή εικόνων"
@@ -7829,12 +8019,12 @@ msgid "Gallery settings"
 msgstr "Ρυθμίσεις συλλογής εικόνων"
 
 #: packages/admin/src/components/Settings.tsx:56
-#: packages/admin/src/router.tsx:3341
+#: packages/admin/src/router.tsx:3343
 msgid "General"
 msgstr "Γενικά"
 
 #: packages/admin/src/components/settings/GeneralSettings.tsx:307
-#: packages/admin/src/router.tsx:3340
+#: packages/admin/src/router.tsx:3342
 msgid "General Settings"
 msgstr "Γενικές ρυθμίσεις"
 
@@ -7866,7 +8056,7 @@ msgstr "Δώστε στο κλειδί πρόσβασης ένα όνομα ώσ
 msgid "Go"
 msgstr "Go"
 
-#: packages/admin/src/components/ContentEditor.tsx:2315
+#: packages/admin/src/components/ContentEditor.tsx:2446
 msgid "Go back to editing first."
 msgstr "Επιστρέψτε στην επεξεργασία."
 
@@ -7878,14 +8068,22 @@ msgstr "Να επιτρέπεται η ευρετηρίαση"
 msgid "Go live {countdown}"
 msgstr "Δημοσιεύονται {countdown}"
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:905
+msgid "Go to block"
+msgstr ""
+
 #: packages/admin/src/components/WordPressImport.tsx:2527
-#: packages/admin/src/router.tsx:4191
+#: packages/admin/src/router.tsx:4193
 msgid "Go to Dashboard"
 msgstr "Μετάβαση στον πίνακα ελέγχου"
 
 #: packages/admin/src/locales/emails.ts:74
 msgid "Go to sign-in"
 msgstr "Μετάβαση στη σελίδα σύνδεσης"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:905
+msgid "Go to text"
+msgstr ""
 
 #: packages/admin/src/components/BlocksField.tsx:1028
 msgid "Go to the next problem"
@@ -7976,37 +8174,37 @@ msgstr "Κεφαλίδες"
 
 #: packages/admin/src/components/editor/blockTypes.ts:85
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:33
-#: packages/admin/src/components/PortableTextEditor.tsx:537
+#: packages/admin/src/components/PortableTextEditor.tsx:543
 msgid "Heading 1"
 msgstr "Επικεφαλίδα 1"
 
 #: packages/admin/src/components/editor/blockTypes.ts:86
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:34
-#: packages/admin/src/components/PortableTextEditor.tsx:538
+#: packages/admin/src/components/PortableTextEditor.tsx:544
 msgid "Heading 2"
 msgstr "Επικεφαλίδα 2"
 
 #: packages/admin/src/components/editor/blockTypes.ts:87
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:35
-#: packages/admin/src/components/PortableTextEditor.tsx:539
+#: packages/admin/src/components/PortableTextEditor.tsx:545
 msgid "Heading 3"
 msgstr "Επικεφαλίδα 3"
 
 #: packages/admin/src/components/editor/blockTypes.ts:88
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:36
-#: packages/admin/src/components/PortableTextEditor.tsx:608
+#: packages/admin/src/components/PortableTextEditor.tsx:614
 msgid "Heading 4"
 msgstr "Επικεφαλίδα 4"
 
 #: packages/admin/src/components/editor/blockTypes.ts:89
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:37
-#: packages/admin/src/components/PortableTextEditor.tsx:609
+#: packages/admin/src/components/PortableTextEditor.tsx:615
 msgid "Heading 5"
 msgstr "Επικεφαλίδα 5"
 
 #: packages/admin/src/components/editor/blockTypes.ts:90
 #: packages/admin/src/components/editor/HeadingDropdownMenu.tsx:38
-#: packages/admin/src/components/PortableTextEditor.tsx:610
+#: packages/admin/src/components/PortableTextEditor.tsx:616
 msgid "Heading 6"
 msgstr "Επικεφαλίδα 6"
 
@@ -8037,6 +8235,11 @@ msgstr "Εξαίρεση από τις μηχανές αναζήτησης"
 msgid "Hidden from search engines until you go live"
 msgstr "Ο ιστότοπος παραμένει κρυφός από τις μηχανές αναζήτησης μέχρι να τον θέσετε σε λειτουργία"
 
+#: packages/admin/src/components/ContentEditor.tsx:3015
+#: packages/admin/src/components/ContentEditor.tsx:3016
+msgid "Hide comments"
+msgstr ""
+
 #: packages/admin/src/components/calendar/CalendarAgenda.tsx:119
 msgid "Hide earlier entries"
 msgstr "Απόκρυψη προηγούμενων καταχωρίσεων"
@@ -8050,7 +8253,11 @@ msgstr "Απόκρυψη από την πλοήγηση"
 msgid "Hide from search engines"
 msgstr "Απόκρυψη από μηχανές αναζήτησης"
 
-#: packages/admin/src/components/SettingsPanelToggle.tsx:211
+#: packages/admin/src/components/editorial/MarginComments.tsx:487
+msgid "Hide resolved"
+msgstr ""
+
+#: packages/admin/src/components/SettingsPanelToggle.tsx:222
 msgid "Hide settings"
 msgstr "Απόκρυψη ρυθμίσεων"
 
@@ -8060,7 +8267,7 @@ msgid "Hide token"
 msgstr "Απόκρυψη token"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:52
+#: packages/admin/src/locales/server.ts:74
 msgid "visualEditing.hideToolbar"
 msgstr "Απόκρυψη εργαλειοθήκης"
 
@@ -8081,7 +8288,7 @@ msgstr "Επισκέψεις"
 msgid "Hold an entry while someone is editing it, and refuse other writers"
 msgstr "Κλείδωμα της καταχώρισης όσο την επεξεργάζεται κάποιος, ώστε να μη γράφουν ταυτόχρονα άλλοι συντάκτες"
 
-#: packages/admin/src/components/ContentEditor.tsx:4289
+#: packages/admin/src/components/ContentEditor.tsx:4496
 msgid "Holds an entry ID. Set a target collection under Content Types to pick entries instead."
 msgstr "Δέχεται το αναγνωριστικό μιας καταχώρισης. Για να μπορείτε να επιλέγετε καταχωρίσεις από λίστα, ορίστε συλλογή προορισμού στους «Τύπους περιεχομένου»."
 
@@ -8097,7 +8304,7 @@ msgstr "Αρχική σελίδα"
 msgid "Hooks"
 msgstr "Συμβάντα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2418
+#: packages/admin/src/components/PortableTextEditor.tsx:2441
 msgid "Horizontal"
 msgstr "Οριζόντια"
 
@@ -8135,10 +8342,10 @@ msgstr "Πόσα"
 msgid "How to create an Application Password"
 msgstr "Πώς να δημιουργήσετε κωδικό εφαρμογής"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:47
+#: packages/admin/src/components/editor/BlockMenu.tsx:50
 #: packages/admin/src/components/editor/codeBlockLanguages.ts:38
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:51
-#: packages/admin/src/components/PortableTextEditor.tsx:615
+#: packages/admin/src/components/PortableTextEditor.tsx:621
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:502
 msgid "HTML"
 msgstr "HTML"
@@ -8217,8 +8424,8 @@ msgstr "Αν ο ιστότοπος δεν είναι ακόμη προσβάσι
 msgid "If you didn't request this, you can safely ignore this email."
 msgstr "Αν δεν ζητήσατε σύνδεσμο σύνδεσης, μπορείτε να αγνοήσετε αυτό το email."
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:48
-#: packages/admin/src/components/PortableTextEditor.tsx:625
+#: packages/admin/src/components/editor/BlockMenu.tsx:51
+#: packages/admin/src/components/PortableTextEditor.tsx:631
 msgid "Iframe"
 msgstr "Iframe"
 
@@ -8227,14 +8434,14 @@ msgid "Iframe block options"
 msgstr "Επιλογές για μπλοκ Iframe"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:63
+#: packages/admin/src/locales/server.ts:85
 msgid "visualEditing.image"
 msgstr "Εικόνα"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:42
+#: packages/admin/src/components/editor/BlockMenu.tsx:45
 #: packages/admin/src/components/FieldEditor.tsx:711
 #: packages/admin/src/components/FieldEditor.tsx:1708
-#: packages/admin/src/components/PortableTextEditor.tsx:2474
+#: packages/admin/src/components/PortableTextEditor.tsx:2497
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:302
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:458
 msgid "Image"
@@ -8256,7 +8463,7 @@ msgstr "Εικόνα {0}"
 msgid "Image actions"
 msgstr "Ενέργειες εικόνας"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4590
+#: packages/admin/src/components/PortableTextEditor.tsx:4670
 msgid "Image controls"
 msgstr "Έλεγχοι εικόνων"
 
@@ -8264,7 +8471,7 @@ msgstr "Έλεγχοι εικόνων"
 msgid "Image from media library"
 msgstr "Εικόνα από τη βιβλιοθήκη πολυμέσων"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5158
+#: packages/admin/src/components/PortableTextEditor.tsx:5238
 msgid "Image link"
 msgstr "Σύνδεσμος εικόνας"
 
@@ -8286,7 +8493,7 @@ msgid "Image replaced."
 msgstr "Εικόνα αντικαταστάθηκε."
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:392
-#: packages/admin/src/components/PortableTextEditor.tsx:4724
+#: packages/admin/src/components/PortableTextEditor.tsx:4804
 msgid "Image settings"
 msgstr "Ρυθμίσεις εικόνας"
 
@@ -8377,7 +8584,7 @@ msgid "Import failed"
 msgstr "Αποτυχία εισαγωγής"
 
 #: packages/admin/src/components/WordPressImport.tsx:746
-#: packages/admin/src/router.tsx:3516
+#: packages/admin/src/router.tsx:3518
 msgid "Import from WordPress"
 msgstr "Εισαγωγή από το WordPress"
 
@@ -8518,67 +8725,67 @@ msgstr "Εντός γραμμής"
 msgid "Inline blocks use your site's styles. Your site removes scripts, style tags and style attributes, and empties iframes other than YouTube and Vimeo."
 msgstr "Τα ενσωματωμένα μπλοκ χρησιμοποιούν τα στυλ του ιστοτόπου. Ο ιστότοπος αφαιρεί τα scripts, τις ετικέτες και τα γνωρίσματα στυλ. Αδειάζει επίσης το περιεχόμενο των iframe, εκτός από εκείνα του YouTube και του Vimeo."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3649
-#: packages/admin/src/components/PortableTextEditor.tsx:5227
+#: packages/admin/src/components/PortableTextEditor.tsx:3685
+#: packages/admin/src/components/PortableTextEditor.tsx:5307
 msgid "Inline Code"
 msgstr "Κώδικας εντός κειμένου"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1433
+#: packages/admin/src/components/PortableTextEditor.tsx:1439
 msgid "Insert"
 msgstr "Εισαγωγή"
 
 #. placeholder {0}: block?.label || ""
-#: packages/admin/src/components/PortableTextEditor.tsx:1372
+#: packages/admin/src/components/PortableTextEditor.tsx:1378
 msgid "Insert {0}"
 msgstr "Εισαγάγετε {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:563
+#: packages/admin/src/components/PortableTextEditor.tsx:569
 msgid "Insert a blockquote"
 msgstr "Εισαγωγή παραθέματος"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:573
+#: packages/admin/src/components/PortableTextEditor.tsx:579
 msgid "Insert a code block"
 msgstr "Εισαγάγετε ένα μπλοκ κώδικα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:583
+#: packages/admin/src/components/PortableTextEditor.tsx:589
 msgid "Insert a horizontal rule"
 msgstr "Προσθέστε μια οριζόντια γραμμή"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2518
+#: packages/admin/src/components/PortableTextEditor.tsx:2541
 msgid "Insert a reusable section"
 msgstr "Προσθέστε ένα επαναχρησιμοποιούμενο τμήμα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:601
+#: packages/admin/src/components/PortableTextEditor.tsx:607
 msgid "Insert a table"
 msgstr "Εισαγωγή πίνακα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2475
+#: packages/admin/src/components/PortableTextEditor.tsx:2498
 msgid "Insert an image"
 msgstr "Εισαγάγετε μια εικόνα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2488
+#: packages/admin/src/components/PortableTextEditor.tsx:2511
 msgid "Insert an image gallery"
 msgstr "Προσθέστε μια συλλογή εικόνων"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1022
+#: packages/admin/src/components/PortableTextEditor.tsx:1028
 msgid "Insert block"
 msgstr "Προσθέστε μπλοκ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5174
-#: packages/admin/src/components/PortableTextEditor.tsx:5184
+#: packages/admin/src/components/PortableTextEditor.tsx:5254
+#: packages/admin/src/components/PortableTextEditor.tsx:5264
 msgid "Insert block after current block"
 msgstr "Εισαγάγετε το μπλοκ μετά από το τρέχον μπλοκ."
 
-#: packages/admin/src/components/editor/DragHandleWrapper.tsx:267
+#: packages/admin/src/components/editor/DragHandleWrapper.tsx:270
 msgid "Insert block below"
 msgstr "Εισαγάγετε το μπλοκ παρακάτω"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5308
+#: packages/admin/src/components/PortableTextEditor.tsx:5388
 msgid "Insert HTML"
 msgstr "Εισαγάγετε HTML"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3555
-#: packages/admin/src/components/PortableTextEditor.tsx:5301
+#: packages/admin/src/components/PortableTextEditor.tsx:3591
+#: packages/admin/src/components/PortableTextEditor.tsx:5381
 msgid "Insert image"
 msgstr "Εισαγάγετε εικόνα"
 
@@ -8594,7 +8801,7 @@ msgstr "Εισαγάγετε παράγραφο μετά"
 msgid "Insert paragraph before"
 msgstr "Εισαγάγετε παράγραφο πριν"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:616
+#: packages/admin/src/components/PortableTextEditor.tsx:622
 msgid "Insert raw HTML"
 msgstr "Εισαγωγή ακατέργαστου HTML"
 
@@ -8607,7 +8814,7 @@ msgstr "Προσθέστε ενότητα"
 msgid "Insert table"
 msgstr "Δημιουργήστε πίνακα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3569
+#: packages/admin/src/components/PortableTextEditor.tsx:3605
 msgid "Insert video"
 msgstr "Εισαγάγετε βίντεο"
 
@@ -8669,7 +8876,7 @@ msgstr "ΜΗ ΕΓΚΥΡΟ ΟΝΟΜΑ ΧΡΗΣΤΗ"
 msgid "Invalid invite link"
 msgstr "Μη έγκυρος σύνδεσμος πρόσκλησης"
 
-#: packages/admin/src/components/ContentEditor.tsx:4998
+#: packages/admin/src/components/ContentEditor.tsx:5205
 msgid "Invalid JSON"
 msgstr "Μη έγκυρο JSON"
 
@@ -8727,7 +8934,11 @@ msgstr "Χρησιμοποιήστε μόνο τα ενεργοποιημένα 
 msgid "Isolated frame"
 msgstr "Απομονωμένο πλαίσιο"
 
-#: packages/admin/src/components/ContentEditor.tsx:2968
+#: packages/admin/src/components/editorial/useEditorialComments.ts:564
+msgid "It can once someone who may edit the entry saves it."
+msgstr ""
+
+#: packages/admin/src/components/ContentEditor.tsx:3118
 msgid "It has formatting this editor can’t keep."
 msgstr "Δεν μπορεί να διατηρήσει αυτή τη μορφοποίηση ο επεξεργαστής."
 
@@ -8739,18 +8950,18 @@ msgstr "Αποθηκεύεται από τον επαληθευτή ή τον δ
 msgid "It was started somewhere else, so its plan can no longer be changed. Its progress will appear here."
 msgstr "Ξεκίνησε κάπου αλλού, οπότε το σχέδιό του δεν μπορεί πλέον να τροποποιηθεί. Η πρόοδός του θα εμφανίζεται εδώ."
 
-#: packages/admin/src/router.tsx:2623
+#: packages/admin/src/router.tsx:2624
 msgid "It’s shown read-only. An entry in Trash can be restored from there."
 msgstr "Εμφανίζεται μόνο για ανάγνωση. Αν η καταχώριση βρίσκεται στον κάδο, μπορείτε να την επαναφέρετε από εκεί."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3646
-#: packages/admin/src/components/PortableTextEditor.tsx:5203
+#: packages/admin/src/components/PortableTextEditor.tsx:3682
+#: packages/admin/src/components/PortableTextEditor.tsx:5283
 msgid "Italic"
 msgstr "Πλάγια"
 
 #. placeholder {0}: index + 1
 #: packages/admin/src/components/BlockListField.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:1795
+#: packages/admin/src/components/PortableTextEditor.tsx:1801
 #: packages/admin/src/components/RepeaterField.tsx:268
 msgid "Item {0}"
 msgstr "Στοιχείο {0}"
@@ -8814,7 +9025,7 @@ msgstr "Συμμετοχή σε αυτή την καταχώριση"
 msgid "Joining..."
 msgstr "Συμμετοχή…"
 
-#: packages/admin/src/components/ContentEditor.tsx:3261
+#: packages/admin/src/components/ContentEditor.tsx:3463
 #: packages/admin/src/components/SaveButton.tsx:54
 msgid "Joining…"
 msgstr "Συμμετοχή…"
@@ -8929,7 +9140,7 @@ msgstr "Οριζόντιος προσανατολισμός"
 msgid "Language"
 msgstr "Γλώσσα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:537
+#: packages/admin/src/components/PortableTextEditor.tsx:543
 msgid "Large section heading"
 msgstr "Μεγάλη επικεφαλίδα ενότητας"
 
@@ -8980,7 +9191,7 @@ msgstr "Τελευταία χρήση: {0}"
 msgid "Later entries weren't loaded. The range has more entries than the calendar can show."
 msgstr "Δεν φορτώθηκαν οι επόμενες καταχωρίσεις. Το επιλεγμένο διάστημα περιλαμβάνει περισσότερες καταχωρίσεις από όσες μπορεί να εμφανίσει το ημερολόγιο."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2415
+#: packages/admin/src/components/PortableTextEditor.tsx:2438
 msgid "Layout"
 msgstr "Διάταξη"
 
@@ -9009,10 +9220,10 @@ msgstr "Χωρίς αντιστοίχιση"
 msgid "Leave without saving?"
 msgstr "Έξοδος χωρίς αποθήκευση;"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:53
+#: packages/admin/src/components/editor/BlockMenu.tsx:56
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:276
-#: packages/admin/src/components/PortableTextEditor.tsx:4161
-#: packages/admin/src/components/PortableTextEditor.tsx:4282
+#: packages/admin/src/components/PortableTextEditor.tsx:4241
+#: packages/admin/src/components/PortableTextEditor.tsx:4362
 msgid "Left"
 msgstr "Αριστερά"
 
@@ -9034,7 +9245,7 @@ msgid "Limit"
 msgstr "Όριο"
 
 #: packages/admin/src/components/BlocksField.tsx:2345
-#: packages/admin/src/components/PortableTextEditor.tsx:5387
+#: packages/admin/src/components/PortableTextEditor.tsx:5467
 msgid "Link"
 msgstr "Σύνδεσμος"
 
@@ -9042,7 +9253,7 @@ msgstr "Σύνδεσμος"
 msgid "Link expired"
 msgstr "Ο σύνδεσμος έχει λήξει."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3981
+#: packages/admin/src/components/PortableTextEditor.tsx:4061
 msgid "Link options"
 msgstr "Επιλογές σύνδεσης"
 
@@ -9130,7 +9341,7 @@ msgstr "Συνδέεται με"
 msgid "Links to {0}"
 msgstr "Σύνδεσμοι προς {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2250
+#: packages/admin/src/components/PortableTextEditor.tsx:2273
 msgid "List"
 msgstr "Λίστα"
 
@@ -9189,8 +9400,8 @@ msgid "Load preview"
 msgstr "Φορτώστε την προεπισκόπηση"
 
 #: packages/admin/src/components/calendar/CalendarToolbar.tsx:113
-#: packages/admin/src/components/ContentEditor.tsx:3011
-#: packages/admin/src/router.tsx:4146
+#: packages/admin/src/components/ContentEditor.tsx:3168
+#: packages/admin/src/router.tsx:4148
 msgid "Loading"
 msgstr "Φόρτωση"
 
@@ -9219,8 +9430,8 @@ msgstr "Φόρτωση συλλογών..."
 msgid "Loading comments..."
 msgstr "Φόρτωση σχολίων..."
 
-#: packages/admin/src/router.tsx:4148
-#: packages/admin/src/router.tsx:4160
+#: packages/admin/src/router.tsx:4150
+#: packages/admin/src/router.tsx:4162
 msgid "Loading configuration..."
 msgstr "Φόρτωση διαμόρφωσης..."
 
@@ -9228,7 +9439,7 @@ msgstr "Φόρτωση διαμόρφωσης..."
 msgid "Loading content..."
 msgstr "Φόρτωση περιεχομένου..."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3385
+#: packages/admin/src/components/PortableTextEditor.tsx:3418
 msgid "Loading editor..."
 msgstr "Φόρτωση επεξεργαστή..."
 
@@ -9278,7 +9489,7 @@ msgstr "Φόρτωση πρόσθετων..."
 msgid "Loading redirects..."
 msgstr "Φόρτωση ανακατευθύνσεων..."
 
-#: packages/admin/src/components/ContentEditor.tsx:4723
+#: packages/admin/src/components/ContentEditor.tsx:4930
 msgid "Loading references..."
 msgstr "Φόρτωση αναφορών..."
 
@@ -9331,7 +9542,7 @@ msgstr "Φόρτωση μικροεφαρμογών…"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1731
 #: packages/admin/src/components/MediaLibrary.tsx:1254
 #: packages/admin/src/components/MediaUsedIn.tsx:245
-#: packages/admin/src/components/PortableTextEditor.tsx:1925
+#: packages/admin/src/components/PortableTextEditor.tsx:1931
 #: packages/admin/src/components/Redirects.tsx:867
 #: packages/admin/src/components/RegistryBrowse.tsx:179
 #: packages/admin/src/components/SandboxedPluginPage.tsx:110
@@ -9351,7 +9562,7 @@ msgid "Loading..."
 msgstr "Φόρτωση…"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:75
+#: packages/admin/src/locales/server.ts:97
 msgid "visualEditing.loading"
 msgstr "Φόρτωση…"
 
@@ -9529,11 +9740,11 @@ msgstr "Markdown"
 msgid "Marketplace"
 msgstr "Κατάλογος προσθέτων"
 
-#: packages/admin/src/router.tsx:3504
+#: packages/admin/src/router.tsx:3506
 msgid "Marketplace browsing is no longer available."
 msgstr "Η περιήγηση στο κατάστημα δεν είναι πλέον διαθέσιμη."
 
-#: packages/admin/src/router.tsx:3477
+#: packages/admin/src/router.tsx:3479
 msgid "Marketplace browsing is no longer available. Manage installed plugins from Plugins."
 msgstr "Η περιήγηση στο κατάστημα δεν είναι πλέον διαθέσιμη. Διαχειριστείτε τα εγκατεστημένα πρόσθετα από την ενότητα \"Πρόσθετα\"."
 
@@ -9577,7 +9788,7 @@ msgstr "Μέγιστος αριθμός ετικετών"
 msgid "MDX"
 msgstr "MDX"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:500
+#: packages/admin/src/components/PortableTextEditor.tsx:506
 #: packages/admin/src/components/Settings.tsx:75
 #: packages/admin/src/components/settings/transfer/labels.ts:17
 #: packages/admin/src/components/settings/transfer/labels.ts:84
@@ -9585,7 +9796,7 @@ msgstr "MDX"
 #: packages/admin/src/components/WordPressImport.tsx:807
 #: packages/admin/src/components/WordPressImport.tsx:1214
 #: packages/admin/src/components/WordPressImport.tsx:1407
-#: packages/admin/src/router.tsx:2728
+#: packages/admin/src/router.tsx:2730
 msgid "Media"
 msgstr "Πολυμέσα"
 
@@ -9621,7 +9832,7 @@ msgid "Media in this folder will return to Main library. No files will be delete
 msgstr "Τα αρχεία πολυμέσων του φακέλου θα επιστρέψουν στην κύρια βιβλιοθήκη. Δεν θα διαγραφεί κανένα αρχείο."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:73
+#: packages/admin/src/locales/server.ts:95
 msgid "visualEditing.mediaLibrary"
 msgstr "Βιβλιοθήκη πολυμέσων"
 
@@ -9647,13 +9858,13 @@ msgstr "Ανάγνωση πολυμέσων"
 msgid "Media results"
 msgstr "Αποτελέσματα πολυμέσων"
 
-#: packages/admin/src/router.tsx:3223
+#: packages/admin/src/router.tsx:3225
 msgid "Media Usage"
 msgstr "Χρήση πολυμέσων"
 
 #: packages/admin/src/components/Settings.tsx:79
 #: packages/admin/src/components/settings/MediaUsageSettings.tsx:299
-#: packages/admin/src/router.tsx:3224
+#: packages/admin/src/router.tsx:3226
 msgid "Media usage tracking"
 msgstr "Παρακολούθηση χρήσης πολυμέσων"
 
@@ -9681,7 +9892,7 @@ msgstr "Η παρακολούθηση χρήσης πολυμέσων χρειά
 msgid "Media Write"
 msgstr "Εγγραφή πολυμέσων"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:538
+#: packages/admin/src/components/PortableTextEditor.tsx:544
 msgid "Medium section heading"
 msgstr "Επικεφαλίδα ενότητας μεσαίου μεγέθους"
 
@@ -9744,7 +9955,7 @@ msgstr "Το μενού έχει μετονομαστεί"
 #: packages/admin/src/components/settings/transfer/labels.ts:28
 #: packages/admin/src/components/Sidebar.tsx:522
 #: packages/admin/src/components/WordPressImport.tsx:1218
-#: packages/admin/src/router.tsx:3524
+#: packages/admin/src/router.tsx:3526
 msgid "Menus"
 msgstr "Μενού"
 
@@ -9803,7 +10014,7 @@ msgstr "Ελάχιστη τιμή"
 msgid "Minimum blocks"
 msgstr "Ελάχιστος αριθμός μπλοκ"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:609
+#: packages/admin/src/components/PortableTextEditor.tsx:615
 msgid "Minor section heading"
 msgstr "Μικρή επικεφαλίδα ενότητας"
 
@@ -9852,7 +10063,7 @@ msgstr "Αρχεία ανά μήνα/έτος"
 msgid "More actions for {0}"
 msgstr "Περισσότερες ενέργειες για το {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4128
+#: packages/admin/src/components/PortableTextEditor.tsx:4208
 msgid "More formatting"
 msgstr "Περισσότερες επιλογές μορφοποίησης"
 
@@ -9896,7 +10107,7 @@ msgstr "Να μεταφερθεί το «{title}» στον κάδο; Μπορε
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4690
+#: packages/admin/src/components/ContentEditor.tsx:4897
 #: packages/admin/src/components/FieldEditor.tsx:1527
 msgid "Move {0} down"
 msgstr "Μετακινήστε το {0} προς τα κάτω"
@@ -9913,12 +10124,12 @@ msgstr "Μετακινήστε το {0} αργότερα"
 
 #. placeholder {0}: blockType.label
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4679
+#: packages/admin/src/components/ContentEditor.tsx:4886
 #: packages/admin/src/components/FieldEditor.tsx:1508
 msgid "Move {0} up"
 msgstr "Μετακινήστε το {0} προς τα πάνω"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:212
+#: packages/admin/src/components/editor/BlockMenu.tsx:238
 #: packages/admin/src/components/MenuEditor.tsx:779
 #: packages/admin/src/components/RowMenuItems.tsx:83
 #: packages/admin/src/components/TaxonomyManager.tsx:429
@@ -9965,7 +10176,7 @@ msgstr "Μεταφορά στον κάδο"
 msgid "Move to Trash?"
 msgstr "Να μεταφερθεί στον κάδο;"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:206
+#: packages/admin/src/components/editor/BlockMenu.tsx:232
 #: packages/admin/src/components/MenuEditor.tsx:770
 #: packages/admin/src/components/RowMenuItems.tsx:76
 #: packages/admin/src/components/TaxonomyManager.tsx:421
@@ -10151,7 +10362,7 @@ msgstr "Απαιτεί προσοχή"
 msgid "Never"
 msgstr "Ποτέ"
 
-#: packages/admin/src/router.tsx:2131
+#: packages/admin/src/router.tsx:2132
 msgid "new"
 msgstr "νέο"
 
@@ -10159,8 +10370,8 @@ msgstr "νέο"
 msgid "NEW"
 msgstr "ΝΕΟ"
 
-#: packages/admin/src/components/ContentEditor.tsx:2423
-#: packages/admin/src/components/ContentEditor.tsx:2428
+#: packages/admin/src/components/ContentEditor.tsx:2554
+#: packages/admin/src/components/ContentEditor.tsx:2559
 msgid "New {itemLabel}"
 msgstr "Δημιουργία: {itemLabel}"
 
@@ -10186,7 +10397,7 @@ msgstr "Νέα συλλογή"
 msgid "New content"
 msgstr "Νέο περιεχόμενο"
 
-#: packages/admin/src/router.tsx:3733
+#: packages/admin/src/router.tsx:3735
 msgid "New content type"
 msgstr "Νέος τύπος περιεχομένου"
 
@@ -10412,7 +10623,7 @@ msgstr "Δεν υπάρχουν ακόμη τύποι περιεχομένου."
 msgid "No custom fields yet"
 msgstr "Δεν υπάρχουν ακόμη προσαρμοσμένα πεδία."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4686
+#: packages/admin/src/components/PortableTextEditor.tsx:4766
 msgid "No description yet"
 msgstr "Δεν υπάρχει περιγραφή ακόμη"
 
@@ -10487,12 +10698,12 @@ msgid "No iframe found in this code. For an embed that runs a script, use an HTM
 msgstr "Δεν βρέθηκε iframe σε αυτόν τον κώδικα. Για ενσωματωμένο περιεχόμενο που εκτελεί script, χρησιμοποιήστε μπλοκ HTML."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:64
+#: packages/admin/src/locales/server.ts:86
 msgid "visualEditing.noImageSelected"
 msgstr "Δεν έχει επιλεγεί εικόνα"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:76
+#: packages/admin/src/locales/server.ts:98
 msgid "visualEditing.noImagesFound"
 msgstr "Δεν βρέθηκαν εικόνες."
 
@@ -10509,7 +10720,7 @@ msgid "No invite token provided"
 msgstr "Από τον σύνδεσμο λείπει ο κωδικός πρόσκλησης."
 
 #: packages/admin/src/components/BlockListField.tsx:885
-#: packages/admin/src/components/PortableTextEditor.tsx:1718
+#: packages/admin/src/components/PortableTextEditor.tsx:1724
 #: packages/admin/src/components/RepeaterField.tsx:179
 #: packages/admin/src/components/settings/BackupSettings.tsx:298
 msgid "No items yet"
@@ -10600,6 +10811,11 @@ msgstr "Δεν υπάρχει ελάχιστη απαίτηση"
 msgid "No moderation (auto-approve all)"
 msgstr "Χωρίς έλεγχο (αυτόματη έγκριση όλων των σχολίων)"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:113
+msgid "visualEditing.noOpenComments"
+msgstr ""
+
 #: packages/admin/src/components/MenuEditor.tsx:482
 msgid "No parent (top level)"
 msgstr "Δεν υπάρχει γονικό στοιχείο (επάνω επίπεδο)."
@@ -10648,7 +10864,7 @@ msgstr "Δεν υπάρχουν ανακατευθύνσεις που ταιρι
 msgid "No redirects yet"
 msgstr "Δεν υπάρχουν ακόμη ανακατευθύνσεις."
 
-#: packages/admin/src/components/ContentEditor.tsx:4633
+#: packages/admin/src/components/ContentEditor.tsx:4840
 msgid "No references selected."
 msgstr "Δεν έχουν επιλεγεί αναφορές."
 
@@ -10660,7 +10876,7 @@ msgstr "Δεν υπάρχουν ακόμη σχέσεις."
 msgid "No relations yet."
 msgstr "Δεν υπάρχουν ακόμη σχέσεις."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1064
+#: packages/admin/src/components/PortableTextEditor.tsx:1070
 #: packages/admin/src/components/RepeaterField.tsx:434
 msgid "No results"
 msgstr "Δεν βρέθηκαν αποτελέσματα"
@@ -10734,7 +10950,7 @@ msgid "Non-guest"
 msgstr "Μη επισκέπτης"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:275
-#: packages/admin/src/components/PortableTextEditor.tsx:4281
+#: packages/admin/src/components/PortableTextEditor.tsx:4361
 msgid "None"
 msgstr "Κανένα"
 
@@ -10763,13 +10979,13 @@ msgstr "Δεν ταιριάζει"
 msgid "Not recorded in this version"
 msgstr "Δεν έχει καταχωριστεί σε αυτήν την έκδοση."
 
-#: packages/admin/src/components/ContentEditor.tsx:3265
+#: packages/admin/src/components/ContentEditor.tsx:3467
 #: packages/admin/src/components/SaveButton.tsx:56
 #: packages/admin/src/components/SaveButton.tsx:57
 msgid "Not saved"
 msgstr "Δεν έχει αποθηκευτεί"
 
-#: packages/admin/src/components/ContentEditor.tsx:3277
+#: packages/admin/src/components/ContentEditor.tsx:3479
 msgid "Not saved yet"
 msgstr "Δεν έχει αποθηκευτεί ακόμα"
 
@@ -10823,8 +11039,8 @@ msgid "Number of posts to show per page on list views"
 msgstr "Πλήθος άρθρων ανά σελίδα στις προβολές λίστας"
 
 #: packages/admin/src/components/editor/blockTypes.ts:101
-#: packages/admin/src/components/PortableTextEditor.tsx:552
-#: packages/admin/src/components/PortableTextEditor.tsx:5260
+#: packages/admin/src/components/PortableTextEditor.tsx:558
+#: packages/admin/src/components/PortableTextEditor.tsx:5340
 msgid "Numbered List"
 msgstr "Λίστα με αριθμούς"
 
@@ -10837,7 +11053,7 @@ msgstr "Η εξουσιοδότηση OAuth απαιτεί HTTPS. Παρακαλ
 msgid "Off"
 msgstr "Ανενεργό"
 
-#: packages/admin/src/components/ContentEditor.tsx:3263
+#: packages/admin/src/components/ContentEditor.tsx:3465
 #: packages/admin/src/components/SaveButton.tsx:55
 msgid "Offline"
 msgstr "Εκτός σύνδεσης"
@@ -10853,6 +11069,21 @@ msgstr "Παλαιότερη έκδοση"
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:425
 msgid "On"
 msgstr "Ενεργό"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:125
+msgid "visualEditing.onQuote"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:124
+msgid "visualEditing.onField"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:126
+msgid "visualEditing.onBlock"
+msgstr ""
 
 #: packages/admin/src/components/settings/ChangeDomainDialog.tsx:192
 msgid "On Cloudflare Workers, the check can fail because a Worker may be unable to reach its own domain. Open the new address in your browser and confirm it stays on that address and shows this site before choosing to use it anyway."
@@ -10909,7 +11140,7 @@ msgid "Open"
 msgstr "Άνοιγμα"
 
 #. placeholder {0}: referenceRowLabel(row)
-#: packages/admin/src/components/ContentEditor.tsx:4668
+#: packages/admin/src/components/ContentEditor.tsx:4875
 msgid "Open {0} in a new tab"
 msgstr "Ανοίξτε το {0} σε μια νέα καρτέλα"
 
@@ -10921,7 +11152,7 @@ msgid "Open folder {0}"
 msgstr "Άνοιγμα φακέλου {0}"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:51
+#: packages/admin/src/locales/server.ts:73
 msgid "visualEditing.openInAdmin"
 msgstr "Άνοιγμα στη διαχείριση"
 
@@ -11078,7 +11309,7 @@ msgstr "Οι αλλαγές που έχουν κάνει άλλοι χρήστε
 msgid "Outline"
 msgstr "Διάρθρωση εγγράφου"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2436
+#: packages/admin/src/components/PortableTextEditor.tsx:2459
 msgctxt "button style"
 msgid "Outline"
 msgstr "Περίγραμμα"
@@ -11118,11 +11349,11 @@ msgstr "Σύνοψη πακέτων"
 msgid "Package downloaded"
 msgstr "Η λήψη του πακέτου ολοκληρώθηκε"
 
-#: packages/admin/src/router.tsx:4058
+#: packages/admin/src/router.tsx:4060
 msgid "Page not found"
 msgstr "Η σελίδα δεν βρέθηκε."
 
-#: packages/admin/src/router.tsx:4186
+#: packages/admin/src/router.tsx:4188
 msgid "Page Not Found"
 msgstr "Η σελίδα δεν βρέθηκε."
 
@@ -11142,7 +11373,7 @@ msgid "Pages"
 msgstr "Σελίδες"
 
 #: packages/admin/src/components/editor/blockTypes.ts:80
-#: packages/admin/src/components/PortableTextEditor.tsx:530
+#: packages/admin/src/components/PortableTextEditor.tsx:536
 msgid "Paragraph"
 msgstr "Παράγραφος"
 
@@ -11261,7 +11492,7 @@ msgstr "Καταχωρίσεις με Προστασία Κωδικού Πρόσ
 msgid "Paste an embed code or an https link…"
 msgstr "Επικολλήστε έναν κώδικα ενσωμάτωσης ή έναν σύνδεσμο https…"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1375
+#: packages/admin/src/components/PortableTextEditor.tsx:1381
 msgid "Paste the address of what to embed."
 msgstr "Επικολλήστε τη διεύθυνση του περιεχομένου που θέλετε να ενσωματώσετε."
 
@@ -11328,6 +11559,10 @@ msgstr "Άνθρωποι σε αυτή την καταχώριση"
 #: packages/admin/src/components/BylineCreditsEditor.tsx:545
 msgid "People shown publicly on this post."
 msgstr "Άνθρωποι που εμφανίζονται δημόσια σε αυτό το άρθρο."
+
+#: packages/admin/src/components/editorial/mentions.tsx:308
+msgid "People to mention"
+msgstr ""
 
 #: packages/admin/src/components/ListPaginationFooter.tsx:128
 msgid "Per page"
@@ -11410,7 +11645,7 @@ msgid "Please enter a valid URL"
 msgstr "Παρακαλούμε, εισαγάγετε μια έγκυρη διεύθυνση URL."
 
 #: packages/admin/src/components/WordPressImport.tsx:1251
-#: packages/admin/src/router.tsx:4034
+#: packages/admin/src/router.tsx:4036
 msgid "Plugin"
 msgstr "Πρόσθετο"
 
@@ -11435,7 +11670,7 @@ msgstr "Αποτυχία εκτέλεσης πρόσθετου"
 msgid "Plugin actions"
 msgstr "Ενέργειες πρόσθετων"
 
-#: packages/admin/src/components/ContentEditor.tsx:203
+#: packages/admin/src/components/ContentEditor.tsx:204
 msgid "Plugin changes were not applied"
 msgstr "Οι αλλαγές στα πρόσθετα δεν εφαρμόστηκαν."
 
@@ -11448,8 +11683,8 @@ msgid "Plugin details"
 msgstr "Λεπτομέρειες πρόσθετου"
 
 #: packages/admin/src/components/RegistryPluginDetail.tsx:461
-#: packages/admin/src/router.tsx:3446
-#: packages/admin/src/router.tsx:3454
+#: packages/admin/src/router.tsx:3448
+#: packages/admin/src/router.tsx:3456
 msgid "Plugin Details"
 msgstr "Λεπτομέρειες πρόσθετου"
 
@@ -11474,7 +11709,7 @@ msgstr "Σφάλμα πρόσθετου ({0})"
 msgid "Plugin installation requires explicit consent"
 msgstr "Η εγκατάσταση πρόσθετου απαιτεί ρητή συγκατάθεση."
 
-#: packages/admin/src/router.tsx:3438
+#: packages/admin/src/router.tsx:3440
 msgid "Plugin Marketplace"
 msgstr "Κατάλογος προσθέτων"
 
@@ -11514,7 +11749,7 @@ msgid "Plugin Permissions"
 msgstr "Άδειες πρόσθετων"
 
 #: packages/admin/src/components/RegistryBrowse.tsx:104
-#: packages/admin/src/router.tsx:3395
+#: packages/admin/src/router.tsx:3397
 msgid "Plugin Registry"
 msgstr "Κατάλογος Προσθέτων"
 
@@ -11523,8 +11758,8 @@ msgstr "Κατάλογος Προσθέτων"
 msgid "Plugin registry configuration error"
 msgstr "Σφάλμα διαμόρφωσης καταλόγου πρόσθετων"
 
-#: packages/admin/src/router.tsx:3431
-#: packages/admin/src/router.tsx:3468
+#: packages/admin/src/router.tsx:3433
+#: packages/admin/src/router.tsx:3470
 msgid "Plugin registry is not configured."
 msgstr "Δεν έχει ρυθμιστεί ο κατάλογος προσθέτων."
 
@@ -11534,7 +11769,7 @@ msgid "Plugin responded with {0}: {text}"
 msgstr "Το πρόσθετο απάντησε με: {0}: {text}"
 
 #: packages/admin/src/components/PluginSettings.tsx:38
-#: packages/admin/src/router.tsx:4019
+#: packages/admin/src/router.tsx:4021
 msgid "Plugin Settings"
 msgstr "Ρυθμίσεις πρόσθετου"
 
@@ -11567,7 +11802,7 @@ msgstr "Σφάλμα στη μικροεφαρμογή του πρόσθετου
 #: packages/admin/src/components/PluginManager.tsx:200
 #: packages/admin/src/components/Sidebar.tsx:462
 #: packages/admin/src/components/Sidebar.tsx:588
-#: packages/admin/src/router.tsx:3380
+#: packages/admin/src/router.tsx:3382
 msgid "Plugins"
 msgstr "Πρόσθετα"
 
@@ -11683,7 +11918,7 @@ msgstr "Προεπισκόπηση πρόχειρου"
 msgid "Preview of {0}"
 msgstr "Προεπισκόπηση του {0}"
 
-#: packages/admin/src/router.tsx:1467
+#: packages/admin/src/router.tsx:1468
 msgid "Preview opens once your edits are saved"
 msgstr "Η προεπισκόπηση εμφανίζεται μόλις αποθηκεύσετε τις αλλαγές σας."
 
@@ -11767,7 +12002,7 @@ msgid "Publication date"
 msgstr "Ημερομηνία δημοσίευσης"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:39
+#: packages/admin/src/locales/server.ts:61
 msgid "visualEditing.publish"
 msgstr "Δημοσίευση"
 
@@ -11789,7 +12024,7 @@ msgid "Publish changes?"
 msgstr "Να δημοσιευτούν οι αλλαγές;"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:46
+#: packages/admin/src/locales/server.ts:68
 msgid "visualEditing.publishFailed"
 msgstr "Η δημοσίευση απέτυχε. Ελέγξτε τα δικαιώματά σας και προσπαθήστε ξανά."
 
@@ -11807,7 +12042,7 @@ msgid "Publish, unpublish, schedule, and unschedule content"
 msgstr "Δημοσίευση και απόσυρση περιεχομένου, προγραμματισμός και ακύρωση προγραμματισμένης δημοσίευσης"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:54
+#: packages/admin/src/locales/server.ts:76
 msgid "visualEditing.published"
 msgstr "Δημοσιευμένο"
 
@@ -11820,7 +12055,7 @@ msgstr "Δημοσιευμένο"
 #: packages/admin/src/components/Dashboard.tsx:527
 #: packages/admin/src/components/revisions/RevisionList.tsx:268
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:164
-#: packages/admin/src/router.tsx:1989
+#: packages/admin/src/router.tsx:1990
 msgid "Published"
 msgstr "Δημοσιευμένο"
 
@@ -11870,7 +12105,7 @@ msgid "Publishing summary"
 msgstr "Σύνοψη δημοσίευσης"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:40
+#: packages/admin/src/locales/server.ts:62
 msgid "visualEditing.publishing"
 msgstr "Δημοσίευση…"
 
@@ -11895,9 +12130,9 @@ msgid "Quick create names the relationship after this field and this collection,
 msgstr "Η γρήγορη δημιουργία δίνει στη σχέση όνομα με βάση το πεδίο και τη συλλογή. Η παραπάνω επιλογή καθορίζει πόσες καταχωρίσεις μπορεί να περιέχει. Δεν υπάρχει όριο στις καταχωρίσεις που συνδέονται προς την αντίστροφη κατεύθυνση. Για να ορίσετε το τμήμα URL, το όνομα κάθε πλευράς και τα δύο όρια, <0>δημιουργήστε εσείς τη σχέση</0> και επιλέξτε τη στο παραπάνω πεδίο."
 
 #: packages/admin/src/components/editor/blockTypes.ts:109
-#: packages/admin/src/components/PortableTextEditor.tsx:562
-#: packages/admin/src/components/PortableTextEditor.tsx:2251
-#: packages/admin/src/components/PortableTextEditor.tsx:5286
+#: packages/admin/src/components/PortableTextEditor.tsx:568
+#: packages/admin/src/components/PortableTextEditor.tsx:2274
+#: packages/admin/src/components/PortableTextEditor.tsx:5366
 msgid "Quote"
 msgstr "Παράθεμα"
 
@@ -11973,7 +12208,7 @@ msgid "Read your taxonomies and terms"
 msgstr "Ανάγνωση των ταξινομιών και των όρων σας"
 
 #: packages/admin/src/components/EntryLockNotice.tsx:96
-#: packages/admin/src/router.tsx:2585
+#: packages/admin/src/router.tsx:2586
 msgid "Read-only"
 msgstr "Μόνο για ανάγνωση"
 
@@ -12064,7 +12299,7 @@ msgstr "Μετάβαση στη σελίδα σύνδεσης…"
 #: packages/admin/src/components/settings/transfer/labels.ts:33
 #: packages/admin/src/components/settings/transfer/labels.ts:90
 #: packages/admin/src/components/Sidebar.tsx:529
-#: packages/admin/src/router.tsx:3566
+#: packages/admin/src/router.tsx:3568
 msgid "Redirects"
 msgstr "Ανακατευθύνσεις"
 
@@ -12072,7 +12307,7 @@ msgstr "Ανακατευθύνσεις"
 msgid "Redirects that loop will be imported turned off"
 msgstr "Οι ανακατευθύνσεις που δημιουργούν ατέρμονες κύκλους θα απενεργοποιηθούν."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5449
+#: packages/admin/src/components/PortableTextEditor.tsx:5529
 msgid "Redo"
 msgstr "Επανάληψη"
 
@@ -12095,7 +12330,7 @@ msgid "Referenced favicon unavailable."
 msgstr "Το επιλεγμένο εικονίδιο καρτέλας δεν είναι διαθέσιμο."
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:45
+#: packages/admin/src/locales/server.ts:67
 msgid "visualEditing.refreshPage"
 msgstr "Ανανεώστε τη σελίδα"
 
@@ -12135,7 +12370,7 @@ msgstr "Η εγγραφή ακυρώθηκε ή έληξε το χρονικό �
 #: packages/admin/src/components/PluginManager.tsx:218
 #: packages/admin/src/components/PluginManager.tsx:463
 #: packages/admin/src/components/Sidebar.tsx:597
-#: packages/admin/src/router.tsx:3395
+#: packages/admin/src/router.tsx:3397
 msgid "Registry"
 msgstr "Μητρώο"
 
@@ -12144,7 +12379,7 @@ msgstr "Μητρώο"
 #: packages/admin/src/components/RelationsPanel.tsx:65
 #: packages/admin/src/components/settings/transfer/labels.ts:14
 #: packages/admin/src/components/settings/transfer/labels.ts:77
-#: packages/admin/src/router.tsx:3769
+#: packages/admin/src/router.tsx:3771
 msgid "Relations"
 msgstr "Σχέσεις"
 
@@ -12168,7 +12403,7 @@ msgid "Release notes"
 msgstr "Σημειώσεις έκδοσης"
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:109
-#: packages/admin/src/router.tsx:2610
+#: packages/admin/src/router.tsx:2611
 msgid "Reload"
 msgstr "Επαναφόρτωση"
 
@@ -12180,7 +12415,7 @@ msgstr "Επαναφορτώστε μετά την ενημέρωση του EmD
 msgid "Reload page"
 msgstr "Ανανεώστε τη σελίδα"
 
-#: packages/admin/src/router.tsx:2601
+#: packages/admin/src/router.tsx:2602
 msgid "Reloading the admin"
 msgstr "Επανεκκίνηση του πίνακα ελέγχου"
 
@@ -12189,13 +12424,13 @@ msgid "Reloading the plan…"
 msgstr "Ανανέωση του σχεδίου…"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:72
+#: packages/admin/src/locales/server.ts:94
 msgid "visualEditing.removeImage"
 msgstr "Αφαίρεση"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:109
-#: packages/admin/src/components/ContentEditor.tsx:5191
-#: packages/admin/src/components/ContentEditor.tsx:5257
+#: packages/admin/src/components/ContentEditor.tsx:5398
+#: packages/admin/src/components/ContentEditor.tsx:5464
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:473
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:359
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:823
@@ -12204,7 +12439,7 @@ msgstr "Αφαίρεση"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:605
 #: packages/admin/src/components/ImageFieldRenderer.tsx:846
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:224
-#: packages/admin/src/components/PortableTextEditor.tsx:5422
+#: packages/admin/src/components/PortableTextEditor.tsx:5502
 #: packages/admin/src/components/settings/GeneralSettings.tsx:478
 #: packages/admin/src/components/settings/GeneralSettings.tsx:538
 #: packages/admin/src/components/settings/PasskeyItem.tsx:160
@@ -12216,7 +12451,7 @@ msgstr "Αφαίρεση"
 #. placeholder {0}: job.file.name
 #. placeholder {0}: option.term.label
 #. placeholder {0}: passkey.name
-#: packages/admin/src/components/ContentEditor.tsx:4703
+#: packages/admin/src/components/ContentEditor.tsx:4910
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:223
 #: packages/admin/src/components/MediaUploadDialog.tsx:147
 #: packages/admin/src/components/settings/PasskeyItem.tsx:161
@@ -12234,8 +12469,8 @@ msgid "Remove {entry}"
 msgstr "Αφαίρεση καταχώρισης {entry}"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:107
-#: packages/admin/src/components/ContentEditor.tsx:5189
-#: packages/admin/src/components/ContentEditor.tsx:5255
+#: packages/admin/src/components/ContentEditor.tsx:5396
+#: packages/admin/src/components/ContentEditor.tsx:5462
 #: packages/admin/src/components/ImageFieldRenderer.tsx:833
 #: packages/admin/src/components/SeoImageField.tsx:206
 #: packages/admin/src/components/SeoImageField.tsx:207
@@ -12279,14 +12514,14 @@ msgid "Remove image?"
 msgstr "Αφαίρεση εικόνας;"
 
 #. placeholder {0}: index + 1
-#: packages/admin/src/components/PortableTextEditor.tsx:1834
+#: packages/admin/src/components/PortableTextEditor.tsx:1840
 #: packages/admin/src/components/RepeaterField.tsx:304
 msgid "Remove item {0}"
 msgstr "Διαγράψτε το στοιχείο {0}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3872
-#: packages/admin/src/components/PortableTextEditor.tsx:4015
-#: packages/admin/src/components/PortableTextEditor.tsx:4658
+#: packages/admin/src/components/PortableTextEditor.tsx:3938
+#: packages/admin/src/components/PortableTextEditor.tsx:4095
+#: packages/admin/src/components/PortableTextEditor.tsx:4738
 msgid "Remove link"
 msgstr "Αφαίρεση συνδέσμου"
 
@@ -12426,6 +12661,11 @@ msgstr "Μετονομασία κλειδιού πρόσβασης"
 msgid "Rename this folder, or delete it."
 msgstr "Μετονομάστε αυτόν τον φάκελο, ή διαγράψτε τον."
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:847
+#: packages/admin/src/components/editorial/MarginComments.tsx:848
+msgid "Reopen"
+msgstr ""
+
 #: packages/admin/src/components/ContentTypeList.tsx:213
 msgid "Reorder"
 msgstr "Αλλαγή σειράς"
@@ -12452,15 +12692,15 @@ msgid "Repeating group of fields"
 msgstr "Επαναλαμβανόμενο σύνολο πεδίων"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:70
+#: packages/admin/src/locales/server.ts:92
 msgid "visualEditing.replaceImage"
 msgstr "Αντικατάσταση"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:99
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:198
-#: packages/admin/src/components/ContentEditor.tsx:5146
-#: packages/admin/src/components/ContentEditor.tsx:5181
-#: packages/admin/src/components/ContentEditor.tsx:5247
+#: packages/admin/src/components/ContentEditor.tsx:5353
+#: packages/admin/src/components/ContentEditor.tsx:5388
+#: packages/admin/src/components/ContentEditor.tsx:5454
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:449
 #: packages/admin/src/components/editor/GalleryDetailPanel.tsx:506
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:299
@@ -12473,8 +12713,8 @@ msgstr "Αντικατάσταση"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:739
 #: packages/admin/src/components/ImageFieldRenderer.tsx:742
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
-#: packages/admin/src/components/PortableTextEditor.tsx:4680
-#: packages/admin/src/components/PortableTextEditor.tsx:4762
+#: packages/admin/src/components/PortableTextEditor.tsx:4760
+#: packages/admin/src/components/PortableTextEditor.tsx:4842
 #: packages/admin/src/components/SeoImageField.tsx:194
 #: packages/admin/src/components/SeoImageField.tsx:253
 msgid "Replace"
@@ -12482,7 +12722,7 @@ msgstr "Αντικατάσταση"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:97
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:5145
+#: packages/admin/src/components/ContentEditor.tsx:5352
 #: packages/admin/src/components/ImageFieldRenderer.tsx:733
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:191
@@ -12502,7 +12742,7 @@ msgstr "Αντικατάσταση εικόνας για το σκοτεινό �
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:373
 #: packages/admin/src/components/MediaDetailPanel.tsx:1819
 #: packages/admin/src/components/MediaDetailPanel.tsx:1942
-#: packages/admin/src/components/PortableTextEditor.tsx:4761
+#: packages/admin/src/components/PortableTextEditor.tsx:4841
 msgid "Replace image"
 msgstr "Αντικαταστήστε εικόνα"
 
@@ -12520,7 +12760,7 @@ msgstr "Αντικαταστήστε την αρχική εικόνα;"
 msgid "Replace original is available with the Original aspect ratio."
 msgstr "Η επιλογή «Αντικατάσταση πρωτοτύπου» είναι διαθέσιμη όταν επιλέξετε την αρχική αναλογία διαστάσεων."
 
-#: packages/admin/src/components/ContentEditor.tsx:4738
+#: packages/admin/src/components/ContentEditor.tsx:4945
 msgid "Replace reference"
 msgstr "Αντικατάσταση αναφοράς"
 
@@ -12552,6 +12792,21 @@ msgstr "Αντικατάσταση εικόνας..."
 #: packages/admin/src/components/MediaDetailPanel.tsx:1992
 msgid "Replacing original..."
 msgstr "Αντικατάσταση αρχικού..."
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:117
+msgid "visualEditing.reply"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:916
+#: packages/admin/src/components/editorial/MarginComments.tsx:917
+#: packages/admin/src/components/editorial/MarginComments.tsx:918
+msgid "Reply"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:917
+msgid "Reply to reopen"
+msgstr ""
 
 #: packages/admin/src/components/comments/CommentDetail.tsx:120
 msgid "Reply to:"
@@ -12679,20 +12934,34 @@ msgstr "Αλλάξτε το μέγεθος της κομμένης περιοχ�
 msgid "Resize crop from top-right corner. Use the Arrow keys to resize."
 msgstr "Αλλάξτε το μέγεθος της κομμένης περιοχής από την επάνω δεξιά γωνία. Χρησιμοποιήστε τα πλήκτρα βέλους για να αλλάξετε το μέγεθος."
 
-#: packages/admin/src/components/ContentEditor.tsx:3355
+#: packages/admin/src/components/ContentEditor.tsx:3557
 msgid "Resize settings panel"
 msgstr "Αλλαγή μεγέθους του πλαισίου ρυθμίσεων"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:118
+msgid "visualEditing.resolve"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:847
+#: packages/admin/src/components/editorial/MarginComments.tsx:848
+msgid "Resolve"
+msgstr ""
 
 #: packages/admin/src/components/settings/transfer/ImportReview.tsx:492
 msgid "Resolve the blockers to continue."
 msgstr "Λύστε τα προβλήματα για να συνεχίσετε."
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:826
+msgid "Resolved"
+msgstr ""
+
 #: packages/admin/src/components/RegistryPluginIdentity.tsx:100
 msgid "Resolving publisher handle..."
 msgstr "Αναζήτηση του ονόματος χρήστη του εκδότη…"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:193
-#: packages/admin/src/components/PortableTextEditor.tsx:5276
+#: packages/admin/src/components/editor/BlockMenu.tsx:209
+#: packages/admin/src/components/PortableTextEditor.tsx:5356
 msgid "Restart numbering"
 msgstr "Επανεκκινήστε την αρίθμηση"
 
@@ -12736,7 +13005,7 @@ msgid "Retired"
 msgstr "Αποσύρθηκε"
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
-#: packages/admin/src/components/ContentEditor.tsx:4717
+#: packages/admin/src/components/ContentEditor.tsx:4924
 #: packages/admin/src/components/ContentPickerModal.tsx:282
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
@@ -12753,7 +13022,7 @@ msgstr "Αποσύρθηκε"
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:92
 #: packages/admin/src/components/ThemeMarketplaceBrowse.tsx:122
 #: packages/admin/src/lib/content-editor-panels.tsx:319
-#: packages/admin/src/router.tsx:4174
+#: packages/admin/src/router.tsx:4176
 #: packages/admin/src/routes/byline-schema.tsx:264
 #: packages/admin/src/routes/calendar.tsx:319
 msgid "Retry"
@@ -12804,7 +13073,7 @@ msgstr "Νέα προσπάθεια…"
 msgid "Reusable content blocks you can insert into any content"
 msgstr "Επαναχρησιμοποιούμενα μπλοκ περιεχομένου που μπορείτε να εισαγάγετε σε οποιοδήποτε περιεχόμενο."
 
-#: packages/admin/src/router.tsx:2039
+#: packages/admin/src/router.tsx:2040
 msgid "Reverted to published version"
 msgstr "Έγινε επαναφορά στη δημοσιευμένη έκδοση"
 
@@ -12894,14 +13163,14 @@ msgid "Rich text content"
 msgstr "Περιεχόμενο με μορφοποίηση"
 
 #: packages/admin/src/components/FieldEditor.tsx:706
-#: packages/admin/src/components/PortableTextEditor.tsx:2737
+#: packages/admin/src/components/PortableTextEditor.tsx:2761
 msgid "Rich text editor"
 msgstr "Επεξεργαστής πλούσιου κειμένου"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:55
+#: packages/admin/src/components/editor/BlockMenu.tsx:58
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:278
-#: packages/admin/src/components/PortableTextEditor.tsx:4163
-#: packages/admin/src/components/PortableTextEditor.tsx:4284
+#: packages/admin/src/components/PortableTextEditor.tsx:4243
+#: packages/admin/src/components/PortableTextEditor.tsx:4364
 msgid "Right"
 msgstr "Δεξιά"
 
@@ -12956,7 +13225,7 @@ msgid "Row added above"
 msgstr "Προστέθηκε γραμμή από πάνω"
 
 #: packages/admin/src/components/editor/TableControls.tsx:25
-#: packages/admin/src/components/PortableTextEditor.tsx:4261
+#: packages/admin/src/components/PortableTextEditor.tsx:4341
 msgid "Row added below"
 msgstr "Προστέθηκε γραμμή από κάτω"
 
@@ -13000,11 +13269,12 @@ msgstr "Παράδειγμα περιεχομένου"
 #: packages/admin/src/components/BylineFormDialog.tsx:558
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:830
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:432
+#: packages/admin/src/components/editorial/MarginComments.tsx:1092
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
 #: packages/admin/src/components/MenuEditor.tsx:897
-#: packages/admin/src/components/PortableTextEditor.tsx:1433
+#: packages/admin/src/components/PortableTextEditor.tsx:1439
 #: packages/admin/src/components/Redirects.tsx:313
 #: packages/admin/src/components/SaveButton.tsx:51
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:426
@@ -13016,11 +13286,11 @@ msgstr "Αποθήκευση"
 msgid "Save (Enter)"
 msgstr "Αποθήκευση (Enter)"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4639
+#: packages/admin/src/components/PortableTextEditor.tsx:4719
 msgid "Save alt text"
 msgstr "Αποθηκεύστε την εναλλακτική περιγραφή"
 
-#: packages/admin/src/components/ContentEditor.tsx:2995
+#: packages/admin/src/components/ContentEditor.tsx:3152
 msgid "Save anyway"
 msgstr "Αποθήκευση παρ’ όλα αυτά"
 
@@ -13045,13 +13315,13 @@ msgstr "Αποθηκεύστε το περιεχόμενο ως πρόχειρο
 msgid "Save date"
 msgstr "Αποθήκευση ημερομηνίας"
 
-#: packages/admin/src/components/ContentEditor.tsx:3165
+#: packages/admin/src/components/ContentEditor.tsx:3367
 #: packages/admin/src/components/ContentSettingsPanel.tsx:749
 msgid "Save draft"
 msgstr "Αποθηκεύστε το πρόχειρο"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:62
+#: packages/admin/src/locales/server.ts:84
 msgid "visualEditing.saveFailed"
 msgstr "Αποτυχία αποθήκευσης"
 
@@ -13082,12 +13352,12 @@ msgid "Save Settings"
 msgstr "Αποθηκεύστε τις ρυθμίσεις"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:61
+#: packages/admin/src/locales/server.ts:83
 msgid "visualEditing.saved"
 msgstr "Αποθηκεύτηκε"
 
-#: packages/admin/src/components/ContentEditor.tsx:3271
-#: packages/admin/src/components/ContentEditor.tsx:3280
+#: packages/admin/src/components/ContentEditor.tsx:3473
+#: packages/admin/src/components/ContentEditor.tsx:3482
 #: packages/admin/src/components/SaveButton.tsx:53
 msgid "Saved"
 msgstr "Αποθηκεύτηκε"
@@ -13110,8 +13380,8 @@ msgid "Saving creates a draft that stays off the site. You can publish it after 
 msgstr "Η αποθήκευση δημιουργεί ένα πρόχειρο που δεν εμφανίζεται στον ιστότοπο. Μπορείτε να το δημοσιεύσετε μετά την πρώτη αποθήκευση."
 
 #: packages/admin/src/components/BylineFormDialog.tsx:558
-#: packages/admin/src/components/ContentEditor.tsx:3268
-#: packages/admin/src/components/ContentEditor.tsx:3273
+#: packages/admin/src/components/ContentEditor.tsx:3470
+#: packages/admin/src/components/ContentEditor.tsx:3475
 #: packages/admin/src/components/FieldEditor.tsx:1832
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
@@ -13131,7 +13401,7 @@ msgid "Saving..."
 msgstr "Αποθήκευση…"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:60
+#: packages/admin/src/locales/server.ts:82
 msgid "visualEditing.saving"
 msgstr "Αποθήκευση…"
 
@@ -13178,7 +13448,7 @@ msgstr "Η προγραμματισμένη ημερομηνία έχει δια
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:420
 #: packages/admin/src/components/ContentList.tsx:1074
 #: packages/admin/src/components/ContentStatusBadge.tsx:63
-#: packages/admin/src/router.tsx:2087
+#: packages/admin/src/router.tsx:2088
 msgid "Scheduled"
 msgstr "Προγραμματισμένο"
 
@@ -13469,7 +13739,7 @@ msgstr "Αναζητήσιμο"
 msgid "Searching…"
 msgstr "Αναζήτηση…"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2517
+#: packages/admin/src/components/PortableTextEditor.tsx:2540
 msgid "Section"
 msgstr "Ενότητα"
 
@@ -13502,7 +13772,7 @@ msgstr "Τίτλος ενότητας"
 #: packages/admin/src/components/settings/transfer/labels.ts:32
 #: packages/admin/src/components/settings/transfer/labels.ts:93
 #: packages/admin/src/components/Sidebar.tsx:543
-#: packages/admin/src/router.tsx:3573
+#: packages/admin/src/router.tsx:3575
 msgid "Sections"
 msgstr "Ενότητες"
 
@@ -13518,7 +13788,7 @@ msgstr "Ασφαλίστε τον λογαριασμό σας"
 #: packages/admin/src/components/Settings.tsx:90
 #: packages/admin/src/components/settings/EmailSettings.tsx:261
 #: packages/admin/src/components/settings/EmailSettings.tsx:350
-#: packages/admin/src/router.tsx:3235
+#: packages/admin/src/router.tsx:3237
 msgid "Security"
 msgstr "Ασφάλεια"
 
@@ -13560,7 +13830,7 @@ msgstr "Σφάλμα ασφαλείας. Βεβαιωθείτε ότι χρησ�
 #: packages/admin/src/components/Settings.tsx:86
 #: packages/admin/src/components/settings/SecuritySettings.tsx:93
 #: packages/admin/src/components/settings/SecuritySettings.tsx:115
-#: packages/admin/src/router.tsx:3234
+#: packages/admin/src/router.tsx:3236
 msgid "Security Settings"
 msgstr "Ρυθμίσεις ασφαλείας"
 
@@ -13581,9 +13851,9 @@ msgid "Select"
 msgstr "Λίστα επιλογών"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
-#: packages/admin/src/components/ContentEditor.tsx:5145
-#: packages/admin/src/components/ContentEditor.tsx:5206
-#: packages/admin/src/components/ContentEditor.tsx:5267
+#: packages/admin/src/components/ContentEditor.tsx:5352
+#: packages/admin/src/components/ContentEditor.tsx:5413
+#: packages/admin/src/components/ContentEditor.tsx:5474
 #: packages/admin/src/components/ImageFieldRenderer.tsx:734
 #: packages/admin/src/components/ImageFieldRenderer.tsx:796
 #: packages/admin/src/components/SeoImageField.tsx:252
@@ -13632,7 +13902,7 @@ msgstr "Επιλέξτε όλα τα στοιχεία σε αυτή τη σελ�
 msgid "Select and configure the provider that delivers all outgoing email."
 msgstr "Επιλέξτε και ρυθμίστε τον πάροχο για όλα τα εξερχόμενα email."
 
-#: packages/admin/src/components/ContentEditor.tsx:4741
+#: packages/admin/src/components/ContentEditor.tsx:4948
 msgid "Select at least one entry."
 msgstr "Επιλέξτε τουλάχιστον μία καταχώριση."
 
@@ -13665,13 +13935,13 @@ msgstr "Επιλογή εικονιδίου καρτέλας"
 msgid "Select Favicon"
 msgstr "Επιλογή εικονιδίου καρτέλας"
 
-#: packages/admin/src/components/ContentEditor.tsx:5208
-#: packages/admin/src/components/ContentEditor.tsx:5273
+#: packages/admin/src/components/ContentEditor.tsx:5415
+#: packages/admin/src/components/ContentEditor.tsx:5480
 #: packages/admin/src/components/MediaPickerModal.tsx:237
 msgid "Select file"
 msgstr "Επιλέξτε αρχείο"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3583
+#: packages/admin/src/components/PortableTextEditor.tsx:3619
 msgid "Select gallery images"
 msgstr "Επιλογή εικόνων συλλογής"
 
@@ -13679,7 +13949,7 @@ msgstr "Επιλογή εικόνων συλλογής"
 #: packages/admin/src/components/ImageFieldRenderer.tsx:821
 #: packages/admin/src/components/ImageFieldRenderer.tsx:964
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:3554
+#: packages/admin/src/components/PortableTextEditor.tsx:3590
 msgid "Select image"
 msgstr "Επιλέξτε εικόνα"
 
@@ -13707,12 +13977,21 @@ msgstr "Επιλέξτε γραμμή"
 msgid "Select table"
 msgstr "Επιλέξτε πίνακα"
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:560
+msgid "Select text and press Comment, or comment on the whole entry."
+msgstr ""
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:566
+#: packages/admin/src/components/editorial/useEditorialComments.ts:567
+msgid "Select text within one paragraph to comment on it"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:722
 msgid "Select up to 50 posts at a time."
 msgstr "Επιλέξτε έως και 50 άρθρα ταυτόχρονα."
 
 #: packages/admin/src/components/MediaPickerModal.tsx:237
-#: packages/admin/src/components/PortableTextEditor.tsx:3568
+#: packages/admin/src/components/PortableTextEditor.tsx:3604
 msgid "Select video"
 msgstr "Επιλέξτε βίντεο"
 
@@ -13721,7 +14000,7 @@ msgid "Select which content types to import."
 msgstr "Επιλέξτε ποια είδη περιεχομένου θέλετε να εισαγάγετε."
 
 #: packages/admin/src/components/BlockKitFieldWidget.tsx:108
-#: packages/admin/src/components/PortableTextEditor.tsx:1933
+#: packages/admin/src/components/PortableTextEditor.tsx:1939
 #: packages/admin/src/components/RepeaterField.tsx:432
 msgid "Select..."
 msgstr "Επιλέξτε…"
@@ -13730,7 +14009,7 @@ msgstr "Επιλέξτε…"
 msgid "Selected {label}"
 msgstr "Επιλέχθηκε: {label}"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1055
+#: packages/admin/src/components/PortableTextEditor.tsx:1061
 msgid "Selected {selectedItemTitle}"
 msgstr "Επιλεγμένο {selectedItemTitle}"
 
@@ -13753,10 +14032,14 @@ msgstr "Επιλεγμένα άρθρα"
 msgid "Selection"
 msgstr "Επιλογή"
 
+#: packages/admin/src/components/PortableTextEditor.tsx:3897
+msgid "Selection actions"
+msgstr ""
+
 #: packages/admin/src/components/Settings.tsx:97
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:219
 #: packages/admin/src/components/settings/AllowedDomainsSettings.tsx:241
-#: packages/admin/src/router.tsx:3259
+#: packages/admin/src/router.tsx:3261
 msgid "Self-Signup Domains"
 msgstr "Τομείς email που επιτρέπουν εγγραφή χωρίς πρόσκληση"
 
@@ -13822,7 +14105,7 @@ msgstr "Αποστολή…"
 #: packages/admin/src/components/ContentTypeEditor.tsx:689
 #: packages/admin/src/components/Settings.tsx:68
 #: packages/admin/src/lib/editor-sections.ts:37
-#: packages/admin/src/router.tsx:3371
+#: packages/admin/src/router.tsx:3373
 msgid "SEO"
 msgstr "SEO"
 
@@ -13833,7 +14116,7 @@ msgid "SEO settings"
 msgstr "Ρυθμίσεις SEO"
 
 #: packages/admin/src/components/settings/SeoSettings.tsx:126
-#: packages/admin/src/router.tsx:3370
+#: packages/admin/src/router.tsx:3372
 msgid "SEO Settings"
 msgstr "Ρυθμίσεις SEO"
 
@@ -13909,14 +14192,14 @@ msgid "Setting up..."
 msgstr "Δημιουργία..."
 
 #: packages/admin/src/components/AdminCommandPalette.tsx:247
-#: packages/admin/src/components/ContentEditor.tsx:3132
+#: packages/admin/src/components/ContentEditor.tsx:3334
 #: packages/admin/src/components/ContentTypeEditor.tsx:485
 #: packages/admin/src/components/Header.tsx:122
 #: packages/admin/src/components/PluginManager.tsx:546
 #: packages/admin/src/components/Settings.tsx:47
 #: packages/admin/src/components/Sidebar.tsx:611
 #: packages/admin/src/components/WordPressImport.tsx:1878
-#: packages/admin/src/router.tsx:3215
+#: packages/admin/src/router.tsx:3217
 msgid "Settings"
 msgstr "Ρυθμίσεις"
 
@@ -13967,7 +14250,7 @@ msgstr "Σύντομο κείμενο"
 msgid "Short Text"
 msgstr "Σύντομο κείμενο"
 
-#: packages/admin/src/components/ContentEditor.tsx:291
+#: packages/admin/src/components/ContentEditor.tsx:292
 msgid "Show"
 msgstr "Εμφάνιση"
 
@@ -13978,6 +14261,12 @@ msgstr "Εμφάνιση: {label}"
 #: packages/admin/src/components/revisions/RevisionViewBar.tsx:226
 msgid "Show changes"
 msgstr "Εμφάνιση αλλαγών"
+
+#: packages/admin/src/components/ContentEditor.tsx:3015
+#: packages/admin/src/components/ContentEditor.tsx:3016
+#: packages/admin/src/components/editorial/FieldCommentsButton.tsx:71
+msgid "Show comments"
+msgstr ""
 
 #: packages/admin/src/components/Widgets.tsx:162
 msgid "Show count"
@@ -13999,7 +14288,11 @@ msgstr "Εμφάνιση παλαιότερων εκδόσεων"
 msgid "Show post count"
 msgstr "Εμφάνιση αριθμού δημοσιεύσεων"
 
-#: packages/admin/src/components/SettingsPanelToggle.tsx:211
+#: packages/admin/src/components/editorial/MarginComments.tsx:487
+msgid "Show resolved"
+msgstr ""
+
+#: packages/admin/src/components/SettingsPanelToggle.tsx:222
 msgid "Show settings"
 msgstr "Εμφάνιση ρυθμίσεων"
 
@@ -14038,7 +14331,7 @@ msgstr "Εμφανίζει ένα κουμπί για τη δημιουργία 
 
 #: packages/admin/src/components/Settings.tsx:142
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:80
-#: packages/admin/src/router.tsx:3320
+#: packages/admin/src/router.tsx:3322
 msgid "Sidebars"
 msgstr "Πλευρικές στήλες"
 
@@ -14244,7 +14537,7 @@ msgstr "Παραλείφθηκε"
 #: packages/admin/src/components/BylineFieldEditor.tsx:360
 #: packages/admin/src/components/BylineFormDialog.tsx:425
 #: packages/admin/src/components/BylineFormDialog.tsx:428
-#: packages/admin/src/components/ContentEditor.tsx:2730
+#: packages/admin/src/components/ContentEditor.tsx:2861
 #: packages/admin/src/components/ContentSettingsPanel.tsx:1020
 #: packages/admin/src/components/ContentTypeEditor.tsx:133
 #: packages/admin/src/components/ContentTypeEditor.tsx:507
@@ -14278,15 +14571,15 @@ msgstr "Το τμήμα URL αντιγράφηκε στο πρόχειρο"
 msgid "Slugs cannot be changed after the field is created."
 msgstr "Τα τμήματα URL δεν μπορούν να τροποποιηθούν μετά τη δημιουργία του πεδίου."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:539
+#: packages/admin/src/components/PortableTextEditor.tsx:545
 msgid "Small section heading"
 msgstr "Μικρή επικεφαλίδα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:608
+#: packages/admin/src/components/PortableTextEditor.tsx:614
 msgid "Smaller section heading"
 msgstr "Μικρό τίτλο ενότητας"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:610
+#: packages/admin/src/components/PortableTextEditor.tsx:616
 msgid "Smallest section heading"
 msgstr "Μικρότερο τίτλο ενότητας"
 
@@ -14317,7 +14610,7 @@ msgstr "smtp.example.com"
 
 #: packages/admin/src/components/Settings.tsx:62
 #: packages/admin/src/components/settings/SocialSettings.tsx:89
-#: packages/admin/src/router.tsx:3356
+#: packages/admin/src/router.tsx:3358
 msgid "Social Links"
 msgstr "Κοινωνικά δίκτυα"
 
@@ -14334,7 +14627,7 @@ msgstr "Σύνδεσμοι προς προφίλ κοινωνικών δικτύ
 msgid "Social Profiles"
 msgstr "Προφίλ Κοινωνικών Δικτύων"
 
-#: packages/admin/src/router.tsx:3355
+#: packages/admin/src/router.tsx:3357
 msgid "Social Settings"
 msgstr "Ρυθμίσεις κοινωνικών δικτύων"
 
@@ -14379,7 +14672,7 @@ msgstr "Ορισμένοι σύνδεσμοι πολυμέσων δεν αντι
 msgid "Some references point to content that is not in the package"
 msgstr "Ορισμένες αναφορές αναφέρουν περιεχόμενο που δεν περιλαμβάνεται στο πακέτο."
 
-#: packages/admin/src/router.tsx:1277
+#: packages/admin/src/router.tsx:1278
 msgid "Someone"
 msgstr "Κάποιος"
 
@@ -14495,13 +14788,13 @@ msgstr "Ξεκινήστε με τους τύπους περιεχομένου �
 msgid "Start with the template’s example posts and pages. Recommended for new sites."
 msgstr "Ξεκινήστε με τα παραδείγματα άρθρων και σελίδων που παρέχονται στο πρότυπο. Συνιστάται για νέες ιστοσελίδες."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:531
+#: packages/admin/src/components/PortableTextEditor.tsx:537
 msgid "Start writing with plain text"
 msgstr "Ξεκινήστε να γράφετε χρησιμοποιώντας απλό κείμενο"
 
-#: packages/admin/src/components/ContentEditor.tsx:3978
-#: packages/admin/src/components/ContentEditor.tsx:4001
-#: packages/admin/src/components/PortableTextEditor.tsx:2239
+#: packages/admin/src/components/ContentEditor.tsx:4183
+#: packages/admin/src/components/ContentEditor.tsx:4207
+#: packages/admin/src/components/PortableTextEditor.tsx:2262
 msgid "Start writing, or type '/' for commands"
 msgstr "Ξεκινήστε να γράφετε, ή πληκτρολογήστε '/' για εντολές."
 
@@ -14579,8 +14872,8 @@ msgstr "Αποθηκευμένα αντίγραφα ασφαλείας"
 msgid "Stored per locale — each translation of a byline gets its own value."
 msgstr "Αποθηκεύεται ανά γλώσσα. Κάθε μετάφραση της υπογραφής συντάκτη έχει τη δική της τιμή."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3648
-#: packages/admin/src/components/PortableTextEditor.tsx:5219
+#: packages/admin/src/components/PortableTextEditor.tsx:3684
+#: packages/admin/src/components/PortableTextEditor.tsx:5299
 msgid "Strikethrough"
 msgstr "Διαγράμμιση"
 
@@ -14592,7 +14885,7 @@ msgstr "Δομή"
 msgid "Structured"
 msgstr "Δομημένο"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2433
+#: packages/admin/src/components/PortableTextEditor.tsx:2456
 msgid "Style"
 msgstr "Στυλ"
 
@@ -14614,11 +14907,11 @@ msgstr "Υποπεδία"
 msgid "Subscriber"
 msgstr "Συνδρομητής"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4142
+#: packages/admin/src/components/PortableTextEditor.tsx:4222
 msgid "Subscript"
 msgstr "Δείκτης"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4148
+#: packages/admin/src/components/PortableTextEditor.tsx:4228
 msgid "Superscript"
 msgstr "Εκθέτης"
 
@@ -14662,19 +14955,19 @@ msgstr "Σύστημα"
 msgid "System Fields"
 msgstr "Πεδία Συστήματος"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:45
+#: packages/admin/src/components/editor/BlockMenu.tsx:48
 #: packages/admin/src/components/editor/TableControls.tsx:31
 #: packages/admin/src/components/editor/TableControls.tsx:368
-#: packages/admin/src/components/PortableTextEditor.tsx:600
+#: packages/admin/src/components/PortableTextEditor.tsx:606
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:505
 msgid "Table"
 msgstr "Πίνακας"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3399
+#: packages/admin/src/components/PortableTextEditor.tsx:3432
 msgid "Table cells accept text, links, and formatting only."
 msgstr "Τα κελιά του πίνακα δέχονται μόνο κείμενο, συνδέσμους και μορφοποίηση."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:4251
+#: packages/admin/src/components/PortableTextEditor.tsx:4331
 msgid "Table controls"
 msgstr "Έλεγχοι πίνακα"
 
@@ -14683,7 +14976,7 @@ msgid "Table deleted"
 msgstr "Ο πίνακας διαγράφηκε"
 
 #: packages/admin/src/components/editor/TableControls.tsx:401
-#: packages/admin/src/components/PortableTextEditor.tsx:3287
+#: packages/admin/src/components/PortableTextEditor.tsx:3320
 msgid "Table inserted"
 msgstr "Εισήχθη πίνακας"
 
@@ -14691,7 +14984,7 @@ msgstr "Εισήχθη πίνακας"
 msgid "Table size"
 msgstr "Μέγεθος πίνακα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3396
+#: packages/admin/src/components/PortableTextEditor.tsx:3429
 msgid "Tables cannot be pasted inside lists or quotes. Paste the table into its own paragraph and try again."
 msgstr "Δεν μπορείτε να επικολλήσετε πίνακα μέσα σε λίστα ή παράθεμα. Επικολλήστε τον σε ξεχωριστή παράγραφο και δοκιμάστε ξανά."
 
@@ -14733,7 +15026,7 @@ msgstr "Στόχος"
 #: packages/admin/src/components/settings/transfer/labels.ts:13
 #: packages/admin/src/components/TaxonomySidebar.tsx:989
 #: packages/admin/src/lib/editor-sections.ts:36
-#: packages/admin/src/router.tsx:3544
+#: packages/admin/src/router.tsx:3546
 msgid "Taxonomies"
 msgstr "Ταξινομίες"
 
@@ -14833,13 +15126,21 @@ msgid "test@example.com"
 msgstr "test@example.com"
 
 #: packages/admin/src/components/BlocksField.tsx:2344
-#: packages/admin/src/components/PortableTextEditor.tsx:2428
+#: packages/admin/src/components/PortableTextEditor.tsx:2451
 msgid "Text"
 msgstr "Κείμενο"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:5463
+#: packages/admin/src/components/PortableTextEditor.tsx:5543
 msgid "Text formatting"
 msgstr "Μορφοποίηση κειμένου"
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:569
+msgid "Text here can’t take a comment"
+msgstr ""
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:561
+msgid "That selection is too long to comment on"
+msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:42
 msgid "That time does not exist in your time zone"
@@ -14861,7 +15162,7 @@ msgstr "Το πεδίο {0} στην {1}, το οποίο εμφανίζει κ�
 msgid "the {0} field on {1}, which picks entries it links to"
 msgstr "Το πεδίο {0} στην {1}, το οποίο επιλέγει καταχωρίσεις στις οποίες συνδέεται."
 
-#: packages/admin/src/router.tsx:1210
+#: packages/admin/src/router.tsx:1211
 msgid "The admin was updated"
 msgstr "Η διαχείριση έχει ενημερωθεί."
 
@@ -15132,7 +15433,7 @@ msgstr "Το περιεχόμενο του πακέτου θα εγγραφεί 
 msgid "The package’s file index is not valid."
 msgstr "Η λίστα αρχείων του πακέτου δεν είναι έγκυρη."
 
-#: packages/admin/src/router.tsx:4188
+#: packages/admin/src/router.tsx:4190
 msgid "The page you're looking for doesn't exist."
 msgstr "Η σελίδα που αναζητάτε δεν υπάρχει."
 
@@ -15152,16 +15453,16 @@ msgstr "Δεν ήταν δυνατή η εμφάνιση του πεδίου π�
 msgid "The plugin has not saved these changes. Review them before updating the editor."
 msgstr "Το πρόσθετο δεν έχει αποθηκεύσει αυτές τις αλλαγές. Παρακαλούμε, ελέγξτε τις πριν ενημερώσετε τον επεξεργαστή."
 
-#: packages/admin/src/components/ContentEditor.tsx:2673
+#: packages/admin/src/components/ContentEditor.tsx:2804
 msgid "The plugin proposed a value this editor can't load."
 msgstr "Το πρόσθετο προτείνει μια τιμή, αλλά ο συγκεκριμένος επεξεργαστής δεν μπορεί να την φορτώσει."
 
-#: packages/admin/src/components/ContentEditor.tsx:2678
+#: packages/admin/src/components/ContentEditor.tsx:2809
 msgid "The plugin result has formatting this editor can't show, so it wasn't applied."
 msgstr "Το αποτέλεσμα του προσθέτου δεν εφαρμόστηκε επειδή περιέχει μορφοποίηση που το εργαλείο επεξεργασίας δεν μπορεί να εμφανίσει."
 
-#: packages/admin/src/components/ContentEditor.tsx:1890
-#: packages/admin/src/components/ContentEditor.tsx:2667
+#: packages/admin/src/components/ContentEditor.tsx:2021
+#: packages/admin/src/components/ContentEditor.tsx:2798
 msgid "The plugin result is stale because the editor changed while it was working."
 msgstr "Το αποτέλεσμα του προσθέτου δεν είναι πλέον επίκαιρο. Το περιεχόμενο στον επεξεργαστή άλλαξε κατά την εκτέλεσή του."
 
@@ -15287,7 +15588,7 @@ msgstr "Θέμα εμφάνισης"
 msgid "Theme \"{id}\" not found"
 msgstr "Θέμα \"{id}\" δεν βρέθηκε."
 
-#: packages/admin/src/router.tsx:3495
+#: packages/admin/src/router.tsx:3497
 msgid "Theme Details"
 msgstr "Λεπτομέρειες Θέματος"
 
@@ -15296,7 +15597,7 @@ msgstr "Λεπτομέρειες Θέματος"
 msgid "Theme ID: {0}"
 msgstr "ID Θέματος: {0}"
 
-#: packages/admin/src/router.tsx:3487
+#: packages/admin/src/router.tsx:3489
 msgid "Theme Marketplace"
 msgstr "Κατάλογος θεμάτων εμφάνισης"
 
@@ -15328,17 +15629,25 @@ msgstr "Οι ανακατευθύνσεις είναι υπερβολικά πο
 msgid "These entries are password-protected in WordPress. EmDash has no per-entry passwords, so they were imported as drafts. Review each one before you publish it."
 msgstr "Αυτές οι καταχωρίσεις είναι προστατευμένες με κωδικό πρόσβασης στο WordPress. Το EmDash δεν έχει κωδικούς πρόσβασης ανά καταχώριση, επομένως τις εισήγαγε ως πρόχειρες. Ελέγξτε καθεμία πριν την δημοσιεύσετε."
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:516
+msgid "These may not be the latest comments."
+msgstr ""
+
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:295
 msgid "These tools remain disabled after installation until you explicitly enable agent access."
 msgstr "Αυτά τα εργαλεία παραμένουν απενεργοποιημένα μετά την εγκατάσταση, μέχρι να ενεργοποιήσετε ρητά την πρόσβαση του πράκτορα."
 
-#: packages/admin/src/router.tsx:1280
+#: packages/admin/src/router.tsx:1281
 msgid "They changed its publishing or schedule, or replaced its draft."
 msgstr "Αλλαξαν την ημερομηνία δημοσίευσης ή το πρόγραμμα, ή αντικατέστησαν το πρόχειρο."
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:921
 msgid "This also removes:"
 msgstr "Αυτό επίσης αφαιρεί:"
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:563
+msgid "This block can’t take a comment yet"
+msgstr ""
 
 #: packages/admin/src/components/BlocksField.tsx:1784
 msgid "This block cannot be edited because its stored definition is unavailable."
@@ -15365,7 +15674,7 @@ msgstr "Δεν μπορείτε πλέον να προσθέσετε μπλοκ 
 msgid "This block uses an older version of its type, so it can't be restored after you delete it."
 msgstr "Αυτό το μπλοκ χρησιμοποιεί παλαιότερη έκδοση του τύπου του. Αν το διαγράψετε, δεν θα μπορείτε να το επαναφέρετε."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3222
+#: packages/admin/src/components/PortableTextEditor.tsx:3255
 msgid "This block was deleted, so your changes can't be saved."
 msgstr "Αυτό το μπλοκ έχει διαγραφεί, επομένως οι αλλαγές σας δεν μπορούν να αποθηκευτούν."
 
@@ -15399,7 +15708,7 @@ msgstr "Ο κώδικας αυτός είναι άκυρος ή έχει ήδη 
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
 msgstr "Αυτή η συλλογή ορίζεται στον κώδικα. Ορισμένες ρυθμίσεις δεν μπορούν να τροποποιηθούν εδώ. Επεξεργαστείτε το αρχείο σας `live.config.ts` για να τροποποιήσετε το σχήμα."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3371
+#: packages/admin/src/components/PortableTextEditor.tsx:3404
 msgid "This content cannot be edited safely"
 msgstr "Δεν μπορείτε να επεξεργαστείτε αυτό το περιεχόμενο με ασφάλεια"
 
@@ -15410,6 +15719,10 @@ msgstr "Το περιεχόμενο αυτό θα είναι ορατό στον
 #: packages/admin/src/components/calendar/CalendarMonth.tsx:546
 msgid "This day wasn't loaded. The range has more entries than the calendar can show."
 msgstr "Δεν φορτώθηκαν οι καταχωρίσεις της συγκεκριμένης ημέρας. Το διάστημα περιλαμβάνει περισσότερες καταχωρίσεις από όσες μπορεί να εμφανίσει το ημερολόγιο."
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:939
+msgid "This deletes the thread and every reply in it. This action cannot be undone."
+msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:370
 msgid "This device is requesting permission to use:"
@@ -15423,20 +15736,20 @@ msgstr "Αυτό δεν φαίνεται να είναι ένας έγκυρος
 msgid "This domain is already in the list. Enter a different one."
 msgstr "Αυτό το πεδίο είναι ήδη στη λίστα. Παρακαλούμε, εισαγάγετε ένα διαφορετικό."
 
-#: packages/admin/src/components/ContentEditor.tsx:2991
+#: packages/admin/src/components/ContentEditor.tsx:3142
 msgid "This entry changed somewhere else after you opened it."
 msgstr "Αυτή η καταχώριση άλλαξε κάπου αλλού μετά την έναρξη της."
 
-#: packages/admin/src/components/ContentEditor.tsx:2334
-#: packages/admin/src/router.tsx:1583
+#: packages/admin/src/components/ContentEditor.tsx:2465
+#: packages/admin/src/router.tsx:1584
 msgid "This entry changed somewhere else. Save anyway, or reload to get the newer version."
 msgstr "Αυτή η καταχώριση έχει τροποποιηθεί αλλού. Αποθηκεύστε την, ή ανανεώστε τη για να λάβετε την πιο πρόσφατη έκδοση."
 
-#: packages/admin/src/router.tsx:2572
+#: packages/admin/src/router.tsx:2573
 msgid "This entry doesn't exist or isn't published. Your role can only view published content."
 msgstr "Αυτή η καταχώριση δεν υπάρχει ή δεν έχει δημοσιευτεί. Ο ρόλος σας μπορεί να δει μόνο το περιεχόμενο που έχει δημοσιευτεί."
 
-#: packages/admin/src/router.tsx:2573
+#: packages/admin/src/router.tsx:2574
 msgid "This entry doesn't exist or was deleted."
 msgstr "Αυτή η καταχώριση δεν υπάρχει ή έχει διαγραφεί."
 
@@ -15448,11 +15761,11 @@ msgstr "Αυτή η καταχώριση δεν έχει URL μέχρι να δ�
 msgid "This entry is open somewhere else"
 msgstr "Η καταχώριση είναι ανοιχτή και αλλού"
 
-#: packages/admin/src/components/ContentEditor.tsx:2978
+#: packages/admin/src/components/ContentEditor.tsx:3129
 msgid "This entry is read-only because its schema uses field types this version of EmDash does not support."
 msgstr "Αυτή η καταχώριση είναι μόνο για ανάγνωση, καθώς το σχήμα της χρησιμοποιεί τύπους πεδίων που δεν υποστηρίζονται από αυτήν την έκδοση του EmDash."
 
-#: packages/admin/src/components/ContentEditor.tsx:2318
+#: packages/admin/src/components/ContentEditor.tsx:2449
 msgid "This entry is still loading."
 msgstr "Αυτή η καταχώριση βρίσκεται ακόμα σε φόρτωση."
 
@@ -15460,7 +15773,7 @@ msgstr "Αυτή η καταχώριση βρίσκεται ακόμα σε φό
 msgid "This entry was due {lateness} but hasn't published. Scheduled publishing may not be running."
 msgstr "Η δημοσίευση της καταχώρισης έχει καθυστερήσει κατά {lateness}. Ενδέχεται να μη λειτουργεί ο μηχανισμός προγραμματισμένης δημοσίευσης."
 
-#: packages/admin/src/router.tsx:2622
+#: packages/admin/src/router.tsx:2623
 msgid "This entry was moved to Trash or deleted"
 msgstr "Η καταχώριση μεταφέρθηκε στον κάδο ή διαγράφηκε"
 
@@ -15472,17 +15785,17 @@ msgstr "Η καταχώριση μεταφέρθηκε στον κάδο ή δι
 msgid "This export is large"
 msgstr "Αυτή η εξαγωγή είναι μεγάλη."
 
-#: packages/admin/src/components/ContentEditor.tsx:3778
-#: packages/admin/src/components/ContentEditor.tsx:3786
+#: packages/admin/src/components/ContentEditor.tsx:3983
+#: packages/admin/src/components/ContentEditor.tsx:3991
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:478
 msgid "This field cannot be edited by this version of EmDash."
 msgstr "Δεν μπορείτε να επεξεργαστείτε αυτό το πεδίο με αυτήν την έκδοση του EmDash."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3354
+#: packages/admin/src/components/PortableTextEditor.tsx:3387
 msgid "This field contains table content that the editor cannot preserve. Update it through the API before editing or saving this content."
 msgstr "Το πεδίο αυτό περιέχει το περιεχόμενο του πίνακα, το οποίο δεν μπορεί να διατηρήσει ο συντάκτης. Ενημερώστε το μέσω της API πριν επεξεργαστείτε ή αποθηκεύσετε αυτό το περιεχόμενο."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3373
+#: packages/admin/src/components/PortableTextEditor.tsx:3406
 msgid "This field contains unsupported Portable Text marks: <0>{markList}</0>. Remove them through the API before editing or saving this content."
 msgstr "Το πεδίο αυτό περιέχει μη υποστηριζόμενα σημάδια Portable Text: `<0>{markList}</0>`. Αφαιρέστε τα μέσω της API πριν επεξεργαστείτε ή αποθηκεύσετε αυτό το περιεχόμενο."
 
@@ -15499,7 +15812,7 @@ msgstr "Το πεδίο αυτό δεν δέχεται αρχεία με τύπ�
 msgid "This field expects a list. The stored value stays unchanged until you replace it with an empty list, which deletes it. Copy anything you need from it first."
 msgstr "Αυτό το πεδίο περιμένει μια λίστα. Η αποθηκευμένη τιμή παραμένει αμετάβλητη μέχρι να την αντικαταστήσετε με μια άδεια λίστα, η οποία την διαγράφει. Πρώτα, αντιγράψτε ό,τι χρειάζεστε από αυτήν."
 
-#: packages/admin/src/components/ContentEditor.tsx:5279
+#: packages/admin/src/components/ContentEditor.tsx:5486
 #: packages/admin/src/components/ImageFieldRenderer.tsx:977
 msgid "This field is required"
 msgstr "Το πεδίο αυτό είναι υποχρεωτικό."
@@ -15562,6 +15875,10 @@ msgstr "Αυτό είναι ένα site WordPress."
 msgid "This is not the package the import was started with. Choose the same file again."
 msgstr "Η εισαγωγή ξεκίνησε με άλλο πακέτο. Επιλέξτε ξανά το αρχικό αρχείο."
 
+#: packages/admin/src/components/editorial/MarginComments.tsx:956
+msgid "This is the thread's only comment, so deleting it deletes the thread too. This action cannot be undone."
+msgstr ""
+
 #: packages/admin/src/components/editor/LinkDestinationInput.tsx:345
 msgid "This link can't be used. Enter a web address, such as https://example.com."
 msgstr "Αυτός ο σύνδεσμος δεν μπορεί να χρησιμοποιηθεί. Πληκτρολογήστε μια διεύθυνση ιστού, όπως https://example.com."
@@ -15611,7 +15928,7 @@ msgstr "Αυτό το πακέτο δημιουργήθηκε από μια νε
 msgid "This passkey is already registered on this device."
 msgstr "Το κλειδί πρόσβασης έχει ήδη καταχωριστεί σε αυτή τη συσκευή."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3392
+#: packages/admin/src/components/PortableTextEditor.tsx:3425
 msgid "This paste is too large. Paste fewer cells or less text at a time."
 msgstr "Αυτή η εισαγωγή είναι πολύ μεγάλη. Παρακαλούμε εισαγάγετε λιγότερα κελιά ή λιγότερο κείμενο κάθε φορά."
 
@@ -15688,12 +16005,12 @@ msgstr "Ο προγραμματισμός θα ακυρωθεί και η κατ
 msgid "This saved timezone isn't recognized. Choose a suggestion for reliable date display."
 msgstr "Αυτή η αποθηκευμένη ζώνη ώρας δεν αναγνωρίζεται. Επιλέξτε μια πρόταση για αξιόπιστη εμφάνιση ημερομηνιών."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3437
+#: packages/admin/src/components/PortableTextEditor.tsx:3470
 msgid "This section contains table content that the editor cannot preserve. Update the section before inserting it."
 msgstr "Αυτή η ενότητα περιέχει περιεχόμενο πίνακα που ο συντάκτης δεν μπορεί να διατηρήσει. Ενημερώστε την ενότητα πριν την εισαγάγετε."
 
 #. placeholder {0}: sectionInsertErrorMarks.join(", ")
-#: packages/admin/src/components/PortableTextEditor.tsx:3439
+#: packages/admin/src/components/PortableTextEditor.tsx:3472
 msgid "This section contains unsupported Portable Text marks: <0>{0}</0>. Update the section before inserting it."
 msgstr "Αυτή η ενότητα περιέχει μη υποστηριζόμενα σημάδια Portable Text: `<0>{0}</0>`. Ενημερώστε την ενότητα πριν την εισαγάγετε."
 
@@ -15751,15 +16068,15 @@ msgstr "Αυτή η ιστοσελίδα έχει δημιουργηθεί με 
 msgid "This slug is reserved. Enter a different one."
 msgstr "Αυτό το τμήμα URL είναι ήδη κατειλημμένο. Παρακαλούμε, εισαγάγετε ένα διαφορετικό."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3394
+#: packages/admin/src/components/PortableTextEditor.tsx:3427
 msgid "This spreadsheet data has invalid quoted cells. Fix the quotes or remove the tab separators and try again."
 msgstr "Ορισμένα κελιά του υπολογιστικού φύλλου έχουν λανθασμένα εισαγωγικά. Διορθώστε τα ή αφαιρέστε τους στηλοθέτες και δοκιμάστε ξανά."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3352
+#: packages/admin/src/components/PortableTextEditor.tsx:3385
 msgid "This table cannot be edited safely"
 msgstr "Δεν είναι δυνατόν να επεξεργαστείτε με ασφάλεια αυτόν τον πίνακα."
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3398
+#: packages/admin/src/components/PortableTextEditor.tsx:3431
 msgid "This table has unsupported cell formatting, merged cells, or column widths. Paste it as plain text or simplify the table and try again."
 msgstr "Ο πίνακας περιέχει μη υποστηριζόμενη μορφοποίηση κελιών, συγχωνευμένα κελιά ή μη υποστηριζόμενα πλάτη στηλών. Επικολλήστε τον ως απλό κείμενο ή απλοποιήστε τον και δοκιμάστε ξανά."
 
@@ -15812,6 +16129,10 @@ msgstr "Θα επανέλθει η δημοσιευμένη έκδοση. Οι �
 #: packages/admin/src/components/SetupWizard.tsx:153
 msgid "Thoughts, tutorials, and more"
 msgstr "Σκέψεις, οδηγίες και πολλά άλλα"
+
+#: packages/admin/src/components/editorial/useEditorialComments.ts:266
+msgid "Thread not updated"
+msgstr ""
 
 #: packages/admin/src/components/PublishingDateTimeEditor.tsx:214
 msgid "Time"
@@ -15931,7 +16252,7 @@ msgstr "Εντοπίστε πού χρησιμοποιούνται τα πολυ
 #: packages/admin/src/components/Settings.tsx:132
 #: packages/admin/src/components/settings/TransferSettings.tsx:46
 #: packages/admin/src/components/settings/TransferSettings.tsx:79
-#: packages/admin/src/router.tsx:3306
+#: packages/admin/src/router.tsx:3308
 msgid "Transfer"
 msgstr "Μεταφορά"
 
@@ -15960,7 +16281,7 @@ msgstr "Μετάφραση…"
 #: packages/admin/src/components/MenuEditor.tsx:211
 #: packages/admin/src/components/TaxonomyManager.tsx:1173
 #: packages/admin/src/components/TaxonomySidebar.tsx:870
-#: packages/admin/src/router.tsx:2130
+#: packages/admin/src/router.tsx:2131
 msgid "Translation created"
 msgstr "Η μετάφραση δημιουργήθηκε"
 
@@ -16023,6 +16344,7 @@ msgid "Try adjusting your search or filters."
 msgstr "Δοκιμάστε να προσαρμόσετε την αναζήτησή σας ή τα φίλτρα σας."
 
 #: packages/admin/src/components/co-editing/SyncStatus.tsx:122
+#: packages/admin/src/components/editorial/MarginComments.tsx:527
 #: packages/admin/src/components/MediaUsedIn.tsx:247
 #: packages/admin/src/components/MediaUsedIn.tsx:277
 #: packages/admin/src/components/RevisionHistory.tsx:86
@@ -16040,7 +16362,7 @@ msgstr "Δοκιμάστε ξανά"
 msgid "Try Again"
 msgstr "Δοκιμάστε ξανά"
 
-#: packages/admin/src/router.tsx:1468
+#: packages/admin/src/router.tsx:1469
 msgid "Try again in a moment."
 msgstr "Δοκιμάστε ξανά σύντομα."
 
@@ -16083,10 +16405,10 @@ msgstr "Δοκιμάστε με τα δικά σας δεδομένα."
 msgid "TSX"
 msgstr "TSX"
 
-#: packages/admin/src/components/editor/BlockMenu.tsx:146
-#: packages/admin/src/components/PortableTextEditor.tsx:4065
-#: packages/admin/src/components/PortableTextEditor.tsx:4067
-#: packages/admin/src/components/PortableTextEditor.tsx:4084
+#: packages/admin/src/components/editor/BlockMenu.tsx:162
+#: packages/admin/src/components/PortableTextEditor.tsx:4145
+#: packages/admin/src/components/PortableTextEditor.tsx:4147
+#: packages/admin/src/components/PortableTextEditor.tsx:4164
 msgid "Turn into"
 msgstr "Μετατροπή σε"
 
@@ -16153,11 +16475,11 @@ msgstr "Εισαγάγετε λεζάντα για το βίντεο (προαι
 msgid "Type mismatch ({0})"
 msgstr "Ασυμβατότητα τύπου ({0})"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:1123
+#: packages/admin/src/components/PortableTextEditor.tsx:1129
 msgid "Type to filter"
 msgstr "Εισαγάγετε κείμενο για φιλτράρισμα"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3509
+#: packages/admin/src/components/PortableTextEditor.tsx:3544
 msgid "Type to search"
 msgstr "Εισαγάγετε κείμενο για αναζήτηση"
 
@@ -16179,13 +16501,13 @@ msgstr "Δεν είναι δυνατή η σύνδεση με την αγορά.
 msgid "Unassigned"
 msgstr "Χωρίς ανάθεση"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:3647
-#: packages/admin/src/components/PortableTextEditor.tsx:5211
+#: packages/admin/src/components/PortableTextEditor.tsx:3683
+#: packages/admin/src/components/PortableTextEditor.tsx:5291
 msgid "Underline"
 msgstr "Υπογράμμιση"
 
 #: packages/admin/src/components/block-field-undo.tsx:219
-#: packages/admin/src/components/PortableTextEditor.tsx:5442
+#: packages/admin/src/components/PortableTextEditor.tsx:5522
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:68
 msgid "Undo"
 msgstr "Αναίρεση"
@@ -16230,6 +16552,16 @@ msgstr "Άγνωστος συγγραφέας"
 msgid "Unknown role"
 msgstr "Άγνωστος ρόλος"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:122
+msgid "visualEditing.unknownUser"
+msgstr ""
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:1007
+#: packages/admin/src/components/editorial/mentions.tsx:135
+msgid "Unknown user"
+msgstr ""
+
 #: packages/admin/src/routes/bylines.tsx:93
 msgid "Unlinked"
 msgstr "Χωρίς σύνδεση"
@@ -16244,8 +16576,18 @@ msgstr "Απελευθερώστε την αναλογία διαστάσεων"
 msgid "Unnamed passkey"
 msgstr "Κλειδί πρόσβασης χωρίς όνομα"
 
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:123
+msgid "visualEditing.unnamedUser"
+msgstr ""
+
 #: packages/admin/src/components/ContentList.tsx:1133
 #: packages/admin/src/components/ContentList.tsx:1139
+#: packages/admin/src/components/editorial/MarginComments.tsx:1007
+#: packages/admin/src/components/editorial/MarginComments.tsx:1011
+#: packages/admin/src/components/editorial/mentions.tsx:135
+#: packages/admin/src/components/editorial/mentions.tsx:215
+#: packages/admin/src/components/editorial/mentions.tsx:332
 #: packages/admin/src/components/revisions/revision-format.ts:103
 msgid "Unnamed user"
 msgstr "Χρήστης χωρίς όνομα"
@@ -16263,12 +16605,12 @@ msgstr "Απόσυρση από τη δημοσίευση: {itemLabel}"
 msgid "Unpublish {itemLabel}?"
 msgstr "Να αποσυρθεί από τη δημοσίευση το «{itemLabel}»;"
 
-#: packages/admin/src/router.tsx:2014
+#: packages/admin/src/router.tsx:2015
 msgid "Unpublished"
 msgstr "Αδημοσίευτο"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:55
+#: packages/admin/src/locales/server.ts:77
 msgid "visualEditing.unpublishedChanges"
 msgstr "Αλλαγές που δεν έχουν δημοσιευτεί"
 
@@ -16281,12 +16623,12 @@ msgid "Unresolved assignment"
 msgstr "Αντιστοίχιση που εκκρεμεί"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:59
+#: packages/admin/src/locales/server.ts:81
 msgid "visualEditing.unsaved"
 msgstr "Με μη αποθηκευμένες αλλαγές"
 
-#: packages/admin/src/components/ContentEditor.tsx:3270
-#: packages/admin/src/components/ContentEditor.tsx:3279
+#: packages/admin/src/components/ContentEditor.tsx:3472
+#: packages/admin/src/components/ContentEditor.tsx:3481
 msgid "Unsaved changes"
 msgstr "Αλλαγές που δεν έχουν αποθηκευτεί"
 
@@ -16294,7 +16636,7 @@ msgstr "Αλλαγές που δεν έχουν αποθηκευτεί"
 msgid "Unsaved content may leave your site"
 msgstr "Το μη αποθηκευμένο περιεχόμενο ενδέχεται να σταλεί εκτός του ιστοτόπου σας"
 
-#: packages/admin/src/router.tsx:2099
+#: packages/admin/src/router.tsx:2100
 msgid "Unscheduled"
 msgstr "Χωρίς προγραμματισμό"
 
@@ -16319,7 +16661,7 @@ msgstr "Μέχρι {0}"
 msgid "Untitled"
 msgstr "Χωρίς τίτλο"
 
-#: packages/admin/src/components/ContentEditor.tsx:5105
+#: packages/admin/src/components/ContentEditor.tsx:5312
 #: packages/admin/src/components/revisions/RevisionFieldValue.tsx:389
 msgid "Untitled file"
 msgstr "Αρχείο χωρίς τίτλο"
@@ -16424,7 +16766,7 @@ msgid "Updating..."
 msgstr "Ενημέρωση…"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:71
+#: packages/admin/src/locales/server.ts:93
 msgid "visualEditing.uploadImage"
 msgstr "Μεταφόρτωση"
 
@@ -16498,7 +16840,7 @@ msgstr "Μεταφορτώστε τα πολυμέσα σας για να βρί
 msgid "Upload not finished"
 msgstr "Η μεταφόρτωση δεν ολοκληρώθηκε"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2504
+#: packages/admin/src/components/PortableTextEditor.tsx:2527
 msgid "Upload or choose a video"
 msgstr "Ανεβάστε ή επιλέξτε ένα βίντεο"
 
@@ -16534,7 +16876,7 @@ msgid "Uploading"
 msgstr "Μεταφόρτωση"
 
 #. js-lingui-explicit-id
-#: packages/admin/src/locales/server.ts:78
+#: packages/admin/src/locales/server.ts:100
 msgid "visualEditing.uploadingFile"
 msgstr "Μεταφόρτωση αρχείου «{filename}»…"
 
@@ -16557,8 +16899,8 @@ msgstr "Μεταφόρτωση βίντεο…"
 #: packages/admin/src/components/FieldEditor.tsx:1707
 #: packages/admin/src/components/MenuEditor.tsx:626
 #: packages/admin/src/components/MenuEditor.tsx:848
-#: packages/admin/src/components/PortableTextEditor.tsx:1415
-#: packages/admin/src/components/PortableTextEditor.tsx:2429
+#: packages/admin/src/components/PortableTextEditor.tsx:1421
+#: packages/admin/src/components/PortableTextEditor.tsx:2452
 msgid "URL"
 msgstr "URL"
 
@@ -16700,7 +17042,7 @@ msgstr "Χρησιμοποιείται ως εναλλακτική εικόνα 
 msgid "Used as the identifier. Lowercase letters, numbers, and underscores only."
 msgstr "Χρησιμοποιείται ως αναγνωριστικό. Επιτρέπονται μόνο πεζά γράμματα, αριθμοί και κάτω παύλα."
 
-#: packages/admin/src/components/ContentEditor.tsx:4190
+#: packages/admin/src/components/ContentEditor.tsx:4397
 msgid "Used as the main visual for this post on listing pages and at the top of the post"
 msgstr "Χρησιμοποιείται ως κύρια οπτική απεικόνιση σε αυτές τις σελίδες καταγραφής και στην κορυφή του άρθρου."
 
@@ -16762,7 +17104,7 @@ msgstr "Όνομα χρήστη"
 #: packages/admin/src/components/AdminCommandPalette.tsx:223
 #: packages/admin/src/components/Sidebar.tsx:585
 #: packages/admin/src/components/users/UserList.tsx:64
-#: packages/admin/src/router.tsx:3595
+#: packages/admin/src/router.tsx:3597
 msgid "Users"
 msgstr "Χρήστες"
 
@@ -16856,15 +17198,15 @@ msgstr "Έκδοση από {when}"
 msgid "Version restored"
 msgstr "Έκδοση επαναφέρθηκε"
 
-#: packages/admin/src/components/PortableTextEditor.tsx:2419
+#: packages/admin/src/components/PortableTextEditor.tsx:2442
 msgid "Vertical"
 msgstr "Κατακόρυφα"
 
 #: packages/admin/src/components/AllowedTypesEditor.tsx:99
-#: packages/admin/src/components/editor/BlockMenu.tsx:43
+#: packages/admin/src/components/editor/BlockMenu.tsx:46
 #: packages/admin/src/components/MediaLibrary.tsx:923
 #: packages/admin/src/components/MediaPickerModal.tsx:407
-#: packages/admin/src/components/PortableTextEditor.tsx:2503
+#: packages/admin/src/components/PortableTextEditor.tsx:2526
 #: packages/admin/src/components/revisions/RevisionDocument.tsx:485
 msgid "Video"
 msgstr "Βίντεο"
@@ -17079,7 +17421,7 @@ msgstr "Τι θα εισαχθεί;"
 msgid "What will happen when you import"
 msgstr "Τι θα συμβεί όταν εισαγάγετε"
 
-#: packages/admin/src/components/ContentEditor.tsx:2992
+#: packages/admin/src/components/ContentEditor.tsx:3143
 msgid "What you typed is still here. Saving replaces the newer version."
 msgstr "Το κείμενο που πληκτρολογήσατε παραμένει. Η αποθήκευση αντικαθιστά την πιο πρόσφατη έκδοση."
 
@@ -17111,6 +17453,10 @@ msgstr "Πού αποθηκεύεται;"
 #: packages/admin/src/components/TaxonomyManager.tsx:1002
 msgid "Which content types can use this taxonomy"
 msgstr "Ποιες κατηγορίες περιεχομένου μπορούν να χρησιμοποιήσουν αυτή την ταξινόμηση;"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:116
+msgid "Whole entry"
+msgstr ""
 
 #: packages/admin/src/components/FieldEditor.tsx:676
 msgid "Whole number"
@@ -17196,7 +17542,7 @@ msgstr "Η μικροεφαρμογή ενημερώθηκε"
 #: packages/admin/src/components/Sidebar.tsx:536
 #: packages/admin/src/components/Widgets.tsx:456
 #: packages/admin/src/components/WordPressImport.tsx:1226
-#: packages/admin/src/router.tsx:3558
+#: packages/admin/src/router.tsx:3560
 msgid "Widgets"
 msgstr "Μικροεφαρμογές"
 
@@ -17248,6 +17594,16 @@ msgstr "Εργάζεστε σε {selectedCount} αντικείμενα…"
 #: packages/admin/src/components/SandboxedContentEditorActions.tsx:285
 msgid "Working…"
 msgstr "Επεξεργασία…"
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:114
+msgid "visualEditing.newComment"
+msgstr ""
+
+#. js-lingui-explicit-id
+#: packages/admin/src/locales/server.ts:116
+msgid "visualEditing.writeReply"
+msgstr ""
 
 #: packages/admin/src/components/editor/HtmlBlockNode.tsx:60
 msgid "Write CSS…"
@@ -17307,6 +17663,10 @@ msgstr "Χθες"
 #: packages/admin/src/components/WordPressImport.tsx:1229
 msgid "Yoast/RankMath"
 msgstr "Yoast/RankMath"
+
+#: packages/admin/src/components/editorial/MarginComments.tsx:643
+msgid "You"
+msgstr ""
 
 #: packages/admin/src/components/DeviceAuthorizePage.tsx:221
 msgid "You can close this page and return to your terminal."
@@ -17369,7 +17729,7 @@ msgstr "Απαιτούνται δικαιώματα διαχειριστή γι�
 msgid "You need admin permissions to view this page."
 msgstr "Απαιτούνται δικαιώματα διαχειριστή για να δείτε αυτή τη σελίδα."
 
-#: packages/admin/src/router.tsx:3171
+#: packages/admin/src/router.tsx:3173
 msgid "You need Editor permissions to moderate comments."
 msgstr "Για την εποπτεία σχολίων απαιτούνται δικαιώματα αρχισυντάκτη."
 
@@ -17450,7 +17810,7 @@ msgstr "Ο λογαριασμός σας δημιουργήθηκε."
 msgid "Your browser doesn't support passkeys. Please use a modern browser like Chrome, Safari, Firefox, or Edge."
 msgstr "Το πρόγραμμα περιήγησής σας δεν υποστηρίζει κλειδιά πρόσβασης. Χρησιμοποιήστε ένα σύγχρονο πρόγραμμα περιήγησης, όπως Chrome, Safari, Firefox ή Edge."
 
-#: packages/admin/src/components/ContentEditor.tsx:2967
+#: packages/admin/src/components/ContentEditor.tsx:3117
 msgid "Your change to {refusedFieldLabel} wasn’t saved"
 msgstr "Η αλλαγή σας στο πεδίο {refusedFieldLabel} δεν αποθηκεύτηκε."
 
@@ -17497,11 +17857,11 @@ msgstr "Το πρόχειρό σας θα αντικατασταθεί από τ
 msgid "Your earlier edits weren’t kept"
 msgstr "Οι προηγούμενες αλλαγές σας δεν έχουν αποθηκευτεί."
 
-#: packages/admin/src/router.tsx:1211
+#: packages/admin/src/router.tsx:1212
 msgid "Your edits are still on this page. Reload it to edit with others."
 msgstr "Οι αλλαγές σας παραμένουν σε αυτή τη σελίδα. Ανανεώστε τη σελίδα για να επεξεργαστείτε μαζί με άλλους χρήστες."
 
-#: packages/admin/src/router.tsx:1432
+#: packages/admin/src/router.tsx:1433
 msgid "Your edits couldn’t be saved, so this didn’t run. Try again."
 msgstr "Οι αλλαγές σας δεν μπορούσαν να αποθηκευτούν, επομένως αυτό δεν εκτελέστηκε. Δοκιμάστε ξανά."
 
@@ -17525,7 +17885,7 @@ msgstr "Όνομα χρήστη σας στο Instagram"
 msgid "Your last edits weren’t saved"
 msgstr "Οι τελευταίες αλλαγές σας δεν έχουν αποθηκευτεί."
 
-#: packages/admin/src/router.tsx:1244
+#: packages/admin/src/router.tsx:1245
 msgid "Your latest edits couldn’t be saved"
 msgstr "Οι τελευταίες αλλαγές σας δεν μπόρεσαν να αποθηκευτούν."
 
@@ -17551,11 +17911,11 @@ msgstr "Το όνομά σας (προαιρετικά)"
 msgid "Your Role"
 msgstr "Ο ρόλος σας"
 
-#: packages/admin/src/router.tsx:2588
+#: packages/admin/src/router.tsx:2589
 msgid "Your role can edit your own entries only while they are drafts."
 msgstr "Με τον ρόλο σας μπορείτε να επεξεργάζεστε τις δικές σας καταχωρίσεις μόνο όσο παραμένουν πρόχειρες."
 
-#: packages/admin/src/router.tsx:2589
+#: packages/admin/src/router.tsx:2590
 msgid "Your role can't edit this entry."
 msgstr "Ο ρόλος σας δεν μπορεί να επεξεργαστεί αυτή την καταχώριση."
 
@@ -17590,15 +17950,15 @@ msgstr "Το όνομα χρήστη σας στο Twitter/X (π.χ. @username)"
 msgid "Your unsaved changes will be lost."
 msgstr "Οι αλλαγές που δεν έχετε αποθηκεύσει θα χαθούν."
 
-#: packages/admin/src/router.tsx:1234
+#: packages/admin/src/router.tsx:1235
 msgid "Your unsaved edits are in a recovery revision"
 msgstr "Οι αλλαγές σας που δεν έχουν αποθηκευτεί βρίσκονται σε μια έκδοση ανάκτησης."
 
-#: packages/admin/src/router.tsx:1219
+#: packages/admin/src/router.tsx:1220
 msgid "Your unsaved edits are in a recovery revision. Reload the page to edit with others."
 msgstr "Οι αλλαγές που δεν έχετε αποθηκεύσει βρίσκονται σε μια έκδοση ανάκτησης. Ανανεώστε τη σελίδα για να επεξεργαστείτε μαζί με άλλους."
 
-#: packages/admin/src/router.tsx:1223
+#: packages/admin/src/router.tsx:1224
 msgid "Your unsaved edits couldn’t be kept"
 msgstr "Οι αλλαγές που δεν αποθηκεύσατε δεν μπορούν να διατηρηθούν."
 
