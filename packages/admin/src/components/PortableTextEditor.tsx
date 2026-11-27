@@ -625,7 +625,7 @@ const iframeSlashCommand: SlashCommandItem = {
 	title: msg`Iframe`,
 	description: msg`Embed a page from another site`,
 	icon: FrameCorners,
-	aliases: ["embed", "youtube", "vimeo", "map"],
+	aliases: ["iframe", "embed", "youtube", "vimeo", "map"],
 	category: EMBEDS_CATEGORY,
 	command: ({ editor, range }) => insertIframeBlock(editor, range),
 };
@@ -2503,7 +2503,7 @@ export function PortableTextEditor({
 				title: msg`Video`,
 				description: msg`Upload or choose a video`,
 				icon: VideoCamera,
-				aliases: ["movie", "clip", "mp4", "film"],
+				aliases: ["video", "movie", "clip", "mp4", "film"],
 				category: MEDIA_CATEGORY,
 				deferInsertion: true,
 				command: ({ editor, range }) => {
@@ -2517,7 +2517,7 @@ export function PortableTextEditor({
 			title: msg`Section`,
 			description: msg`Insert a reusable section`,
 			icon: Stack,
-			aliases: ["pattern", "block", "template"],
+			aliases: ["section", "pattern", "block", "template"],
 			category: ADVANCED_CATEGORY,
 			deferInsertion: true,
 			command: ({ editor, range }) => {
