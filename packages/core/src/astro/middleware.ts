@@ -240,6 +240,7 @@ async function getRuntime(
 	config: EmDashConfig,
 	migrationMode: RuntimeMigrationMode,
 	initTimings?: Array<{ name: string; dur: number; desc?: string }>,
+	cache?: APIContext["cache"],
 ): Promise<EmDashRuntime> {
 	// Waiters poll rather than awaiting the initializing request's promise —
 	// workerd flags cross-request promise resolution (warnings + potential
@@ -249,7 +250,7 @@ async function getRuntime(
 	// failing that, the stale lock is reclaimed after a deadline instead of
 	// hanging every subsequent request in the isolate until eviction.
 	const holder = getRuntimeHolder();
-	return initWithLock(
+	const instance = await initWithLock(
 		holder.lock,
 		() => {
 			if (holder.closed) throw new Error("EmDash dev server has closed");
@@ -288,6 +289,11 @@ async function getRuntime(
 			anchor: (promise) => after(() => promise),
 		},
 	);
+	if (virtualCreateScheduler && cache?.enabled) {
+		// The timer scheduler needs the active provider's cache handle outside requests.
+		instance.setPluginContentCacheInvalidator((tags) => cache.invalidate({ tags }));
+	}
+	return instance;
 }
 
 /**
@@ -950,7 +956,14 @@ export const onRequest = defineMiddleware(async (context, next) => {
 			// requests hit the cached runtime and leave this empty.
 			const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 			const runtimeInitStart = performance.now();
-			const runtimeInit = config ? getRuntime(config, migrationMode, initSubTimings) : undefined;
+			const runtimeInit = config
+				? getRuntime(
+						config,
+						migrationMode,
+						initSubTimings,
+						context.isPrerendered ? undefined : context.cache,
+					)
+				: undefined;
 			// Awaited below unless the probe fails; then it settles in the background.
 			runtimeInit?.catch(() => {});
 
@@ -1142,7 +1155,12 @@ export const onRequest = defineMiddleware(async (context, next) => {
 				// instance and `initSubTimings` stays empty.
 				const initSubTimings: Array<{ name: string; dur: number; desc?: string }> = [];
 				let t0 = performance.now();
-				const runtime = await getRuntime(config, migrationMode, initSubTimings);
+				const runtime = await getRuntime(
+					config,
+					migrationMode,
+					initSubTimings,
+					context.isPrerendered ? undefined : context.cache,
+				);
 				const installedPluginId = publicPath.startsWith("/_emdash/api/plugins/")
 					? publicPath.slice("/_emdash/api/plugins/".length).split("/")[0]
 					: undefined;
