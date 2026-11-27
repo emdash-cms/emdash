@@ -386,6 +386,9 @@ importers:
       emdash:
         specifier: workspace:*
         version: link:packages/core
+      gettext-parser:
+        specifier: ^9.1.1
+        version: 9.1.1
       knip:
         specifier: ^5.84.1
         version: 5.84.1(@emnapi/core@1.11.1)(@emnapi/runtime@1.11.3)(@types/node@24.10.13)(typescript@6.0.0-beta)
