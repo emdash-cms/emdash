@@ -20,7 +20,7 @@ import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
 import { isMissingTableError } from "../../utils/db-errors.js";
 import { slugify } from "../../utils/slugify.js";
 import { ContentDatetimeNormalizer, type DatetimeContextCache } from "../content-datetime.js";
-import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js";
+import { executeAtomicBatchIfSupported, isPostgres, textPosition } from "../dialect-helpers.js";
 import { withTransaction } from "../transaction.js";
 import type { Database } from "../types.js";
 import { validateIdentifier } from "../validate.js";
@@ -49,9 +49,8 @@ import {
 const ULID_PATTERN = /^[0-9A-Z]{26}$/;
 const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/;
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
+const D1_PATTERN_MAX_BYTES = 50;
 
-// LIKE wildcards that must be escaped so user search input is matched literally.
-const LIKE_WILDCARD_RE = /[\\%_]/g;
 const MAX_INDEXED_FIELD_FILTERS = 20;
 const MAX_IN_FILTER_VALUES = SQL_BATCH_SIZE;
 const MAX_FILTER_STRING_LENGTH = 2048;
@@ -2033,14 +2032,14 @@ export class ContentRepository {
 	 * covering the display columns; SQLite only), the filter is served from
 	 * the index: a token-prefix MATCH against `_emdash_fts_<slug>` OR'd with
 	 * an index-served `slug GLOB 'term*'` prefix (the slug is not in the FTS
-	 * index). Both sides are index-backed, so SQLite's OR optimization avoids
-	 * the full-table scan the LIKE fallback needs (#1517). The trade-off is
-	 * search semantics: token-prefix matching instead of arbitrary substring.
+	 * index). Patterns exceeding D1's 50-byte limit use a literal slug prefix
+	 * comparison instead. Short patterns keep both sides index-backed, avoiding
+	 * a full-table scan. The trade-off is search semantics: token-prefix
+	 * matching instead of arbitrary substring.
 	 *
-	 * Fallback (Postgres, search disabled, or no usable terms): case-
-	 * insensitive substring LIKE across the handler-resolved `searchColumns`
-	 * (OR'd). User input is treated literally (LIKE wildcards escaped) and
-	 * `lower()` is applied on both sides for SQLite/Postgres parity.
+	 * Fallback (Postgres, search disabled, or no usable terms): literal case-
+	 * insensitive substring matching across the handler-resolved `searchColumns`
+	 * (OR'd). `lower()` is applied on both sides for SQLite/Postgres parity.
 	 */
 	private applySearchFilter<QB extends { where: (cb: (eb: any) => unknown) => QB }>(
 		query: QB,
@@ -2056,25 +2055,31 @@ export class ContentRepository {
 			if (match) {
 				validateIdentifier(type, "collection slug");
 				const ftsTable = `_emdash_fts_${type}`;
-				const slugPrefix = buildSlugGlobPrefix(term);
+				const slugPrefix = term.toLowerCase();
+				const slugPattern = buildSlugGlobPrefix(term);
+				const slugFilter =
+					new TextEncoder().encode(slugPattern).byteLength <= D1_PATTERN_MAX_BYTES
+						? sql<boolean>`slug GLOB ${slugPattern}`
+						: sql<boolean>`substr(slug, 1, length(${slugPrefix})) = ${slugPrefix}`;
 				return query.where((eb) =>
 					eb.or([
 						sql<boolean>`id IN (SELECT id FROM ${sql.ref(ftsTable)} WHERE ${sql.ref(ftsTable)} MATCH ${match})`,
-						sql<boolean>`slug GLOB ${slugPrefix}`,
+						slugFilter,
 					]),
 				);
 			}
-			// No usable terms (e.g. quotes only) — fall through to LIKE.
+			// No usable terms — fall through to substring matching.
 		}
-
-		const escaped = term.replace(LIKE_WILDCARD_RE, (c) => `\\${c}`);
-		const pattern = `%${escaped}%`;
 
 		return query.where((eb) =>
 			eb.or(
 				columns.map((col) => {
 					validateIdentifier(col, "search column");
-					return sql<boolean>`lower(CAST(${sql.ref(col)} AS TEXT)) LIKE lower(${pattern}) ESCAPE '\\'`;
+					return eb(
+						textPosition(this.db, sql`lower(CAST(${sql.ref(col)} AS TEXT))`, sql`lower(${term})`),
+						">",
+						0,
+					);
 				}),
 			),
 		);
