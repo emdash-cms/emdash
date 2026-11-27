@@ -53,6 +53,8 @@ export function renderPreviewToolbar(config: PreviewToolbarConfig): string {
     bottom: 16px;
     left: 50%;
     transform: translateX(-50%);
+    width: max-content;
+    max-width: calc(100% - 32px);
     z-index: 999999;
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     font-size: 13px;
@@ -66,6 +68,8 @@ export function renderPreviewToolbar(config: PreviewToolbarConfig): string {
 
   .ec-ptb-inner {
     display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
     align-items: center;
     gap: 10px;
     padding: 8px 12px 8px 16px;
@@ -75,6 +79,12 @@ export function renderPreviewToolbar(config: PreviewToolbarConfig): string {
     box-shadow: 0 4px 24px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.08);
     white-space: nowrap;
     user-select: none;
+  }
+
+  @media (max-width: 639px) {
+    .ec-ptb-inner {
+      border-radius: 12px;
+    }
   }
 
   .ec-ptb-badge {
@@ -102,6 +112,9 @@ export function renderPreviewToolbar(config: PreviewToolbarConfig): string {
     gap: 6px;
     font-size: 12px;
     color: #999;
+    min-width: 0;
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 
   .ec-ptb-status--error {

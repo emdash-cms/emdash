@@ -1067,3 +1067,62 @@ test.describe("Text field editing", () => {
 		await page.keyboard.press("Escape");
 	});
 });
+
+test.describe("Visual editing toolbar", () => {
+	for (const { locale, editModeLabel } of [
+		{ locale: "en", editModeLabel: "Edit mode" },
+		{ locale: "de", editModeLabel: "Bearbeitungsmodus" },
+	]) {
+		test(`keeps Publish and all controls on screen at 320px (${locale})`, async ({ page }) => {
+			const width = 320;
+			await page.setViewportSize({ width, height: 800 });
+			await enableEditMode(page);
+			await page
+				.context()
+				.addCookies([{ name: "emdash-locale", value: locale, domain: "localhost", path: "/" }]);
+			await stubSaves(page);
+			await gotoWithRetry(page, "/text-fields");
+
+			const toolbar = page.locator("#emdash-toolbar");
+			await expect(toolbar).toContainText(editModeLabel);
+
+			const field = page.locator("#excerpt");
+			await field.click();
+			await expect(field).toHaveAttribute("data-emdash-editing", "");
+			await page.keyboard.type("X");
+			await page.keyboard.press("Enter");
+
+			await expect(toolbar.locator("#emdash-tb-publish")).toBeVisible();
+			await expect(toolbar.locator(".emdash-tb-badge--saved")).toBeVisible();
+			await expect(toolbar.locator("#emdash-tb-admin")).toBeVisible();
+
+			// Measure all rects in one frame so the 2s Saved badge cannot disappear mid-check.
+			const rects = await page.evaluate(
+				(selectors) => {
+					return selectors.map((selector) => {
+						const el = document.querySelector(selector);
+						if (!el) return { selector, found: false, left: 0, right: 0 };
+						const rect = el.getBoundingClientRect();
+						return { selector, found: true, left: rect.left, right: rect.right };
+					});
+				},
+				[
+					"#emdash-toolbar",
+					".emdash-tb-logo",
+					".emdash-tb-toggle",
+					"#emdash-tb-status",
+					"#emdash-tb-save-status",
+					"#emdash-tb-admin",
+					"#emdash-tb-publish",
+					"#emdash-tb-dismiss",
+				],
+			);
+
+			for (const rect of rects) {
+				expect(rect.found, `${rect.selector} should exist`).toBe(true);
+				expect(rect.left, `${rect.selector} left`).toBeGreaterThanOrEqual(0);
+				expect(rect.right, `${rect.selector} right`).toBeLessThanOrEqual(width);
+			}
+		});
+	}
+});
