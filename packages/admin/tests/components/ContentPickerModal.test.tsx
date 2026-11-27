@@ -1,16 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-import type { ContentItem, FindManyResult } from "../../src/lib/api";
+import type { ContentItem, fetchContentList } from "../../src/lib/api";
 import { render } from "../utils/render.tsx";
 
-const mockFetchContentList = vi.fn<() => Promise<FindManyResult<ContentItem>>>();
+const mockFetchContentList = vi.fn<typeof fetchContentList>();
 
 vi.mock("../../src/lib/api", async () => {
 	const actual = await vi.importActual("../../src/lib/api");
 	return {
 		...actual,
 		fetchCollections: vi.fn(async () => []),
-		fetchContentList: (...args: unknown[]) => mockFetchContentList(...(args as [])),
+		fetchContentList: (...args: Parameters<typeof fetchContentList>) =>
+			mockFetchContentList(...args),
 	};
 });
 
@@ -83,6 +84,54 @@ describe("ContentPickerModal", () => {
 		);
 
 		await expect.element(screen.getByRole("checkbox", { name: "Jane Doe" })).toBeDisabled();
+	});
+
+	it("separates result rows by filterLocale across cached queries", async () => {
+		const english = makeItem({
+			id: "post-en",
+			slug: "contact",
+			locale: "en",
+			data: { title: "Contact (English)" },
+		});
+		const french = makeItem({
+			id: "post-fr",
+			slug: "contact",
+			locale: "fr",
+			data: { title: "Contact (French)" },
+		});
+		mockFetchContentList.mockImplementation(async (_collection, options) => {
+			return { items: options?.locale === "fr" ? [french] : [english] };
+		});
+		const onConfirm = vi.fn();
+
+		const screen = await render(
+			<ContentPickerModal
+				open
+				onOpenChange={() => {}}
+				collection="posts"
+				filterLocale="en"
+				onConfirm={onConfirm}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByRole("button", { name: /Contact \(English\)/ }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("Contact (French)")).not.toBeInTheDocument();
+		await screen.rerender(
+			<ContentPickerModal
+				open
+				onOpenChange={() => {}}
+				collection="posts"
+				filterLocale="fr"
+				onConfirm={onConfirm}
+			/>,
+		);
+
+		await expect
+			.element(screen.getByRole("button", { name: /Contact \(French\)/ }))
+			.toBeInTheDocument();
+		await expect.element(screen.getByText("Contact (English)")).not.toBeInTheDocument();
 	});
 
 	it("says the list could not be loaded rather than that the collection is empty", async () => {

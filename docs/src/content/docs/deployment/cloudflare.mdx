@@ -319,7 +319,7 @@ To see what a deploy actually gets, read the generated config rather than `wrang
 	the adapter's passthrough endpoint in place rather than wrapping it.
 </Aside>
 
-Cloudflare bills these transforms as [Images transformations](https://developers.cloudflare.com/images/pricing/#images-transformed). Each unique combination of source image and parameters is billed once per calendar month, and repeat requests within that month are free. If a site has 500 source images and requests one thumbnail size and one hero size for every image, those two parameter sets count as 1,000 transformed images for that month. The Images Free plan covers 5,000 unique transformations per month. Past that limit, cached transformations are still served, but new ones return a `9422` error and the image request fails.
+Cloudflare bills these transforms as [Images transformations](https://developers.cloudflare.com/images/pricing/#images-transformed). Each unique combination of source image and parameters is billed once per calendar month, and repeat requests within that month are free. If a site has 500 source images and requests one thumbnail size and one hero size for every image, those two parameter sets count as 1,000 transformed images for that month. The Images Free plan covers 5,000 unique transformations per month. Past that limit, cached transformations are still served, but new ones return a `9422` error. For media on the internal route, the endpoint then serves the full-size original until the binding transforms again. For media from a bucket URL, the image request still fails.
 
 ## Cloudflare Access authentication
 
