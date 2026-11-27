@@ -48,6 +48,7 @@ export function isMissingColumnError(error: unknown, column?: string): boolean {
 	return false;
 }
 
+const MISSING_COLUMN_WORD_RE = /\bcolumn\b/;
 const SQLITE_MISSING_COLUMN_RE =
 	/\bno such column:\s*([^:\r\n]+?)(?= - should this be a string literal in single-quotes\?|:|$)/;
 const POSTGRES_MISSING_COLUMN_RE = /\bcolumn\s+(.+?)\s+does not exist\b/;
@@ -79,7 +80,9 @@ export function isMissingTableError(error: unknown): boolean {
 
 	// PostgreSQL (and some MySQL variants): "relation ... does not exist" /
 	// "table ... does not exist" / "doesn't exist".
+	// A missing column also names its relation; that is not a missing table.
 	if (message.includes("does not exist") || message.includes("doesn't exist")) {
+		if (MISSING_COLUMN_WORD_RE.test(message)) return false;
 		return message.includes("relation") || message.includes("table");
 	}
 
