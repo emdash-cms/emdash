@@ -23,6 +23,9 @@ function pointerMedia() {
 let pointerMediaAtStart = "";
 beforeAll(() => {
 	pointerMediaAtStart = pointerMedia();
+	// They inherit its scroll too, and the page is a few pixels taller than the window, so a
+	// file that scrolls something into view leaves the top of later files' frames out of view.
+	window.top?.scrollTo(0, 0);
 });
 afterAll(() => {
 	const now = pointerMedia();

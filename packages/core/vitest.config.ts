@@ -1,9 +1,9 @@
 import { isBuiltin } from "node:module";
 
 import { defineConfig } from "vitest/config";
+import { BaseSequencer } from "vitest/node";
 
-import { ShardSequencer } from "./tests/shard-sequencer.mjs";
-import ShardTimesReporter from "./tests/shard-times-reporter.mjs";
+import { ShardTimesReporter, timedShardSequencer } from "../../.github/scripts/vitest-shard.mjs";
 
 // Stub the adapter-provided virtual modules that runtime code imports.
 // Individual tests still `vi.mock()` the ones they care about; this plugin
@@ -63,7 +63,12 @@ export default defineConfig({
 	],
 	test: {
 		globals: true,
-		sequence: { sequencer: ShardSequencer },
+		sequence: {
+			sequencer: timedShardSequencer(
+				BaseSequencer,
+				new URL("./tests/shard-times.json", import.meta.url),
+			),
+		},
 		// Naming any reporter replaces Vitest's own choice: `agent` under a coding
 		// agent, `default` plus `github-actions` in CI.
 		...(process.env.GITHUB_ACTIONS === "true"
