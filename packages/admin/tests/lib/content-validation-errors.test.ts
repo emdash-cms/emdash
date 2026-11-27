@@ -88,10 +88,36 @@ describe("describeContentValidationError", () => {
 
 	it("leaves request-shape issues and other errors to the server message", () => {
 		const requestShape = validationError([{ path: "slug", message: "Invalid input" }]);
-		const conflict = new ApiResponseError(409, "SLUG_CONFLICT", "Slug exists");
 
 		expect(describeContentValidationError(requestShape, FIELDS)).toBeUndefined();
-		expect(describeContentValidationError(conflict, FIELDS)).toBeUndefined();
 		expect(describeContentValidationError(new Error("offline"), FIELDS)).toBeUndefined();
+	});
+
+	describe("slug conflicts", () => {
+		it("names the slug and says a trashed entry can hold it", () => {
+			const conflict = new ApiResponseError(
+				409,
+				"SLUG_CONFLICT",
+				"Slug 'trustee' already exists in collection 'staff'",
+				{ slug: "trustee" },
+			);
+
+			expect(describeContentValidationError(conflict, FIELDS)).toBe(
+				'The slug "trustee" is already used by another entry in this collection, which may be in the trash. Change the slug, or permanently delete the trashed entry.',
+			);
+		});
+
+		it("does not name a slug when the server sends none", () => {
+			// An update that sent no slug puts the entry's id in the message.
+			const conflict = new ApiResponseError(
+				409,
+				"SLUG_CONFLICT",
+				"Slug '01JABCDEF' already exists in collection 'staff'",
+			);
+
+			expect(describeContentValidationError(conflict, FIELDS)).toBe(
+				"This slug is already used by another entry in this collection, which may be in the trash. Change the slug, or permanently delete the trashed entry.",
+			);
+		});
 	});
 });
