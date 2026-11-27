@@ -40,6 +40,7 @@ uploads/
 !packages/core/tests/integration/fixture/.emdash/
 !e2e/fixture/.emdash/
 !e2e/fixture-cloudflare/.emdash/
+e2e/fixture*/.emdash/migrations.json
 !templates/*/.emdash/seed.json
 
 # macOS-specific files
