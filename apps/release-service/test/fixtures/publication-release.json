@@ -1,0 +1,13 @@
+{
+	"publisherDid": "did:web:publisher.example.com",
+	"rkey": "gallery:1.2.3",
+	"artifactChecksum": "bciqhazpl5w2ra742ngjezwxoy4p74p2eyiftnnhycsofanwmdrezity",
+	"artifactBlobCid": "bafkreidqmxv63niqp6ngtesm3lxmoh76h5cmeczwwt4bjhcqg3gbysmuj4",
+	"provenance": {
+		"predicateType": "https://slsa.dev/provenance/v1",
+		"url": "https://github.com/example/gallery/attestation.sigstore.json",
+		"checksum": "bciqaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"sourceRepository": "https://github.com/example/gallery",
+		"builderId": "https://github.com/example/gallery/.github/workflows/release.yml@refs/heads/main"
+	}
+}
