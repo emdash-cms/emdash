@@ -27,7 +27,7 @@ AI agents can review entries through five MCP tools: `editorial_thread_list`, `e
 
 #### Visual editing
 
-Editors can review threads on the site itself. In edit mode, each element bound with `{...entry.edit}` or `{...entry.edit.field}` shows a badge with the number of its open threads; threads on text and blocks in a field count toward that field's badge. Hover over or tab to a bound element to show its comment button, which opens a popover where you can reply, resolve a thread you're allowed to resolve, follow **Open in admin**, and start a new thread on the entry or field. Threads on a range of text are still started in the entry editor.
+Editors can review threads on the site itself. In edit mode, each element bound with `{...entry.edit}` or `{...entry.edit.field}` shows a badge with the number of its open threads; threads on text and blocks in a field count toward that field's badge, and threads on a field the page doesn't show count toward the entry's badge. Hover over or tab to a bound element to show its comment button, which opens a popover where you can reply, resolve a thread you're allowed to resolve, follow **Open in admin**, and start a new thread on the entry or field. Threads on a range of text are still started in the entry editor.
 
 The toolbar loads threads with one request per entry on the page, at most four at a time, and only for signed-in users in edit mode who can take part in threads. The popover's code loads the first time someone opens it, from the editor-only `/_emdash/visual-editing/comments` page, which the site's Astro build bundles with `@astrojs/react`, as it does the inline editor. Pages for logged-out visitors don't change.
 

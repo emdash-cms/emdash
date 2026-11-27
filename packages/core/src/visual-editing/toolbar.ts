@@ -63,6 +63,8 @@ export interface ToolbarLabels {
 	commentDeleted: string;
 	deletedUser: string;
 	unknownUser: string;
+	unnamedUser: string;
+	onField: string;
 	onQuote: string;
 	onBlock: string;
 	commentsLoadFailed: string;
@@ -1742,12 +1744,23 @@ export function renderToolbar(config: ToolbarConfig): string {
     return annotation.field ? String(annotation.field).split(".")[0] : null;
   }
 
+  // A field's threads go to the entry's badge when the page shows no badge
+  // for the field, so they can still be reached.
+  function fieldHasBadge(key, field) {
+    return commentTargets.some(function(target) {
+      return target.visible !== false && anchorField(target.annotation) === field &&
+        entryKey(target.annotation.collection, target.annotation.id) === key;
+    });
+  }
+
   function threadsFor(annotation) {
     var field = anchorField(annotation);
-    var threads = threadsByEntry.get(entryKey(annotation.collection, annotation.id)) || [];
+    var key = entryKey(annotation.collection, annotation.id);
+    var threads = threadsByEntry.get(key) || [];
     return threads.filter(function(thread) {
       var anchor = thread.anchor || {};
-      return field ? anchor.type !== "entry" && anchor.field === field : anchor.type === "entry";
+      if (field) return anchor.type !== "entry" && anchor.field === field;
+      return anchor.type === "entry" || !anchor.field || !fieldHasBadge(key, anchor.field);
     });
   }
 
@@ -1939,13 +1952,25 @@ export function renderToolbar(config: ToolbarConfig): string {
       if (!target.button) return;
       var rect = target.element.getBoundingClientRect();
       var rtl = isRtl(target.element);
-      var shown = isShown(target.element) && !isClipped(target.element, rtl ? rect.left : rect.right, rect.top);
-      items.push({ target: target, rect: rect, rtl: rtl, shown: shown });
+      var visible = isShown(target.element);
+      var shown = visible && !isClipped(target.element, rtl ? rect.left : rect.right, rect.top);
+      items.push({ target: target, rect: rect, rtl: rtl, visible: visible, shown: shown });
     });
+    var changedEntries = new Set();
     items.forEach(function(item) {
+      if ((item.target.visible !== false) !== item.visible) {
+        item.target.visible = item.visible;
+        changedEntries.add(entryKey(item.target.annotation.collection, item.target.annotation.id));
+      }
       item.target.button.hidden = !item.shown;
       if (!item.shown && openCommentTarget === item.target && commentsPopover) {
         commentsPopover.then(function(popover) { popover.close(); });
+      }
+    });
+    items.forEach(function(item) {
+      var annotation = item.target.annotation;
+      if (!annotation.field && changedEntries.has(entryKey(annotation.collection, annotation.id))) {
+        renderCommentTrigger(item.target);
       }
     });
     var shown = items.filter(function(item) { return item.shown; });
@@ -2071,11 +2096,18 @@ export function renderToolbar(config: ToolbarConfig): string {
         openCommentTarget = target;
         target.button.setAttribute("aria-expanded", "true");
         var annotation = target.annotation;
+        var threads = threadsFor(annotation);
+        var fieldLabels = {};
+        threads.forEach(function(thread) {
+          var field = thread.anchor && thread.anchor.field;
+          if (field) fieldLabels[field] = fieldLabel({ collection: annotation.collection, field: field });
+        });
         popover.open({
           anchor: target.button,
           title: commentTitle(annotation),
           field: anchorField(annotation),
-          threads: threadsFor(annotation),
+          threads: threads,
+          fieldLabels: fieldLabels,
           loadFailed: failedCommentEntries.has(entryKey(annotation.collection, annotation.id)),
           labels: toolbarLabels,
           threadsUrl: threadsUrl(annotation),

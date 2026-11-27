@@ -152,6 +152,10 @@ function stubPopover() {
 const documentListeners: Parameters<typeof document.addEventListener>[] = [];
 
 beforeEach(() => {
+	// jsdom has no layout, so give elements a box unless they are hidden.
+	vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+		return this.closest("[hidden]") ? new DOMRect() : new DOMRect(0, 0, 100, 20);
+	});
 	const addListener = document.addEventListener.bind(document);
 	vi.spyOn(document, "addEventListener").mockImplementation((...args) => {
 		documentListeners.push(args);
@@ -230,6 +234,32 @@ describe("editorial comments in the toolbar", () => {
 		const excerpt = trigger("Comment on excerpt");
 		expect(excerpt.textContent).toBe("");
 		expect(excerpt.classList.contains("emdash-cm-trigger--has-threads")).toBe(false);
+	});
+
+	it("counts and lists threads on fields with no badge on the page in the entry's popover", async () => {
+		const { popover } = stubPopover();
+		stubApi(() =>
+			listOf([
+				thread("t-entry", { type: "entry" }),
+				thread("t-title", { type: "field", field: "title" }),
+				thread("t-hidden", { type: "field", field: "excerpt" }),
+				thread("t-absent", { type: "field", field: "seo" }),
+			]),
+		);
+		mountPage(
+			annotated("post-1") +
+				annotated("post-1", "title") +
+				annotated("post-1", "excerpt").replace("<p ", "<p hidden "),
+		);
+
+		const entry = await waitForTrigger("Comments on this entry: 3 open");
+		expect(trigger("Comments on Title: 1 open").textContent).toBe("1");
+		entry.click();
+		await vi.waitFor(() => expect(popover.open).toHaveBeenCalled());
+
+		const options = popover.open.mock.calls[0]![0];
+		expect(options.threads.map((t) => t.id)).toEqual(["t-entry", "t-hidden", "t-absent"]);
+		expect(options).toMatchObject({ fieldLabels: { excerpt: "excerpt", seo: "SEO" } });
 	});
 
 	it("orders the controls by their elements on the page, whichever entry's threads arrive first", async () => {
