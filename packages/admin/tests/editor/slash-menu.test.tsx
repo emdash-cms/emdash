@@ -1074,6 +1074,30 @@ describe("Slash Command Menu", () => {
 		});
 	});
 
+	it("inserts a plugin block that declares an empty fields list without a dialog", async () => {
+		const onChange = vi.fn();
+		const { screen, editor, pm } = await renderEditor({
+			onChange,
+			pluginBlocks: [
+				{ pluginId: "test-plugin", type: "test.divider", label: "Plain Divider", fields: [] },
+			],
+		});
+		await focusEditor(pm);
+		editor.commands.insertContent("/");
+
+		const menu = await waitForSlashMenu();
+		findItem(menu, "Plain Divider")!.click();
+
+		await waitForSlashMenuClosed();
+		await vi.waitFor(() =>
+			expect(onChange.mock.lastCall?.[0]).toContainEqual({
+				_type: "test.divider",
+				_key: expect.any(String),
+			}),
+		);
+		expect(screen.getByRole("dialog", { name: "Insert Plain Divider" }).query()).toBeNull();
+	});
+
 	it("inserts bullet list via slash command", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusEditor(pm);

@@ -2533,7 +2533,7 @@ export function PortableTextEditor({
 		// Add plugin block commands (API labels/descriptions: plain strings, not msg-wrapped).
 		// Plugins can supply a custom `category` (plain string) — falls back to "Embeds".
 		for (const block of pluginBlocks) {
-			cmds.push({
+			const item: SlashCommandItem = {
 				id: `plugin-${block.pluginId}-${block.type}`,
 				title: block.label,
 				description: block.description ?? t(msg`Embed a ${block.label}`),
@@ -2545,7 +2545,22 @@ export function PortableTextEditor({
 					editor.chain().focus().deleteRange(range).run();
 					setPluginBlockModal(block);
 				},
-			});
+			};
+			// Declared empty `fields` leave nothing to fill in; omitted `fields` ask for a URL.
+			if (block.fields?.length === 0) {
+				cmds.push(
+					topLevelInsert(item, (editor, range, position) =>
+						insertTopLevelBlock(
+							editor,
+							editor.schema.nodes.pluginBlock!.create({ blockType: block.type }),
+							range,
+							position,
+						),
+					),
+				);
+			} else {
+				cmds.push(item);
+			}
 		}
 
 		return cmds;

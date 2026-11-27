@@ -51,7 +51,7 @@ Named icons: `video`, `code`, `link`, `link-external`. Unknown or missing falls 
 
 ### Fields
 
-When `fields` is declared, the editor renders a Block Kit form for editing. When omitted, a simple URL input is shown.
+When `fields` lists elements, the editor renders a Block Kit form for editing. When `fields` is an empty array, the editor inserts the block without a form. When omitted, a simple URL input is shown.
 
 Fields use Block Kit element syntax:
 

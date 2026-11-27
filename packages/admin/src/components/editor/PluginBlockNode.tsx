@@ -225,8 +225,8 @@ function PluginBlockNodeView({
 	const hasFields = blockDef?.fields && blockDef.fields.length > 0;
 	const original = node.attrs[PORTABLE_TEXT_BLOCK_ATTR] as Record<string, unknown> | null;
 	const hasIdentity = !!id || typeof original?.id === "string" || typeof original?.url === "string";
-	const canEditUrl = !hasFields && (!!blockDef || hasIdentity);
-	const canEdit = !!blockDef || canEditUrl;
+	const canEditUrl = blockDef ? !blockDef.fields : hasIdentity;
+	const canEdit = hasFields || canEditUrl;
 
 	const [isEditing, setIsEditing] = React.useState(false);
 	const [editValue, setEditValue] = React.useState(id || "");
@@ -305,7 +305,7 @@ function PluginBlockNodeView({
 						{/* Label and ID */}
 						<div className="flex-1 min-w-0">
 							<div className="text-sm font-medium">{label}</div>
-							{!canEdit ? (
+							{!blockDef && !canEditUrl ? (
 								<p className="text-xs text-kumo-subtle">
 									{t`No editor is available for this block type. Its content is preserved.`}
 								</p>
