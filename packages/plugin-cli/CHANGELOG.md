@@ -1,5 +1,11 @@
 # @emdash-cms/registry-cli
 
+## 0.13.8
+
+### Patch Changes
+
+- [#5088](https://github.com/emdash-cms/emdash/pull/5088) [`7b97204`](https://github.com/emdash-cms/emdash/commit/7b972046f3d0a9c67431306821920995e6164cf3) Thanks [@ascorbic](https://github.com/ascorbic)! - `emdash login` and `emdash-plugin login` now open the sign-in page in your browser only when its address is an `http:` or `https:` URL. Any other address is still printed, so you can open it yourself. On Windows, `emdash-plugin login` now passes the full authorization URL to the browser, including the part after the first `&`.
+
 ## 0.13.7
 
 ### Patch Changes

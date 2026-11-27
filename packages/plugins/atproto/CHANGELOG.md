@@ -1,5 +1,11 @@
 # @emdash-cms/plugin-atproto
 
+## 0.2.6
+
+### Patch Changes
+
+- [#5125](https://github.com/emdash-cms/emdash/pull/5125) [`e031c6b`](https://github.com/emdash-cms/emdash/commit/e031c6b5a2a5a593112b159b498300feedfe2cd8) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes Unpublish leaving an entry's standard.site document and Bluesky post on the AT Protocol network. The plugin removed them only when the entry was moved to the trash; unpublishing now removes them too, and publishing the entry again creates new ones. If the records can't be removed, the entry shows as an error on the plugin's status page instead of as synced. Entries unpublished before this update keep their records until they are moved to the trash, or published and unpublished again.
+
 ## 0.2.5
 
 ### Patch Changes

@@ -1,5 +1,67 @@
 # @emdash-cms/auth
 
+## 1.7.0
+
+### Minor Changes
+
+- [#5106](https://github.com/emdash-cms/emdash/pull/5106) [`db3aa05`](https://github.com/emdash-cms/emdash/commit/db3aa05ade77c0653a07e9407c277bc9917aec11) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds a `delayWhenUnsent` option to the config of `sendMagicLink()` and `requestSignup()`. It defaults to `true`, which keeps the existing 100-250 ms wait before resolving when nothing is sent. Set it to `false` when you run the call after your response has been sent, for example with `after()` from `emdash`, so the deferred task doesn't wait for nothing.
+
+- [#4686](https://github.com/emdash-cms/emdash/pull/4686) [`91dfa31`](https://github.com/emdash-cms/emdash/commit/91dfa31364fd3e13f67c9cc826b6574c83792c71) Thanks [@ascorbic](https://github.com/ascorbic)! - Adds editorial comments: threads that staff leave on an entry while reviewing it, separate from the public comments visitors post.
+  
+  A thread points at the whole entry, a field, a Portable Text block, or a range of text in a block, and holds a conversation that can be resolved and reopened. Threads are private to staff and never appear on the site.
+  
+  In the entry editor, select text in any Portable Text field and choose **Comment** in the formatting toolbar, or press ⌘⌥M (Ctrl+Alt+M), to start a thread beside it. To comment on an image, embed, divider or other non-text block, choose **Comment** in its block menu (or, without edit access, select the block and choose **Comment** in the toolbar above it), and to comment on a whole field, use the comment button at the end of the field's label row. The comment button in the editor bar, just before the settings panel toggle, shows or hides the margin and shows how many threads are open. Commenting needs no edit access: Contributors who can't edit an entry, and anyone viewing an entry while someone else holds its edit lock, can still select text and comment. Commented text stays highlighted as you edit, and a thread whose text was deleted is listed as detached with the text it referred to. Links of the form `?thread=<id>` open the editor with that thread selected and its text in view, and **Go to text** on an open thread selects the text it refers to.
+  
+  The API lives under each entry, at `/_emdash/api/content/{collection}/{id}/threads`, with routes to list and start threads, reply, edit and delete comments, resolve and reopen threads, and store anchors after the entry's content changes. Each thread and comment in a response carries `can` flags that say what the caller may do with it.
+  
+  #### Mentions and email
+  
+  Type `@` in a comment to mention someone who can take part in threads. A comment body stores each mention as `<@USER_ID>`, and every thread in a response lists the users it mentions under `mentions`, with their current names, so a renamed user shows the new name. `GET …/threads/mentionable?q=` returns up to 10 people to mention, matched by display name, without email addresses. A new comment, or an edit that adds a mention, fails with `VALIDATION_ERROR` when it mentions a user who doesn't exist or can't take part. Mentions already in a comment don't stop it being edited.
+  
+  When the site has an email provider, a new comment emails the people it mentions, the thread's creator and the authors of its earlier comments that weren't deleted, except its own author, anyone who can no longer take part, and users whose email address isn't verified. Editing a comment to mention someone new emails only that person. The email has the entry's title, an excerpt of the comment and a link to the thread. Without an email provider, nothing is sent, and the comment is still saved. See [Comment on an entry](https://docs.emdashcms.com/guides/working-with-content/#comment-on-an-entry) for mentions and comment emails.
+  
+  #### MCP tools
+  
+  AI agents can review entries through five MCP tools: `editorial_thread_list`, `editorial_mentionable_list`, `editorial_thread_create`, `editorial_comment_create` and `editorial_thread_resolve`. A token needs the `content:read` scope for `editorial_thread_list` and `editorial_mentionable_list`, and the `content:write` scope for the other three. `editorial_mentionable_list` finds the user IDs that comment bodies mention as `<@USER_ID>`. The user behind the token needs the `editorial:comment` and `content:read_drafts` permissions for every tool.
+  
+  `editorial_thread_create` starts a thread on the whole entry, or on one field when you pass `field`. To comment on specific text, pass `field` and the exact `quote`, with optional `prefix` and `suffix` to tell repeated text apart. The tool finds the quote in the entry's current draft. Passing `prefix` or `suffix` without `quote` fails with `VALIDATION_ERROR`.
+  
+  #### Visual editing
+  
+  Editors can review threads on the site itself. In edit mode, each element bound with `{...entry.edit}` or `{...entry.edit.field}` shows a badge with the number of its open threads; threads on text and blocks in a field count toward that field's badge, and threads on a field the page doesn't show count toward the entry's badge. Hover over or tab to a bound element to show its comment button, which opens a popover where you can reply, resolve a thread you're allowed to resolve, follow **Open in admin**, and start a new thread on the entry or field. Threads on a range of text are still started in the entry editor.
+  
+  The toolbar loads threads with one request per entry on the page, at most four at a time, and only for signed-in users in edit mode who can take part in threads. The popover's code loads the first time someone opens it, from the editor-only `/_emdash/visual-editing/comments` page, which the site's Astro build bundles with `@astrojs/react`, as it does the inline editor. Pages for logged-out visitors don't change.
+  
+  #### Permissions
+  
+  Two permissions are new in `@emdash-cms/auth`. Every editorial route also needs `content:read_drafts`.
+  
+  - `editorial:comment` (Contributor and above): read threads, start them, and reply.
+  - `editorial:manage` (Editor and above): resolve, reopen and delete any thread, and delete anyone's comment.
+  
+  A thread's creator may also resolve and reopen it, and so may the entry's author when they hold `content:edit_own`. A creator may delete their own thread until someone else replies, and only a comment's author may edit it. Storing recomputed anchors needs edit access to the entry and its current `_rev`.
+  
+  New playground sessions open with example threads on the "Building for the Long Term" post, from a demo reviewer, so visitors can reply, resolve and add their own.
+  
+  #### Upgrading
+  
+  A migration adds two tables, `_emdash_editorial_threads` and `_emdash_editorial_comments`. Threads stay while an entry is in the trash, where their comments and threads can still be deleted but not added, edited, resolved or moved, and are deleted with the entry or its collection. Site transfer leaves them out.
+
+- [#5104](https://github.com/emdash-cms/emdash/pull/5104) [`7ed8e09`](https://github.com/emdash-cms/emdash/commit/7ed8e0946e2d184bf398fd5fa0428f7f42ad26de) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes setup getting stuck when the first admin is created through GitHub, Google, Microsoft, or AT Protocol sign-in but linking the sign-in account fails partway through. Signing in again with the same account now finishes setup; any other account is still refused.
+  
+  `canSelfSignup`'s `createUser` function in `@emdash-cms/auth` now also receives the account being linked, as `createUser(user, account)`, and may return an existing user for `findOrCreateOAuthUser()` to link that account to.
+
+- [#5104](https://github.com/emdash-cms/emdash/pull/5104) [`7ed8e09`](https://github.com/emdash-cms/emdash/commit/7ed8e0946e2d184bf398fd5fa0428f7f42ad26de) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes first-admin creation so only one person becomes admin when several first sign-ins happen at the same moment.
+  
+  - **GitHub, Google, Microsoft, and AT Protocol sign-in during setup:** the first sign-in becomes admin. A sign-in that finishes at the same time is now refused with `signup_not_allowed` instead of creating a second admin. With AT Protocol, only the account that becomes admin receives the email entered in the setup wizard, so another account can no longer be linked to the admin by that email.
+  - **Cloudflare Access:** when several people sign in to a new site at once, one becomes admin and the others get the role from their Access groups.
+  
+  While setup is still open, a sign-in from a new identity is refused once any user exists, matching the passkey setup step.
+  
+  `@emdash-cms/auth` adds an optional `createUser(user)` function to `canSelfSignup` results. When present, `findOrCreateOAuthUser()` calls it instead of `adapter.createUser()`. If it returns `null`, the sign-in is refused with `signup_not_allowed`.
+  
+  `@emdash-cms/auth-atproto` now requires `emdash` 1.7.0 or later.
+
 ## 1.6.0
 
 ### Patch Changes

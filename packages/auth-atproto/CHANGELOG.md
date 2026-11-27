@@ -1,5 +1,36 @@
 # @emdash-cms/auth-atproto
 
+## 0.2.53
+
+### Patch Changes
+
+- [#5116](https://github.com/emdash-cms/emdash/pull/5116) [`723784e`](https://github.com/emdash-cms/emdash/commit/723784e69bcba07371515586c379e51aca559644) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes Atmosphere sign-in leaving records in the database that were never removed. An OAuth state now stops working 10 minutes after the sign-in starts, as intended, and scheduled cleanup deletes the states of sign-ins that were started and never finished. Before, every abandoned attempt left a row in `_plugin_storage` that stayed there.
+  
+  Atmosphere sign-in also no longer stores the access and refresh tokens it receives from an account's provider. They were written for every completed callback, including accounts the site then refused, and never used again. Scheduled cleanup deletes the token sets stored by earlier versions.
+  
+  The cleanup of existing rows needs `emdash` upgraded, and the 10-minute state expiry and the end of token storage need `@emdash-cms/auth-atproto` upgraded.
+  
+  Also fixes `/.well-known/atproto-client-metadata.json` using the host of the incoming request for `client_id` and `redirect_uris`. It now uses `siteUrl` (or `EMDASH_SITE_URL`), the same origin the login route sends to the account's provider, so sign-in no longer fails behind reverse proxies that forward a different `Host`.
+
+- [#5104](https://github.com/emdash-cms/emdash/pull/5104) [`7ed8e09`](https://github.com/emdash-cms/emdash/commit/7ed8e0946e2d184bf398fd5fa0428f7f42ad26de) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes setup getting stuck when the first admin is created through GitHub, Google, Microsoft, or AT Protocol sign-in but linking the sign-in account fails partway through. Signing in again with the same account now finishes setup; any other account is still refused.
+  
+  `canSelfSignup`'s `createUser` function in `@emdash-cms/auth` now also receives the account being linked, as `createUser(user, account)`, and may return an existing user for `findOrCreateOAuthUser()` to link that account to.
+
+- [#5093](https://github.com/emdash-cms/emdash/pull/5093) [`801bdac`](https://github.com/emdash-cms/emdash/commit/801bdacb48c34480958f3f1968a81ee29229d1ef) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes sign-in keeping the session ID the browser already had. Signing in with a passkey, magic link, OAuth, Atmosphere, an invite, signup, first-admin setup or external authentication now starts the session under a new ID and removes the previous one from the session store.
+
+- [#5104](https://github.com/emdash-cms/emdash/pull/5104) [`7ed8e09`](https://github.com/emdash-cms/emdash/commit/7ed8e0946e2d184bf398fd5fa0428f7f42ad26de) Thanks [@ascorbic](https://github.com/ascorbic)! - Fixes first-admin creation so only one person becomes admin when several first sign-ins happen at the same moment.
+  
+  - **GitHub, Google, Microsoft, and AT Protocol sign-in during setup:** the first sign-in becomes admin. A sign-in that finishes at the same time is now refused with `signup_not_allowed` instead of creating a second admin. With AT Protocol, only the account that becomes admin receives the email entered in the setup wizard, so another account can no longer be linked to the admin by that email.
+  - **Cloudflare Access:** when several people sign in to a new site at once, one becomes admin and the others get the role from their Access groups.
+  
+  While setup is still open, a sign-in from a new identity is refused once any user exists, matching the passkey setup step.
+  
+  `@emdash-cms/auth` adds an optional `createUser(user)` function to `canSelfSignup` results. When present, `findOrCreateOAuthUser()` calls it instead of `adapter.createUser()`. If it returns `null`, the sign-in is refused with `signup_not_allowed`.
+  
+  `@emdash-cms/auth-atproto` now requires `emdash` 1.7.0 or later.
+- Updated dependencies [[`db3aa05`](https://github.com/emdash-cms/emdash/commit/db3aa05ade77c0653a07e9407c277bc9917aec11), [`91dfa31`](https://github.com/emdash-cms/emdash/commit/91dfa31364fd3e13f67c9cc826b6574c83792c71), [`7ed8e09`](https://github.com/emdash-cms/emdash/commit/7ed8e0946e2d184bf398fd5fa0428f7f42ad26de), [`7ed8e09`](https://github.com/emdash-cms/emdash/commit/7ed8e0946e2d184bf398fd5fa0428f7f42ad26de)]:
+  - @emdash-cms/auth@1.7.0
+
 ## 0.2.52
 
 ### Patch Changes
