@@ -47,6 +47,7 @@ export {
 	fetchTrashedContent,
 	restoreContent,
 	permanentDeleteContent,
+	emptyContentTrash,
 	duplicateContent,
 	scheduleContent,
 	unscheduleContent,

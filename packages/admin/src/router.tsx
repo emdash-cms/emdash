@@ -43,6 +43,7 @@ import {
 	type ContentDateFilter,
 	type ContentListSort,
 	type ContentStatusFilter,
+	type EmptyTrashProgress,
 } from "./components/ContentList";
 import { ContentTypeEditor } from "./components/ContentTypeEditor";
 import { ContentTypeList } from "./components/ContentTypeList";
@@ -125,6 +126,7 @@ import {
 	fetchTrashedContent,
 	restoreContent,
 	permanentDeleteContent,
+	emptyContentTrash,
 	duplicateContent,
 	scheduleContent,
 	unscheduleContent,
@@ -178,7 +180,12 @@ import {
 	type RoomEditing,
 	type RoomEvent,
 } from "./lib/co-editing/types.js";
-import { canDuplicateEntry, canPublishEntry, entryEditAccess } from "./lib/content-permissions";
+import {
+	canDuplicateEntry,
+	canPublishEntry,
+	entryEditAccess,
+	hasContentPermission,
+} from "./lib/content-permissions";
 import { describeContentValidationError } from "./lib/content-validation-errors";
 import { invalidateContentViews } from "./lib/invalidate-content-views.js";
 import { usePluginPage } from "./lib/plugin-context";
@@ -852,6 +859,85 @@ function ContentListPage() {
 		},
 	});
 
+	const bulkRestoreMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) => restoreContent(collection, id));
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({
+					title: plural(total, { one: "Restored # item", other: "Restored # items" }),
+					variant: "success",
+				});
+			} else {
+				toastManager.add({
+					title: t`Failed to restore`,
+					description: t`${failedIds.length} of ${total} could not be restored`,
+					variant: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void invalidateContentViews(queryClient);
+		},
+	});
+
+	const bulkPermanentDeleteMutation = useMutation({
+		mutationFn: async (ids: string[]) => {
+			const { failedIds } = await runBulkAction(ids, (id) =>
+				permanentDeleteContent(collection, id),
+			);
+			return { total: ids.length, failedIds };
+		},
+		onSuccess: ({ total, failedIds }) => {
+			if (failedIds.length === 0) {
+				toastManager.add({
+					title: plural(total, {
+						one: "Permanently deleted # item",
+						other: "Permanently deleted # items",
+					}),
+					variant: "success",
+				});
+			} else {
+				toastManager.add({
+					title: t`Failed to delete`,
+					description: t`${failedIds.length} of ${total} could not be deleted`,
+					variant: "error",
+				});
+			}
+		},
+		onSettled: () => {
+			void invalidateContentViews(queryClient);
+		},
+	});
+
+	const emptyTrashMutation = useMutation({
+		mutationFn: async (onProgress: (progress: EmptyTrashProgress) => void) => {
+			let deleted = 0;
+			for (;;) {
+				// oxlint-disable-next-line no-await-in-loop -- each batch runs after the last one lands
+				const batch = await emptyContentTrash(collection, { locale: activeLocale });
+				deleted += batch.deleted;
+				onProgress({ deleted, remaining: batch.remaining });
+				if (batch.remaining === 0 || batch.deleted === 0) return deleted;
+			}
+		},
+		onSuccess: (deleted) => {
+			if (deleted === 0) return;
+			toastManager.add({
+				title: plural(deleted, {
+					one: "Permanently deleted # item",
+					other: "Permanently deleted # items",
+				}),
+				variant: "success",
+			});
+		},
+		onSettled: () => {
+			void invalidateContentViews(queryClient);
+		},
+	});
+
 	// Keep every hook above the early returns below — a render that takes a
 	// guard (e.g. `error`) must run the same number of hooks as a full render,
 	// or React throws #300 "Rendered fewer hooks than expected" (#1415).
@@ -860,6 +946,7 @@ function ContentListPage() {
 	}
 
 	const collectionConfig = manifest.collections[collection];
+	const canDeletePermanently = hasContentPermission(currentUser, "content:delete_permanent");
 
 	if (!collectionConfig) {
 		return <NotFoundPage message={t`Collection "${collection}" not found`} />;
@@ -904,8 +991,10 @@ function ContentListPage() {
 			isTrashedLoading={trash.query.isLoading}
 			trashedCount={trash.pagination.totalCount}
 			onDelete={(id) => deleteMutation.mutateAsync(id)}
-			onRestore={(id) => restoreMutation.mutate(id)}
-			onPermanentDelete={(id) => permanentDeleteMutation.mutateAsync(id)}
+			onRestore={(id) => restoreMutation.mutateAsync(id)}
+			onPermanentDelete={
+				canDeletePermanently ? (id) => permanentDeleteMutation.mutateAsync(id) : undefined
+			}
 			onDuplicate={(id) => duplicateMutation.mutate(id)}
 			canDuplicate={(item) => !currentUser || canDuplicateEntry(currentUser, item)}
 			i18n={i18n}
@@ -929,6 +1018,21 @@ function ContentListPage() {
 			onBulkPublish={(ids) => bulkPublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkUnpublish={(ids) => bulkUnpublishMutation.mutateAsync(ids).then((r) => r.failedIds)}
 			onBulkDelete={(ids) => bulkDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)}
+			onBulkRestore={
+				hasContentPermission(currentUser, "content:edit_own")
+					? (ids) => bulkRestoreMutation.mutateAsync(ids).then((r) => r.failedIds)
+					: undefined
+			}
+			onBulkPermanentDelete={
+				canDeletePermanently
+					? (ids) => bulkPermanentDeleteMutation.mutateAsync(ids).then((r) => r.failedIds)
+					: undefined
+			}
+			onEmptyTrash={
+				canDeletePermanently
+					? (onProgress) => emptyTrashMutation.mutateAsync(onProgress)
+					: undefined
+			}
 			bulkTagTaxonomies={
 				(currentUser?.role ?? 0) >= ROLE_EDITOR
 					? manifest.taxonomies.filter((taxonomy) => taxonomy.collections.includes(collection))

@@ -3,7 +3,7 @@ import { i18n } from "@lingui/core";
 import { I18nProvider } from "@lingui/react";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { RouterProvider } from "@tanstack/react-router";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { userEvent } from "vitest/browser";
 
 import { ThemeProvider } from "../src/components/ThemeProvider";
@@ -16,6 +16,7 @@ const SUBSCRIBER = { id: "user_subscriber", role: 10 };
 const CONTRIBUTOR = { id: "user_contributor", role: 20 };
 const AUTHOR = { id: "user_author", role: 30 };
 const EDITOR = { id: "user_editor", role: 40 };
+const ADMIN = { id: "user_admin", role: 50 };
 
 const MANIFEST: AdminManifest = {
 	version: "1.0.0",
@@ -68,7 +69,13 @@ function contentItem({ id, title, status, authorId }: Entry) {
 let requests: string[];
 let restoreFetch: () => void;
 
-function serve(user: { id: string; role: number }, entries: Entry[]) {
+interface TrashOptions {
+	trashed: Entry[];
+	emptyTrash?: (url: URL) => Promise<Response>;
+	manifest?: AdminManifest;
+}
+
+function serve(user: { id: string; role: number }, entries: Entry[], trash?: TrashOptions) {
 	const originalFetch = globalThis.fetch;
 	globalThis.fetch = async (input, init) => {
 		const href = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -76,10 +83,20 @@ function serve(user: { id: string; role: number }, entries: Entry[]) {
 		const method = init?.method ?? "GET";
 		requests.push(`${method} ${url.pathname}`);
 		const path = url.pathname;
-		if (path === "/_emdash/api/manifest") return Response.json({ data: MANIFEST });
+		if (path === "/_emdash/api/manifest") {
+			return Response.json({ data: trash?.manifest ?? MANIFEST });
+		}
 		if (path === "/_emdash/api/auth/me") return Response.json({ data: user });
 		if (path === "/_emdash/api/content/posts") {
 			return Response.json({ data: { items: entries.map(contentItem), total: entries.length } });
+		}
+		if (trash && path === "/_emdash/api/content/posts/trash") {
+			if (method === "DELETE" && trash.emptyTrash) return trash.emptyTrash(url);
+			const items = trash.trashed.map((entry) => ({
+				...contentItem(entry),
+				deletedAt: "2025-01-02T00:00:00Z",
+			}));
+			return Response.json({ data: { items, total: items.length } });
 		}
 		const entry = entries.find(
 			(candidate) => path === `/_emdash/api/content/posts/${candidate.id}`,
@@ -244,5 +261,113 @@ describe("content editor Save and Publish offers", () => {
 
 		await expect.element(screen.getByRole("button", { name: "Publish now" })).toBeVisible();
 		await expect.element(screen.getByRole("textbox", { name: "Title" })).toBeEnabled();
+	});
+});
+
+describe("content trash actions", () => {
+	const trashed: Entry[] = [
+		{ id: "gone", title: "Gone post", status: "draft", authorId: EDITOR.id },
+		{ id: "older", title: "Older post", status: "draft", authorId: EDITOR.id },
+	];
+
+	async function openTrash() {
+		const screen = await renderAt({ to: "/content/$collection", params: { collection: "posts" } });
+		await screen.getByRole("tab", { name: /Trash/ }).click();
+		await screen.getByRole("button", { name: "Actions for Gone post" }).click();
+		await expect.element(screen.getByRole("menuitem", { name: "Restore" })).toBeVisible();
+		return screen;
+	}
+
+	it("offers an Editor neither Delete permanently nor Empty trash", async () => {
+		serve(EDITOR, [], { trashed });
+		const screen = await openTrash();
+
+		expect(screen.getByRole("menuitem", { name: "Delete permanently" }).query()).toBeNull();
+		await userEvent.keyboard("{Escape}");
+		expect(screen.getByRole("button", { name: /Empty trash/ }).query()).toBeNull();
+	});
+
+	it("offers an Admin Delete permanently and Empty trash", async () => {
+		serve(ADMIN, [], { trashed });
+		const screen = await openTrash();
+
+		await expect
+			.element(screen.getByRole("menuitem", { name: "Delete permanently" }))
+			.toBeVisible();
+		await userEvent.keyboard("{Escape}");
+		await expect.element(screen.getByRole("button", { name: "Empty trash (2)" })).toBeVisible();
+	});
+
+	it("empties the trash in batches, showing progress, after a confirmation that opens on Cancel", async () => {
+		const batches = [
+			{ deleted: 40, remaining: 80 },
+			{ deleted: 40, remaining: 40 },
+			{ deleted: 40, remaining: 0 },
+		];
+		const pending: Array<() => void> = [];
+		serve(ADMIN, [], {
+			trashed,
+			emptyTrash: () =>
+				new Promise((resolve) => {
+					const batch = batches[pending.length]!;
+					pending.push(() => resolve(Response.json({ data: batch })));
+				}),
+		});
+		const screen = await renderAt({ to: "/content/$collection", params: { collection: "posts" } });
+		await screen.getByRole("tab", { name: /Trash/ }).click();
+
+		await screen.getByRole("button", { name: "Empty trash (2)" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Empty trash?" });
+		await expect.element(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+		await expect
+			.element(
+				dialog.getByText("Permanently delete all 2 items in the trash? This cannot be undone."),
+			)
+			.toBeVisible();
+		dialog.getByRole("button", { name: "Empty trash" }).element().click();
+
+		await expect.element(dialog.getByRole("button", { name: "Deleting 0 of 2…" })).toBeVisible();
+		await vi.waitFor(() => expect(pending).toHaveLength(1));
+		pending[0]!();
+		await expect.element(dialog.getByRole("button", { name: "Deleting 40 of 120…" })).toBeVisible();
+		await expect.element(dialog.getByRole("status")).toHaveTextContent("Deleting 40 of 120…");
+		await vi.waitFor(() => expect(pending).toHaveLength(2));
+		pending[1]!();
+		await expect.element(dialog.getByRole("button", { name: "Deleting 80 of 120…" })).toBeVisible();
+		await vi.waitFor(() => expect(pending).toHaveLength(3));
+		pending[2]!();
+
+		await expect.element(dialog).not.toBeInTheDocument();
+		await expect.element(screen.getByText("Permanently deleted 120 items")).toBeVisible();
+		expect(requests.filter((request) => request.startsWith("DELETE"))).toEqual([
+			"DELETE /_emdash/api/content/posts/trash",
+			"DELETE /_emdash/api/content/posts/trash",
+			"DELETE /_emdash/api/content/posts/trash",
+		]);
+	});
+	it("empties only the trash of the locale the list shows", async () => {
+		const deleteUrls: URL[] = [];
+		serve(ADMIN, [], {
+			trashed,
+			manifest: { ...MANIFEST, i18n: { defaultLocale: "fr", locales: ["en", "fr"] } },
+			emptyTrash: async (url) => {
+				deleteUrls.push(url);
+				return Response.json({ data: { deleted: 2, remaining: 0 } });
+			},
+		});
+		const screen = await renderAt({ to: "/content/$collection", params: { collection: "posts" } });
+		await screen.getByRole("tab", { name: /Trash/ }).click();
+
+		await screen.getByRole("button", { name: "Empty trash (2)" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Empty trash?" });
+		await expect
+			.element(
+				dialog.getByText("Permanently delete all 2 FR items in the trash? This cannot be undone."),
+			)
+			.toBeVisible();
+		dialog.getByRole("button", { name: "Empty trash" }).element().click();
+
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(deleteUrls.map((url) => url.searchParams.get("locale"))).toEqual(["fr"]);
 	});
 });

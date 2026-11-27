@@ -1220,6 +1220,51 @@ describe("ContentList", () => {
 		});
 	});
 
+	describe("trash selection", () => {
+		const trashed = ["One", "Two", "Three", "Four"].map((title, index) =>
+			makeTrashedItem({ id: `t${index + 1}`, data: { title } }),
+		);
+
+		it("restores the selected entries and keeps the failed ones selected", async () => {
+			const onBulkRestore = vi.fn().mockResolvedValue(["t2"]);
+			const screen = await render(
+				<ContentList {...defaultProps} trashedItems={trashed} onBulkRestore={onBulkRestore} />,
+			);
+			await screen.getByRole("tab", { name: /Trash/ }).click();
+			await screen.getByRole("checkbox", { name: "Select One" }).click();
+			await screen.getByRole("checkbox", { name: "Select Three" }).click({ modifiers: ["Shift"] });
+
+			await screen.getByRole("button", { name: "Restore", exact: true }).click();
+
+			expect(onBulkRestore).toHaveBeenCalledWith(["t1", "t2", "t3"]);
+			await expect.element(screen.getByRole("status")).toHaveTextContent("1 selected");
+			await expect.element(screen.getByRole("checkbox", { name: "Select Two" })).toBeChecked();
+		});
+
+		it("permanently deletes the selected entries after a confirmation that opens on Cancel", async () => {
+			const onBulkPermanentDelete = vi.fn().mockResolvedValue(["t4"]);
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					trashedItems={trashed}
+					onBulkPermanentDelete={onBulkPermanentDelete}
+				/>,
+			);
+			await screen.getByRole("tab", { name: /Trash/ }).click();
+			await screen.getByRole("checkbox", { name: "Select Three" }).click();
+			await screen.getByRole("checkbox", { name: "Select Four" }).click();
+
+			await screen.getByRole("button", { name: "Delete permanently" }).click();
+			const dialog = screen.getByRole("dialog", { name: "Delete Permanently?" });
+			await expect.element(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+			dialog.getByRole("button", { name: "Delete Permanently" }).element().click();
+
+			expect(onBulkPermanentDelete).toHaveBeenCalledWith(["t3", "t4"]);
+			await expect.element(screen.getByRole("status")).toHaveTextContent("1 selected");
+			await expect.element(screen.getByRole("checkbox", { name: "Select Four" })).toBeChecked();
+		});
+	});
+
 	describe("bulk delete", () => {
 		it("closes the confirmation dialog when the user confirms", async () => {
 			const onBulkDelete = vi.fn((ids: string[]) => Promise.resolve(ids));
