@@ -2326,7 +2326,7 @@ msgstr "एप्लिकेशन पासवर्ड"
 
 #: packages/admin/src/components/settings/SidebarsSettings.tsx:127
 msgid "Applies to every collection. Sections a collection doesn't use are skipped."
-msgstr "हर कलेक्शन पर लागू होता है। जिन अनुभाग का कोई कलेक्शन उपयोग नहीं करता, उन्हें छोड़ दिया जाता है।"
+msgstr "हर कलेक्शन पर लागू होता है। जिन अनुभागों का कोई कलेक्शन उपयोग नहीं करता, उन्हें छोड़ दिया जाता है।"
 
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:611
 #: packages/admin/src/components/PortableTextEditor.tsx:5426
@@ -2404,7 +2404,7 @@ msgstr "क्या आप वाकई \"{0}\" को हटाना चा�
 #. placeholder {0}: deleteTarget.label
 #: packages/admin/src/components/ContentTypeList.tsx:263
 msgid "Are you sure you want to delete \"{0}\"? This will also delete all content in this collection."
-msgstr "क्या आप वाकई \"{0}\" को हटाना चाहते हैं? इससे इस कलेक्शन का सारा कंटेंट भी हट जाएगी."
+msgstr "क्या आप वाकई \"{0}\" को हटाना चाहते हैं? इससे इस कलेक्शन का सारा कंटेंट भी हट जाएगा।"
 
 #. placeholder {0}: deleteFieldTarget.label
 #: packages/admin/src/components/ContentTypeEditor.tsx:905
@@ -3144,7 +3144,7 @@ msgstr "इस आइटम का लेबल, लिंक और मेन�
 
 #: packages/admin/src/lib/api/marketplace.ts:436
 msgid "Change where visitors are sent"
-msgstr "तय करें कि विसिटोर्स कहाँ भेजे जाते हैं"
+msgstr "तय करें कि विज़िटर्स कहाँ भेजे जाते हैं"
 
 #: packages/admin/src/components/revisions/change-labels.ts:110
 msgid "Changed {label}"
@@ -15397,7 +15397,7 @@ msgstr ""
 
 #: packages/admin/src/components/ContentTypeEditor.tsx:474
 msgid "This collection is defined in code. Some settings cannot be changed here. Edit your live.config.ts file to modify the schema."
-msgstr "इस कलेक्शन को कोड में परिभाषित किया गया है। यहां कुछ सेटिंग्स नहीं बदली जा सकतीं. स्कीमा को संशोधित करने के लिए अपनी Live.config.ts फ़ाइल संपादित करें।"
+msgstr "इस कलेक्शन को कोड में परिभाषित किया गया है। यहां कुछ सेटिंग्स नहीं बदली जा सकतीं। स्कीमा को संशोधित करने के लिए अपनी live.config.ts फ़ाइल संपादित करें।"
 
 #: packages/admin/src/components/PortableTextEditor.tsx:3371
 msgid "This content cannot be edited safely"
