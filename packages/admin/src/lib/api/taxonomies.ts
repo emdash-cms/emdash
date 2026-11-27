@@ -82,7 +82,7 @@ export interface CreateTermInput {
 export interface UpdateTermInput {
 	slug?: string;
 	label?: string;
-	parentId?: string;
+	parentId?: string | null;
 	description?: string;
 }
 
