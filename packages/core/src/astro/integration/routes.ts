@@ -228,6 +228,33 @@ export function injectCoreRoutes(
 		entrypoint: resolveRoute("api/content/[collection]/[id]/room.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads/anchors",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/anchors.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads/[threadId]",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/[threadId]/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads/[threadId]/comments",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/[threadId]/comments/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads/[threadId]/comments/[commentId]",
+		entrypoint: resolveRoute(
+			"api/content/[collection]/[id]/threads/[threadId]/comments/[commentId].ts",
+		),
+	});
+
 	// i18n translation routes
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/translations",

@@ -1,9 +1,16 @@
 import { sql, type Kysely, type Selectable, type SelectQueryBuilder } from "kysely";
 import { monotonicFactory } from "ulidx";
 
-import { executeAtomicBatchIfSupported } from "../dialect-helpers.js";
+import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
+import { executeAtomicBatchIfSupported, isPostgres } from "../dialect-helpers.js";
 import type { Database, EditorialThreadTable } from "../types.js";
-import { decodeCursor, encodeCursor, type FindManyResult } from "./types.js";
+import { validateIdentifier } from "../validate.js";
+import {
+	ContentMutationConflictError,
+	decodeCursor,
+	encodeCursor,
+	type FindManyResult,
+} from "./types.js";
 
 export type EditorialAnchor =
 	| { type: "entry" }
@@ -508,20 +515,53 @@ export class EditorialThreadRepository {
 			.execute();
 	}
 
+	/** The stored anchors of those of `threadIds` that are on the entry. */
+	async findAnchors(
+		collection: string,
+		entryId: string,
+		threadIds: string[],
+	): Promise<Map<string, EditorialAnchor>> {
+		const anchors = new Map<string, EditorialAnchor>();
+		for (const batch of chunks([...new Set(threadIds)], SQL_BATCH_SIZE)) {
+			// oxlint-disable-next-line no-await-in-loop -- batches stay within D1's bind-parameter limit
+			const rows = await this.db
+				.selectFrom("_emdash_editorial_threads")
+				.select(["id", "anchor"])
+				.where("collection", "=", collection)
+				.where("entry_id", "=", entryId)
+				.where("id", "in", batch)
+				.execute();
+			for (const row of rows) anchors.set(row.id, parseAnchor(row.anchor));
+		}
+		return anchors;
+	}
+
 	/**
-	 * Stores new anchors for threads on one entry. Updates naming a thread on
-	 * another entry are ignored. Returns how many threads changed.
+	 * Stores new anchors for threads on one entry, while the entry is out of
+	 * the trash and still has `expected`'s `version` and `updatedAt`. Updates
+	 * naming a thread on another entry are ignored. Returns how many threads
+	 * changed. Throws `ContentMutationConflictError` once the entry no longer
+	 * matches. On D1 the check and every write run as one atomic batch; call it
+	 * inside `withTransaction` so that elsewhere a conflict rolls back the
+	 * anchors already stored.
 	 */
 	async updateAnchors(input: {
 		collection: string;
 		entryId: string;
+		expected: { version: number; updatedAt: string };
 		updates: EditorialAnchorUpdate[];
 		now: string;
 	}): Promise<number> {
-		let updated = 0;
-		for (const update of input.updates) {
-			// oxlint-disable-next-line no-await-in-loop -- each row gets its own anchor value
-			const result = await this.db
+		validateIdentifier(input.collection, "collection type");
+		const currentEntry = sql<{ current: number }>`
+			SELECT 1 AS current FROM ${sql.ref(`ec_${input.collection}`)}
+			WHERE id = ${input.entryId}
+			AND deleted_at IS NULL
+			AND version = ${input.expected.version}
+			AND updated_at = ${input.expected.updatedAt}
+		`;
+		const writes = input.updates.map((update) =>
+			this.db
 				.updateTable("_emdash_editorial_threads")
 				.set({
 					anchor: JSON.stringify(update.anchor),
@@ -531,8 +571,32 @@ export class EditorialThreadRepository {
 				.where("id", "=", update.threadId)
 				.where("collection", "=", input.collection)
 				.where("entry_id", "=", input.entryId)
-				.executeTakeFirst();
-			updated += Number(result.numUpdatedRows);
+				.where(sql<boolean>`EXISTS (${currentEntry})`)
+				.returning("id"),
+		);
+
+		const batched = await executeAtomicBatchIfSupported(this.db, [currentEntry, ...writes]);
+		if (batched) {
+			if (batched[0]?.rows.length !== 1) throw new ContentMutationConflictError();
+			return batched.slice(1).reduce((total, result) => total + result.rows.length, 0);
+		}
+
+		// A PostgreSQL UPDATE that waits for a thread lock still reads the entry
+		// from its earlier snapshot, so hold the entry row while the anchors change.
+		if (isPostgres(this.db)) {
+			const locked = await sql`${currentEntry} FOR UPDATE`.execute(this.db);
+			if (locked.rows.length === 0) throw new ContentMutationConflictError();
+		}
+		let updated = 0;
+		for (const write of writes) {
+			// oxlint-disable-next-line no-await-in-loop -- each row gets its own anchor value
+			const changed = (await write.execute()).length;
+			if (changed === 0) {
+				// oxlint-disable-next-line no-await-in-loop -- tells a stale entry from a thread on another entry
+				const stillCurrent = await currentEntry.execute(this.db);
+				if (stillCurrent.rows.length === 0) throw new ContentMutationConflictError();
+			}
+			updated += changed;
 		}
 		return updated;
 	}
@@ -544,6 +608,38 @@ export class EditorialThreadRepository {
 			.where("thread_id", "=", threadId)
 			.execute();
 		await this.db.deleteFrom("_emdash_editorial_threads").where("id", "=", threadId).execute();
+	}
+
+	/**
+	 * Deletes the thread only while every live comment on it is by `authorId`.
+	 * Checking in the delete itself keeps a reply that lands meanwhile.
+	 * Returns whether the thread was deleted. Call it inside `withTransaction`.
+	 */
+	async deleteThreadIfOnlyAuthor(threadId: string, authorId: string): Promise<boolean> {
+		await this.lockThread(threadId);
+		const deleted = await this.db
+			.deleteFrom("_emdash_editorial_threads")
+			.where("id", "=", threadId)
+			.where(({ exists, not, selectFrom }) =>
+				not(
+					exists(
+						selectFrom("_emdash_editorial_comments")
+							.select("id")
+							.where("thread_id", "=", threadId)
+							.where("deleted_at", "is", null)
+							.where((inner) =>
+								inner.or([inner("author_id", "is", null), inner("author_id", "!=", authorId)]),
+							),
+					),
+				),
+			)
+			.executeTakeFirst();
+		if (Number(deleted.numDeletedRows ?? 0) === 0) return false;
+		await this.db
+			.deleteFrom("_emdash_editorial_comments")
+			.where("thread_id", "=", threadId)
+			.execute();
+		return true;
 	}
 
 	async deleteForEntry(collection: string, entryId: string): Promise<void> {

@@ -338,6 +338,22 @@ describeEachDialect("editorial threads", (dialect) => {
 		},
 	);
 
+	it("deletes a thread for its author only while nobody else has a live comment on it", async () => {
+		const solo = await createThread();
+		const replied = await createThread();
+		await threads.addComment({
+			threadId: replied.threadId,
+			authorId: LINUS,
+			body: "Wait",
+			now: now(),
+		});
+
+		expect(await threads.deleteThreadIfOnlyAuthor(solo.threadId, ADA)).toBe(true);
+		expect(await threads.findThread(solo.threadId)).toBeNull();
+		expect(await threads.deleteThreadIfOnlyAuthor(replied.threadId, ADA)).toBe(false);
+		expect((await threads.getThread(replied.threadId))?.comments).toHaveLength(2);
+	});
+
 	it("deletes the thread when its last live comment is deleted", async () => {
 		const { threadId, commentId } = await createThread();
 
@@ -392,6 +408,49 @@ describeEachDialect("editorial threads", (dialect) => {
 		},
 	);
 
+	it.runIf(dialect === "postgres")(
+		"keeps a reply that commits while its thread's creator deletes the thread",
+		async () => {
+			const { threadId } = await createThread();
+
+			let releaseReply!: () => void;
+			const replyHeld = new Promise<void>((resolve) => {
+				releaseReply = resolve;
+			});
+			let replyInserted!: () => void;
+			const replyStarted = new Promise<void>((resolve) => {
+				replyInserted = resolve;
+			});
+			let replyId = "";
+			const reply = db.transaction().execute(async (trx) => {
+				replyId = await new EditorialThreadRepository(trx).addComment({
+					threadId,
+					authorId: LINUS,
+					body: "Wait, I have a source.",
+					now: now(),
+				});
+				replyInserted();
+				await replyHeld;
+			});
+			await replyStarted;
+			const creatorDelete = db
+				.transaction()
+				.execute((trx) =>
+					new EditorialThreadRepository(trx).deleteThreadIfOnlyAuthor(threadId, ADA),
+				);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			releaseReply();
+			const [, deleted] = await Promise.all([reply, creatorDelete]);
+
+			expect(deleted).toBe(false);
+			expect(await threads.findThread(threadId)).not.toBeNull();
+			expect(await threads.findComment(replyId)).toMatchObject({
+				authorId: LINUS,
+				deletedAt: null,
+			});
+		},
+	);
+
 	it("shows comments from a deleted user without an author", async () => {
 		const { threadId } = await createThread();
 		await threads.addComment({ threadId, authorId: LINUS, body: "Bye", now: now() });
@@ -408,10 +467,12 @@ describeEachDialect("editorial threads", (dialect) => {
 		const mine = await createThread();
 		const theirs = await createThread(otherEntryId);
 		const moved: EditorialAnchor = { ...TEXT_ANCHOR, start: 16, end: 21 };
+		const entry = await new ContentRepository(db).findById("post", entryId);
 
 		await threads.updateAnchors({
 			collection: "post",
 			entryId,
+			expected: { version: entry!.version, updatedAt: entry!.updatedAt },
 			updates: [
 				{ threadId: mine.threadId, anchor: moved, anchorState: "attached" },
 				{ threadId: theirs.threadId, anchor: moved, anchorState: "orphaned" },
@@ -425,6 +486,65 @@ describeEachDialect("editorial threads", (dialect) => {
 			anchorState: "attached",
 		});
 	});
+
+	it.runIf(dialect === "postgres")(
+		"stores anchors before a save that arrives while they wait for a thread",
+		async () => {
+			const { threadId } = await createThread();
+			const content = new ContentRepository(db);
+			const entry = await content.findById("post", entryId);
+			const order: string[] = [];
+
+			let releaseThread!: () => void;
+			const threadHeld = new Promise<void>((resolve) => {
+				releaseThread = resolve;
+			});
+			let markLocked!: () => void;
+			const locked = new Promise<void>((resolve) => {
+				markLocked = resolve;
+			});
+			const holder = db.transaction().execute(async (trx) => {
+				await trx
+					.updateTable("_emdash_editorial_threads")
+					.set((eb) => ({ updated_at: eb.ref("updated_at") }))
+					.where("id", "=", threadId)
+					.execute();
+				markLocked();
+				await threadHeld;
+			});
+			await locked;
+			const anchors = db
+				.transaction()
+				.execute((trx) =>
+					new EditorialThreadRepository(trx).updateAnchors({
+						collection: "post",
+						entryId,
+						expected: { version: entry!.version, updatedAt: entry!.updatedAt },
+						updates: [
+							{
+								threadId,
+								anchor: { ...TEXT_ANCHOR, start: 16, end: 21 },
+								anchorState: "attached",
+							},
+						],
+						now: now(),
+					}),
+				)
+				.then(
+					() => order.push("anchors stored"),
+					() => order.push("anchors refused"),
+				);
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			const save = content
+				.update("post", entryId, { data: { title: "Saved" } })
+				.then(() => order.push("entry saved"));
+			await new Promise((resolve) => setTimeout(resolve, 100));
+			releaseThread();
+			await Promise.all([holder, anchors, save]);
+
+			expect(order).not.toEqual(["entry saved", "anchors stored"]);
+		},
+	);
 
 	describe("entry lifecycle", () => {
 		it("keeps threads when an entry moves to the trash", async () => {

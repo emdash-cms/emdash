@@ -46,6 +46,9 @@ const ENTRY_LOCK_PATTERN = /^\/_emdash\/api\/content\/[^/]+\/[^/]+\/lock$/;
 /** Joining a co-editing room writes no content. */
 const ROOM_JOIN_PATTERN = /^\/_emdash\/api\/content\/[^/]+\/[^/]+\/room$/;
 
+/** Editorial comment threads are neither imported nor exported, and hold no media. */
+const EDITORIAL_THREAD_PATTERN = /^\/_emdash\/api\/content\/[^/]+\/[^/]+\/threads(?:\/|$)/;
+
 /**
  * Plugin lifecycle routes check the site write fence themselves, after
  * authorization; fencing them here as well would query it twice. Their
@@ -96,7 +99,7 @@ export function siteWriteFenceScope(
 	if (SAFE_METHODS.has(method.toUpperCase())) return null;
 	const path = normalizePathname(pathname);
 	if (!path.startsWith(API_PREFIX)) return null;
-	if (ROOM_JOIN_PATTERN.test(path)) return null;
+	if (ROOM_JOIN_PATTERN.test(path) || EDITORIAL_THREAD_PATTERN.test(path)) return null;
 	if (ROUTE_CHECKED_PATTERNS.some((pattern) => pattern.test(path))) {
 		return { transfer: false, mediaUsage: false, recordWrite: true };
 	}
