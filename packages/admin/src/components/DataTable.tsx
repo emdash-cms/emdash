@@ -354,7 +354,7 @@ export function DataTableBulkBar({
 	const { t } = useLingui();
 	return (
 		<div className="flex flex-wrap items-center gap-3 rounded-xl bg-kumo-elevated px-4 py-2 ring ring-kumo-line">
-			<span className="text-sm font-medium">
+			<span role="status" className="text-sm font-medium">
 				{busy
 					? t`Working on ${selectedCount} items…`
 					: plural(selectedCount, { one: "# selected", other: "# selected" })}

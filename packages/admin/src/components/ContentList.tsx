@@ -51,6 +51,7 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { inlineLabel } from "../lib/inline-label.js";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
+import { rangeSelectionCellProps, useRangeSelection } from "../lib/use-range-selection.js";
 import { cn, formatDate, parseTimestamp } from "../lib/utils.js";
 import { getLocaleDir } from "../locales/config.js";
 import { useDateLocale } from "../locales/date-locale.js";
@@ -119,6 +120,7 @@ export interface ContentDateFilter {
 export const EMPTY_DATE_FILTER: ContentDateFilter = { field: "createdAt", from: "", to: "" };
 
 type RowRequest = (id: string) => Promise<unknown> | void;
+type RowToggle = (id: string, checked: boolean, event: Event) => void;
 
 export interface ContentListProps {
 	collection: string;
@@ -437,16 +439,15 @@ export function ContentList({
 		if (!paged) return;
 		for (const row of rows) selectedRowsRef.current.set(row.id, row);
 	};
-	const toggleOne = (id: string) => {
-		rememberRows(paginatedItems.filter((item) => item.id === id));
-		setSelectedIds((prev) => {
-			const next = new Set(prev);
-			if (next.has(id)) next.delete(id);
-			else next.add(id);
-			return next;
-		});
-	};
 	const pageIds = paginatedItems.map((i) => i.id);
+	const toggleOne = useRangeSelection({
+		ids: pageIds,
+		selected: selectedIds,
+		onChange: (next, changed) => {
+			rememberRows(paginatedItems.filter((item) => changed.includes(item.id)));
+			setSelectedIds(next);
+		},
+	});
 	const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
 	const togglePage = () => {
 		rememberRows(paginatedItems);
@@ -1534,7 +1535,7 @@ interface ContentListItemProps {
 	listColumns: ContentListColumn[];
 	selectable?: boolean;
 	selected?: boolean;
-	onToggleSelect?: (id: string) => void;
+	onToggleSelect?: RowToggle;
 	extensionColumns?: ResolvedContentListColumn[];
 }
 
@@ -1583,10 +1584,12 @@ function ContentListItem({
 	return (
 		<tr data-selected={selected || undefined}>
 			{selectable && (
-				<td>
+				<td {...rangeSelectionCellProps}>
 					<Checkbox
 						checked={!!selected}
-						onCheckedChange={() => onToggleSelect?.(item.id)}
+						onCheckedChange={(checked, details) =>
+							onToggleSelect?.(item.id, checked, details.event)
+						}
 						aria-label={t`Select ${title}`}
 					/>
 				</td>

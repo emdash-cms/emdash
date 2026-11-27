@@ -102,6 +102,27 @@ describe("CommentInbox", () => {
 		await expect.element(screen.getByText("1 selected")).toBeInTheDocument();
 	});
 
+	it("selects the comments between two clicks when the second is a Shift+click", async () => {
+		const comments = ["Ada", "Ben", "Cy", "Dee"].map((name, index) => ({
+			...sampleComment,
+			id: `comment_${index}`,
+			authorName: name,
+		}));
+		const onBulkAction = vi.fn().mockResolvedValue(undefined);
+		const screen = await render(
+			<CommentInbox {...noopProps} comments={comments} onBulkAction={onBulkAction} />,
+		);
+
+		await screen.getByRole("checkbox", { name: "Select comment by Ada" }).click();
+		await screen
+			.getByRole("checkbox", { name: "Select comment by Cy" })
+			.click({ modifiers: ["Shift"] });
+
+		await expect.element(screen.getByRole("status")).toHaveTextContent("3 selected");
+		await screen.getByRole("button", { name: "Approve", exact: true }).first().click();
+		expect(onBulkAction).toHaveBeenCalledWith(["comment_0", "comment_1", "comment_2"], "approve");
+	});
+
 	it("toggles all rows when the select-all checkbox is clicked", async () => {
 		const screen = await render(<CommentInbox {...noopProps} />);
 
