@@ -60,6 +60,27 @@ export function LogoIcon(props: React.SVGProps<SVGSVGElement>) {
 }
 
 /**
+ * A quiet, single-colour version of the icon mark that takes `currentColor`,
+ * for small decorative uses where the full-colour mark would be too loud.
+ */
+export function LogoMarkMono(props: React.SVGProps<SVGSVGElement>) {
+	return (
+		<svg viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" {...props}>
+			<rect
+				x="0.75"
+				y="0.75"
+				width="14.5"
+				height="14.5"
+				rx="2.5"
+				stroke="currentColor"
+				strokeWidth="1.5"
+			/>
+			<rect x="3.8" y="7.3" width="8.4" height="1.4" fill="currentColor" />
+		</svg>
+	);
+}
+
+/**
  * Full logo lockup — icon + "EmDash" wordmark.
  * Renders both dark-text and light-text variants, switching via CSS `light-dark()`.
  */
