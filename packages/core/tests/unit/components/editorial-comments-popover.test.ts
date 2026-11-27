@@ -245,4 +245,73 @@ describe("editorial comments popover", () => {
 		expect(dialog().textContent).toContain("Needs work");
 		expect(dialog().querySelector('[role="alert"]')!.textContent).toBe("Couldn't load comments");
 	});
+
+	it("keeps unsent replies and comments when the popover closes and opens again", async () => {
+		await open({ threads: [thread("t-1")] });
+		await type(dialog().querySelector(".emdash-comments-thread textarea")!, "Half a reply");
+		await type(dialog().querySelector(".emdash-comments-body > form textarea")!, "Half a thread");
+		await act(async () => button("Close").click());
+
+		await open({ threads: [thread("t-1")] });
+
+		expect(
+			dialog().querySelector<HTMLTextAreaElement>(".emdash-comments-thread textarea")!.value,
+		).toBe("Half a reply");
+		expect(
+			dialog().querySelector<HTMLTextAreaElement>(".emdash-comments-body > form textarea")!.value,
+		).toBe("Half a thread");
+	});
+
+	it("doesn't take edits while a reply is sending, and forgets the reply once it's sent", async () => {
+		let finish!: (value: CommentsThreadView) => void;
+		await open({
+			threads: [thread("t-1")],
+			request: vi.fn(() => new Promise<CommentsThreadView>((resolve) => (finish = resolve))),
+		});
+		const reply = dialog().querySelector<HTMLTextAreaElement>(".emdash-comments-thread textarea")!;
+		await type(reply, "Fixed");
+		await act(async () => button("Reply").click());
+
+		expect(reply.readOnly).toBe(true);
+		await act(async () => finish(thread("t-1")));
+		expect(reply.readOnly).toBe(false);
+		await act(async () => button("Close").click());
+		await open({ threads: [thread("t-1")] });
+		expect(
+			dialog().querySelector<HTMLTextAreaElement>(".emdash-comments-thread textarea")!.value,
+		).toBe("");
+	});
+
+	it("sends a typed mention token as text, so it can't mention anyone", async () => {
+		const options = await open({
+			threads: [thread("t-1")],
+			request: vi.fn(async () => thread("t-1")),
+		});
+
+		await type(dialog().querySelector(".emdash-comments-thread textarea")!, "use <@user-2> syntax");
+		await act(async () => button("Reply").click());
+
+		expect(options.request).toHaveBeenCalledWith(`${THREADS_URL}/t-1/comments`, "POST", {
+			body: "use <\u200B@user-2> syntax",
+		});
+	});
+
+	it("names users with a blank name as unnamed, in the author line and in mentions", async () => {
+		const blank = thread("t-1", { mentions: [{ id: "user-2", name: "  " }] }, "ask <@user-2>");
+		blank.comments[0]!.author = { id: "user-2", name: " " };
+		await open({ threads: [blank] });
+
+		expect(dialog().querySelector(".emdash-comments-author")!.textContent).toBe("Unnamed user");
+		expect(dialog().querySelector(".emdash-comments-mention")!.textContent).toBe("@Unnamed user");
+	});
+
+	it("names the field of each thread in an entry's popover", async () => {
+		await open({
+			field: null,
+			threads: [thread("t-1", { anchor: { type: "field", field: "theme_color" } })],
+			fieldLabels: { theme_color: "Theme colour" },
+		});
+
+		expect(dialog().querySelector(".emdash-comments-quote")!.textContent).toBe("On Theme colour");
+	});
 });

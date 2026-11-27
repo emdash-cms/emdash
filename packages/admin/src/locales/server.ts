@@ -49,6 +49,8 @@ export interface VisualEditingToolbarLabels {
 	commentDeleted: string;
 	deletedUser: string;
 	unknownUser: string;
+	unnamedUser: string;
+	onField: string;
 	onQuote: string;
 	onBlock: string;
 	commentsLoadFailed: string;
@@ -118,6 +120,8 @@ const TOOLBAR_MESSAGES = {
 	commentDeleted: msg({ id: "visualEditing.commentDeleted", message: "Comment deleted" }),
 	deletedUser: msg({ id: "visualEditing.deletedUser", message: "Deleted user" }),
 	unknownUser: msg({ id: "visualEditing.unknownUser", message: "Unknown user" }),
+	unnamedUser: msg({ id: "visualEditing.unnamedUser", message: "Unnamed user" }),
+	onField: msg({ id: "visualEditing.onField", message: "On {field}" }),
 	onQuote: msg({ id: "visualEditing.onQuote", message: "On “{quote}”" }),
 	onBlock: msg({ id: "visualEditing.onBlock", message: "On a block" }),
 	commentsLoadFailed: msg({
@@ -193,6 +197,8 @@ export function translateVisualEditingToolbarLabels(
 		commentDeleted: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentDeleted),
 		deletedUser: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.deletedUser),
 		unknownUser: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.unknownUser),
+		unnamedUser: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.unnamedUser),
+		onField: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.onField),
 		onQuote: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.onQuote),
 		onBlock: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.onBlock),
 		commentsLoadFailed: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentsLoadFailed),

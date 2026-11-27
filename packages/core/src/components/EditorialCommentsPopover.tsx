@@ -58,6 +58,8 @@ export interface CommentsLabels {
 	commentDeleted: string;
 	deletedUser: string;
 	unknownUser: string;
+	unnamedUser: string;
+	onField: string;
 	onQuote: string;
 	onBlock: string;
 	commentsLoadFailed: string;
@@ -71,6 +73,8 @@ export interface CommentsPopoverOptions {
 	/** The top-level field new threads go on, or `null` for entry threads. */
 	field: string | null;
 	threads: CommentsThreadView[];
+	/** Labels for the fields of threads shown in an entry's popover. */
+	fieldLabels?: Record<string, string>;
 	loadFailed: boolean;
 	labels: CommentsLabels;
 	/** `/_emdash/api/content/{collection}/{id}/threads` */
@@ -90,10 +94,18 @@ export interface CommentsPopoverHandle {
 }
 
 const MENTION_RE = /<@([^<>\s]{1,64})>/g;
+const TYPED_TOKEN_START_RE = /<@/g;
 const PLACEHOLDER_RE = /\{(\w+)\}/g;
+
+/** Unsent text, kept by thread while the popover is closed. */
+const DraftsContext = React.createContext<Map<string, string>>(new Map());
 
 function fillLabel(label: string, values: Record<string, string>): string {
 	return label.replace(PLACEHOLDER_RE, (match, name: string) => values[name] ?? match);
+}
+
+function personName(person: CommentsPerson, unnamed: string): string {
+	return person.name?.trim() || unnamed;
 }
 
 function CommentText({
@@ -130,6 +142,7 @@ function CommentForm({
 	label,
 	submitLabel,
 	failedLabel,
+	draftKey,
 	textareaRef,
 	onSubmit,
 	children,
@@ -137,25 +150,33 @@ function CommentForm({
 	label: string;
 	submitLabel: string;
 	failedLabel: string;
+	draftKey: string;
 	textareaRef?: React.Ref<HTMLTextAreaElement>;
 	onSubmit: (body: string) => Promise<void>;
 	children?: (setError: (message: string) => void) => React.ReactNode;
 }) {
 	const id = React.useId();
-	const [value, setValue] = React.useState("");
+	const drafts = React.useContext(DraftsContext);
+	const [value, setValue] = React.useState(() => drafts.get(draftKey) ?? "");
 	const [busy, setBusy] = React.useState(false);
 	const [error, setError] = React.useState("");
 	const formRef = React.useRef<HTMLFormElement>(null);
 
+	function change(next: string) {
+		setValue(next);
+		if (next) drafts.set(draftKey, next);
+		else drafts.delete(draftKey);
+	}
+
 	async function submit(event: React.FormEvent) {
 		event.preventDefault();
-		const body = value.trim();
-		if (!body || busy) return;
+		const text = value.trim();
+		if (!text || busy) return;
 		setBusy(true);
 		setError("");
 		try {
-			await onSubmit(body);
-			setValue("");
+			await onSubmit(text.replace(TYPED_TOKEN_START_RE, "<\u200B@"));
+			change("");
 		} catch (err) {
 			console.error("[emdash] Comment request failed:", err);
 			setError(failedLabel);
@@ -175,9 +196,10 @@ function CommentForm({
 				className="emdash-inline-ui-input emdash-comments-textarea"
 				placeholder={label}
 				required
+				readOnly={busy}
 				dir="auto"
 				value={value}
-				onChange={(event) => setValue(event.target.value)}
+				onChange={(event) => change(event.target.value)}
 				onKeyDown={(event) => {
 					if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
 						event.preventDefault();
@@ -212,15 +234,21 @@ function Thread({
 	const { labels } = options;
 	const names = new Map<string, string>();
 	for (const person of thread.mentions ?? []) {
-		if (person.name) names.set(person.id, person.name);
+		names.set(person.id, personName(person, labels.unnamedUser));
 	}
 	const threadUrl = `${options.threadsUrl}/${encodeURIComponent(thread.id)}`;
 	const [resolving, setResolving] = React.useState(false);
+	const otherField = options.field === null ? thread.anchor.field : undefined;
 
 	return (
 		<li className="emdash-comments-thread">
+			{otherField && (
+				<p className="emdash-comments-quote">
+					{fillLabel(labels.onField, { field: options.fieldLabels?.[otherField] ?? otherField })}
+				</p>
+			)}
 			{thread.anchor.type === "text" && (
-				<p className="emdash-comments-quote" dir="auto">
+				<p className="emdash-comments-quote" dir="auto" title={thread.anchor.quote}>
 					{fillLabel(labels.onQuote, { quote: thread.anchor.quote ?? "" })}
 				</p>
 			)}
@@ -229,7 +257,7 @@ function Thread({
 				<div key={comment.id}>
 					<div className="emdash-comments-meta">
 						<span className="emdash-comments-author">
-							{comment.author ? (comment.author.name ?? labels.unknownUser) : labels.deletedUser}
+							{comment.author ? personName(comment.author, labels.unnamedUser) : labels.deletedUser}
 						</span>
 						<time dateTime={comment.createdAt}>{formatTime(comment.createdAt)}</time>
 					</div>
@@ -248,6 +276,7 @@ function Thread({
 				label={labels.writeReply}
 				submitLabel={labels.reply}
 				failedLabel={labels.commentActionFailed}
+				draftKey={`${threadUrl} reply`}
 				textareaRef={textareaRef}
 				onSubmit={async (body) => {
 					onChange(await options.request(`${threadUrl}/comments`, "POST", { body }), thread.id);
@@ -403,6 +432,7 @@ function CommentsPopover({
 						label={labels.newComment}
 						submitLabel={labels.comment}
 						failedLabel={labels.commentActionFailed}
+						draftKey={`${options.threadsUrl} new ${options.field ?? ""}`}
 						textareaRef={newCommentRef}
 						onSubmit={async (body) => {
 							const anchorValue = options.field
@@ -422,9 +452,11 @@ function CommentsPopover({
 
 function CommentsLayer({
 	current,
+	drafts,
 	onDismiss,
 }: {
 	current: { options: CommentsPopoverOptions; key: number } | null;
+	drafts: Map<string, string>;
 	onDismiss: () => void;
 }) {
 	const root = useInlineUiRoot();
@@ -433,7 +465,9 @@ function CommentsLayer({
 		<FloatingPortal root={root}>
 			<style>{COMMENTS_STYLES}</style>
 			{current && (
-				<CommentsPopover key={current.key} options={current.options} onDismiss={onDismiss} />
+				<DraftsContext.Provider value={drafts}>
+					<CommentsPopover key={current.key} options={current.options} onDismiss={onDismiss} />
+				</DraftsContext.Provider>
 			)}
 		</FloatingPortal>
 	);
@@ -445,11 +479,12 @@ export function mountEditorialComments(): CommentsPopoverHandle {
 	container.style.display = "contents";
 	document.body.append(container);
 	const root = createRoot(container);
+	const drafts = new Map<string, string>();
 	let current: { options: CommentsPopoverOptions; key: number } | null = null;
 	let nextKey = 0;
 
 	function render() {
-		root.render(<CommentsLayer current={current} onDismiss={dismiss} />);
+		root.render(<CommentsLayer current={current} drafts={drafts} onDismiss={dismiss} />);
 	}
 	function dismiss() {
 		const closing = current;
@@ -537,12 +572,18 @@ const COMMENTS_STYLES = `
 		background: var(--emdash-ui-tint);
 	}
 	.emdash-comments-quote {
+		display: -webkit-box;
 		margin: 0;
 		padding-inline-start: 8px;
+		overflow: hidden;
 		border-inline-start: 2px solid var(--emdash-ui-brand);
 		color: var(--emdash-ui-subtle);
 		font-size: 12px;
 		line-height: 16px;
+		overflow-wrap: anywhere;
+		-webkit-box-orient: vertical;
+		-webkit-line-clamp: 3;
+		line-clamp: 3;
 	}
 	.emdash-comments-meta {
 		display: flex;
