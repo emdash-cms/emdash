@@ -112,6 +112,52 @@ test.describe("Content Types", () => {
 	});
 
 	test.describe("Save Content Type Settings", () => {
+		test("automatic slug redirects persist across reloads", async ({ admin }) => {
+			await admin.goto("/content-types/posts");
+			await admin.waitForShell();
+			await admin.waitForLoading();
+
+			const toggle = () => admin.page.getByRole("switch", { name: /Automatic slug redirects/i });
+			const saveButton = () =>
+				admin.page.getByRole("button", { name: "Save", exact: true }).first();
+			const save = async () => {
+				const savePut = admin.page.waitForResponse(
+					(res) =>
+						res.url().includes("/api/schema/collections/posts") && res.request().method() === "PUT",
+					{ timeout: 10000 },
+				);
+				await saveButton().click();
+				expect((await savePut).status()).toBe(200);
+				await expect(admin.page.getByText("Failed to save")).not.toBeVisible();
+			};
+
+			try {
+				await expect(toggle()).toBeChecked();
+
+				await toggle().click();
+				await expect(saveButton()).toBeEnabled();
+				await save();
+				await admin.page.reload();
+				await admin.waitForShell();
+				await admin.waitForLoading();
+				await expect(toggle()).not.toBeChecked();
+
+				await toggle().click();
+				await expect(saveButton()).toBeEnabled();
+				await save();
+				await admin.page.reload();
+				await admin.waitForShell();
+				await admin.waitForLoading();
+				await expect(toggle()).toBeChecked();
+			} finally {
+				// Leave the shared fixture in its original enabled state even if an assertion fails.
+				if ((await toggle().isVisible()) && !(await toggle().isChecked())) {
+					await toggle().click();
+					await save();
+				}
+			}
+		});
+
 		test("toggling a feature and saving persists across reloads", async ({ admin }) => {
 			await admin.goto("/content-types/posts");
 			await admin.waitForShell();

@@ -49,6 +49,20 @@ describe("schema collection update route", () => {
 		});
 	});
 
+	it("accepts false and persists auto slug redirects", async () => {
+		const response = await PUT(updateContext({ autoSlugRedirects: false }));
+
+		expect(response.status).toBe(200);
+		expect((await registry.getCollection("posts")).autoSlugRedirects).toBe(false);
+	});
+
+	it("rejects a non-boolean auto slug redirect option", async () => {
+		const response = await PUT(updateContext({ autoSlugRedirects: "false" }));
+
+		expect(response.status).toBe(400);
+		expect((await registry.getCollection("posts")).autoSlugRedirects).toBe(true);
+	});
+
 	function updateContext(body: Record<string, unknown>): RouteContext {
 		return {
 			params: { slug: "posts" },

@@ -266,6 +266,7 @@ export async function buildSeedCollectionCaptureFingerprint(
 				...(input.group ? { group: input.group } : {}),
 				commentsEnabled: input.commentsEnabled ?? false,
 				...(input.editLocking === false ? { editLocking: false } : {}),
+				...(input.autoSlugRedirects === false ? { autoSlugRedirects: false } : {}),
 				urlPattern: input.urlPattern ?? null,
 				routable: input.routable ?? true,
 			},
@@ -299,7 +300,10 @@ async function importCaptureFingerprint(
 	record: CollectionRecord,
 	fields: readonly FieldRecord[],
 ): Promise<string> {
-	return `media-usage-import:v1:${await canonicalDigest({ collection: record, fields })}`;
+	const { autoSlugRedirects, ...baseRecord } = record;
+	const collection =
+		autoSlugRedirects === false ? { ...baseRecord, autoSlugRedirects: false } : baseRecord;
+	return `media-usage-import:v1:${await canonicalDigest({ collection, fields })}`;
 }
 
 /** Search stays disabled until the import's rebuild stage builds the index. */
@@ -591,6 +595,7 @@ export class SchemaRegistry {
 				source: input.source ?? "manual",
 				has_seo: hasSeo ? 1 : 0,
 				routable: input.routable === false ? 0 : 1,
+				...(input.autoSlugRedirects === false ? { auto_slug_redirects: 0 } : {}),
 				hidden: input.hidden ? 1 : 0,
 				sort_order: input.sortOrder ?? null,
 				nav_group: input.group?.trim() || null,
@@ -756,6 +761,7 @@ export class SchemaRegistry {
 					source: "seed",
 					has_seo: hasSeo ? 1 : 0,
 					routable: input.routable === false ? 0 : 1,
+					...(input.autoSlugRedirects === false ? { auto_slug_redirects: 0 } : {}),
 					hidden: input.hidden ? 1 : 0,
 					sort_order: input.sortOrder ?? null,
 					nav_group: input.group?.trim() || null,
@@ -1114,6 +1120,8 @@ export class SchemaRegistry {
 			if (input.supports !== undefined) updates.supports = JSON.stringify(input.supports);
 			if (input.urlPattern !== undefined) updates.url_pattern = input.urlPattern;
 			if (input.routable !== undefined) updates.routable = input.routable ? 1 : 0;
+			if (input.autoSlugRedirects !== undefined)
+				updates.auto_slug_redirects = input.autoSlugRedirects ? 1 : 0;
 			if (input.hasSeo !== undefined) {
 				updates.has_seo = input.hasSeo ? 1 : 0;
 			} else if (input.supports !== undefined) {
@@ -2484,6 +2492,7 @@ export class SchemaRegistry {
 			dateField: row.date_field ?? undefined,
 			urlPattern: row.url_pattern ?? undefined,
 			routable: row.routable !== 0,
+			autoSlugRedirects: row.auto_slug_redirects !== 0,
 			hidden: row.hidden === 1,
 			sortOrder: row.sort_order ?? undefined,
 			group: row.nav_group ?? undefined,

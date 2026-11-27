@@ -3,10 +3,18 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { isPostgres, listTableColumns } from "../../../../src/database/dialect-helpers.js";
 import type { Database } from "../../../../src/database/types.js";
-import { activateMediaUsageCapture } from "../../../../src/media/usage/activation.js";
+import {
+	activateMediaUsageCapture,
+	prepareMediaUsageCollectionCapture,
+} from "../../../../src/media/usage/activation.js";
 import { verifyMediaUsageCaptureTriggers } from "../../../../src/media/usage/capture-triggers.js";
 import { SchemaError, SchemaRegistry } from "../../../../src/schema/registry.js";
-import type { CollectionRecord, FieldRecord } from "../../../../src/transfer/format/kinds.js";
+import { canonicalDigest } from "../../../../src/transfer/format/digest.js";
+import {
+	collectionRecordSchema,
+	type CollectionRecord,
+	type FieldRecord,
+} from "../../../../src/transfer/format/kinds.js";
 import {
 	describeEachDialect,
 	setupForDialect,
@@ -38,6 +46,7 @@ function collectionFixture(n: number, extraFields = 0): CollectionFixture {
 		searchConfig: { enabled: true, weights: { title: 5 } },
 		hasSeo: true,
 		urlPattern: "/imported/{slug}",
+		autoSlugRedirects: false,
 		commentsEnabled: true,
 		commentsModeration: "all",
 		commentsClosedAfterDays: 30,
@@ -154,6 +163,41 @@ for (const capture of ["expanded", "active"] as const) {
 			await teardownForDialect(ctx);
 		});
 
+		it("enables slug redirects when importing a legacy collection without the option", async () => {
+			const fixture = collectionFixture(1);
+			const record = collectionRecordSchema.parse({
+				...fixture.record,
+				autoSlugRedirects: undefined,
+			});
+			await new SchemaRegistry(ctx.db).importCollection(record, fixture.fields, { resume: true });
+
+			expect((await new SchemaRegistry(ctx.db).getCollection(record.slug))?.autoSlugRedirects).toBe(
+				true,
+			);
+		});
+
+		if (capture === "active") {
+			it("resumes a legacy collection capture after the default policy is added", async () => {
+				const fixture = collectionFixture(1);
+				const { autoSlugRedirects: _ignored, ...legacyRecord } = fixture.record;
+				await prepareMediaUsageCollectionCapture(ctx.db, {
+					collectionId: legacyRecord.id,
+					collectionSlug: legacyRecord.slug,
+					creationFingerprint: `media-usage-import:v1:${await canonicalDigest({
+						collection: legacyRecord,
+						fields: fixture.fields,
+					})}`,
+				});
+
+				const record = collectionRecordSchema.parse(legacyRecord);
+				await new SchemaRegistry(ctx.db).importCollection(record, fixture.fields, { resume: true });
+
+				expect(
+					(await new SchemaRegistry(ctx.db).getCollection(record.slug))?.autoSlugRedirects,
+				).toBe(true);
+			});
+		}
+
 		it("writes the collection and fields with their exact ids and columns", async () => {
 			const fixture = collectionFixture(1);
 			const result = await new SchemaRegistry(ctx.db).importCollection(
@@ -178,6 +222,7 @@ for (const capture of ["expanded", "active"] as const) {
 				nav_group: "Imports",
 				title_field: "title",
 				date_field: "published_at",
+				auto_slug_redirects: 0,
 				created_at: T0,
 			});
 			expect(JSON.parse(collection.search_config ?? "null")).toEqual({

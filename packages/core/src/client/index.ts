@@ -141,6 +141,7 @@ export interface Collection {
 	description?: string;
 	icon?: string;
 	supports: string[];
+	autoSlugRedirects?: boolean;
 }
 
 /** Collection with fields */
@@ -710,6 +711,7 @@ export class EmDashClient {
 		description?: string;
 		icon?: string;
 		supports?: string[];
+		autoSlugRedirects?: boolean;
 	}): Promise<Collection> {
 		const data = await this.request<{ item: Collection }>("POST", "/schema/collections", input);
 		return data.item;

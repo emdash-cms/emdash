@@ -361,6 +361,7 @@ function collectionToSchemaInfo(
 		dateField: collection.dateField ?? null,
 		urlPattern: collection.urlPattern ?? null,
 		routable: collection.routable !== false,
+		autoSlugRedirects: collection.autoSlugRedirects !== false,
 		hidden: collection.hidden,
 		fields: collection.fields.map((field) => ({
 			slug: field.slug,

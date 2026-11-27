@@ -211,6 +211,12 @@ export function validateSeed(data: unknown): ValidationResult {
 				if (collection.routable !== undefined && typeof collection.routable !== "boolean") {
 					errors.push(`${prefix}.routable: must be a boolean`);
 				}
+				if (
+					collection.autoSlugRedirects !== undefined &&
+					typeof collection.autoSlugRedirects !== "boolean"
+				) {
+					errors.push(`${prefix}.autoSlugRedirects: must be a boolean`);
+				}
 				if (collection.urlPattern !== undefined) {
 					if (typeof collection.urlPattern !== "string") {
 						errors.push(`${prefix}.urlPattern: must be a string`);

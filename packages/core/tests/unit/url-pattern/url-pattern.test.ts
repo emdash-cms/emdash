@@ -561,6 +561,40 @@ describe("urlPattern", () => {
 			expect(posts?.urlPattern).toBe("/blog/{slug}");
 		});
 
+		it("should persist autoSlugRedirects from seed and default it when omitted", async () => {
+			const seed: SeedFile = {
+				version: "1",
+				collections: [
+					{
+						slug: "posts",
+						label: "Posts",
+						autoSlugRedirects: false,
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+					{
+						slug: "pages",
+						label: "Pages",
+						fields: [{ slug: "title", label: "Title", type: "string" }],
+					},
+				],
+			};
+
+			await applySeed(db, seed);
+
+			expect((await registry.getCollection("posts"))?.autoSlugRedirects).toBe(false);
+			expect((await registry.getCollection("pages"))?.autoSlugRedirects).toBe(true);
+
+			await applySeed(
+				db,
+				{
+					...seed,
+					collections: [{ ...seed.collections![0], autoSlugRedirects: true, fields: [] }],
+				},
+				{ onConflict: "update" },
+			);
+			expect((await registry.getCollection("posts"))?.autoSlugRedirects).toBe(true);
+		});
+
 		it("should handle seed without urlPattern", async () => {
 			const seed: SeedFile = {
 				version: "1",

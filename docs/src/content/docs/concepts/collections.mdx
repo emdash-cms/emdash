@@ -39,6 +39,9 @@ Collection settings control how editors and public pages use the entries:
   the entry slug or ID with its publication date to produce the public path. Each placeholder
   needs its own path segment: `/{year}/{month}/{slug}.html` is valid, but `/{year}{month}/{slug}`
   and `/{slug}-{id}` are rejected.
+- **Automatic slug redirects** creates redirects when published slugs change, using the URL pattern
+  or `/{collection}/{slug}` when the pattern is unset. It defaults to enabled. Turn it off for custom
+  routing and manage redirects manually. See [Redirects and the 404 log](/guides/seo/#redirects-and-the-404-log).
 - **Drafts** lets editors save work before publishing it.
 - **Revisions** keeps snapshots of content history.
 - **Preview** provides signed preview URLs for unpublished content.
