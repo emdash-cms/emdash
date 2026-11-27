@@ -484,17 +484,18 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 			const tag = tagName.toLowerCase();
 			const text = currentText.trim();
 
-			// Site-level metadata (in channel)
-			if (currentPath.includes("channel") && !currentItem) {
+			// Site metadata: only direct children of <channel> (never nested
+			// blocks such as <image><title>/<link>/<description>).
+			if (currentPath.length === 3 && currentPath[0] === "rss" && currentPath[1] === "channel") {
 				switch (tag) {
 					case "title":
-						if (!data.site.title) data.site.title = text;
+						data.site.title = text;
 						break;
 					case "link":
-						if (!data.site.link) data.site.link = text;
+						data.site.link = text;
 						break;
 					case "description":
-						if (!data.site.description) data.site.description = text;
+						data.site.description = text;
 						break;
 					case "language":
 						data.site.language = text;
@@ -751,15 +752,43 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 			currentText = "";
 		});
 
+		let settled = false;
+
+		const teardownParser = () => {
+			stream.unpipe(parser);
+			parser.removeAllListeners();
+			// Keep a no-op error listener so any remaining synchronous SAX error
+			// emitted in the current chunk does not become an unhandled 'error'.
+			parser.on("error", () => {});
+		};
+
+		const onStreamError = (err: Error) => {
+			if (settled) return;
+			settled = true;
+			teardownParser();
+			reject(err);
+		};
+
 		parser.on("error", (err) => {
+			if (settled) return;
+			settled = true;
+			teardownParser();
 			reject(new Error(`XML parsing error: ${err.message}`));
 		});
 
 		parser.on("end", () => {
+			if (settled) return;
+			settled = true;
+			stream.off("error", onStreamError);
+			teardownParser();
 			// Post-process nav_menu_item posts into structured menus
 			data.navMenus = buildNavMenus(navMenuItemPosts, menuTermsBySlug);
 			resolve(data);
 		});
+
+		// Attach input error handler before piping so mid-stream failures
+		// reject this promise instead of crashing as an unhandled 'error'.
+		stream.on("error", onStreamError);
 
 		// Pipe the stream through the parser
 		stream.pipe(parser);
