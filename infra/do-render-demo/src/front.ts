@@ -1,0 +1,9 @@
+/**
+ * Front Worker. Static assets are served by the assets binding before this
+ * runs; everything else goes to the single site Durable Object. Kept free of
+ * app code so a cold isolate at any location starts quickly.
+ */
+
+export default {
+	fetch: (request, env) => env.SITE.getByName("site", { locationHint: "weur" }).fetch(request),
+} satisfies ExportedHandler<Env>;

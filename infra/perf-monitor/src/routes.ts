@@ -23,7 +23,9 @@ export interface TargetRoute {
  * `cache` runs with Astro's experimental cache provider enabled; `do` runs on
  * the Durable Objects SQL backend with read replicas; `do-solo` runs the same
  * DO backend with a single primary (no replica routing), isolating the
- * DO-architecture cost from the replica-routing win.
+ * DO-architecture cost from the replica-routing win. `do-render` renders the
+ * whole app inside one Durable Object next to its SQLite database, behind a
+ * small front Worker, so page queries never leave the isolate.
  */
 export interface Site {
 	/** Stable slug stored in `perf_results.site`. */
@@ -58,6 +60,12 @@ export const SITES: readonly Site[] = [
 		label: "DO single primary",
 		targetUrl: "https://do-solo-demo.emdashcms.com",
 		workerName: "emdash-demo-do-solo",
+	},
+	{
+		id: "do-render",
+		label: "DO full render",
+		targetUrl: "https://do-render-demo.emdashcms.com",
+		workerName: "emdash-demo-do-render",
 	},
 ] as const;
 
