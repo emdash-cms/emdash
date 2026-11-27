@@ -21,12 +21,12 @@ import {
 	useSingleFlight,
 	useTakenValue,
 } from "../lib/dialog-form.js";
-import { ADMIN_NAV_ICONS } from "./admin-navigation-icons.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import { DialogError, getMutationError } from "./DialogError.js";
 import { HelpLabel } from "./FieldHelpLabel.js";
 import { LocaleSwitcher, useI18nConfig } from "./LocaleSwitcher.js";
 import { MenuCard } from "./MenuCard.js";
+import { MenuNavPreview } from "./menus/MenuNavPreview.js";
 
 const MENU_NAME_PATTERN = /^[a-z0-9-]+$/;
 
@@ -154,8 +154,8 @@ export function MenuList() {
 
 	return (
 		<div className="space-y-6">
-			<header className="flex flex-col gap-4 border-b border-kumo-line pb-4 sm:flex-row sm:items-start sm:justify-between">
-				<div className="min-w-0">
+			<header className="flex flex-wrap items-start justify-between gap-4 border-b border-kumo-line pb-4">
+				<div className="min-w-[min(100%,16rem)] flex-1">
 					<h1 className="text-2xl font-semibold leading-tight">{t`Menus`}</h1>
 					<p className="mt-1 text-sm leading-5 text-pretty text-kumo-subtle">
 						{t`Manage navigation menus for your site`}
@@ -250,13 +250,14 @@ export function MenuList() {
 			</header>
 
 			{!menus || menus.length === 0 ? (
-				<LayerCard className="flex flex-col items-center px-6 py-16 text-center">
-					<span className="mb-5 flex size-14 items-center justify-center rounded-xl bg-kumo-tint text-kumo-brand">
-						<ADMIN_NAV_ICONS.menus size={28} aria-hidden="true" />
-					</span>
+				<LayerCard className="flex flex-col items-center px-6 py-14 text-center">
+					<MenuNavPreview
+						items={[]}
+						className="mb-6 w-72 max-w-full rounded-xl ring ring-kumo-line"
+					/>
 					<h2 className="text-lg font-semibold leading-6">{t`No menus yet`}</h2>
 					<p className="mt-2 max-w-sm text-sm leading-5 text-pretty text-kumo-subtle">
-						{t`Create your first navigation menu to get started`}
+						{t`Menus hold the links in your site's header, footer and sidebars. Create one, then add pages, posts and links to it.`}
 					</p>
 					<Button
 						className="mt-5"
@@ -267,9 +268,9 @@ export function MenuList() {
 					</Button>
 				</LayerCard>
 			) : (
-				<ul className="grid gap-4 lg:grid-cols-2">
+				<ul className="grid grid-cols-[repeat(auto-fill,minmax(min(100%,18rem),1fr))] gap-4">
 					{menus.map((menu) => (
-						<li key={menu.id}>
+						<li key={menu.id} className="min-w-0">
 							<MenuCard
 								menu={menu}
 								showLocale={!!i18n}

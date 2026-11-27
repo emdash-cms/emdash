@@ -42,7 +42,7 @@ test.describe("Menus", () => {
 			await admin.goToMenus();
 			await admin.waitForLoading();
 
-			await page.getByRole("heading", { name: menuLabel }).click();
+			await page.getByRole("link", { name: menuLabel }).click();
 			await expect(page).toHaveURL(new RegExp(`/menus/${menuName}(\\?|$)`));
 		});
 	});
@@ -56,7 +56,7 @@ test.describe("Menus", () => {
 			await page.getByRole("button", { name: "Create Menu" }).first().click();
 
 			// Dialog should appear
-			await expect(page.locator('[role="dialog"]')).toBeVisible();
+			await expect(page.getByRole("dialog", { name: "Create menu" })).toBeVisible();
 		});
 
 		test("creates a new menu", async ({ admin, page }) => {
@@ -82,12 +82,14 @@ test.describe("Menus", () => {
 
 			// Open dialog
 			await page.getByRole("button", { name: "Create Menu" }).first().click();
+			const dialog = page.getByRole("dialog", { name: "Create menu" });
+			await expect(dialog).toBeVisible();
 
 			// Click cancel
-			await page.click('button:has-text("Cancel")');
+			await dialog.getByRole("button", { name: "Cancel" }).click();
 
 			// Dialog should close
-			await expect(page.locator('[role="dialog"]')).not.toBeVisible();
+			await expect(dialog).not.toBeVisible();
 		});
 	});
 
@@ -104,7 +106,7 @@ test.describe("Menus", () => {
 			await expect(page.locator("text=No menu items yet")).toBeVisible();
 		});
 
-		test("adds custom link to menu", async ({ admin, page }) => {
+		test("adds custom link to menu", async ({ admin }) => {
 			await admin.goToMenus();
 			await admin.waitForLoading();
 
@@ -115,10 +117,10 @@ test.describe("Menus", () => {
 			// Add a custom link
 			await admin.addMenuLink("Home", "https://example.com");
 
-			// Should show the new item in the menu editor
-			const main = page.locator("main");
-			await expect(main.locator("text=Home")).toBeVisible();
-			await expect(main.locator("text=https://example.com")).toBeVisible();
+			// Should show the new item and its URL in the menu editor
+			const row = admin.menuItemRow("Home");
+			await expect(row).toBeVisible();
+			await expect(row).toContainText("https://example.com");
 		});
 
 		test("adds multiple menu items", async ({ admin, page }) => {
@@ -129,15 +131,71 @@ test.describe("Menus", () => {
 			const menuName = `multi-menu-${Date.now()}`;
 			await admin.createMenu(menuName, "Multi Menu");
 
-			// Add multiple links
+			// Add multiple links, one dialog each
 			await admin.addMenuLink("Home", "https://example.com");
 			await admin.addMenuLink("About", "https://example.com/about");
 			await admin.addMenuLink("Contact", "https://example.com/contact");
 
 			// All URLs should be visible (unique to the menu items)
-			await expect(page.locator("text=https://example.com").first()).toBeVisible();
-			await expect(page.locator("text=https://example.com/about")).toBeVisible();
-			await expect(page.locator("text=https://example.com/contact")).toBeVisible();
+			const list = page.getByRole("list", { name: "Menu items" });
+			await expect(list.getByText("https://example.com", { exact: true })).toBeVisible();
+			await expect(list.getByText("https://example.com/about")).toBeVisible();
+			await expect(list.getByText("https://example.com/contact")).toBeVisible();
+		});
+
+		test("adds several items in one dialog", async ({ admin, page }) => {
+			await admin.goToMenus();
+			await admin.waitForLoading();
+
+			const menuName = `batch-menu-${Date.now()}`;
+			await admin.createMenu(menuName, "Batch Menu");
+
+			await admin.addMenuLinks([
+				{ label: "Home", url: "https://example.com" },
+				{ label: "About", url: "https://example.com/about" },
+				{ label: "Contact", url: "https://example.com/contact" },
+			]);
+
+			await expect(page.getByText("Added 3 items")).toBeVisible();
+			await expect(admin.menuItemLabels()).toHaveText(["Home", "About", "Contact"]);
+		});
+
+		test("reorders and nests items from the row actions menu", async ({ admin, page }) => {
+			await admin.goToMenus();
+			await admin.waitForLoading();
+
+			const menuName = `reorder-menu-${Date.now()}`;
+			await admin.createMenu(menuName, "Reorder Menu");
+			await admin.addMenuLinks([
+				{ label: "Home", url: "https://example.com" },
+				{ label: "About", url: "https://example.com/about" },
+				{ label: "Contact", url: "https://example.com/contact" },
+			]);
+			await expect(admin.menuItemLabels()).toHaveText(["Home", "About", "Contact"]);
+
+			const saved = page.waitForResponse(
+				(response) =>
+					response.url().includes(`/menus/${menuName}/reorder`) &&
+					response.request().method() === "POST",
+			);
+			await admin.chooseMenuAction("Home", "Move down");
+			await expect(admin.menuItemLabels()).toHaveText(["About", "Home", "Contact"]);
+			expect((await saved).ok()).toBe(true);
+
+			const nested = page.waitForResponse(
+				(response) =>
+					response.url().includes(`/menus/${menuName}/reorder`) &&
+					response.request().method() === "POST",
+			);
+			await admin.chooseMenuAction("Contact", "Indent");
+			expect((await nested).ok()).toBe(true);
+
+			await page.reload();
+			await admin.waitForShell();
+			await expect(admin.menuItemLabels()).toHaveText(["About", "Home", "Contact"]);
+			await admin.page.getByRole("button", { name: "Actions for Contact", exact: true }).click();
+			await expect(page.getByRole("menuitem", { name: "Outdent", exact: true })).toBeEnabled();
+			await expect(page.getByRole("menuitem", { name: "Indent", exact: true })).toBeDisabled();
 		});
 
 		test("deletes menu item", async ({ admin, page }) => {
@@ -150,11 +208,10 @@ test.describe("Menus", () => {
 			await admin.addMenuLink("To Delete", "https://example.com");
 
 			// Verify item exists
-			await expect(page.locator("text=To Delete")).toBeVisible();
+			const row = admin.menuItemRow("To Delete");
+			await expect(row).toBeVisible();
 
-			// Click the trash icon button (last button in the menu item row)
-			const itemRow = page.locator(".border.rounded-lg").filter({ hasText: "To Delete" });
-			await itemRow.locator("button").last().click();
+			await admin.chooseMenuAction("To Delete", "Delete");
 
 			const dialog = page.getByRole("dialog", { name: "Delete menu item?" });
 			await dialog.getByRole("button", { name: "Delete" }).click();
@@ -162,7 +219,7 @@ test.describe("Menus", () => {
 
 			// Item should be removed
 			await admin.waitForLoading();
-			await expect(page.locator("text=To Delete")).not.toBeVisible();
+			await expect(row).not.toBeVisible();
 		});
 	});
 
@@ -181,17 +238,14 @@ test.describe("Menus", () => {
 			await admin.waitForLoading();
 
 			// Menu should be in list
-			await expect(page.locator(`text=${menuLabel}`).first()).toBeVisible();
+			const menuLink = page.getByRole("link", { name: menuLabel });
+			await expect(menuLink).toBeVisible();
 
-			const menuCard = page.getByRole("listitem").filter({ hasText: menuLabel });
-			await menuCard.getByRole("button", { name: `Delete ${menuName} menu` }).click();
-
-			// Confirm deletion in alert dialog
-			await page.getByRole("button", { name: "Delete" }).click();
+			await admin.deleteMenu(menuLabel);
 
 			// Menu should be removed
 			await admin.waitForLoading();
-			await expect(page.locator(`text=${menuLabel}`)).not.toBeVisible();
+			await expect(menuLink).not.toBeVisible();
 		});
 
 		test("cancel delete keeps menu", async ({ admin, page }) => {
@@ -207,14 +261,15 @@ test.describe("Menus", () => {
 			await admin.goToMenus();
 			await admin.waitForLoading();
 
-			const menuCard = page.getByRole("listitem").filter({ hasText: menuLabel });
-			await menuCard.getByRole("button", { name: `Delete ${menuName} menu` }).click();
+			await admin.chooseMenuAction(menuLabel, "Delete");
 
 			// Cancel deletion
-			await page.getByRole("button", { name: "Cancel" }).click();
+			const dialog = page.getByRole("dialog", { name: "Delete menu" });
+			await dialog.getByRole("button", { name: "Cancel" }).click();
+			await expect(dialog).not.toBeVisible();
 
 			// Menu should still be there
-			await expect(page.locator(`text=${menuLabel}`).first()).toBeVisible();
+			await expect(page.getByRole("link", { name: menuLabel })).toBeVisible();
 		});
 	});
 });

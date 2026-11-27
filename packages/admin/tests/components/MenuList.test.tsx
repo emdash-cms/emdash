@@ -36,6 +36,7 @@ vi.mock("../../src/lib/api", async () => {
 	return {
 		...actual,
 		fetchMenus: vi.fn(),
+		fetchMenu: vi.fn(),
 		createMenu: vi.fn().mockResolvedValue({ name: "new-menu", label: "New Menu" }),
 		deleteMenu: vi.fn().mockResolvedValue(undefined),
 	};
@@ -285,7 +286,8 @@ describe("MenuList", () => {
 
 		await expect.element(screen.getByRole("heading", { name: "Main Menu" })).toBeInTheDocument();
 
-		await screen.getByRole("button", { name: "Delete main menu" }).click();
+		await screen.getByRole("button", { name: "Actions for Main Menu" }).click();
+		await screen.getByRole("menuitem", { name: "Delete" }).click();
 
 		await expect.element(screen.getByRole("heading", { name: "Delete menu" })).toBeInTheDocument();
 		await expect.element(screen.getByText(DELETE_MENU_CONFIRMATION_REGEX)).toBeInTheDocument();
@@ -298,16 +300,77 @@ describe("MenuList", () => {
 
 		await expect.element(screen.getByText("No menus yet")).toBeInTheDocument();
 		await expect
-			.element(screen.getByText("Create your first navigation menu to get started"))
+			.element(
+				screen.getByText(
+					"Menus hold the links in your site's header, footer and sidebars. Create one, then add pages, posts and links to it.",
+				),
+			)
+			.toBeVisible();
+		await expect
+			.element(screen.getByRole("button", { name: CREATE_MENU_REGEX }).last())
 			.toBeInTheDocument();
 	});
 
-	it("each menu has an Edit link", async () => {
+	it("each menu's title links to its editor", async () => {
 		const screen = await render(<MenuList />, { wrapper: Wrapper });
 
-		await expect.element(screen.getByRole("heading", { name: "Main Menu" })).toBeInTheDocument();
+		await expect
+			.element(screen.getByRole("link", { name: "Main Menu" }))
+			.toHaveAttribute("href", "/menus/$name");
+	});
 
-		const editLinks = screen.getByText("Edit");
-		await expect.element(editLinks.first()).toBeInTheDocument();
+	it("previews each menu's top-level items in its card", async () => {
+		vi.mocked(api.fetchMenu).mockResolvedValue({
+			id: "m1",
+			name: "main",
+			label: "Main Menu",
+			createdAt: "2026-01-01T00:00:00Z",
+			updatedAt: "2026-01-01T00:00:00Z",
+			locale: "en",
+			translationGroup: "m1",
+			items: [
+				{ id: "a", parentId: null, sortOrder: 1, label: "Blog" },
+				{ id: "b", parentId: null, sortOrder: 0, label: "Home" },
+				{ id: "c", parentId: "a", sortOrder: 0, label: "Nested only" },
+			].map((item) => ({
+				...item,
+				menuId: "m1",
+				type: "custom",
+				referenceCollection: null,
+				referenceId: null,
+				customUrl: "/",
+				titleAttr: null,
+				target: null,
+				cssClasses: null,
+				createdAt: "2026-01-01T00:00:00Z",
+				locale: "en",
+				translationGroup: null,
+			})),
+		});
+		const screen = await render(<MenuList />, { wrapper: Wrapper });
+
+		const home = screen.getByText("Home", { exact: true }).first();
+		const blog = screen.getByText("Blog", { exact: true }).first();
+		await expect.element(home).toBeInTheDocument();
+		await expect.element(blog).toBeInTheDocument();
+		expect(home.element().compareDocumentPosition(blog.element())).toBe(
+			Node.DOCUMENT_POSITION_FOLLOWING,
+		);
+		expect(blog.element().querySelector("svg")).not.toBeNull();
+		expect(home.element().querySelector("svg")).toBeNull();
+		await expect.element(screen.getByText("Nested only")).not.toBeInTheDocument();
+	});
+
+	it("leaves out the item count when the API doesn't return one", async () => {
+		vi.mocked(api.fetchMenus).mockResolvedValue([
+			{ id: "m1", name: "main", label: "Main Menu", itemCount: 3, created_at: "", updated_at: "" },
+			{ id: "m2", name: "footer", label: "Footer Menu", created_at: "", updated_at: "" },
+		]);
+		const screen = await render(<MenuList />, { wrapper: Wrapper });
+
+		await expect.element(screen.getByText("3 items")).toBeVisible();
+		await expect.element(screen.getByRole("heading", { name: "Footer Menu" })).toBeVisible();
+		expect(screen.getByText("0 items").query()).toBeNull();
+		await expect.element(screen.getByText("footer", { exact: true })).toBeVisible();
 	});
 });
