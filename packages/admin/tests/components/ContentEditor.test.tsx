@@ -1163,6 +1163,61 @@ describe("ContentEditor", () => {
 			);
 		});
 
+		it("saves a decimal from a sandboxed plugin field widget within its declared range", async () => {
+			const onSave = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem({ data: { title: "Test" } }),
+				onSave,
+				fields: {
+					title: { kind: "string", label: "Title" },
+					offer: { kind: "json", label: "Offer", widget: "shop:offer" },
+				},
+				manifest: {
+					version: "1",
+					hash: "hash",
+					authMode: "passkey",
+					collections: {},
+					taxonomies: [],
+					plugins: {
+						shop: {
+							fieldWidgets: [
+								{
+									name: "offer",
+									label: "Offer",
+									fieldTypes: ["json"],
+									elements: [
+										{
+											type: "number_input",
+											action_id: "price",
+											label: "Price",
+											min: 0.01,
+											max: 10,
+										},
+									],
+								},
+							],
+						},
+					},
+				},
+			});
+			const price = screen.getByRole("spinbutton", { name: "Price" });
+			const save = screen.getByRole("button", { name: "Save" }).first();
+
+			await price.fill("0");
+			await expect.element(price).toBeInvalid();
+			await price.fill("10.01");
+			await save.click();
+			await expect.element(price).toBeInvalid();
+			expect(onSave).not.toHaveBeenCalled();
+
+			await price.fill("5.25");
+			await userEvent.keyboard("{Enter}");
+			expect(onSave).toHaveBeenCalledExactlyOnceWith(
+				expect.objectContaining({ data: expect.objectContaining({ offer: { price: 5.25 } }) }),
+			);
+		});
+
 		it("rejects a decimal in an integer field", async () => {
 			const screen = await renderEditor({
 				isNew: false,

@@ -74,4 +74,36 @@ describe("form block inside another form", () => {
 		fireEvent.click(button);
 		expect(onAction).toHaveBeenCalledTimes(1);
 	});
+
+	it.each([
+		{ value: "5.00", min: 0.01 },
+		{ value: "5.25", min: 0.01 },
+		{ value: "5.25", min: 0 },
+		{ value: "5.25", min: undefined },
+	])("submits $value with min=$min", ({ value, min }) => {
+		const onAction = vi.fn();
+		render(
+			<BlockRenderer
+				blocks={[
+					{
+						type: "form",
+						block_id: "plan",
+						fields: [{ type: "number_input", action_id: "price", label: "Price", min }],
+						submit: { label: "Save price", action_id: "save_price" },
+					},
+				]}
+				onAction={onAction}
+			/>,
+		);
+
+		fireEvent.change(screen.getByRole("spinbutton", { name: "Price" }), { target: { value } });
+		fireEvent.click(screen.getByRole("button", { name: "Save price" }));
+
+		expect(onAction).toHaveBeenCalledExactlyOnceWith({
+			type: "form_submit",
+			action_id: "save_price",
+			block_id: "plan",
+			values: { price: Number(value) },
+		});
+	});
 });

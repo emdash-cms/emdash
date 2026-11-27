@@ -82,6 +82,9 @@ function BlockKitFieldElement({
 				<Input
 					label={element.label}
 					type="number"
+					step="any"
+					min={element.min}
+					max={element.max}
 					value={typeof value === "number" ? String(value) : ""}
 					onChange={(e) => {
 						const n = Number(e.target.value);
