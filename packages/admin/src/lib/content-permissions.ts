@@ -12,6 +12,7 @@ export const CONTENT_PERMISSION_MIN_ROLE = {
 	"content:edit_any": 40,
 	"content:publish_own": 30,
 	"content:publish_any": 40,
+	"content:delete_permanent": 50,
 } as const;
 
 export type ContentPermission = keyof typeof CONTENT_PERMISSION_MIN_ROLE;

@@ -100,6 +100,7 @@ The operation ID is stable within the generated contract and is commonly used as
 | `POST` | `/_emdash/api/content/{collection}/{id}/terms/{taxonomy}` | `setContentTerms` | Set taxonomy terms on a content item |
 | `GET` | `/_emdash/api/content/{collection}/authors` | `listContentAuthors` | List distinct authors of a collection's content |
 | `GET` | `/_emdash/api/content/{collection}/trash` | `listTrashedContent` | List trashed content items |
+| `POST` | `/_emdash/api/content/{collection}/trash/empty` | `emptyContentTrash` | Permanently delete a batch of trashed content items |
 
 ### Media
 
@@ -366,7 +367,7 @@ Changing a published entry creates a draft while the previous version stays live
 
 Creation and update bodies accept byline credits, and content responses include the primary byline and ordered credits. The content list can filter by stored byline IDs and optionally include an author's inferred byline. Creating and managing the byline records themselves is available through the [MCP byline tools](/reference/mcp-server/#byline-tools), not the public REST contract.
 
-The lifecycle operations distinguish a soft delete from permanent deletion. Restore returns trashed content as a draft with no schedule; permanent deletion removes a trashed item and cannot be undone. Publish, unpublish, schedule, unschedule, compare, discard-draft, and duplicate are separate operations so clients can request one state transition at a time.
+The lifecycle operations distinguish a soft delete from permanent deletion. Restore returns trashed content as a draft with no schedule; permanent deletion removes a trashed item and cannot be undone. To empty a collection's trash, an Admin sends `POST /content/{collection}/trash/empty`, which permanently deletes one batch of trashed items and returns `{ deleted, remaining }`. Repeat the request until `remaining` is 0. Add `?locale=` to empty only that locale's trash. Publish, unpublish, schedule, unschedule, compare, discard-draft, and duplicate are separate operations so clients can request one state transition at a time.
 
 ### Change bylines, references or terms based on a read
 

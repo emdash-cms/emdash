@@ -404,6 +404,27 @@ export async function permanentDeleteContent(collection: string, id: string): Pr
 }
 
 /**
+ * Permanently delete one batch of a collection's trash, limited to `locale` when given. Call it
+ * again until `remaining` is 0.
+ */
+export async function emptyContentTrash(
+	collection: string,
+	options?: { locale?: string },
+): Promise<{ deleted: number; remaining: number }> {
+	const params = new URLSearchParams();
+	if (options?.locale) params.set("locale", options.locale);
+	const query = params.toString();
+	const response = await apiFetch(
+		`${API_BASE}/content/${collection}/trash/empty${query ? `?${query}` : ""}`,
+		{ method: "POST" },
+	);
+	return parseApiResponse<{ deleted: number; remaining: number }>(
+		response,
+		i18n._(msg`Failed to empty the trash`),
+	);
+}
+
+/**
  * Duplicate content (creates a draft copy)
  */
 export async function duplicateContent(collection: string, id: string): Promise<ContentItem> {

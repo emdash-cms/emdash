@@ -24,6 +24,7 @@ import type {
 	CommentStatus,
 	BulkAction,
 } from "../../lib/api/comments.js";
+import { rangeSelectionCellProps, useRangeSelection } from "../../lib/use-range-selection.js";
 import { formatDate } from "../../lib/utils.js";
 import { ADMIN_NAV_ICONS } from "../admin-navigation-icons.js";
 import { CaretNext, CaretPrev } from "../ArrowIcons.js";
@@ -155,17 +156,11 @@ export function CommentInbox({
 		});
 	};
 
-	const toggleOne = (id: string) => {
-		setSelected((prev) => {
-			const next = new Set(prev);
-			if (next.has(id)) {
-				next.delete(id);
-			} else {
-				next.add(id);
-			}
-			return next;
-		});
-	};
+	const toggleOne = useRangeSelection({
+		ids: paginatedComments.map((c) => c.id),
+		selected,
+		onChange: setSelected,
+	});
 
 	const runBulk = (ids: string[], action: BulkAction) => {
 		setBulkRunning(true);
@@ -375,7 +370,7 @@ export function CommentInbox({
 									key={comment.id}
 									comment={comment}
 									isSelected={selected.has(comment.id)}
-									onToggle={() => toggleOne(comment.id)}
+									onToggle={(checked, event) => toggleOne(comment.id, checked, event)}
 									onRowClick={() => setDetailComment(comment)}
 									onStatusChange={(id, status) => {
 										void onCommentStatusChange(id, status).then(clearSelection);
@@ -508,7 +503,7 @@ export function CommentInbox({
 interface CommentRowProps {
 	comment: AdminComment;
 	isSelected: boolean;
-	onToggle: () => void;
+	onToggle: (checked: boolean, event: Event) => void;
 	onRowClick: () => void;
 	onStatusChange: (id: string, status: CommentStatus) => void;
 	onDelete: (id: string) => void;
@@ -534,10 +529,10 @@ function CommentRow({
 
 	return (
 		<tr data-selected={isSelected || undefined}>
-			<td>
+			<td {...rangeSelectionCellProps}>
 				<Checkbox
 					checked={isSelected}
-					onCheckedChange={onToggle}
+					onCheckedChange={(checked, details) => onToggle(checked, details.event)}
 					aria-label={t`Select comment by ${comment.authorName}`}
 				/>
 			</td>

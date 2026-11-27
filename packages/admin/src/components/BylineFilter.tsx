@@ -1,13 +1,13 @@
-import { Badge, Button, Checkbox, Input, Popover, Switch } from "@cloudflare/kumo";
+import { Badge, Switch } from "@cloudflare/kumo";
 import { plural } from "@lingui/core/macro";
 import { useLingui } from "@lingui/react/macro";
-import { CaretDown } from "@phosphor-icons/react";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import * as React from "react";
 
 import { fetchBylines, type BylineSummary } from "../lib/api";
 import { useDebouncedValue } from "../lib/hooks.js";
 import { FieldHelpLabel } from "./FieldHelpLabel.js";
+import { FilterMenu, FilterMenuCheckbox } from "./FilterMenu.js";
 
 /**
  * Byline filter state for the content list.
@@ -64,7 +64,17 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 		placeholderData: keepPreviousData,
 	});
 
-	const options = data?.items ?? [];
+	// Without a locale the API returns every translation of a byline; they
+	// share a group, which is what the filter selects, so list one per group.
+	const options = React.useMemo(() => {
+		const seen = new Set<string>();
+		return (data?.items ?? []).filter((byline) => {
+			const group = groupOf(byline);
+			if (seen.has(group)) return false;
+			seen.add(group);
+			return true;
+		});
+	}, [data]);
 
 	// Selected bylines are remembered by group so their names keep rendering
 	// once the search moves on and the rows are no longer in `options`.
@@ -108,93 +118,65 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 	const atLimit = value.bylineIds.length >= MAX_SELECTED;
 
 	return (
-		<Popover open={open} onOpenChange={setOpen}>
-			<Popover.Trigger asChild>
-				<Button
-					variant="secondary"
-					size="sm"
-					aria-label={t`Filter by byline`}
-					className="emdash-byline-filter-trigger gap-1 px-3.5 font-normal"
-				>
-					<span className="max-w-[140px] truncate">{label}</span>
-					<CaretDown className="size-3 shrink-0" aria-hidden="true" />
-				</Button>
-			</Popover.Trigger>
-
-			<Popover.Content className="w-80 max-w-[calc(100vw-2rem)] p-3" align="start">
-				<Input
-					size="base"
-					type="search"
-					aria-label={t`Search bylines`}
-					placeholder={t`Search bylines…`}
-					value={search}
-					onChange={(e) => setSearch(e.target.value)}
+		<FilterMenu
+			open={open}
+			onOpenChange={setOpen}
+			label={t`Filter by byline`}
+			value={label}
+			className="emdash-byline-filter-trigger min-w-32 ps-3.5"
+			search={{
+				value: search,
+				onChange: setSearch,
+				label: t`Search bylines`,
+				placeholder: t`Search bylines…`,
+			}}
+			header={
+				<FilterMenuCheckbox
+					checked={value.none}
+					onCheckedChange={toggleNone}
+					label={t`No byline assigned`}
 				/>
-
-				<div className="mt-3 border-b px-1 pb-3">
-					<Checkbox
-						checked={value.none}
-						onCheckedChange={toggleNone}
-						label={t`No byline assigned`}
-					/>
-				</div>
-
-				<div
-					className="mt-2 max-h-64 space-y-0.5 overflow-y-auto"
-					role="group"
-					aria-label={t`Bylines`}
-				>
-					{isLoading && <p className="py-2 text-base text-kumo-subtle">{t`Loading…`}</p>}
-
-					{!isLoading && options.length === 0 && (
-						<p className="py-2 text-base text-kumo-subtle">{t`No bylines found`}</p>
+			}
+			listLabel={t`Bylines`}
+			options={options.map((byline) => {
+				const group = groupOf(byline);
+				return {
+					value: group,
+					label: byline.displayName,
+					disabled: !value.bylineIds.includes(group) && (atLimit || value.none),
+				};
+			})}
+			selected={value.bylineIds}
+			onToggle={toggle}
+			loading={isLoading}
+			emptyText={t`No bylines found`}
+			hint={data?.nextCursor ? t`Search to narrow the list` : undefined}
+			footer={
+				<>
+					{atLimit && (
+						<Badge className="justify-self-start" variant="warning">
+							{t`Up to ${MAX_SELECTED} bylines can be selected`}
+						</Badge>
 					)}
-
-					{options.map((byline) => {
-						const group = groupOf(byline);
-						const checked = value.bylineIds.includes(group);
-						return (
-							<div key={byline.id} className="rounded px-1 py-2 hover:bg-kumo-tint/50">
-								<Checkbox
-									checked={checked}
-									disabled={!checked && (atLimit || value.none)}
-									onCheckedChange={() => toggle(group)}
-									label={<span className="text-base font-normal">{byline.displayName}</span>}
-								/>
-							</div>
-						);
-					})}
-
-					{data?.nextCursor && (
-						<p className="py-2 text-base text-kumo-subtle">{t`Search to narrow the list`}</p>
-					)}
-				</div>
-
-				{atLimit && (
-					<Badge className="mt-2" variant="warning">
-						{t`Up to ${MAX_SELECTED} bylines can be selected`}
-					</Badge>
-				)}
-
-				<div className="mt-3 border-t px-1 pt-3">
 					<div className="flex items-center justify-between gap-3">
 						<FieldHelpLabel
 							htmlFor={inferredBylineId}
 							help={t`Also match the byline linked to an entry's author when it has none assigned.`}
 							helpLabel={t`About inferred bylines`}
-							labelClassName="text-base font-normal text-kumo-default"
+							labelClassName="text-xs font-normal text-kumo-default"
 						>
 							{t`Include inferred bylines`}
 						</FieldHelpLabel>
 						<Switch
 							id={inferredBylineId}
+							size="sm"
 							checked={value.includeInferred}
 							onCheckedChange={(checked) => onChange({ ...value, includeInferred: checked })}
 							aria-label={t`Include inferred bylines`}
 						/>
 					</div>
-				</div>
-			</Popover.Content>
-		</Popover>
+				</>
+			}
+		/>
 	);
 }

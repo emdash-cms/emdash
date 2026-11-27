@@ -51,6 +51,7 @@ import { useDebouncedValue } from "../lib/hooks.js";
 import { inlineLabel } from "../lib/inline-label.js";
 import { usePluginAdmins } from "../lib/plugin-context.js";
 import { contentUrl } from "../lib/url.js";
+import { rangeSelectionCellProps, useRangeSelection } from "../lib/use-range-selection.js";
 import { cn, formatDate, parseTimestamp } from "../lib/utils.js";
 import { getLocaleDir } from "../locales/config.js";
 import { useDateLocale } from "../locales/date-locale.js";
@@ -119,6 +120,7 @@ export interface ContentDateFilter {
 export const EMPTY_DATE_FILTER: ContentDateFilter = { field: "createdAt", from: "", to: "" };
 
 type RowRequest = (id: string) => Promise<unknown> | void;
+type RowToggle = (id: string, checked: boolean, event: Event) => void;
 
 export interface ContentListProps {
 	collection: string;
@@ -134,7 +136,7 @@ export interface ContentListProps {
 	onDuplicate?: (id: string) => void;
 	/** Whether to offer Duplicate on an entry's row. Offered on every row when omitted. */
 	canDuplicate?: (item: ContentItem) => boolean;
-	onRestore?: (id: string) => void;
+	onRestore?: RowRequest;
 	/** Return the request's promise to keep the confirmation open until it lands. */
 	onPermanentDelete?: RowRequest;
 	onLoadMore?: () => void;
@@ -205,6 +207,17 @@ export interface ContentListProps {
 	onBulkPublish?: BulkActionHandler;
 	onBulkUnpublish?: BulkActionHandler;
 	onBulkDelete?: BulkActionHandler;
+	/**
+	 * Trash bulk actions. The Trash tab's selection checkboxes appear when either is provided.
+	 * Like the other bulk handlers, they resolve with the ids that failed.
+	 */
+	onBulkRestore?: BulkActionHandler;
+	onBulkPermanentDelete?: BulkActionHandler;
+	/**
+	 * Permanently deletes everything in the trash for the active locale, reporting progress as it
+	 * goes. Offers "Empty trash" while the trash has entries.
+	 */
+	onEmptyTrash?: (onProgress: (progress: EmptyTrashProgress) => void) => Promise<unknown>;
 	/** Taxonomies editors can bulk-assign terms from; empty disables the action. */
 	bulkTagTaxonomies?: BulkTagTaxonomy[];
 	/** Current role used only for contributed-column visibility, not authorization. */
@@ -227,6 +240,34 @@ export interface ContentListProps {
 }
 
 type BulkActionHandler = (ids: string[]) => Promise<string[]>;
+
+export interface EmptyTrashProgress {
+	deleted: number;
+	remaining: number;
+}
+
+function runBulkHandler(
+	fn: BulkActionHandler,
+	ids: string[],
+	setSelected: (ids: Set<string>) => void,
+	setBusy: (busy: boolean) => void,
+) {
+	setBusy(true);
+	void (async () => {
+		try {
+			// Clear only after the batch settles, keeping the failed ids
+			// selected — a partial failure stays retryable instead of the
+			// selection vanishing while requests are still in flight.
+			const failedIds = await fn(ids);
+			setSelected(new Set(failedIds));
+		} catch {
+			// Unexpected (non-per-item) error: keep the selection for a retry.
+			// The parent's mutation surfaces the error toast.
+		} finally {
+			setBusy(false);
+		}
+	})();
+}
 
 type ViewTab = "all" | "trash";
 
@@ -311,6 +352,9 @@ export function ContentList({
 	onBulkPublish,
 	onBulkUnpublish,
 	onBulkDelete,
+	onBulkRestore,
+	onBulkPermanentDelete,
+	onEmptyTrash,
 	bulkTagTaxonomies = [],
 	userRole = 0,
 	pluginStates,
@@ -437,16 +481,15 @@ export function ContentList({
 		if (!paged) return;
 		for (const row of rows) selectedRowsRef.current.set(row.id, row);
 	};
-	const toggleOne = (id: string) => {
-		rememberRows(paginatedItems.filter((item) => item.id === id));
-		setSelectedIds((prev) => {
-			const next = new Set(prev);
-			if (next.has(id)) next.delete(id);
-			else next.add(id);
-			return next;
-		});
-	};
 	const pageIds = paginatedItems.map((i) => i.id);
+	const toggleOne = useRangeSelection({
+		ids: pageIds,
+		selected: selectedIds,
+		onChange: (next, changed) => {
+			rememberRows(paginatedItems.filter((item) => changed.includes(item.id)));
+			setSelectedIds(next);
+		},
+	});
 	const allPageSelected = pageIds.length > 0 && pageIds.every((id) => selectedIds.has(id));
 	const togglePage = () => {
 		rememberRows(paginatedItems);
@@ -483,26 +526,88 @@ export function ContentList({
 	);
 	const runBulk = (fn?: BulkActionHandler) => {
 		if (!fn || selectedCount === 0 || bulkBusy) return;
-		const ids = [...selectedIds];
-		setBulkBusy(true);
-		void (async () => {
-			try {
-				// Clear only after the batch settles, keeping the failed ids
-				// selected — a partial failure stays retryable instead of the
-				// selection vanishing while requests are still in flight.
-				const failedIds = await fn(ids);
-				setSelectedIds(new Set(failedIds));
-			} catch {
-				// Unexpected (non-per-item) error: keep the selection for a retry.
-				// The parent's mutation surfaces the error toast.
-			} finally {
-				setBulkBusy(false);
-			}
-		})();
+		runBulkHandler(fn, [...selectedIds], setSelectedIds, setBulkBusy);
 	};
+
+	const trashBulkEnabled = !!(onBulkRestore || onBulkPermanentDelete);
+	const [trashSelectedIds, setTrashSelectedIds] = React.useState<Set<string>>(() => new Set());
+	const [trashBulkBusy, setTrashBulkBusy] = React.useState(false);
+	const [bulkPermanentDeleteOpen, setBulkPermanentDeleteOpen] = React.useState(false);
+	// The dialog lives in the bulk bar, which unmounts once nothing is
+	// selected; closing it here stops it reopening with the next selection.
+	if (bulkPermanentDeleteOpen && trashSelectedIds.size === 0) setBulkPermanentDeleteOpen(false);
+	const trashEmpty = trashedCount === 0;
+	React.useEffect(() => {
+		setTrashSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
+	}, [collection, activeLocale, trashEmpty]);
+	const trashPageIds = trashedItems.map((item) => item.id);
+	const allTrashPageSelected =
+		trashPageIds.length > 0 && trashPageIds.every((id) => trashSelectedIds.has(id));
+	const toggleTrashRow = useRangeSelection({
+		ids: trashPageIds,
+		selected: trashSelectedIds,
+		onChange: setTrashSelectedIds,
+	});
+	const toggleTrashPage = () => {
+		setTrashSelectedIds((prev) => {
+			const next = new Set(prev);
+			for (const id of trashPageIds) {
+				if (allTrashPageSelected) next.delete(id);
+				else next.add(id);
+			}
+			return next;
+		});
+	};
+	const dropTrashSelection = (id: string) =>
+		setTrashSelectedIds((prev) => {
+			if (!prev.has(id)) return prev;
+			const next = new Set(prev);
+			next.delete(id);
+			return next;
+		});
+	const restoreRow = onRestore
+		? (id: string) =>
+				void Promise.resolve(onRestore(id)).then(
+					() => dropTrashSelection(id),
+					() => {},
+				)
+		: undefined;
+	const permanentDeleteRow = onPermanentDelete
+		? (id: string) => Promise.resolve(onPermanentDelete(id)).then(() => dropTrashSelection(id))
+		: undefined;
+	const runTrashBulk = (fn?: BulkActionHandler) => {
+		if (!fn || trashSelectedIds.size === 0 || trashBulkBusy) return;
+		runBulkHandler(fn, [...trashSelectedIds], setTrashSelectedIds, setTrashBulkBusy);
+	};
+
+	const [emptyTrashOpen, setEmptyTrashOpen] = React.useState(false);
+	const [emptyTrashProgress, setEmptyTrashProgress] = React.useState<EmptyTrashProgress | null>(
+		null,
+	);
+	const [emptyTrashError, setEmptyTrashError] = React.useState<unknown>(null);
+	const emptyTrash = async () => {
+		if (!onEmptyTrash) return;
+		setEmptyTrashError(null);
+		setEmptyTrashProgress({ deleted: 0, remaining: trashedCount });
+		try {
+			await onEmptyTrash(setEmptyTrashProgress);
+			setEmptyTrashOpen(false);
+		} catch (error) {
+			setEmptyTrashError(error);
+		} finally {
+			setEmptyTrashProgress(null);
+			setTrashSelectedIds(new Set());
+		}
+	};
+	const emptyTrashDeleted = emptyTrashProgress?.deleted ?? 0;
+	const emptyTrashTotal = emptyTrashProgress
+		? emptyTrashProgress.deleted + emptyTrashProgress.remaining
+		: trashedCount;
+	const emptyTrashProgressLabel = t`Deleting ${emptyTrashDeleted} of ${emptyTrashTotal}…`;
+	const emptyTrashLocale = i18n && activeLocale ? activeLocale.toUpperCase() : undefined;
 	const colSpan =
 		(i18n ? 5 : 4) + listColumns.length + extensionColumns.length + (bulkEnabled ? 1 : 0);
-	const trashColSpan = i18n ? 4 : 3;
+	const trashColSpan = (i18n ? 4 : 3) + (trashBulkEnabled ? 1 : 0);
 	const titleSortField = titleField ?? "title";
 	const dateSortField = dateField ?? "updatedAt";
 	const sortFields: SortFieldOption[] = [
@@ -546,27 +651,74 @@ export function ContentList({
 				</RouterLinkButton>
 			</div>
 
-			{/* Tabs */}
-			<Tabs
-				variant="underline"
-				value={activeTab}
-				onValueChange={(v) => {
-					if (v === "all" || v === "trash") setActiveTab(v);
-				}}
-				tabs={[
-					{ value: "all", label: t`All` },
-					{
-						value: "trash",
-						label: (
-							<span className="flex items-center gap-2">
-								<Trash className="h-4 w-4" aria-hidden="true" />
-								{t`Trash`}
-								{trashedCount > 0 && <Badge variant="secondary">{trashedCount}</Badge>}
-							</span>
-						),
-					},
-				]}
-			/>
+			<div className="flex">
+				<Tabs
+					variant="underline"
+					className="min-w-0 flex-1"
+					value={activeTab}
+					onValueChange={(v) => {
+						if (v === "all" || v === "trash") setActiveTab(v);
+					}}
+					tabs={[
+						{ value: "all", label: t`All` },
+						{
+							value: "trash",
+							label: (
+								<span className="flex items-center gap-2">
+									<Trash className="h-4 w-4" aria-hidden="true" />
+									{t`Trash`}
+									{trashedCount > 0 && <Badge variant="secondary">{trashedCount}</Badge>}
+								</span>
+							),
+						},
+					]}
+				/>
+				{activeTab === "trash" && onEmptyTrash && (trashedCount > 0 || emptyTrashOpen) && (
+					<div className="flex items-start border-b border-kumo-hairline ps-4">
+						<ConfirmDialog
+							open={emptyTrashOpen}
+							onClose={() => setEmptyTrashOpen(false)}
+							trigger={
+								<Button
+									size="sm"
+									variant="secondary-destructive"
+									icon={<Trash />}
+									disabled={trashBulkBusy || trashPagination?.isPending}
+									onClick={() => {
+										setEmptyTrashError(null);
+										setEmptyTrashOpen(true);
+									}}
+								>
+									{t`Empty trash`}
+								</Button>
+							}
+							title={t`Empty trash?`}
+							description={
+								<>
+									{emptyTrashLocale
+										? plural(trashedCount, {
+												one: `Permanently delete the # ${emptyTrashLocale} item in the trash? This cannot be undone.`,
+												other: `Permanently delete all # ${emptyTrashLocale} items in the trash? This cannot be undone.`,
+											})
+										: plural(trashedCount, {
+												one: "Permanently delete the # item in the trash? This cannot be undone.",
+												other:
+													"Permanently delete all # items in the trash? This cannot be undone.",
+											})}
+									<span role="status" className="sr-only">
+										{emptyTrashProgress ? emptyTrashProgressLabel : ""}
+									</span>
+								</>
+							}
+							confirmLabel={t`Empty trash`}
+							pendingLabel={emptyTrashProgressLabel}
+							isPending={!!emptyTrashProgress}
+							error={emptyTrashError}
+							onConfirm={() => void emptyTrash()}
+						/>
+					</div>
+				)}
+			</div>
 
 			{/* Content based on active tab */}
 			{activeTab === "all" ? (
@@ -963,10 +1115,69 @@ export function ContentList({
 				</>
 			) : (
 				<>
+					{trashBulkEnabled && trashSelectedIds.size > 0 && (
+						<DataTableBulkBar
+							selectedCount={trashSelectedIds.size}
+							busy={trashBulkBusy}
+							onClear={() => setTrashSelectedIds(new Set())}
+						>
+							{onBulkRestore && (
+								<Button
+									size="sm"
+									variant="secondary"
+									icon={<ArrowCounterClockwise aria-hidden="true" />}
+									disabled={trashBulkBusy}
+									onClick={() => runTrashBulk(onBulkRestore)}
+								>
+									{t`Restore`}
+								</Button>
+							)}
+							{onBulkPermanentDelete && (
+								<ConfirmDialog
+									open={bulkPermanentDeleteOpen}
+									onClose={() => setBulkPermanentDeleteOpen(false)}
+									trigger={
+										<Button
+											size="sm"
+											variant="destructive"
+											icon={<Trash />}
+											disabled={trashBulkBusy}
+											onClick={() => setBulkPermanentDeleteOpen(true)}
+										>
+											{t`Delete permanently`}
+										</Button>
+									}
+									title={t`Delete Permanently?`}
+									description={plural(trashSelectedIds.size, {
+										one: "Permanently delete # item? This cannot be undone.",
+										other: "Permanently delete # items? This cannot be undone.",
+									})}
+									confirmLabel={t`Delete Permanently`}
+									pendingLabel={t`Delete Permanently`}
+									isPending={false}
+									error={null}
+									onConfirm={() => {
+										setBulkPermanentDeleteOpen(false);
+										runTrashBulk(onBulkPermanentDelete);
+									}}
+								/>
+							)}
+						</DataTableBulkBar>
+					)}
+
 					{/* Trash Table */}
 					<DataTable aria-busy={trashPagination?.isPending || undefined}>
 						<thead>
 							<tr>
+								{trashBulkEnabled && (
+									<th scope="col" className="w-10" inert={trashPagination?.isPending || undefined}>
+										<Checkbox
+											checked={allTrashPageSelected}
+											onCheckedChange={toggleTrashPage}
+											aria-label={t`Select all on this page`}
+										/>
+									</th>
+								)}
 								<th scope="col">{t`Title`}</th>
 								{i18n && (
 									<th scope="col" {...tertiaryColumn}>
@@ -998,8 +1209,11 @@ export function ContentList({
 										item={item}
 										titleField={titleField}
 										showLocale={!!i18n}
-										onRestore={onRestore}
-										onPermanentDelete={onPermanentDelete}
+										onRestore={restoreRow}
+										onPermanentDelete={permanentDeleteRow}
+										selectable={trashBulkEnabled}
+										selected={trashSelectedIds.has(item.id)}
+										onToggleSelect={toggleTrashRow}
 									/>
 								))
 							)}
@@ -1028,6 +1242,9 @@ export function ContentList({
 		</div>
 	);
 }
+
+/** The author Select's value for "All authors"; an empty value would show as a placeholder. */
+const ALL_AUTHORS = "__all__";
 
 interface FilterBarProps {
 	statusFilter: ContentStatusFilter;
@@ -1125,17 +1342,22 @@ function FilterBar({
 			{showAuthorFilter && (
 				<Select
 					size="sm"
+					className="emdash-author-filter-trigger min-w-32 ps-3.5"
 					aria-label={t`Filter by author`}
-					value={authorFilter}
-					onValueChange={(v) => onAuthorFilterChange?.(v ?? "")}
+					value={authorFilter || ALL_AUTHORS}
+					onValueChange={(v) =>
+						onAuthorFilterChange?.(typeof v === "string" && v !== ALL_AUTHORS ? v : "")
+					}
 					items={{
-						"": t`All authors`,
+						[ALL_AUTHORS]: t`All authors`,
 						...Object.fromEntries(authors.map((a) => [a.id, a.name || a.email || t`Unnamed user`])),
 					}}
 				>
-					<Select.Option value="">{t`All authors`}</Select.Option>
+					<Select.Option value={ALL_AUTHORS} className="emdash-compact-select-option text-xs">
+						{t`All authors`}
+					</Select.Option>
 					{authors.map((a) => (
-						<Select.Option key={a.id} value={a.id}>
+						<Select.Option key={a.id} value={a.id} className="emdash-compact-select-option text-xs">
 							{a.name || a.email || t`Unnamed user`}
 						</Select.Option>
 					))}
@@ -1526,7 +1748,7 @@ interface ContentListItemProps {
 	listColumns: ContentListColumn[];
 	selectable?: boolean;
 	selected?: boolean;
-	onToggleSelect?: (id: string) => void;
+	onToggleSelect?: RowToggle;
 	extensionColumns?: ResolvedContentListColumn[];
 }
 
@@ -1575,10 +1797,12 @@ function ContentListItem({
 	return (
 		<tr data-selected={selected || undefined}>
 			{selectable && (
-				<td>
+				<td {...rangeSelectionCellProps}>
 					<Checkbox
 						checked={!!selected}
-						onCheckedChange={() => onToggleSelect?.(item.id)}
+						onCheckedChange={(checked, details) =>
+							onToggleSelect?.(item.id, checked, details.event)
+						}
 						aria-label={t`Select ${title}`}
 					/>
 				</td>
@@ -1797,6 +2021,9 @@ interface TrashedListItemProps {
 	showLocale?: boolean;
 	onRestore?: (id: string) => void;
 	onPermanentDelete?: RowRequest;
+	selectable?: boolean;
+	selected?: boolean;
+	onToggleSelect?: RowToggle;
 }
 
 function TrashedListItem({
@@ -1805,6 +2032,9 @@ function TrashedListItem({
 	showLocale,
 	onRestore,
 	onPermanentDelete,
+	selectable,
+	selected,
+	onToggleSelect,
 }: TrashedListItemProps) {
 	const { t, i18n } = useLingui();
 	const title = getEntryTitle(item, titleField);
@@ -1816,7 +2046,18 @@ function TrashedListItem({
 	const formattedDeletedDate = <bdi>{formatDate(deletedDate, i18n.locale)}</bdi>;
 
 	return (
-		<tr>
+		<tr data-selected={selected || undefined}>
+			{selectable && (
+				<td {...rangeSelectionCellProps}>
+					<Checkbox
+						checked={!!selected}
+						onCheckedChange={(checked, details) =>
+							onToggleSelect?.(item.id, checked, details.event)
+						}
+						aria-label={t`Select ${title}`}
+					/>
+				</td>
+			)}
 			<td>
 				<span className="font-medium text-kumo-subtle @max-2xl:wrap-anywhere">{title}</span>
 				<RowMeta priority="tertiary">
@@ -1836,22 +2077,28 @@ function TrashedListItem({
 					>
 						{t`Restore`}
 					</DropdownMenu.Item>
-					<DropdownMenu.Separator />
-					<DropdownMenu.Item
-						variant="danger"
-						icon={<Trash className="size-4" aria-hidden="true" />}
-						onClick={permanentDelete.show}
-					>
-						{t`Delete permanently`}
-					</DropdownMenu.Item>
+					{onPermanentDelete && (
+						<>
+							<DropdownMenu.Separator />
+							<DropdownMenu.Item
+								variant="danger"
+								icon={<Trash className="size-4" aria-hidden="true" />}
+								onClick={permanentDelete.show}
+							>
+								{t`Delete permanently`}
+							</DropdownMenu.Item>
+						</>
+					)}
 				</RowActionsMenu>
-				<ConfirmDialog
-					{...permanentDelete.dialog}
-					title={t`Delete Permanently?`}
-					description={t`Permanently delete "${title}"? This cannot be undone.`}
-					confirmLabel={t`Delete Permanently`}
-					pendingLabel={t`Deleting...`}
-				/>
+				{onPermanentDelete && (
+					<ConfirmDialog
+						{...permanentDelete.dialog}
+						title={t`Delete Permanently?`}
+						description={t`Permanently delete "${title}"? This cannot be undone.`}
+						confirmLabel={t`Delete Permanently`}
+						pendingLabel={t`Deleting...`}
+					/>
+				)}
 			</td>
 		</tr>
 	);

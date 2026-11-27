@@ -443,6 +443,11 @@ export interface EmDashHandlers {
 		params?: { locale?: string },
 	) => Promise<HandlerResponse>;
 
+	handleContentEmptyTrash: (
+		collection: string,
+		params?: { locale?: string },
+	) => Promise<HandlerResponse<{ deletedIds: string[]; remaining: number }>>;
+
 	handleContentGetIncludingTrashed: (collection: string, id: string) => Promise<HandlerResponse>;
 
 	handleContentGetForWrite: (

@@ -49,6 +49,7 @@ import {
 import { encodeRev, validateRev } from "./api/rev.js";
 import { resolveSiteTitle } from "./api/site-title.js";
 import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
+import type { ApiResult } from "./api/types.js";
 import type {
 	EmDashConfig,
 	PluginAdminPage,
@@ -355,6 +356,8 @@ const DRAFT_ONLY_UPDATE_KEYS = new Set([
 /** Field types whose schema is an array, so a stored blank string can never validate. */
 const ARRAY_FIELD_TYPES = new Set<string>(["portableText", "multiSelect", "repeater"]);
 const MAX_DRAFT_STAGE_ATTEMPTS = 32;
+/** A permanent delete runs about 25 queries, and D1 caps the queries one Worker request may run. */
+const EMPTY_TRASH_BATCH_SIZE = 18;
 const PLUGIN_INVOCATION_RELEASE_GRACE_MS = 60_000;
 /** Publish errors a scheduled retry cannot clear: the entry has to change first. */
 const SCHEDULED_REFUSAL_CODES: ReadonlySet<string> = new Set(["VALIDATION_ERROR", "SLUG_CONFLICT"]);
@@ -5247,6 +5250,49 @@ export class EmDashRuntime {
 
 	async handleContentCountTrashed(collection: string, params: { locale?: string } = {}) {
 		return handleContentCountTrashed(this.db, collection, params);
+	}
+
+	/**
+	 * Permanently delete one batch of a collection's trash. Callers repeat
+	 * until `remaining` is 0. An entry another request deleted first is
+	 * skipped rather than counted as a failure, so concurrent runs both
+	 * succeed; the call fails only when nothing could be deleted.
+	 */
+	async handleContentEmptyTrash(
+		collection: string,
+		params: { locale?: string } = {},
+	): Promise<ApiResult<{ deletedIds: string[]; remaining: number }>> {
+		try {
+			const repo = new ContentRepository(this.db);
+			const where = { locale: params.locale };
+			const { items } = await repo.findTrashed(collection, {
+				limit: EMPTY_TRASH_BATCH_SIZE,
+				where,
+			});
+
+			const deletedIds: string[] = [];
+			let failed = 0;
+			for (const item of items) {
+				const result = await this.handleContentPermanentDelete(collection, item.id);
+				if (result.success) deletedIds.push(result.data.id);
+				else if (result.error.code !== "NOT_FOUND") failed++;
+			}
+
+			const remaining = await repo.countTrashed(collection, where);
+			if (deletedIds.length === 0 && failed > 0) {
+				return {
+					success: false,
+					error: { code: "CONTENT_DELETE_ERROR", message: "Failed to empty the trash" },
+				};
+			}
+			return { success: true, data: { deletedIds, remaining } };
+		} catch (error) {
+			console.error("Content empty trash error:", error);
+			return {
+				success: false,
+				error: { code: "CONTENT_DELETE_ERROR", message: "Failed to empty the trash" },
+			};
+		}
 	}
 
 	async handleContentDuplicate(collection: string, id: string, authorId?: string) {

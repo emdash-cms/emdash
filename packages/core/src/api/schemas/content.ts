@@ -396,6 +396,14 @@ export const contentTrashQuery = cursorPaginationQuery
 	})
 	.meta({ id: "ContentTrashQuery" });
 
+export const contentEmptyTrashQuery = z
+	.object({
+		locale: localeCode.optional().meta({
+			description: "Empty only the trashed entries in this locale",
+		}),
+	})
+	.meta({ id: "ContentEmptyTrashQuery" });
+
 // ---------------------------------------------------------------------------
 // Content: Response schemas
 // ---------------------------------------------------------------------------
@@ -520,6 +528,21 @@ export const trashedContentListResponseSchema = z
 		total: z.number().int().nonnegative().optional(),
 	})
 	.meta({ id: "TrashedContentListResponse" });
+
+export const contentEmptyTrashResponseSchema = z
+	.object({
+		deleted: z
+			.number()
+			.int()
+			.nonnegative()
+			.meta({ description: "Entries this request permanently deleted" }),
+		remaining: z
+			.number()
+			.int()
+			.nonnegative()
+			.meta({ description: "Trashed entries still left in the same scope" }),
+	})
+	.meta({ id: "ContentEmptyTrashResponse" });
 
 /** Response for content compare (live vs draft) */
 export const contentCompareResponseSchema = z

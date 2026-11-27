@@ -1051,8 +1051,8 @@ describe("ContentList", () => {
 			}
 			await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeDisabled();
 			await expect
-				.element(screen.getByRole("status"))
-				.toHaveTextContent("Select up to 50 posts at a time.");
+				.element(screen.getByText("Select up to 50 posts at a time."))
+				.toHaveAttribute("role", "status");
 			await screen.getByRole("checkbox", { name: "Select Post 50" }).click();
 			await expect.element(screen.getByRole("button", { name: "Add tag" })).toBeEnabled();
 		});
@@ -1127,6 +1127,141 @@ describe("ContentList", () => {
 			);
 
 			await expect.element(screen.getByText("1 selected")).toBeInTheDocument();
+		});
+	});
+
+	describe("range selection", () => {
+		const posts = Array.from({ length: 8 }, (_, index) =>
+			makeItem({ id: `post_${index + 1}`, data: { title: `Post ${index + 1}` } }),
+		);
+		const props = { ...defaultProps, items: posts, onBulkDelete: vi.fn() };
+
+		function rowCheckbox(title: string) {
+			return page.getByRole("checkbox", { name: `Select ${title}` });
+		}
+
+		function selectedTitles() {
+			return posts
+				.map((post) => String(post.data.title))
+				.filter((title) => rowCheckbox(title).element().getAttribute("aria-checked") === "true");
+		}
+
+		it("selects the rows between a click and a Shift+click without selecting page text", async () => {
+			const screen = await render(<ContentList {...props} />);
+
+			await rowCheckbox("Post 2").click();
+			await rowCheckbox("Post 5").click({ modifiers: ["Shift"] });
+
+			await expect.element(screen.getByRole("status")).toHaveTextContent("4 selected");
+			expect(selectedTitles()).toEqual(["Post 2", "Post 3", "Post 4", "Post 5"]);
+			expect(window.getSelection()?.toString()).toBe("");
+			expect(document.activeElement).toBe(rowCheckbox("Post 5").element());
+		});
+
+		it("clears the range when the Shift+clicked row was already selected", async () => {
+			const screen = await render(<ContentList {...props} />);
+			await rowCheckbox("Post 2").click();
+			await rowCheckbox("Post 6").click({ modifiers: ["Shift"] });
+
+			await rowCheckbox("Post 4").click({ modifiers: ["Shift"] });
+
+			await expect.element(screen.getByRole("status")).toHaveTextContent("2 selected");
+			expect(selectedTitles()).toEqual(["Post 2", "Post 3"]);
+		});
+
+		it("selects a range with Shift+Space", async () => {
+			const screen = await render(<ContentList {...props} />);
+			(rowCheckbox("Post 1").element() as HTMLElement).focus();
+			await userEvent.keyboard(" ");
+			(rowCheckbox("Post 3").element() as HTMLElement).focus();
+
+			await userEvent.keyboard("{Shift>} {/Shift}");
+
+			await expect.element(screen.getByRole("status")).toHaveTextContent("3 selected");
+			expect(selectedTitles()).toEqual(["Post 1", "Post 2", "Post 3"]);
+		});
+
+		it("starts a new range after the sort changes", async () => {
+			const screen = await render(<ContentList {...props} />);
+			await rowCheckbox("Post 1").click();
+			await screen.rerender(<ContentList {...props} items={posts.toReversed()} />);
+
+			await rowCheckbox("Post 4").click({ modifiers: ["Shift"] });
+			expect(selectedTitles()).toEqual(["Post 1", "Post 4"]);
+			await rowCheckbox("Post 6").click({ modifiers: ["Shift"] });
+
+			await expect.element(screen.getByRole("status")).toHaveTextContent("4 selected");
+			expect(selectedTitles()).toEqual(["Post 1", "Post 4", "Post 5", "Post 6"]);
+		});
+
+		it("starts a new range after leaving the page and coming back", async () => {
+			const pagination: ListPagination = {
+				page: 1,
+				perPage: 8,
+				totalCount: 16,
+				isPending: false,
+				onPageChange: vi.fn(),
+				onPageSizeChange: vi.fn(),
+			};
+			const secondPage = posts.map((post, index) => ({ ...post, id: `page2_${index}` }));
+			const screen = await render(<ContentList {...props} pagination={pagination} />);
+			await rowCheckbox("Post 3").click();
+			await screen.rerender(
+				<ContentList {...props} items={secondPage} pagination={{ ...pagination, page: 2 }} />,
+			);
+			await screen.rerender(<ContentList {...props} pagination={pagination} />);
+
+			await rowCheckbox("Post 6").click({ modifiers: ["Shift"] });
+			expect(selectedTitles()).toEqual(["Post 3", "Post 6"]);
+			await rowCheckbox("Post 8").click({ modifiers: ["Shift"] });
+
+			await expect.element(screen.getByText("4 selected")).toBeInTheDocument();
+			expect(selectedTitles()).toEqual(["Post 3", "Post 6", "Post 7", "Post 8"]);
+		});
+	});
+
+	describe("trash selection", () => {
+		const trashed = ["One", "Two", "Three", "Four"].map((title, index) =>
+			makeTrashedItem({ id: `t${index + 1}`, data: { title } }),
+		);
+
+		it("restores the selected entries and keeps the failed ones selected", async () => {
+			const onBulkRestore = vi.fn().mockResolvedValue(["t2"]);
+			const screen = await render(
+				<ContentList {...defaultProps} trashedItems={trashed} onBulkRestore={onBulkRestore} />,
+			);
+			await screen.getByRole("tab", { name: /Trash/ }).click();
+			await screen.getByRole("checkbox", { name: "Select One" }).click();
+			await screen.getByRole("checkbox", { name: "Select Three" }).click({ modifiers: ["Shift"] });
+
+			await screen.getByRole("button", { name: "Restore", exact: true }).click();
+
+			expect(onBulkRestore).toHaveBeenCalledWith(["t1", "t2", "t3"]);
+			await expect.element(screen.getByRole("status")).toHaveTextContent("1 selected");
+			await expect.element(screen.getByRole("checkbox", { name: "Select Two" })).toBeChecked();
+		});
+
+		it("permanently deletes the selected entries after a confirmation that opens on Cancel", async () => {
+			const onBulkPermanentDelete = vi.fn().mockResolvedValue(["t4"]);
+			const screen = await render(
+				<ContentList
+					{...defaultProps}
+					trashedItems={trashed}
+					onBulkPermanentDelete={onBulkPermanentDelete}
+				/>,
+			);
+			await screen.getByRole("tab", { name: /Trash/ }).click();
+			await screen.getByRole("checkbox", { name: "Select Three" }).click();
+			await screen.getByRole("checkbox", { name: "Select Four" }).click();
+
+			await screen.getByRole("button", { name: "Delete permanently" }).click();
+			const dialog = screen.getByRole("dialog", { name: "Delete Permanently?" });
+			await expect.element(dialog.getByRole("button", { name: "Cancel" })).toHaveFocus();
+			dialog.getByRole("button", { name: "Delete Permanently" }).element().click();
+
+			expect(onBulkPermanentDelete).toHaveBeenCalledWith(["t3", "t4"]);
+			await expect.element(screen.getByRole("status")).toHaveTextContent("1 selected");
+			await expect.element(screen.getByRole("checkbox", { name: "Select Four" })).toBeChecked();
 		});
 	});
 

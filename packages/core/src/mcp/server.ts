@@ -41,6 +41,7 @@ import {
 	handleEditorialThreadUpdate,
 } from "../api/handlers/editorial-comments.js";
 import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
+import { localeCode } from "../api/schemas/common.js";
 import {
 	EDITORIAL_COMMENT_MAX_LENGTH,
 	EDITORIAL_CONTEXT_MAX_LENGTH,
@@ -1721,6 +1722,38 @@ export function createMcpServer(
 				extra,
 				await ec.handleContentPermanentDelete(args.collection, resolvedId),
 				[args.collection, resolvedId],
+			);
+		},
+	);
+
+	server.registerTool(
+		"content_empty_trash",
+		{
+			title: "Empty Trash",
+			description:
+				"Permanently and irreversibly delete trashed items in a collection, one batch " +
+				"per call. Returns `{ deleted, remaining }`; call again while `remaining` is " +
+				"greater than 0. Pass `locale` to empty only that locale's trash. Items that " +
+				"are not in the trash are never touched. This cannot be undone.",
+			inputSchema: z.object({
+				collection: z.string().describe("Collection slug"),
+				locale: localeCode
+					.optional()
+					.describe("Only delete trashed items in this locale (default: every locale)"),
+			}),
+			annotations: { destructiveHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			requireRole(extra, Role.ADMIN);
+			const ec = getEmDash(extra);
+			const result = await ec.handleContentEmptyTrash(args.collection, { locale: args.locale });
+			if (!result.success) return unwrap(result);
+			const { deletedIds, remaining } = result.data;
+			return unwrapAndInvalidate(
+				extra,
+				{ success: true, data: { deleted: deletedIds.length, remaining } },
+				[args.collection, ...deletedIds],
 			);
 		},
 	);
