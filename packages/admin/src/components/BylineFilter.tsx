@@ -64,7 +64,17 @@ export function BylineFilter({ value, onChange, locale }: BylineFilterProps) {
 		placeholderData: keepPreviousData,
 	});
 
-	const options = data?.items ?? [];
+	// Without a locale the API returns every translation of a byline; they
+	// share a group, which is what the filter selects, so list one per group.
+	const options = React.useMemo(() => {
+		const seen = new Set<string>();
+		return (data?.items ?? []).filter((byline) => {
+			const group = groupOf(byline);
+			if (seen.has(group)) return false;
+			seen.add(group);
+			return true;
+		});
+	}, [data]);
 
 	// Selected bylines are remembered by group so their names keep rendering
 	// once the search moves on and the rows are no longer in `options`.

@@ -533,6 +533,9 @@ export function ContentList({
 	const [trashSelectedIds, setTrashSelectedIds] = React.useState<Set<string>>(() => new Set());
 	const [trashBulkBusy, setTrashBulkBusy] = React.useState(false);
 	const [bulkPermanentDeleteOpen, setBulkPermanentDeleteOpen] = React.useState(false);
+	// The dialog lives in the bulk bar, which unmounts once nothing is
+	// selected; closing it here stops it reopening with the next selection.
+	if (bulkPermanentDeleteOpen && trashSelectedIds.size === 0) setBulkPermanentDeleteOpen(false);
 	const trashEmpty = trashedCount === 0;
 	React.useEffect(() => {
 		setTrashSelectedIds((prev) => (prev.size === 0 ? prev : new Set()));
@@ -648,11 +651,10 @@ export function ContentList({
 				</RouterLinkButton>
 			</div>
 
-			<div className="flex items-start gap-4 border-b border-kumo-hairline">
+			<div className="flex">
 				<Tabs
 					variant="underline"
 					className="min-w-0 flex-1"
-					listClassName="border-b-0"
 					value={activeTab}
 					onValueChange={(v) => {
 						if (v === "all" || v === "trash") setActiveTab(v);
@@ -672,46 +674,49 @@ export function ContentList({
 					]}
 				/>
 				{activeTab === "trash" && onEmptyTrash && (trashedCount > 0 || emptyTrashOpen) && (
-					<ConfirmDialog
-						open={emptyTrashOpen}
-						onClose={() => setEmptyTrashOpen(false)}
-						trigger={
-							<Button
-								size="sm"
-								variant="secondary-destructive"
-								icon={<Trash />}
-								disabled={trashBulkBusy}
-								onClick={() => {
-									setEmptyTrashError(null);
-									setEmptyTrashOpen(true);
-								}}
-							>
-								{t`Empty trash`}
-							</Button>
-						}
-						title={t`Empty trash?`}
-						description={
-							<>
-								{emptyTrashLocale
-									? plural(trashedCount, {
-											one: `Permanently delete the # ${emptyTrashLocale} item in the trash? This cannot be undone.`,
-											other: `Permanently delete all # ${emptyTrashLocale} items in the trash? This cannot be undone.`,
-										})
-									: plural(trashedCount, {
-											one: "Permanently delete the # item in the trash? This cannot be undone.",
-											other: "Permanently delete all # items in the trash? This cannot be undone.",
-										})}
-								<span role="status" className="sr-only">
-									{emptyTrashProgress ? emptyTrashProgressLabel : ""}
-								</span>
-							</>
-						}
-						confirmLabel={t`Empty trash`}
-						pendingLabel={emptyTrashProgressLabel}
-						isPending={!!emptyTrashProgress}
-						error={emptyTrashError}
-						onConfirm={() => void emptyTrash()}
-					/>
+					<div className="flex items-start border-b border-kumo-hairline ps-4">
+						<ConfirmDialog
+							open={emptyTrashOpen}
+							onClose={() => setEmptyTrashOpen(false)}
+							trigger={
+								<Button
+									size="sm"
+									variant="secondary-destructive"
+									icon={<Trash />}
+									disabled={trashBulkBusy || trashPagination?.isPending}
+									onClick={() => {
+										setEmptyTrashError(null);
+										setEmptyTrashOpen(true);
+									}}
+								>
+									{t`Empty trash`}
+								</Button>
+							}
+							title={t`Empty trash?`}
+							description={
+								<>
+									{emptyTrashLocale
+										? plural(trashedCount, {
+												one: `Permanently delete the # ${emptyTrashLocale} item in the trash? This cannot be undone.`,
+												other: `Permanently delete all # ${emptyTrashLocale} items in the trash? This cannot be undone.`,
+											})
+										: plural(trashedCount, {
+												one: "Permanently delete the # item in the trash? This cannot be undone.",
+												other:
+													"Permanently delete all # items in the trash? This cannot be undone.",
+											})}
+									<span role="status" className="sr-only">
+										{emptyTrashProgress ? emptyTrashProgressLabel : ""}
+									</span>
+								</>
+							}
+							confirmLabel={t`Empty trash`}
+							pendingLabel={emptyTrashProgressLabel}
+							isPending={!!emptyTrashProgress}
+							error={emptyTrashError}
+							onConfirm={() => void emptyTrash()}
+						/>
+					</div>
 				)}
 			</div>
 
