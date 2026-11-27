@@ -157,6 +157,76 @@ async function navigate(
 	await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
+describe("request-scoped db options on the anonymous path", () => {
+	beforeEach(() => {
+		vi.clearAllMocks();
+		createRequestScopedDb.mockReturnValue(null);
+		getDb.mockResolvedValue({
+			selectFrom: () => ({ selectAll: () => ({ limit: () => ({ execute: async () => [] }) }) }),
+		});
+	});
+
+	it("marks HTML GET navigations", async () => {
+		await onRequest(htmlNavigation("/posts/hello"), async () => new Response("<html></html>"));
+		expect(createRequestScopedDb).toHaveBeenCalledWith(
+			expect.objectContaining({ htmlNavigation: true }),
+		);
+	});
+
+	it("does not mark a feed request", async () => {
+		const context = htmlNavigation(
+			"/rss.xml",
+			{},
+			{
+				request: new Request("https://example.com/rss.xml", {
+					headers: { accept: "application/rss+xml, text/html;q=0.8" },
+				}),
+			},
+		);
+		await onRequest(context, async () => new Response("<rss></rss>"));
+		expect(createRequestScopedDb).toHaveBeenCalledWith(
+			expect.objectContaining({ htmlNavigation: false }),
+		);
+	});
+
+	it.each([
+		[200, "text/html"],
+		[404, "text/html"],
+		[500, "text/html"],
+	])("hands the adapter's close() the final %i response's outcome", async (status, type) => {
+		const close = vi.fn();
+		createRequestScopedDb.mockReturnValue({
+			db: kyselyWith(new SqliteAdapter()),
+			commit: vi.fn(),
+			close,
+		});
+		const response = await onRequest(
+			htmlNavigation("/missing"),
+			async () => new Response("<html></html>", { status, headers: { "content-type": type } }),
+		);
+		await (response as Response).text();
+		await vi.waitFor(() =>
+			expect(close).toHaveBeenCalledWith({ status, contentType: type, complete: true }),
+		);
+	});
+
+	it("hands the adapter's close() no outcome when the render throws", async () => {
+		const close = vi.fn();
+		createRequestScopedDb.mockReturnValue({
+			db: kyselyWith(new SqliteAdapter()),
+			commit: vi.fn(),
+			close,
+		});
+		await expect(
+			onRequest(htmlNavigation("/boom"), async () => {
+				throw new Error("render failed");
+			}),
+		).rejects.toThrow("render failed");
+		await vi.waitFor(() => expect(close).toHaveBeenCalledTimes(1));
+		expect(close.mock.calls[0]?.[0]).toBeUndefined();
+	});
+});
+
 describe("layout prefetch on anonymous HTML navigations", () => {
 	let realDb: Awaited<ReturnType<typeof setupTestDatabase>>;
 	let rewriteQueryCount: ReturnType<typeof vi.spyOn>;

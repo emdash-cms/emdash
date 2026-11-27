@@ -1,5 +1,5 @@
 import { CompiledQuery, Kysely } from "kysely";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { CoalescingD1Dialect } from "../../src/db/coalescing-d1.js";
 import {
@@ -52,7 +52,11 @@ function createMockD1(rows: Record<string, unknown>[] = []) {
 					await new Promise((resolve) => setTimeout(resolve, 5));
 					inFlight--;
 					allCalls.push(sql);
-					return { success: true, results: rows, meta: { changes: 0, last_row_id: 0 } };
+					return {
+						success: true,
+						results: rows,
+						meta: { changes: 0, last_row_id: 0, rows_read: rows.length },
+					};
 				},
 			};
 			return stmt;
@@ -186,5 +190,67 @@ describe("D1 write results", () => {
 		);
 
 		expect(result.rows).toEqual(rows);
+	});
+});
+
+describe.each([
+	["raw binding", RawBindingD1Dialect],
+	["session", EmDashD1Dialect],
+] as const)("%s dialect round-trip counting (onRpc)", (_name, Dialect) => {
+	it("counts one round trip per statement", async () => {
+		const mock = createMockD1([{ id: 1 }]);
+		const onRpc = vi.fn();
+		const db = new Kysely<any>({ dialect: new Dialect({ database: mock.database, onRpc }) });
+
+		await Promise.all([
+			db.executeQuery(CompiledQuery.raw("select 1")),
+			db.executeQuery(CompiledQuery.raw("select 2")),
+		]);
+		const r = await db.executeQuery(CompiledQuery.raw("select ? as x", [1]));
+
+		expect(mock.allCalls).toHaveLength(3);
+		expect(onRpc).toHaveBeenCalledTimes(3);
+		expect(r.rows).toEqual([{ id: 1 }]);
+	});
+
+	it("counts the adapter's atomic batch once and unwraps statements for batch()", async () => {
+		const mock = createMockD1();
+		const onRpc = vi.fn();
+		const adapter = new Dialect({ database: mock.database, onRpc }).createAdapter() as D1Adapter;
+
+		await adapter.executeAtomicBatch([
+			CompiledQuery.raw("insert into a values (?)", [1]),
+			CompiledQuery.raw("insert into a values (?)", [2]),
+		]);
+
+		// The mock's batch() re-enters statement.all() on what it was given; a
+		// second count here would mean batch() saw the counting wrappers.
+		expect(onRpc).toHaveBeenCalledTimes(1);
+		expect(mock.batchCalls[0]?.map((s) => s.params)).toEqual([[1], [2]]);
+	});
+
+	it("reports statements per round trip and the settled rows_read", async () => {
+		const mock = createMockD1([{ id: 1 }, { id: 2 }]);
+		const settled = vi.fn();
+		const onRpc = vi.fn(() => settled);
+		const dialect = new Dialect({ database: mock.database, onRpc });
+		const db = new Kysely<any>({ dialect });
+
+		await db.executeQuery(CompiledQuery.raw("select 1"));
+		await (dialect.createAdapter() as D1Adapter).executeAtomicBatch([
+			CompiledQuery.raw("select 2"),
+			CompiledQuery.raw("select 3"),
+		]);
+		await vi.waitFor(() => expect(settled).toHaveBeenCalledTimes(2));
+
+		expect(onRpc.mock.calls).toEqual([[1], [2]]);
+		expect(settled.mock.calls).toEqual([[2], [4]]);
+	});
+
+	it("counts nothing when no onRpc hook is configured", async () => {
+		const mock = createMockD1();
+		const db = new Kysely<any>({ dialect: new Dialect({ database: mock.database }) });
+		await db.executeQuery(CompiledQuery.raw("select 1"));
+		expect(mock.allCalls).toEqual(["select 1"]);
 	});
 });

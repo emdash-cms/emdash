@@ -336,4 +336,93 @@ describe("CoalescingD1Dialect", () => {
 			expect(mock.batchCalls[0]?.map((s) => s.sql)).toEqual(["select 1", "select 2"]);
 		});
 	});
+
+	describe("round-trip counting (onRpc)", () => {
+		function createCountingDb(mock: ReturnType<typeof createMockD1>) {
+			const onRpc = vi.fn();
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- mock implements the prepare/batch subset the dialect uses
+			const database = mock.database as unknown as D1Database;
+			const db = new Kysely<any>({ dialect: new CoalescingD1Dialect({ database, onRpc }) });
+			return { db, onRpc };
+		}
+
+		it("counts one round trip per batch() flush", async () => {
+			const mock = createMockD1();
+			const { db, onRpc } = createCountingDb(mock);
+
+			await Promise.all([
+				db.executeQuery(CompiledQuery.raw("select 1")),
+				db.executeQuery(CompiledQuery.raw("select 2")),
+				db.executeQuery(CompiledQuery.raw("select 3")),
+			]);
+
+			expect(mock.batchCalls).toHaveLength(1);
+			expect(onRpc).toHaveBeenCalledTimes(1);
+		});
+
+		it("counts one round trip per lone-statement flush", async () => {
+			const mock = createMockD1();
+			const { db, onRpc } = createCountingDb(mock);
+
+			await db.executeQuery(CompiledQuery.raw("select 1"));
+			await db.executeQuery(CompiledQuery.raw("select 2"));
+
+			expect(mock.allCalls).toHaveLength(2);
+			expect(onRpc).toHaveBeenCalledTimes(2);
+		});
+
+		it("counts one round trip per direct-path statement alongside a batch", async () => {
+			const mock = createMockD1();
+			const { db, onRpc } = createCountingDb(mock);
+
+			await Promise.all([
+				db.executeQuery(CompiledQuery.raw("select * from a")),
+				db.executeQuery(CompiledQuery.raw("insert into a (name) values (?)", ["x"])),
+				db.executeQuery(CompiledQuery.raw("with x as (select 1) delete from a")),
+				db.executeQuery(CompiledQuery.raw("select * from b")),
+			]);
+
+			// Two direct writes + one batch of two SELECTs.
+			expect(onRpc).toHaveBeenCalledTimes(3);
+		});
+
+		it("counts the failed batch plus one round trip per fallback statement", async () => {
+			const mock = createMockD1({
+				"select good": { rows: [{ ok: 1 }] },
+				"select nope": { error: new Error("boom") },
+			});
+			const { db, onRpc } = createCountingDb(mock);
+
+			await Promise.allSettled([
+				db.executeQuery(CompiledQuery.raw("select good")),
+				db.executeQuery(CompiledQuery.raw("select nope")),
+			]);
+
+			// 1 rejected batch + 2 individual re-runs.
+			expect(mock.batchCalls).toHaveLength(1);
+			expect(mock.allCalls).toHaveLength(2);
+			expect(onRpc).toHaveBeenCalledTimes(3);
+		});
+
+		it("counts the adapter's atomic batch once and passes real statements through", async () => {
+			const mock = createMockD1();
+			const onRpc = vi.fn();
+			// eslint-disable-next-line typescript/no-unsafe-type-assertion -- mock implements the prepare/batch subset the dialect uses
+			const database = mock.database as unknown as D1Database;
+			const adapter = new CoalescingD1Dialect({ database, onRpc }).createAdapter() as unknown as {
+				executeAtomicBatch(q: readonly CompiledQuery[]): Promise<unknown>;
+			};
+
+			await adapter.executeAtomicBatch([
+				CompiledQuery.raw("insert into a values (?)", [1]),
+				CompiledQuery.raw("insert into a values (?)", [2]),
+			]);
+
+			expect(onRpc).toHaveBeenCalledTimes(1);
+			expect(mock.batchCalls[0]?.map((s) => [s.sql, s.params])).toEqual([
+				["insert into a values (?)", [1]],
+				["insert into a values (?)", [2]],
+			]);
+		});
+	});
 });

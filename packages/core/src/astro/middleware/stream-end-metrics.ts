@@ -40,6 +40,8 @@ export interface StreamEndSnapshot {
 	dbLastOffset: number | null;
 	cacheHits: number;
 	cacheMisses: number;
+	/** Physical DB round trips (see RequestMetrics.rpcCount). */
+	rpcCount: number;
 }
 
 /**
@@ -81,10 +83,11 @@ export function wrapBodyForStreamMetrics(response: Response): Response {
 				dbLastOffset: metrics.dbLastOffset,
 				cacheHits: metrics.cacheHits,
 				cacheMisses: metrics.cacheMisses,
+				rpcCount: metrics.rpcCount,
 			};
 			console.log(`${STREAM_END_PREFIX} ${JSON.stringify(snapshot)}`);
 			// Emit the full per-query log now that streaming is complete.
-			if (recorder) flushRecorder(recorder);
+			if (recorder) flushRecorder(recorder, metrics);
 		},
 	});
 

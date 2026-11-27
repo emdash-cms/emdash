@@ -27,6 +27,101 @@ import { D1Introspector } from "./d1-introspector.js";
  */
 export const D1_COMPOUND_SELECT_LIMIT = 5;
 
+/**
+ * Called once when a physical D1 call starts, with the number of statements it
+ * carries. May return a callback that receives the call's summed
+ * `meta.rows_read` (undefined when unavailable) once it settles; the runtime
+ * only asks for that when tracing a request.
+ */
+export type RpcHook = (statements: number) => ((rowsRead: number | undefined) => void) | void;
+
+/**
+ * Dialect config plus an optional round-trip hook, so the runtime can count
+ * round trips separately from logical queries. Injected rather than imported
+ * so the dialect stays decoupled from core — same pattern as the DO SQL
+ * dialect.
+ */
+export interface EmDashD1DialectConfig extends D1DialectConfig {
+	onRpc?: RpcHook;
+}
+
+function rowsReadOf(result: unknown): number | undefined {
+	if (Array.isArray(result)) {
+		let total: number | undefined;
+		for (const r of result) {
+			const n = rowsReadOf(r);
+			if (n !== undefined) total = (total ?? 0) + n;
+		}
+		return total;
+	}
+	if (result && typeof result === "object" && "meta" in result) {
+		const meta: unknown = result.meta;
+		if (meta && typeof meta === "object" && "rows_read" in meta) {
+			return typeof meta.rows_read === "number" ? meta.rows_read : undefined;
+		}
+	}
+	return undefined;
+}
+
+/** Report one physical call carrying `statements` statements to `onRpc`. */
+export function observeRpc<T>(onRpc: RpcHook, statements: number, run: () => T): T {
+	const settle = onRpc(statements);
+	const out = run();
+	if (settle && out instanceof Promise) {
+		out.then(
+			(result: unknown) => settle(rowsReadOf(result)),
+			() => settle(undefined),
+		);
+	}
+	return out;
+}
+
+/** Maps a counting statement wrapper back to the real D1 statement for batch(). */
+const innerStatements = new WeakMap<object, D1PreparedStatement>();
+
+function countingStatement(inner: D1PreparedStatement, onRpc: RpcHook): D1PreparedStatement {
+	// Resolve the target method at call time, not wrap time, so a statement
+	// that lacks one (e.g. a partial test double) still wraps cleanly.
+	const forward =
+		(method: "all" | "run" | "first" | "raw") =>
+		(...args: unknown[]): unknown =>
+			observeRpc(onRpc, 1, () => {
+				// eslint-disable-next-line typescript/no-unsafe-type-assertion -- forwards D1's overloaded signatures unchanged
+				const fn = inner[method] as (...a: unknown[]) => unknown;
+				return fn.apply(inner, args);
+			});
+	const wrapper = {
+		bind: (...values: unknown[]) => countingStatement(inner.bind(...values), onRpc),
+		all: forward("all"),
+		run: forward("run"),
+		first: forward("first"),
+		raw: forward("raw"),
+	};
+	innerStatements.set(wrapper, inner);
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- wrapper implements the D1PreparedStatement surface the dialects use
+	return wrapper as unknown as D1PreparedStatement;
+}
+
+/**
+ * Wrap a D1Database (or a D1DatabaseSession cast to one) so every physical
+ * call reports to `onRpc`. Only `prepare` and `batch` are intercepted — those
+ * are the only members the Kysely dialects touch. `batch()` receives the
+ * wrappers and is handed the real statements, since workerd rejects foreign
+ * objects there.
+ */
+export function countRoundTrips(database: D1Database, onRpc: RpcHook): D1Database {
+	const wrapped = {
+		prepare: (sql: string) => countingStatement(database.prepare(sql), onRpc),
+		batch: (statements: D1PreparedStatement[]) =>
+			observeRpc(onRpc, statements.length, () =>
+				database.batch(statements.map((s) => innerStatements.get(s) ?? s)),
+			),
+		exec: (sql: string) => observeRpc(onRpc, 1, () => database.exec(sql)),
+	};
+	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- wrapper implements the subset of D1Database the dialects use
+	return wrapped as unknown as D1Database;
+}
+
 interface AtomicBatchAdapter {
 	executeAtomicBatch(queries: readonly CompiledQuery[]): Promise<readonly QueryResult<unknown>[]>;
 }
@@ -110,11 +205,18 @@ class RawBindingD1Adapter extends D1Adapter {
  * cross-join with pragma_table_info() that D1 doesn't allow.
  */
 export class EmDashD1Dialect extends D1Dialect {
+	/**
+	 * The database every physical call goes through. When `onRpc` is set this
+	 * is the round-trip-counting wrapper, so kysely-d1's driver and the
+	 * adapter's atomic batch are both counted.
+	 */
 	protected readonly database: D1Database;
 
-	constructor(config: D1DialectConfig) {
-		super(config);
-		this.database = config.database;
+	constructor(config: EmDashD1DialectConfig) {
+		const { onRpc, ...rest } = config;
+		const database = onRpc ? countRoundTrips(rest.database, onRpc) : rest.database;
+		super({ ...rest, database });
+		this.database = database;
 	}
 
 	override createAdapter(): SqliteAdapter {

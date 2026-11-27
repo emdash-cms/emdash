@@ -1,0 +1,49 @@
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "emdash-replay-unplaced",
+	"main": "./src/worker.ts",
+	"account_id": "1f74638c495bc9f0330ce5c8e64c1b6b",
+	"compatibility_date": "2026-02-24",
+	"compatibility_flags": ["nodejs_compat"],
+	"vars": {
+		"NODE_OPTIONS": "--max-old-space-size=6144",
+		"EMDASH_REPLAY_OFF_HOSTS": "replay-unplaced-off.emdashcms.com",
+		"EMDASH_REPLAY_IGNORE_PARAMS": "_perf_cold",
+	},
+	"routes": [
+		{
+			"pattern": "replay-unplaced.emdashcms.com",
+			"zone_name": "emdashcms.com",
+			"custom_domain": true,
+		},
+		{
+			"pattern": "replay-unplaced-off.emdashcms.com",
+			"zone_name": "emdashcms.com",
+			"custom_domain": true,
+		},
+	],
+	"d1_databases": [
+		{
+			"binding": "DB",
+			"database_name": "emdash-replay-spike",
+			"database_id": "37b5920b-3e3e-44a6-8207-c2a27dee1161",
+		},
+	],
+	"r2_buckets": [
+		{
+			"binding": "MEDIA",
+			"bucket_name": "emdash-demo-media",
+		},
+	],
+	"worker_loaders": [
+		{
+			"binding": "LOADER",
+		},
+	],
+	"kv_namespaces": [
+		{
+			"binding": "SESSION",
+			"id": "045dd0600977420992277da020ae2df3",
+		},
+	],
+}

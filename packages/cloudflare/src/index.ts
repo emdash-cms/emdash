@@ -122,6 +122,24 @@ export interface D1Config {
 	 * @default false
 	 */
 	coalesce?: boolean;
+
+	/**
+	 * Experimental: speculative query replay for anonymous page renders.
+	 *
+	 * Records which SELECTs an anonymous HTML render of a path ran (the query
+	 * plan, never the results). The next render of that path sends the whole
+	 * list to D1 as one `batch()` as soon as the request starts and answers
+	 * the render's matching queries from it. Results are always read in the
+	 * current request; only the prediction is cached, in the isolate and the
+	 * Workers Cache API, keyed by build, host and path. Queries the plan did
+	 * not predict run as usual, and the plan is rewritten in the background
+	 * when the render's queries change.
+	 *
+	 * Requires `session` and `coalesce`; without them it does nothing.
+	 *
+	 * @default false
+	 */
+	replay?: boolean;
 }
 
 /**

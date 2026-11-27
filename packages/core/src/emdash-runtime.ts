@@ -2442,10 +2442,17 @@ export class EmDashRuntime {
 
 	/**
 	 * Create and initialize the runtime
+	 *
+	 * `onFoldedMigrationCount` is called once the cold-start reads are issued:
+	 * with the applied-migration count read that rides in their batch (null
+	 * when the migrations table is missing, undefined when the read failed), or
+	 * with undefined when this init doesn't fold that read. A caller can use it
+	 * in place of a separate schema probe.
 	 */
 	static async create(
 		deps: RuntimeDependencies,
 		timings?: Array<{ name: string; dur: number; desc?: string }>,
+		onFoldedMigrationCount?: (count: Promise<number | null | undefined> | undefined) => void,
 	): Promise<EmDashRuntime> {
 		// Helper: time a phase and push into the shared timings array when
 		// provided. Uses performance.now() — monotonic across async boundaries.
@@ -2674,6 +2681,7 @@ export class EmDashRuntime {
 			appliedMigrationCount = getAppliedMigrationCount(coalescingDb).catch(() => undefined);
 			foldedColdStartReads = runColdStartReads(coalescingDb);
 		}
+		onFoldedMigrationCount?.(appliedMigrationCount);
 
 		// Initialize the database and enforce its configured migration policy.
 		let db: Kysely<Database>;

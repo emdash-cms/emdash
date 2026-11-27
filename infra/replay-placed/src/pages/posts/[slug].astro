@@ -1,0 +1,1026 @@
+---
+import {
+	getEmDashEntry,
+	getEmDashCollection,
+	getTermsForEntries,
+	getSeoMeta,
+	decodeSlug,
+	getSiteSettings,
+} from "emdash";
+import { Image, PortableText, WidgetArea } from "emdash/ui";
+import { Comments, CommentForm } from "emdash/ui/comments";
+import Base from "../../layouts/Base.astro";
+import Byline from "../../components/Byline.astro";
+import PostCard from "../../components/PostCard.astro";
+import { formatDate } from "../../utils/locale";
+import { getReadingTime } from "../../utils/reading-time";
+import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+import "../../styles/prose.css";
+
+const slug = decodeSlug(Astro.params.slug);
+
+if (!slug) {
+	return Astro.rewrite("/404");
+}
+
+const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+
+if (!post) {
+	return Astro.rewrite("/404");
+}
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+
+// Get featured image URL for OG fallback
+// The image may have src (external) or meta.storageKey (local)
+function getImageUrl(img: unknown): string | undefined {
+	if (!img || typeof img !== "object") return undefined;
+	const image = img as Record<string, unknown>;
+	// Check for direct src
+	if (typeof image.src === "string" && image.src) {
+		return image.src.startsWith("http")
+			? image.src
+			: `${Astro.url.origin}${image.src}`;
+	}
+	// Build from storageKey for local images
+	const meta = image.meta as Record<string, unknown> | undefined;
+	const storageKey =
+		(typeof meta?.storageKey === "string" ? meta.storageKey : undefined) ||
+		(typeof image.id === "string" ? image.id : undefined);
+	if (storageKey) {
+		return `${Astro.url.origin}/_emdash/api/media/file/${storageKey}`;
+	}
+	return undefined;
+}
+const featuredImageUrl = getImageUrl(post.data.featured_image);
+const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
+
+// Generate SEO meta from content
+const seo = getSeoMeta(post, {
+	siteTitle,
+	siteUrl: Astro.url.origin,
+	path: Astro.url.pathname.replace(/\/$/, ""),
+	defaultOgImage: featuredImageUrl,
+});
+
+// Bylines are already hydrated by getEmDashEntry
+const bylines = post.data.bylines ?? [];
+
+// Get reading time
+const readingTime = getReadingTime(post.data.content);
+
+// This post's tags are already hydrated onto the entry by getEmDashEntry —
+// no extra query needed.
+const tags = post.data.terms?.tag ?? [];
+
+// Fetch a few extra recent posts in case the current post is among them.
+const { entries: recentPosts, cacheHint: recentPostsCacheHint } =
+	await getEmDashCollection("posts", {
+		orderBy: { published_at: "desc" },
+		limit: 4,
+	});
+if (Astro.cache?.enabled) Astro.cache.set(recentPostsCacheHint);
+const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
+
+// Single batched query for related-posts tags, rather than one
+// getEntryTerms() call per related post.
+const otherTagsByEntry = await getTermsForEntries(
+	"posts",
+	otherPosts.map((p) => p.data.id),
+	"tag",
+);
+const otherPostsWithTags = otherPosts.map((p) => ({
+	post: p,
+	tags: (otherTagsByEntry.get(p.data.id) ?? []).map((t) => ({
+		slug: t.slug,
+		label: t.label,
+	})),
+}));
+
+const publishedAt = post.data.publishedAt ?? null;
+const publishDate = publishedAt ? formatDate(publishedAt, "long") : null;
+
+// The script below builds the table of contents and has the final say; this
+// guess keeps the sidebar from shifting when the page loads.
+const hasHeadings = (post.data.content ?? []).some(
+	(block) =>
+		block._type === "block" &&
+		"style" in block &&
+		(block.style === "h2" || block.style === "h3"),
+);
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	image={seo.ogImage}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	type="article"
+	publishedTime={post.data.publishedAt?.toISOString() ?? null}
+	modifiedTime={post.data.updatedAt.toISOString()}
+	content={{ collection: "posts", id: post.data.id, slug }}
+>
+	<article class="post">
+		<header class="intro post-header">
+			<div class="frame">
+				<div class="post-header__inner">
+					<a href="/posts" class="arrow-link back-link">
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.75"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M19 12H5"></path>
+							<path d="m12 19-7-7 7-7"></path>
+						</svg>
+						All posts
+					</a>
+					{
+						tags.length > 0 && (
+							<ul class="chips post-header__tags" aria-label="Tags">
+								{tags.map((t) => (
+									<li>
+										<a href={`/tag/${t.slug}`} class="chip">
+											{t.label}
+										</a>
+									</li>
+								))}
+							</ul>
+						)
+					}
+					<h1 class="intro__title post-header__title" {...post.edit.title}>
+						{post.data.title}
+					</h1>
+					{
+						post.data.excerpt && (
+							<p class="intro__lead post-header__lead" {...post.edit.excerpt}>
+								{post.data.excerpt}
+							</p>
+						)
+					}
+					<div class="post-header__meta">
+						<Byline bylines={bylines} layout="inline" max={2} size="md" />
+						<p class="post-header__dateline">
+							{
+								publishedAt && (
+									<time datetime={publishedAt.toISOString()}>
+										{publishDate}
+									</time>
+								)
+							}
+							<span>{readingTime} min read</span>
+						</p>
+					</div>
+				</div>
+			</div>
+		</header>
+
+		{
+			post.data.featured_image && (
+				<div class="band post-hero">
+					<div class="frame">
+						<div class="post-hero__media" {...post.edit.featured_image}>
+							<Image
+								image={post.data.featured_image}
+								sizes="(min-width: 1264px) 1136px, 92vw"
+								priority
+							/>
+						</div>
+					</div>
+				</div>
+			)
+		}
+
+		<div class="band section">
+			<div class="frame post-layout">
+				<div class="post-meta">
+					<dl class="post-facts">
+						{
+							bylines.length > 0 && (
+								<div class="post-fact">
+									<dt class="eyebrow">
+										{bylines.length === 1 ? "Author" : "Authors"}
+									</dt>
+									<dd>
+										<Byline bylines={bylines} layout="list" />
+									</dd>
+								</div>
+							)
+						}
+						{
+							publishedAt && (
+								<div class="post-fact">
+									<dt class="eyebrow">Published</dt>
+									<dd>
+										<time datetime={publishedAt.toISOString()}>
+											{publishDate}
+										</time>
+									</dd>
+								</div>
+							)
+						}
+						<div class="post-fact">
+							<dt class="eyebrow">Reading time</dt>
+							<dd>{readingTime} min</dd>
+						</div>
+					</dl>
+				</div>
+
+				<div class="post-main">
+					<div class="prose" data-post-content>
+						<PortableText value={post.data.content} />
+					</div>
+
+					<section class="post-comments" aria-labelledby="comments-title">
+						<h2 id="comments-title" class="eyebrow">Discussion</h2>
+						<Comments collection="posts" contentId={post.data.id} threaded />
+						<CommentForm collection="posts" contentId={post.data.id} />
+					</section>
+				</div>
+
+				<div class="post-rail">
+					<nav
+						class="toc"
+						aria-labelledby="toc-title"
+						hidden={!hasHeadings}
+						data-toc
+					>
+						<h2 id="toc-title" class="eyebrow">On this page</h2>
+						<ol class="toc__list" data-toc-list></ol>
+					</nav>
+
+					<aside class="post-widgets" aria-labelledby="widgets-title">
+						<h2 id="widgets-title" class="sr-only">More from the blog</h2>
+						<WidgetArea name="sidebar" />
+					</aside>
+				</div>
+			</div>
+		</div>
+	</article>
+
+	{
+		otherPostsWithTags.length > 0 && (
+			<section class="band section" aria-labelledby="continue-reading">
+				<div class="frame related">
+					<div class="section-head">
+						<h2 id="continue-reading" class="section-head__title">
+							Continue reading
+						</h2>
+						<a href="/posts" class="arrow-link">
+							All posts
+							<svg
+								viewBox="0 0 24 24"
+								fill="none"
+								stroke="currentColor"
+								stroke-width="1.75"
+								stroke-linecap="round"
+								stroke-linejoin="round"
+								aria-hidden="true"
+							>
+								<path d="M5 12h14" />
+								<path d="m12 5 7 7-7 7" />
+							</svg>
+						</a>
+					</div>
+					<div class="post-grid">
+						{otherPostsWithTags.map(({ post: p, tags: postTags }) => (
+							<PostCard
+								post={p}
+								tags={postTags}
+								variant="card"
+								headingLevel={3}
+							/>
+						))}
+					</div>
+				</div>
+			</section>
+		)
+	}
+
+	<script>
+		// Build the table of contents from the body's h2/h3 headings
+		function buildToc() {
+			const content = document.querySelector("[data-post-content]");
+			const toc = document.querySelector<HTMLElement>("[data-toc]");
+			const list = document.querySelector("[data-toc-list]");
+			if (!content || !toc || !list) return;
+
+			const headings = [
+				...content.querySelectorAll<HTMLHeadingElement>("h2, h3"),
+			];
+			toc.hidden = headings.length === 0;
+			if (headings.length === 0) return;
+
+			const links = new Map<Element, HTMLAnchorElement>();
+			headings.forEach((heading, index) => {
+				if (!heading.id) {
+					heading.id = `heading-${index}`;
+				}
+
+				const item = document.createElement("li");
+				item.className =
+					heading.tagName === "H3"
+						? "toc__item toc__item--nested"
+						: "toc__item";
+
+				const link = document.createElement("a");
+				link.href = `#${heading.id}`;
+				link.className = "toc__link";
+				link.textContent = heading.textContent;
+
+				item.appendChild(link);
+				list.appendChild(item);
+				links.set(heading, link);
+			});
+
+			// Mark the section currently in view
+			const setCurrent = (link: HTMLAnchorElement) => {
+				for (const other of links.values()) {
+					other.removeAttribute("aria-current");
+				}
+				link.setAttribute("aria-current", "true");
+			};
+			const first = links.values().next().value;
+			if (first) setCurrent(first);
+
+			const observer = new IntersectionObserver(
+				(entries) => {
+					for (const entry of entries) {
+						const link = links.get(entry.target);
+						if (link && entry.isIntersecting) setCurrent(link);
+					}
+				},
+				{ rootMargin: "-80px 0px -80% 0px" },
+			);
+
+			headings.forEach((heading) => observer.observe(heading));
+		}
+
+		buildToc();
+	</script>
+</Base>
+
+<style>
+	/* Header */
+	.post-header {
+		padding-block: clamp(2rem, 1.25rem + 3vw, 4rem)
+			clamp(2.5rem, 1.75rem + 2.5vw, 3.5rem);
+	}
+
+	.post-header__inner {
+		max-width: var(--content-width);
+		margin-inline: auto;
+	}
+
+	.back-link {
+		margin-block-end: clamp(2rem, 1.5rem + 2vw, 3rem);
+	}
+
+	.back-link:hover svg {
+		translate: -2px 0;
+	}
+
+	.back-link:hover svg:dir(rtl) {
+		translate: 2px 0;
+	}
+
+	.post-header__tags {
+		margin-block-end: var(--spacing-5);
+	}
+
+	.post-header__lead {
+		font-size: var(--font-size-xl);
+		line-height: var(--leading-normal);
+	}
+
+	.post-header__meta {
+		--avatar-ring: var(--color-bg);
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--spacing-3) var(--spacing-5);
+		margin-block-start: var(--spacing-8);
+	}
+
+	/* The meta rail is hidden at these widths, so names wrap instead of truncating */
+	.post-header__meta :global(.byline__names) {
+		overflow: visible;
+		white-space: normal;
+	}
+
+	.post-header__dateline {
+		display: flex;
+		flex-wrap: wrap;
+		column-gap: var(--spacing-2);
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.post-header__dateline > * + *::before {
+		content: "·";
+		content: "·" / "";
+		margin-inline-end: var(--spacing-2);
+	}
+
+	/* Featured image */
+	.post-hero {
+		padding-block: clamp(1rem, 0.5rem + 2vw, 2rem);
+	}
+
+	.post-hero__media {
+		position: relative;
+		overflow: hidden;
+		aspect-ratio: 2 / 1;
+		border-radius: var(--radius-xl);
+		background: var(--color-fill);
+	}
+
+	.post-hero__media::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+		border-radius: inherit;
+		outline: 1px solid var(--color-media-outline);
+		outline-offset: -1px;
+		pointer-events: none;
+	}
+
+	.post-hero__media :global(img) {
+		width: 100%;
+		max-width: none;
+		height: 100%;
+		object-fit: cover;
+	}
+
+	/* Body: one reading column, widgets after the comments */
+	.post-layout {
+		display: grid;
+		grid-template-columns: minmax(0, 1fr);
+		row-gap: var(--spacing-16);
+	}
+
+	.post-meta,
+	.toc {
+		display: none;
+	}
+
+	.post-main,
+	.post-rail {
+		width: 100%;
+		max-width: var(--content-width);
+		margin-inline: auto;
+	}
+
+	.post-rail {
+		overflow-wrap: anywhere;
+	}
+
+	/* Meta rail */
+	.post-facts {
+		display: grid;
+		gap: var(--spacing-8);
+	}
+
+	.post-fact dt {
+		margin-block-end: var(--spacing-3);
+	}
+
+	.post-fact dd {
+		font-size: var(--font-size-sm);
+		color: var(--color-text);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* Table of contents */
+	.toc h2 {
+		margin-block-end: var(--spacing-4);
+	}
+
+	.toc__list {
+		list-style: none;
+		border-inline-start: 1px solid var(--color-border);
+	}
+
+	.toc :global(.toc__link) {
+		display: block;
+		margin-inline-start: -1px;
+		padding-block: 5px;
+		padding-inline: var(--spacing-3) 0;
+		border-inline-start: 2px solid transparent;
+		color: var(--color-muted);
+		font-size: var(--font-size-sm);
+		line-height: var(--leading-snug);
+		text-decoration: none;
+		transition:
+			color var(--transition-fast),
+			border-color var(--transition-fast);
+	}
+
+	.toc :global(.toc__item--nested .toc__link) {
+		padding-inline-start: var(--spacing-6);
+	}
+
+	.toc :global(.toc__link:hover) {
+		color: var(--color-text);
+	}
+
+	.toc :global(.toc__link[aria-current="true"]) {
+		border-inline-start-color: var(--color-text);
+		color: var(--color-text);
+	}
+
+	@media (min-width: 1100px) {
+		.post-header__inner {
+			max-width: none;
+		}
+
+		.post-header__meta {
+			display: none;
+		}
+
+		.post-layout {
+			grid-template-columns:
+				minmax(9rem, var(--meta-col-width))
+				minmax(36rem, var(--content-width))
+				minmax(10rem, var(--gutter-width));
+			align-items: start;
+			justify-content: space-between;
+			gap: var(--spacing-10) clamp(1.5rem, 1rem + 1.5vw, 2.25rem);
+		}
+
+		.post-meta,
+		.post-rail {
+			position: sticky;
+			top: calc(var(--nav-height) + var(--spacing-8));
+		}
+
+		.post-meta {
+			display: block;
+		}
+
+		.post-main {
+			max-width: none;
+		}
+
+		/* A rail taller than the viewport scrolls on its own, so every widget stays reachable */
+		.post-rail {
+			display: grid;
+			grid-template-columns: minmax(0, 1fr);
+			gap: var(--spacing-10);
+			max-width: none;
+			max-height: calc(100vh - var(--nav-height) - var(--spacing-16));
+			max-height: calc(100dvh - var(--nav-height) - var(--spacing-16));
+			margin: calc(-1 * var(--spacing-1));
+			padding: var(--spacing-1);
+			overflow-y: auto;
+			scrollbar-width: thin;
+		}
+
+		.toc {
+			display: block;
+		}
+
+		.toc[hidden] {
+			display: none;
+		}
+	}
+
+	/* Comments */
+	.post-comments {
+		margin-block-start: var(--spacing-16);
+		padding-block-start: var(--spacing-10);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	:global(.post-comments:not(:has(.ec-comments, .ec-comment-form))) {
+		display: none;
+	}
+
+	.post-comments h2 {
+		margin-block-end: var(--spacing-3);
+	}
+
+	.post-comments :global(.ec-comments) {
+		--ec-comment-border: 1px solid var(--color-border);
+		--ec-comment-gap: var(--spacing-6);
+		--ec-comment-indent: var(--spacing-5);
+	}
+
+	.post-comments :global(.ec-comments-heading) {
+		margin-block-end: var(--spacing-8);
+		font-size: var(--font-size-2xl);
+	}
+
+	.post-comments :global(.ec-comment-header) {
+		gap: var(--spacing-1) var(--spacing-3);
+	}
+
+	.post-comments :global(.ec-comment-author) {
+		font-size: var(--font-size-sm);
+		color: var(--color-text);
+	}
+
+	.post-comments :global(.ec-comment-date) {
+		opacity: 1;
+		color: var(--color-muted);
+		font-size: var(--font-size-xs);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.post-comments :global(.ec-comment-body) {
+		line-height: var(--leading-relaxed);
+		color: var(--color-text);
+	}
+
+	.post-comments :global(.ec-comment-replies) {
+		padding-left: 0;
+		padding-inline-start: var(--ec-comment-indent);
+		border-inline-start: 1px solid var(--color-border);
+	}
+
+	/* Clipping keeps the form's off-screen honeypot from widening RTL pages */
+	.post-comments :global(.ec-comment-form) {
+		position: relative;
+		overflow: clip;
+		margin-block-start: var(--spacing-8);
+		padding: clamp(1rem, 0.5rem + 2vw, 1.5rem);
+		border-radius: var(--radius-xl);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-card);
+	}
+
+	.post-comments :global(.ec-comment-form-field span) {
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		color: var(--color-text);
+	}
+
+	.post-comments :global(.ec-comment-form .ec-comment-form-field input),
+	.post-comments :global(.ec-comment-form .ec-comment-form-field textarea) {
+		padding: var(--spacing-2) var(--spacing-3);
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius);
+		background: var(--color-bg);
+		color: var(--color-text);
+		font-size: var(--font-size-base);
+		transition:
+			border-color var(--transition-fast),
+			box-shadow var(--transition-fast);
+	}
+
+	.post-comments :global(.ec-comment-form .ec-comment-form-field input) {
+		height: 40px;
+	}
+
+	.post-comments :global(.ec-comment-form .ec-comment-form-field textarea) {
+		min-height: 7.5rem;
+		line-height: var(--leading-normal);
+		resize: vertical;
+	}
+
+	.post-comments
+		:global(
+			.ec-comment-form .ec-comment-form-field :is(input, textarea):hover
+		) {
+		border-color: var(--color-border-strong);
+	}
+
+	.post-comments
+		:global(
+			.ec-comment-form .ec-comment-form-field :is(input, textarea):focus
+		) {
+		outline: 2px solid transparent;
+		border-color: var(--color-muted);
+		box-shadow: 0 0 0 3px var(--color-brand-ring);
+	}
+
+	.post-comments :global(.ec-comment-form .ec-comment-user-info) {
+		border: 0;
+		border-radius: var(--radius);
+		background: var(--color-fill);
+		color: var(--color-text-secondary);
+	}
+
+	.post-comments :global(.ec-comment-user-email::before) {
+		margin-right: 0;
+		margin-inline-end: var(--spacing-2);
+	}
+
+	.post-comments :global(.ec-comment-form-submit) {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		height: 40px;
+		margin-block-start: var(--spacing-4);
+		padding: 0 var(--spacing-5);
+		border-radius: var(--radius-full);
+		background: var(--color-brand);
+		color: var(--color-on-brand);
+		font-size: var(--font-size-sm);
+		font-weight: 500;
+		line-height: 1;
+		transition:
+			background-color var(--transition-fast),
+			scale var(--transition-fast);
+	}
+
+	.post-comments :global(.ec-comment-form-submit:hover:not(:disabled)) {
+		background: var(--color-brand-hover);
+	}
+
+	.post-comments :global(.ec-comment-form-submit:active:not(:disabled)) {
+		scale: 0.96;
+	}
+
+	.post-comments :global(.ec-comment-form-submit:focus-visible) {
+		outline: 2px solid var(--color-brand);
+		outline-offset: 2px;
+	}
+
+	/* Sidebar widgets */
+	:global(.post-widgets:not(:has(.widget))) {
+		display: none;
+	}
+
+	@media (max-width: 1099.98px) {
+		:global(.post-rail:not(:has(.widget))) {
+			display: none;
+		}
+	}
+
+	.post-widgets {
+		padding-block-start: var(--spacing-10);
+		border-block-start: 1px solid var(--color-border);
+	}
+
+	/* Columns rather than a grid, so short widgets don't leave holes beside tall ones */
+	.post-widgets :global(.widget-area) {
+		columns: 15rem 2;
+		column-gap: var(--spacing-8);
+	}
+
+	.post-widgets :global(.widget) {
+		min-width: 0;
+		margin-block-end: var(--spacing-10);
+		font-size: var(--font-size-sm);
+		break-inside: avoid;
+	}
+
+	.post-widgets :global(.widget__title) {
+		margin-block-end: var(--spacing-3);
+		font-family: var(--font-mono);
+		font-size: var(--font-size-label);
+		font-weight: 500;
+		line-height: var(--leading-snug);
+		letter-spacing: var(--tracking-wider);
+		text-transform: uppercase;
+		color: var(--color-muted);
+	}
+
+	.post-widgets :global(.widget__content) {
+		line-height: var(--leading-normal);
+		color: var(--color-text-secondary);
+	}
+
+	.post-widgets :global(.widget__content ul) {
+		list-style: none;
+	}
+
+	.post-widgets :global(.widget__content p + p) {
+		margin-block-start: var(--spacing-3);
+	}
+
+	.post-widgets :global(.widget__menu ul) {
+		display: grid;
+		gap: var(--spacing-2);
+	}
+
+	.post-widgets
+		:global(:is(.widget__menu, .widget-categories, .widget-archives) a) {
+		color: var(--color-text-secondary);
+		text-decoration: none;
+		transition: color var(--transition-fast);
+	}
+
+	.post-widgets
+		:global(:is(.widget__menu, .widget-categories, .widget-archives) a:hover) {
+		color: var(--color-text);
+	}
+
+	.post-widgets :global(.widget-search) {
+		position: relative;
+	}
+
+	.post-widgets :global(.widget-search__input) {
+		width: 100%;
+		height: 36px;
+		padding-block: 0;
+		padding-inline: var(--spacing-4) 4.5rem;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-full);
+		background: var(--color-surface);
+		color: var(--color-text);
+		font: inherit;
+		appearance: none;
+		transition:
+			border-color var(--transition-fast),
+			box-shadow var(--transition-fast);
+	}
+
+	.post-widgets :global(.widget-search__input::placeholder) {
+		color: var(--color-muted);
+	}
+
+	.post-widgets :global(.widget-search__input:hover) {
+		border-color: var(--color-border-strong);
+	}
+
+	.post-widgets :global(.widget-search__input:focus) {
+		outline: 2px solid transparent;
+		border-color: var(--color-muted);
+		box-shadow: 0 0 0 3px var(--color-brand-ring);
+	}
+
+	.post-widgets :global(.widget-search__button) {
+		position: absolute;
+		top: 4px;
+		inset-inline-end: 4px;
+		height: 28px;
+		padding-inline: var(--spacing-3);
+		border: 0;
+		border-radius: var(--radius-full);
+		background: var(--color-fill);
+		color: var(--color-text-secondary);
+		font: inherit;
+		font-size: var(--font-size-xs);
+		font-weight: 500;
+		cursor: pointer;
+		transition:
+			background-color var(--transition-fast),
+			color var(--transition-fast);
+	}
+
+	.post-widgets :global(.widget-search__button:hover) {
+		background: var(--color-fill-strong);
+		color: var(--color-text);
+	}
+
+	.post-widgets :global(:is(.widget-categories, .widget-archives)) {
+		display: grid;
+		gap: var(--spacing-1);
+	}
+
+	.post-widgets :global(:is(.widget-categories, .widget-archives) li) {
+		display: flex;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--spacing-3);
+		padding-block: 3px;
+	}
+
+	.post-widgets
+		:global(:is(.widget-categories__count, .widget-archives__count)),
+	.post-widgets :global(.widget-tags__count) {
+		font-family: var(--font-mono);
+		font-size: var(--font-size-label);
+		color: var(--color-muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.post-widgets :global(:is(.widget-categories__empty, .widget-tags__empty)) {
+		color: var(--color-muted);
+	}
+
+	.post-widgets :global(.widget-tags__cloud) {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+	}
+
+	.post-widgets :global(.widget-tags__cloud li) {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-1);
+	}
+
+	.post-widgets :global(.widget-tags__link) {
+		display: inline-flex;
+		align-items: center;
+		min-height: 26px;
+		padding: 2px 10px;
+		border-radius: var(--radius-full);
+		background: var(--color-surface);
+		box-shadow: inset 0 0 0 1px var(--color-border);
+		font-size: var(--font-size-xs);
+		font-weight: 500;
+		line-height: 1.3;
+		color: var(--color-text-secondary);
+		text-decoration: none;
+		transition:
+			color var(--transition-fast),
+			box-shadow var(--transition-fast);
+	}
+
+	.post-widgets :global(.widget-tags__link:hover) {
+		color: var(--color-text);
+		box-shadow: inset 0 0 0 1px var(--color-border-strong);
+	}
+
+	.post-widgets :global(.widget-recent-posts) {
+		display: grid;
+		gap: var(--spacing-4);
+	}
+
+	.post-widgets :global(.widget-recent-posts li) {
+		display: grid;
+		gap: 2px;
+	}
+
+	.post-widgets
+		:global(.widget-recent-posts li:has(> .widget-recent-posts__thumbnail)) {
+		grid-template-columns: 40px minmax(0, 1fr);
+		align-items: center;
+		column-gap: var(--spacing-3);
+	}
+
+	.post-widgets :global(.widget-recent-posts__thumbnail) {
+		grid-row: span 2;
+		width: 40px;
+		height: 40px;
+		border-radius: var(--radius-sm);
+		object-fit: cover;
+		outline: 1px solid var(--color-media-outline);
+		outline-offset: -1px;
+	}
+
+	.post-widgets :global(.widget-recent-posts__link) {
+		font-weight: 500;
+		line-height: var(--leading-snug);
+		color: var(--color-text);
+		text-decoration-line: underline;
+		text-decoration-color: transparent;
+	}
+
+	.post-widgets :global(.widget-recent-posts__link:hover) {
+		text-decoration-color: currentColor;
+	}
+
+	.post-widgets :global(.widget-recent-posts__date) {
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+		font-variant-numeric: tabular-nums;
+	}
+
+	/* Continue reading */
+	.related {
+		container-type: inline-size;
+	}
+
+	.related .post-grid {
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+	}
+
+	/* At two columns the third card would sit alone on its own row */
+	@container (min-width: 31.5rem) and (max-width: 47.99rem) {
+		.related .post-grid > :global(:nth-child(3)) {
+			display: none;
+		}
+	}
+
+	@media (min-width: 1100px) {
+		.post-widgets {
+			padding-block-start: 0;
+			border-block-start: 0;
+		}
+
+		.post-widgets :global(.widget-area) {
+			columns: auto;
+		}
+
+		.post-widgets :global(.widget) {
+			margin-block-end: var(--spacing-8);
+		}
+	}
+
+	@media (max-width: 720px) {
+		.post-header__lead {
+			font-size: var(--font-size-lg);
+		}
+
+		.post-hero__media {
+			aspect-ratio: 16 / 9;
+			border-radius: var(--radius-lg);
+		}
+
+		.post-widgets :global(.widget-search__input) {
+			font-size: var(--font-size-base);
+		}
+	}
+</style>

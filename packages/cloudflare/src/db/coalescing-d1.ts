@@ -19,9 +19,16 @@ import {
 	type QueryResult,
 	SqliteAdapter,
 } from "kysely";
-import type { D1DialectConfig } from "kysely-d1";
 
-import { D1Adapter, EmDashD1Dialect } from "./d1-dialect.js";
+import {
+	D1Adapter,
+	EmDashD1Dialect,
+	type EmDashD1DialectConfig,
+	observeRpc,
+	type RpcHook,
+} from "./d1-dialect.js";
+
+const noop: RpcHook = () => {};
 
 /**
  * Statements safe to coalesce: plain SELECTs. Deliberately conservative —
@@ -29,7 +36,7 @@ import { D1Adapter, EmDashD1Dialect } from "./d1-dialect.js";
  * (`WITH ... INSERT/UPDATE/DELETE`), and everything else (insert, update,
  * delete, pragma, explain, ...) takes the direct path.
  */
-const SELECT_PATTERN = /^select\b/i;
+export const SELECT_PATTERN = /^select\b/i;
 
 interface PendingQuery {
 	statement: D1PreparedStatement;
@@ -49,7 +56,7 @@ interface PendingQuery {
  * promise on failure, which the callers handle (the batch catch-fallback,
  * and Kysely's own error path on the direct path).
  */
-function mapD1Result<R>(result: D1Result<R>): QueryResult<R> {
+export function mapD1Result<R>(result: D1Result<R>): QueryResult<R> {
 	if (result.error) {
 		throw new Error(result.error);
 	}
@@ -86,9 +93,16 @@ export class CoalescingD1Connection implements DatabaseConnection {
 	 * alike). See #enqueue.
 	 */
 	#opChain: Promise<unknown> = Promise.resolve();
+	/**
+	 * Called once per physical D1 call: each batch() flush, each lone-statement
+	 * flush, each direct-path statement, and each statement re-run on the
+	 * batch-failure fallback path.
+	 */
+	#onRpc: RpcHook;
 
-	constructor(database: D1Database) {
+	constructor(database: D1Database, onRpc: RpcHook = noop) {
 		this.#database = database;
+		this.#onRpc = onRpc;
 	}
 
 	/**
@@ -109,6 +123,21 @@ export class CoalescingD1Connection implements DatabaseConnection {
 	 * A failed op must not break the chain, so the stored tail swallows the
 	 * outcome; the returned promise still rejects for the caller.
 	 */
+	/** The session every physical call goes through, for subclasses. */
+	protected get session(): D1Database {
+		return this.#database;
+	}
+
+	/** The round-trip hook, for subclasses that issue their own calls. */
+	protected get rpcHook(): RpcHook {
+		return this.#onRpc;
+	}
+
+	/** Run a physical call in the session's op chain (see #enqueue). */
+	protected runExclusive<T>(op: () => Promise<T>): Promise<T> {
+		return this.#enqueue(op);
+	}
+
 	#enqueue<T>(op: () => Promise<T>): Promise<T> {
 		const run = this.#opChain.then(op, op);
 		this.#opChain = run.then(
@@ -124,7 +153,9 @@ export class CoalescingD1Connection implements DatabaseConnection {
 			// flow), but through the op chain so it can't overlap an in-flight
 			// SELECT batch or another write on the shared session.
 			const statement = this.#database.prepare(compiledQuery.sql).bind(...compiledQuery.parameters);
-			const result = await this.#enqueue(() => statement.all<R>());
+			const result = await this.#enqueue(() =>
+				observeRpc(this.#onRpc, 1, () => statement.all<R>()),
+			);
 			return mapD1Result(result);
 		}
 
@@ -191,7 +222,7 @@ export class CoalescingD1Connection implements DatabaseConnection {
 			if (pending.length === 1 && first) {
 				// A lone query gains nothing from batch(); execute it directly.
 				try {
-					first.resolve(mapD1Result(await first.statement.all()));
+					first.resolve(mapD1Result(await observeRpc(this.#onRpc, 1, () => first.statement.all())));
 				} catch (error) {
 					first.reject(error);
 				}
@@ -200,7 +231,9 @@ export class CoalescingD1Connection implements DatabaseConnection {
 
 			let results: D1Result[];
 			try {
-				results = await this.#database.batch(pending.map((p) => p.statement));
+				results = await observeRpc(this.#onRpc, pending.length, () =>
+					this.#database.batch(pending.map((p) => p.statement)),
+				);
 			} catch {
 				// D1 batches are atomic: one bad statement rejects the whole call.
 				// Fall back to executing every buffered statement individually
@@ -212,7 +245,7 @@ export class CoalescingD1Connection implements DatabaseConnection {
 				// a database that just failed.
 				for (const p of pending) {
 					try {
-						p.resolve(mapD1Result(await p.statement.all()));
+						p.resolve(mapD1Result(await observeRpc(this.#onRpc, 1, () => p.statement.all())));
 					} catch (error) {
 						p.reject(error);
 					}
@@ -246,10 +279,10 @@ export class CoalescingD1Connection implements DatabaseConnection {
 export class CoalescingD1Driver implements Driver {
 	#connection: CoalescingD1Connection;
 
-	constructor(database: D1Database) {
+	constructor(connection: CoalescingD1Connection) {
 		// A single shared connection: the whole point is for concurrent queries
 		// in the same request to land in the same buffer.
-		this.#connection = new CoalescingD1Connection(database);
+		this.#connection = connection;
 	}
 
 	async init(): Promise<void> {}
@@ -295,18 +328,33 @@ class CoalescingD1Adapter extends D1Adapter {
  * trip. Keeps EmDash's D1-compatible introspector.
  */
 export class CoalescingD1Dialect extends EmDashD1Dialect {
-	#database: D1Database;
+	/** The unwrapped database: the driver counts its own round trips. */
+	#rawDatabase: D1Database;
+	#onRpc: RpcHook | undefined;
 
-	constructor(config: D1DialectConfig) {
+	constructor(config: EmDashD1DialectConfig) {
+		// The base class wraps `this.database` in a round-trip counter when
+		// onRpc is set. The adapter's atomic batch goes through that wrapper;
+		// the coalescing driver uses the raw database and calls onRpc itself
+		// (one per batch/lone/direct/fallback call), so nothing double-counts.
 		super(config);
-		this.#database = config.database;
+		this.#rawDatabase = config.database;
+		this.#onRpc = config.onRpc;
 	}
 
 	override createAdapter(): SqliteAdapter {
-		return new CoalescingD1Adapter(this.#database);
+		return new CoalescingD1Adapter(this.database);
 	}
 
 	override createDriver(): Driver {
-		return new CoalescingD1Driver(this.#database);
+		return new CoalescingD1Driver(this.createConnection(this.#rawDatabase, this.#onRpc));
+	}
+
+	/** The shared per-request connection. Subclasses swap in their own. */
+	protected createConnection(
+		database: D1Database,
+		onRpc: RpcHook | undefined,
+	): CoalescingD1Connection {
+		return new CoalescingD1Connection(database, onRpc);
 	}
 }

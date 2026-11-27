@@ -90,6 +90,7 @@ vi.mock(
 	() => ({
 		createDialect: vi.fn(),
 		createRequestScopedDb: vi.fn().mockReturnValue(null),
+		createCoalescingDialect: undefined,
 	}),
 	{ virtual: true },
 );
