@@ -2,7 +2,8 @@
  * Block Menu Component
  *
  * Opens from the drag handle's ⋮⋮ button with the block already node-selected.
- * Offers Turn into, alignment, numbering, duplicate, move, and delete.
+ * Offers Turn into, alignment, numbering, a comment on a block such as an
+ * image, duplicate, move, and delete.
  */
 
 import { Menu } from "@cloudflare/kumo/primitives/menu";
@@ -15,6 +16,7 @@ import {
 	ArrowUUpLeft,
 	ArrowUUpRight,
 	ArrowUp,
+	ChatCircleText,
 	Copy,
 	TextAlignCenter,
 	TextAlignLeft,
@@ -28,6 +30,7 @@ import * as React from "react";
 import { cn } from "../../lib/utils";
 import { duplicateBlocks, moveBlocks } from "./BlockCommands.js";
 import { activeTextBlockType, textBlockTypes, turnIntoMenuTypes } from "./blockTypes.js";
+import { isCommentableBlock } from "./EditorialCommentsExtension.js";
 import {
 	EditorMenuItem,
 	EditorMenuLabel,
@@ -65,6 +68,8 @@ interface BlockMenuProps {
 	onClose: () => void;
 	/** Callback after the menu's exit transition completes */
 	onCloseComplete?: () => void;
+	/** Starts an editorial comment on the selected block. */
+	onComment?: () => void;
 }
 
 /**
@@ -76,9 +81,12 @@ export function BlockMenu({
 	isOpen,
 	onClose,
 	onCloseComplete,
+	onComment,
 }: BlockMenuProps) {
 	const { t } = useLingui();
 	const anchorRef = React.useRef<HTMLElement | null>(anchorElement);
+	/** Set once Comment is chosen, so closing leaves focus with the new comment. */
+	const commentingRef = React.useRef(false);
 
 	React.useLayoutEffect(() => {
 		if (anchorElement) anchorRef.current = anchorElement;
@@ -99,6 +107,10 @@ export function BlockMenu({
 			? selectedNode.attrs.textAlign
 			: startAlignment;
 	const isOrderedList = selectedNode?.type.name === "orderedList";
+	const canComment =
+		onComment !== undefined &&
+		selectedNode !== null &&
+		isCommentableBlock(selectedNode, selection.$from.parent);
 
 	const handleDelete = () => {
 		if (!(editor.state.selection instanceof NodeSelection)) return;
@@ -110,7 +122,9 @@ export function BlockMenu({
 			open={isOpen}
 			modal={false}
 			onOpenChangeComplete={(open) => {
-				if (!open) onCloseComplete?.();
+				if (open) return;
+				commentingRef.current = false;
+				onCloseComplete?.();
 			}}
 			onOpenChange={(open, eventDetails) => {
 				if (open) return;
@@ -136,7 +150,9 @@ export function BlockMenu({
 				>
 					<Menu.Popup
 						aria-label={t`Block actions`}
-						finalFocus={() => (editor.isDestroyed ? false : editor.view.dom)}
+						finalFocus={() =>
+							editor.isDestroyed || commentingRef.current ? false : editor.view.dom
+						}
 						onKeyDown={tabToEditor(editor, onClose)}
 						className={cn(editorMenuPopupClassName, "w-60")}
 					>
@@ -195,6 +211,16 @@ export function BlockMenu({
 										onClick={() => editor.chain().focus().restartOrderedList().run()}
 									/>
 								</>
+							)}
+							{canComment && (
+								<EditorMenuItem
+									icon={ChatCircleText}
+									label={t`Comment`}
+									onClick={() => {
+										commentingRef.current = true;
+										onComment();
+									}}
+								/>
 							)}
 							<EditorMenuItem
 								icon={Copy}

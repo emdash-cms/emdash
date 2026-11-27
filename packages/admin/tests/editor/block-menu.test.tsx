@@ -149,10 +149,12 @@ function BlockMenuTestWrapper({
 	editor,
 	isOpen,
 	onClose,
+	onComment,
 }: {
 	editor: Editor;
 	isOpen: boolean;
 	onClose: () => void;
+	onComment?: () => void;
 }) {
 	const anchorRef = React.useRef<HTMLDivElement>(null);
 
@@ -166,6 +168,7 @@ function BlockMenuTestWrapper({
 				anchorElement={anchorRef.current}
 				isOpen={isOpen}
 				onClose={onClose}
+				onComment={onComment}
 			/>
 		</>
 	);
@@ -260,6 +263,39 @@ describe("BlockMenu", () => {
 		expect(findButtonByText(menu, "Turn into")).toBeTruthy();
 		expect(findButtonByText(menu, "Duplicate")).toBeTruthy();
 		expect(findButtonByText(menu, "Delete")).toBeTruthy();
+	});
+
+	it("starts a comment on a selected image", async () => {
+		const { editor } = await getEditor();
+		const onComment = vi.fn();
+		const imagePos = editor.state.doc.content.size;
+		editor.commands.insertContentAt(imagePos, {
+			type: "image",
+			attrs: { src: "https://example.com/photo.jpg" },
+		});
+		editor.commands.setNodeSelection(imagePos);
+
+		await render(
+			<BlockMenuTestWrapper editor={editor} isOpen onClose={vi.fn()} onComment={onComment} />,
+		);
+		await vi.waitFor(() => expect(getBlockMenu()).toBeTruthy());
+
+		findButtonByText(getBlockMenu()!, "Comment")!.click();
+
+		expect(onComment).toHaveBeenCalledOnce();
+	});
+
+	it("leaves comments on a paragraph to its text", async () => {
+		const { editor } = await getEditor();
+		editor.commands.setNodeSelection(0);
+
+		await render(
+			<BlockMenuTestWrapper editor={editor} isOpen onClose={vi.fn()} onComment={vi.fn()} />,
+		);
+		await vi.waitFor(() => expect(getBlockMenu()).toBeTruthy());
+
+		expect(findButtonByText(getBlockMenu()!, "Duplicate")).toBeTruthy();
+		expect(findButtonByText(getBlockMenu()!, "Comment")).toBeNull();
 	});
 
 	it("exposes block actions as an accessible menu", async () => {

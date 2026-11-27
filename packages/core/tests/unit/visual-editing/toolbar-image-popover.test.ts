@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { apiError, apiSuccess } from "../../../src/api/error.js";
 import { renderToolbar } from "../../../src/visual-editing/toolbar.js";
-import { GERMAN_TOOLBAR_LABELS } from "../../utils/toolbar-labels.js";
+import { EDITORIAL_TOOLBAR_LABELS, GERMAN_TOOLBAR_LABELS } from "../../utils/toolbar-labels.js";
 
 const LABELS = {
 	publish: "Publish",
@@ -37,6 +37,7 @@ const LABELS = {
 	noImagesFound: "No images found",
 	mediaLoadFailed: "Failed to load media",
 	uploadingFile: "Uploading {filename}…",
+	...EDITORIAL_TOOLBAR_LABELS,
 };
 
 const ENTRY_URL = "/_emdash/api/content/posts/post-1";

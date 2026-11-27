@@ -1,0 +1,30 @@
+---
+import { getEmDashEntry } from "emdash";
+
+const slug = Astro.url.searchParams.get("slug");
+if (!slug) return new Response("Not found", { status: 404 });
+const { entry: post } = await getEmDashEntry("posts", slug);
+if (!post) return new Response("Not found", { status: 404 });
+const dir = Astro.url.searchParams.get("dir") === "rtl" ? "rtl" : "ltr";
+const padding = Astro.url.searchParams.has("flush") ? "0" : "48px";
+---
+
+<html dir={dir}>
+	<head>
+		<meta charset="utf-8" />
+		<title>Editorial comments</title>
+	</head>
+	<body>
+		<article id="post" {...post.edit} style={`padding: ${padding}; max-width: 640px`}>
+			<h1 id="title" {...post.edit.title}>{post.data.title}</h1>
+			<p id="excerpt" {...post.edit.excerpt}>{post.data.excerpt}</p>
+		</article>
+		<p id="theme-color" hidden {...post.edit.theme_color}>{post.data.theme_color}</p>
+		<p id="event" {...post.edit.event}>Event details</p>
+		<div id="scroller" style="height: 120px; max-width: 640px; overflow: auto">
+			<div style="height: 400px"></div>
+			<p id="featured-image" {...post.edit.featured_image}>Featured image</p>
+			<div style="height: 400px"></div>
+		</div>
+	</body>
+</html>

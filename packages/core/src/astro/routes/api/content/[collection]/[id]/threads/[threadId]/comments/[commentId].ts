@@ -1,0 +1,64 @@
+import type { APIRoute } from "astro";
+
+import { requireEditorialPerm } from "#api/authorize.js";
+import { apiError, unwrapResult } from "#api/error.js";
+import {
+	handleEditorialCommentDelete,
+	handleEditorialCommentUpdate,
+} from "#api/handlers/editorial-comments.js";
+import { isParseError, parseBody } from "#api/parse.js";
+import { editorialCommentBody } from "#api/schemas.js";
+
+import { queueEditorialCommentNotifications } from "../../../../../../../../../editorial/notifications.js";
+
+export const prerender = false;
+
+export const PATCH: APIRoute = async ({ params, request, locals, url }) => {
+	const { emdash, user } = locals;
+	if (!emdash?.db) return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	const denied = requireEditorialPerm(user);
+	if (denied) return denied;
+	const body = await parseBody(request, editorialCommentBody);
+	if (isParseError(body)) return body;
+
+	return unwrapResult(
+		await handleEditorialCommentUpdate(
+			emdash.db,
+			user!,
+			{
+				collection: params.collection!,
+				id: params.id!,
+				locale: url.searchParams.get("locale") || undefined,
+			},
+			params.threadId!,
+			params.commentId!,
+			body,
+			(mentioned) =>
+				queueEditorialCommentNotifications(
+					{ db: emdash.db, email: emdash.email, request, config: emdash.config },
+					mentioned,
+				),
+		),
+	);
+};
+
+export const DELETE: APIRoute = async ({ params, locals, url }) => {
+	const { emdash, user } = locals;
+	if (!emdash?.db) return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	const denied = requireEditorialPerm(user);
+	if (denied) return denied;
+
+	return unwrapResult(
+		await handleEditorialCommentDelete(
+			emdash.db,
+			user!,
+			{
+				collection: params.collection!,
+				id: params.id!,
+				locale: url.searchParams.get("locale") || undefined,
+			},
+			params.threadId!,
+			params.commentId!,
+		),
+	);
+};

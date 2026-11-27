@@ -11,6 +11,7 @@ import type { SeedFile } from "emdash/seed";
 import type { Kysely } from "kysely";
 
 import { PLAYGROUND_MEDIA_ASSETS } from "./playground-assets-storage.js";
+import { seedPlaygroundComments } from "./playground-comments.js";
 
 const PLAYGROUND_USER_ID = "playground-admin";
 const PLAYGROUND_USER_EMAIL = "playground@emdashcms.com";
@@ -86,6 +87,7 @@ export async function initializePlayground(
 		includeContent: true,
 		onConflict: "update",
 	});
+	await seedPlaygroundComments(db, now, { id: PLAYGROUND_USER_ID, role: PLAYGROUND_USER_ROLE });
 
 	const repair = await handleMediaUsageRepair(db, { scope: "all" });
 	if (!repair.success || repair.data.status !== "complete") {

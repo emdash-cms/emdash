@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { InlinePortableTextEditor } from "../../../src/components/InlinePortableTextEditor.js";
 import { renderToolbar } from "../../../src/visual-editing/toolbar.js";
-import { GERMAN_TOOLBAR_LABELS } from "../../utils/toolbar-labels.js";
+import { EDITORIAL_TOOLBAR_LABELS, GERMAN_TOOLBAR_LABELS } from "../../utils/toolbar-labels.js";
 
 const LABELS = {
 	publish: "Publish",
@@ -40,6 +40,7 @@ const LABELS = {
 	noImagesFound: "No images found",
 	mediaLoadFailed: "Failed to load media",
 	uploadingFile: "Uploading {filename}…",
+	...EDITORIAL_TOOLBAR_LABELS,
 };
 
 const MANIFEST = {

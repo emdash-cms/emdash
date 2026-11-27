@@ -72,6 +72,7 @@ export default defineConfig({
 		"src/internal/co-editing/types.ts",
 		"src/html-block.ts",
 		"src/internal/video-block.ts",
+		"src/internal/editorial-anchors.ts",
 		"src/slugify.ts",
 	],
 	format: ["esm"],

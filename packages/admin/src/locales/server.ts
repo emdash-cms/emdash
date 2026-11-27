@@ -33,6 +33,28 @@ export interface VisualEditingToolbarLabels {
 	noImagesFound: string;
 	mediaLoadFailed: string;
 	uploadingFile: string;
+	commentOnEntry: string;
+	commentOnField: string;
+	commentsOnEntryCount: string;
+	commentsOnFieldCount: string;
+	commentsOnEntry: string;
+	commentsOnField: string;
+	noOpenComments: string;
+	newComment: string;
+	comment: string;
+	writeReply: string;
+	reply: string;
+	resolve: string;
+	close: string;
+	commentDeleted: string;
+	deletedUser: string;
+	unknownUser: string;
+	unnamedUser: string;
+	onField: string;
+	onQuote: string;
+	onBlock: string;
+	commentsLoadFailed: string;
+	commentActionFailed: string;
 }
 
 const TOOLBAR_MESSAGES = {
@@ -76,6 +98,40 @@ const TOOLBAR_MESSAGES = {
 	noImagesFound: msg({ id: "visualEditing.noImagesFound", message: "No images found" }),
 	mediaLoadFailed: msg({ id: "visualEditing.mediaLoadFailed", message: "Failed to load media" }),
 	uploadingFile: msg({ id: "visualEditing.uploadingFile", message: "Uploading {filename}…" }),
+	commentOnEntry: msg({ id: "visualEditing.commentOnEntry", message: "Comment on this entry" }),
+	commentOnField: msg({ id: "visualEditing.commentOnField", message: "Comment on {field}" }),
+	commentsOnEntryCount: msg({
+		id: "visualEditing.commentsOnEntryCount",
+		message: "Comments on this entry: {count} open",
+	}),
+	commentsOnFieldCount: msg({
+		id: "visualEditing.commentsOnFieldCount",
+		message: "Comments on {field}: {count} open",
+	}),
+	commentsOnEntry: msg({ id: "visualEditing.commentsOnEntry", message: "Comments on this entry" }),
+	commentsOnField: msg({ id: "visualEditing.commentsOnField", message: "Comments on {field}" }),
+	noOpenComments: msg({ id: "visualEditing.noOpenComments", message: "No open comments" }),
+	newComment: msg({ id: "visualEditing.newComment", message: "Write a comment" }),
+	comment: msg({ id: "visualEditing.comment", message: "Comment" }),
+	writeReply: msg({ id: "visualEditing.writeReply", message: "Write a reply" }),
+	reply: msg({ id: "visualEditing.reply", message: "Reply" }),
+	resolve: msg({ id: "visualEditing.resolve", message: "Resolve" }),
+	close: msg({ id: "visualEditing.close", message: "Close" }),
+	commentDeleted: msg({ id: "visualEditing.commentDeleted", message: "Comment deleted" }),
+	deletedUser: msg({ id: "visualEditing.deletedUser", message: "Deleted user" }),
+	unknownUser: msg({ id: "visualEditing.unknownUser", message: "Unknown user" }),
+	unnamedUser: msg({ id: "visualEditing.unnamedUser", message: "Unnamed user" }),
+	onField: msg({ id: "visualEditing.onField", message: "On {field}" }),
+	onQuote: msg({ id: "visualEditing.onQuote", message: "On “{quote}”" }),
+	onBlock: msg({ id: "visualEditing.onBlock", message: "On a block" }),
+	commentsLoadFailed: msg({
+		id: "visualEditing.commentsLoadFailed",
+		message: "Couldn't load comments",
+	}),
+	commentActionFailed: msg({
+		id: "visualEditing.commentActionFailed",
+		message: "Couldn't save. Try again.",
+	}),
 } satisfies Record<keyof VisualEditingToolbarLabels, MessageDescriptor>;
 
 function resolveToolbarMessage(messages: Messages, descriptor: MessageDescriptor): string {
@@ -125,6 +181,28 @@ export function translateVisualEditingToolbarLabels(
 		noImagesFound: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.noImagesFound),
 		mediaLoadFailed: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.mediaLoadFailed),
 		uploadingFile: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.uploadingFile),
+		commentOnEntry: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentOnEntry),
+		commentOnField: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentOnField),
+		commentsOnEntryCount: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentsOnEntryCount),
+		commentsOnFieldCount: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentsOnFieldCount),
+		commentsOnEntry: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentsOnEntry),
+		commentsOnField: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentsOnField),
+		noOpenComments: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.noOpenComments),
+		newComment: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.newComment),
+		comment: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.comment),
+		writeReply: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.writeReply),
+		reply: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.reply),
+		resolve: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.resolve),
+		close: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.close),
+		commentDeleted: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentDeleted),
+		deletedUser: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.deletedUser),
+		unknownUser: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.unknownUser),
+		unnamedUser: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.unnamedUser),
+		onField: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.onField),
+		onQuote: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.onQuote),
+		onBlock: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.onBlock),
+		commentsLoadFailed: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentsLoadFailed),
+		commentActionFailed: resolveToolbarMessage(messages, TOOLBAR_MESSAGES.commentActionFailed),
 	};
 }
 

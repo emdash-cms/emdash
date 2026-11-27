@@ -26,6 +26,14 @@ import type {
 	RevisionListItem,
 	RevisionListResponse,
 } from "../../src/lib/api";
+import {
+	createEditorialThread,
+	deleteEditorialThread,
+	editEditorialComment,
+	fetchEditorialMentionable,
+	fetchEditorialThreads,
+	type EditorialThread,
+} from "../../src/lib/api/editorial-threads.js";
 import { PluginAdminProvider, type PluginAdmins } from "../../src/lib/plugin-context";
 import { diffVersion } from "../../src/lib/revision-diff/index.js";
 import { withAutosavedDraft } from "../../src/lib/revision-list-cache";
@@ -77,7 +85,12 @@ vi.mock("../../src/components/PortableTextEditor", async (importOriginal) => ({
 		React.useEffect(() => {
 			if (onEditorReady) {
 				const id = mountIdRef.current || portableTextMountCount + 1;
-				const stubEditor = { __mockId: id, commands: { focus: () => true } } as unknown;
+				const stubEditor = {
+					__mockId: id,
+					commands: { focus: () => true },
+					on: () => undefined,
+					off: () => undefined,
+				} as unknown;
 				onEditorReadyCalls.push({ mockId: id });
 				onEditorReady(stubEditor);
 				return () => {
@@ -217,6 +230,18 @@ vi.mock("../../src/lib/api", async () => {
 		fetchRevisionEditors: vi.fn(),
 		fetchRevisions: vi.fn(),
 		restoreRevision: vi.fn(),
+	};
+});
+
+vi.mock("../../src/lib/api/editorial-threads.js", async () => {
+	const actual = await vi.importActual("../../src/lib/api/editorial-threads.js");
+	return {
+		...actual,
+		fetchEditorialThreads: vi.fn(async () => []),
+		createEditorialThread: vi.fn(),
+		deleteEditorialThread: vi.fn(),
+		editEditorialComment: vi.fn(),
+		fetchEditorialMentionable: vi.fn(async () => []),
 	};
 });
 
@@ -603,7 +628,7 @@ describe("ContentEditor", () => {
 		const contentLabel = contentLabelText!.parentElement!;
 		const featuredLabel = screen.getByText("Featured Image", { exact: true }).element();
 		const attachmentLabel = screen.getByText("Attachment", { exact: true }).element();
-		const fieldStack = contentLabel.parentElement?.parentElement;
+		const fieldStack = contentLabel.closest("[data-editorial-field]")?.parentElement;
 
 		expect(contentLabelText).toHaveTextContent("Content");
 		expect(contentLabel.tagName).toBe("LABEL");
@@ -2574,7 +2599,7 @@ describe("ContentEditor", () => {
 				const panel = getPanel(screen).element();
 				expect(panel).toHaveAttribute("inert");
 
-				await screen.getByLabelText("Title").fill("Changed");
+				await screen.getByLabelText("Title", { exact: true }).fill("Changed");
 				await screen.getByRole("button", { name: "Save" }).first().click();
 
 				await vi.waitFor(() => expect(document.activeElement).toBe(rating.element()));
@@ -2602,7 +2627,7 @@ describe("ContentEditor", () => {
 					},
 					onSave,
 				});
-				await screen.getByLabelText("Title").fill("Changed");
+				await screen.getByLabelText("Title", { exact: true }).fill("Changed");
 				await screen.getByRole("button", { name: "Save" }).first().click();
 
 				const rating = screen.getByLabelText("Rating", { exact: true }).element();
@@ -5273,5 +5298,682 @@ describe("ContentEditor revision view", () => {
 				.element(screen.getByRole("status").filter({ hasText: "no longer available" }))
 				.toBeInTheDocument();
 		});
+	});
+});
+
+describe("editorial comments", () => {
+	function fieldThread(field: string): EditorialThread {
+		return {
+			id: `thread-${field}`,
+			collection: "posts",
+			entryId: "item-1",
+			anchor: { type: "field", field },
+			anchorState: "attached",
+			status: "open",
+			createdBy: "u-2",
+			resolvedBy: null,
+			resolvedAt: null,
+			createdAt: "2025-01-15T10:30:00Z",
+			updatedAt: "2025-01-15T10:30:00Z",
+			comments: [
+				{
+					id: `comment-${field}`,
+					threadId: `thread-${field}`,
+					author: { id: "u-2", name: "Sam Rivera", avatarUrl: null },
+					body: "Could this be shorter?",
+					createdAt: "2025-01-15T10:30:00Z",
+					editedAt: null,
+					deletedAt: null,
+					can: { edit: false, delete: false },
+				},
+			],
+			mentions: [],
+			can: { resolve: true, delete: false },
+		};
+	}
+
+	function renderWithThreads(threads: EditorialThread[]) {
+		vi.mocked(fetchEditorialThreads).mockResolvedValue(threads);
+		return renderEditor({
+			isNew: false,
+			item: makeItem(),
+			currentUser: { id: "u-1", role: 50 },
+		});
+	}
+
+	it("keeps the margin closed when the entry has open threads", async () => {
+		const screen = await renderWithThreads([fieldThread("body")]);
+
+		await expect.element(screen.getByRole("button", { name: "Show comments" })).toBeVisible();
+		await expect
+			.element(screen.getByRole("button", { name: "1 comment thread on Body" }))
+			.toBeVisible();
+		expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
+	});
+
+	it("opens a field's thread from the button on the field", async () => {
+		const screen = await renderWithThreads([fieldThread("body")]);
+		const fieldButton = screen.getByRole("button", { name: "1 comment thread on Body" });
+
+		await fieldButton.click();
+
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		await expect.element(margin.getByText("Could this be shorter?")).toBeVisible();
+		await expect.element(fieldButton).toHaveAttribute("aria-pressed", "true");
+	});
+
+	it("clears the active thread when the margin closes", async () => {
+		const screen = await renderWithThreads([fieldThread("body")]);
+		const fieldButton = screen.getByRole("button", { name: "1 comment thread on Body" });
+		await fieldButton.click();
+		await expect.element(fieldButton).toHaveAttribute("aria-pressed", "true");
+
+		await screen.getByRole("button", { name: "Hide comments" }).click();
+		await screen.getByRole("button", { name: "Show comments" }).click();
+
+		await expect
+			.element(
+				screen.getByRole("complementary", { name: "Comments" }).getByText("Could this be shorter?"),
+			)
+			.toBeVisible();
+		await expect.element(fieldButton).toHaveAttribute("aria-pressed", "false");
+	});
+
+	describe("beside the settings panel", () => {
+		const STORAGE_KEY = "emdash-editor-settings-panel";
+		const settingsPanel = (screen: Awaited<ReturnType<typeof renderWithThreads>>) =>
+			screen.getByRole("complementary", { name: "Settings", includeHidden: true });
+
+		afterEach(async () => {
+			localStorage.removeItem(STORAGE_KEY);
+			await page.viewport(1280, 800);
+		});
+
+		it("hides the settings panel while comments are open on a narrow screen", async () => {
+			const screen = await renderWithThreads([fieldThread("body")]);
+			await expect.element(settingsPanel(screen)).not.toHaveAttribute("inert");
+
+			await screen.getByRole("button", { name: "Show comments" }).click();
+
+			await expect.element(settingsPanel(screen)).toHaveAttribute("inert");
+			expect(localStorage.getItem(STORAGE_KEY)).toBeNull();
+
+			await screen.getByRole("button", { name: "Hide comments" }).click();
+
+			await expect.element(settingsPanel(screen)).not.toHaveAttribute("inert");
+		});
+
+		it("closes comments to show the settings panel on a narrow screen", async () => {
+			const screen = await renderWithThreads([fieldThread("body")]);
+			await screen.getByRole("button", { name: "Show comments" }).click();
+			await expect.element(settingsPanel(screen)).toHaveAttribute("inert");
+
+			await screen.getByRole("button", { name: "Show settings" }).click();
+
+			await expect.element(settingsPanel(screen)).not.toHaveAttribute("inert");
+			expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
+			await expect.element(screen.getByRole("button", { name: "Show comments" })).toBeVisible();
+		});
+
+		it("closes comments for a link to a settings field on a narrow screen", async () => {
+			vi.mocked(fetchEditorialThreads).mockResolvedValue([fieldThread("body")]);
+			const onFieldFocused = vi.fn();
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				currentUser: { id: "u-1", role: 50 },
+				initialThreadId: "thread-body",
+				focusField: "slug",
+				onFieldFocused,
+			});
+
+			await vi.waitFor(() => expect(onFieldFocused).toHaveBeenCalled());
+			expect(document.activeElement).toBe(screen.getByLabelText("Slug").element());
+			expect(settingsPanel(screen).element()).not.toHaveAttribute("inert");
+			expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
+		});
+
+		it("closes comments for a block's panel on a narrow screen", async () => {
+			vi.mocked(fetchEditorialThreads).mockResolvedValue([]);
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				currentUser: { id: "u-1", role: 50 },
+				fields: {
+					title: { kind: "string", label: "Title" },
+					content: { kind: "portableText", label: "Content" },
+				},
+			});
+			await screen.getByRole("button", { name: "Show comments" }).click();
+			await expect.element(screen.getByRole("complementary", { name: "Comments" })).toBeVisible();
+
+			const openBlockPanel = portableTextProps.current?.onBlockSidebarOpen as (
+				panel: unknown,
+			) => void;
+			openBlockPanel({
+				type: "image",
+				attrs: { src: "https://example.com/image.png", alt: "Example" },
+				onUpdate: vi.fn(),
+				onReplace: vi.fn(),
+				onDelete: vi.fn(),
+				onClose: vi.fn(),
+			});
+
+			await expect.element(screen.getByText("Image settings")).toBeVisible();
+			expect(screen.getByRole("complementary", { name: "Comments" }).query()).toBeNull();
+		});
+
+		it("keeps both open on a wide screen", async () => {
+			await page.viewport(1800, 900);
+			const screen = await renderWithThreads([fieldThread("body")]);
+
+			await screen.getByRole("button", { name: "Show comments" }).click();
+
+			await expect.element(screen.getByRole("complementary", { name: "Comments" })).toBeVisible();
+			expect(settingsPanel(screen).element()).not.toHaveAttribute("inert");
+		});
+	});
+
+	it("starts a comment on a field without threads", async () => {
+		vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
+		const screen = await renderWithThreads([]);
+
+		await screen.getByRole("button", { name: "Comment on Title" }).click();
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		const composer = margin.getByRole("combobox", { name: "Comment" });
+		await expect.element(composer).toHaveFocus();
+		await composer.fill("Shorter, please");
+		await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+
+		await vi.waitFor(() =>
+			expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+				expect.objectContaining({ id: "item-1" }),
+				expect.objectContaining({
+					anchor: { type: "field", field: "title" },
+					body: "Shorter, please",
+				}),
+			),
+		);
+	});
+
+	it("searches for people to mention once typing pauses", async () => {
+		const screen = await renderWithThreads([]);
+		await screen.getByRole("button", { name: "Comment on Title" }).click();
+		const composer = screen
+			.getByRole("complementary", { name: "Comments" })
+			.getByRole("combobox", { name: "Comment" });
+		await expect.element(composer).toHaveFocus();
+
+		await userEvent.keyboard("@gra");
+
+		await vi.waitFor(() =>
+			expect(vi.mocked(fetchEditorialMentionable)).toHaveBeenLastCalledWith(
+				expect.objectContaining({ id: "item-1" }),
+				"gra",
+			),
+		);
+		const queries = vi.mocked(fetchEditorialMentionable).mock.calls.map(([, query]) => query);
+		expect(queries).not.toContain("g");
+		expect(queries).not.toContain("gr");
+	});
+
+	describe("mentions", () => {
+		const SAM_A = { id: "u-sam-a", name: "Sam Lee", avatarUrl: null };
+		const SAM_B = { id: "u-sam-b", name: "Sam Lee", avatarUrl: null };
+
+		afterEach(() => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([]);
+		});
+
+		async function openComposer() {
+			const screen = await renderWithThreads([]);
+			await screen.getByRole("button", { name: "Comment on Title" }).click();
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			const composer = margin.getByRole("combobox", { name: "Comment" });
+			await expect.element(composer).toHaveFocus();
+			return { screen, margin, composer };
+		}
+
+		it("keeps each picked person, even when two share a name, and leaves typed names alone", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A, SAM_B]);
+			vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
+			const { screen, margin } = await openComposer();
+			const options = screen
+				.getByRole("listbox", { name: "People to mention" })
+				.getByRole("option");
+
+			await userEvent.keyboard("@sa");
+			await expect.element(options.first()).toBeVisible();
+			await userEvent.keyboard("{Enter}and @sa");
+			await expect.element(options.last()).toBeVisible();
+			await userEvent.keyboard("{ArrowDown}");
+			await expect.element(options.last()).toHaveAttribute("aria-selected", "true");
+			await userEvent.keyboard("{Enter}cc @Sam Lee");
+			await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+
+			await vi.waitFor(() =>
+				expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+					expect.anything(),
+					expect.objectContaining({ body: "<@u-sam-a> and <@u-sam-b> cc @Sam Lee" }),
+				),
+			);
+		});
+
+		it("picks only someone matching what's typed while that search is pending", async () => {
+			const ALICE = { id: "u-alice", name: "Alice Park", avatarUrl: null };
+			const BOB = { id: "u-bob", name: "Bob Diaz", avatarUrl: null };
+			vi.mocked(fetchEditorialMentionable).mockImplementation((_entry, query) =>
+				query ? new Promise(() => undefined) : Promise.resolve([ALICE, BOB]),
+			);
+			const { screen, composer } = await openComposer();
+			const options = screen
+				.getByRole("listbox", { name: "People to mention" })
+				.getByRole("option");
+			await userEvent.keyboard("@");
+			await expect.element(options.first()).toHaveTextContent("Alice Park");
+
+			await userEvent.keyboard("bo{Enter}");
+
+			await expect.element(composer).toHaveValue("@Bob Diaz ");
+		});
+
+		it("puts text typed straight after a pick after the mention", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
+			vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
+			const { screen, margin, composer } = await openComposer();
+
+			await userEvent.keyboard("@sa");
+			await expect
+				.element(screen.getByRole("listbox", { name: "People to mention" }).getByRole("option"))
+				.toBeVisible();
+			await userEvent.keyboard("{Enter}can you check?");
+
+			await expect.element(composer).toHaveValue("@Sam Lee can you check?");
+			await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+			await vi.waitFor(() =>
+				expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+					expect.anything(),
+					expect.objectContaining({ body: "<@u-sam-a> can you check?" }),
+				),
+			);
+		});
+
+		it("leaves Enter and the arrow keys to an input method while it composes", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A, SAM_B]);
+			const { screen, composer } = await openComposer();
+			const options = screen
+				.getByRole("listbox", { name: "People to mention" })
+				.getByRole("option");
+			await userEvent.keyboard("@sa");
+			await expect.element(options.first()).toHaveAttribute("aria-selected", "true");
+
+			for (const key of ["ArrowDown", "Enter"]) {
+				const composing = new KeyboardEvent("keydown", {
+					key,
+					isComposing: true,
+					bubbles: true,
+					cancelable: true,
+				});
+				composer.element().dispatchEvent(composing);
+				expect(composing.defaultPrevented).toBe(false);
+			}
+			await expect.element(composer).toHaveValue("@sa");
+			await expect.element(options.first()).toHaveAttribute("aria-selected", "true");
+
+			await userEvent.keyboard("{Enter}");
+			await expect.element(composer).toHaveValue("@Sam Lee ");
+		});
+
+		it("reopens suggestions after a dismissed @ is deleted and typed again", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
+			const { composer } = await openComposer();
+
+			await userEvent.keyboard("@sa");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+			await userEvent.keyboard("{Escape}");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "false");
+
+			await userEvent.keyboard("{Backspace}{Backspace}{Backspace}@sa");
+
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+		});
+
+		it("doesn't suggest people again with the caret in a picked mention", async () => {
+			const ANN = { id: "u-ann", name: "Ann", avatarUrl: null };
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([ANN]);
+			const { composer } = await openComposer();
+			await userEvent.keyboard("@an");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+			await userEvent.keyboard("{Enter}");
+			await expect.element(composer).toHaveValue("@Ann ");
+
+			await userEvent.keyboard("{Backspace}");
+			await new Promise((resolve) => setTimeout(resolve, 300));
+
+			await expect.element(composer).toHaveAttribute("aria-expanded", "false");
+		});
+
+		it("suggests people for an @ straight after CJK text or a bracket", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
+			const { composer } = await openComposer();
+
+			await userEvent.keyboard("谢谢@sa");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+			await userEvent.keyboard("{Escape} (@sa");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+			await userEvent.keyboard("{Escape} mail@sa");
+			await new Promise((resolve) => setTimeout(resolve, 300));
+			await expect.element(composer).toHaveAttribute("aria-expanded", "false");
+		});
+
+		it("doesn't suggest people for an @ in a URL path", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
+			const { composer } = await openComposer();
+
+			await userEvent.keyboard("youtube.com/@sa");
+			await new Promise((resolve) => setTimeout(resolve, 300));
+
+			await expect.element(composer).toHaveAttribute("aria-expanded", "false");
+		});
+
+		it("leaves Shift+Enter to add a line while people are suggested", async () => {
+			vi.mocked(fetchEditorialMentionable).mockResolvedValue([SAM_A]);
+			const { composer } = await openComposer();
+			await userEvent.keyboard("@sa");
+			await expect.element(composer).toHaveAttribute("aria-expanded", "true");
+
+			await userEvent.keyboard("{Shift>}{Enter}{/Shift}");
+
+			await expect.element(composer).toHaveValue("@sa\n");
+		});
+
+		function threadMentioning(body: string, mentions: EditorialThread["mentions"]) {
+			const thread = fieldThread("body");
+			return {
+				...thread,
+				comments: thread.comments.map((comment) => ({
+					...comment,
+					author: { id: "u-1", name: "Alex Kim", avatarUrl: null },
+					body,
+					can: { edit: true, delete: true },
+				})),
+				mentions,
+			};
+		}
+
+		function moveCaretToEnd(composer: Locator) {
+			const textarea = composer.element() as HTMLTextAreaElement;
+			textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+		}
+
+		async function editComment(thread: EditorialThread) {
+			vi.mocked(editEditorialComment).mockResolvedValue(thread);
+			const screen = await renderWithThreads([thread]);
+			await screen.getByRole("button", { name: "1 comment thread on Body" }).click();
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await margin.getByRole("button", { name: "Comment actions" }).click();
+			await screen.getByRole("menuitem", { name: "Edit" }).click();
+			const composer = margin.getByRole("combobox", { name: "Edit comment" });
+			await expect.element(composer).toHaveFocus();
+			return { margin, composer };
+		}
+
+		it("keeps the people an edited comment mentions, even when they share a name", async () => {
+			const { margin, composer } = await editComment(
+				threadMentioning("<@u-sam-a> and <@u-sam-b>: shorter?", [SAM_A, SAM_B]),
+			);
+			await expect.element(composer).toHaveValue("@Sam Lee and @Sam Lee: shorter?");
+
+			moveCaretToEnd(composer);
+			await userEvent.keyboard("!");
+			await margin.getByRole("button", { name: "Save", exact: true }).click();
+
+			await vi.waitFor(() =>
+				expect(vi.mocked(editEditorialComment)).toHaveBeenCalledWith(
+					expect.anything(),
+					"thread-body",
+					"comment-body",
+					"<@u-sam-a> and <@u-sam-b>: shorter?!",
+				),
+			);
+		});
+
+		it("shows a mention of a deleted user by name and keeps it on save", async () => {
+			const { margin, composer } = await editComment(threadMentioning("Ask <@u-gone>", []));
+			await expect.element(composer).toHaveValue("Ask @Unknown user");
+
+			moveCaretToEnd(composer);
+			await userEvent.keyboard(" now");
+			await margin.getByRole("button", { name: "Save", exact: true }).click();
+
+			await vi.waitFor(() =>
+				expect(vi.mocked(editEditorialComment)).toHaveBeenCalledWith(
+					expect.anything(),
+					"thread-body",
+					"comment-body",
+					"Ask <@u-gone> now",
+				),
+			);
+		});
+	});
+
+	describe("managing a thread", () => {
+		function ownThread(): EditorialThread {
+			const thread = fieldThread("body");
+			return {
+				...thread,
+				comments: thread.comments.map((comment) => ({
+					...comment,
+					author: { id: "u-1", name: "Alex Kim", avatarUrl: null },
+					can: { edit: true, delete: true },
+				})),
+				can: { resolve: true, delete: true },
+			};
+		}
+
+		async function openThreadMenu(screen: Awaited<ReturnType<typeof renderWithThreads>>) {
+			await screen.getByRole("button", { name: "1 comment thread on Body" }).click();
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await margin.getByRole("button", { name: "Comment actions" }).click();
+			return margin;
+		}
+
+		it("asks before deleting a thread", async () => {
+			vi.mocked(deleteEditorialThread).mockResolvedValue({ threadId: "thread-body" });
+			const screen = await renderWithThreads([ownThread()]);
+			const margin = await openThreadMenu(screen);
+
+			await screen.getByRole("menuitem", { name: "Delete thread" }).click();
+			const dialog = screen.getByRole("alertdialog", { name: "Delete thread" });
+			await expect.element(dialog).toBeVisible();
+			expect(vi.mocked(deleteEditorialThread)).not.toHaveBeenCalled();
+
+			// Direct DOM click to bypass Base UI's inert overlay
+			dialog.getByRole("button", { name: "Delete", exact: true }).element().click();
+
+			await vi.waitFor(() =>
+				expect(vi.mocked(deleteEditorialThread)).toHaveBeenCalledWith(
+					expect.objectContaining({ id: "item-1" }),
+					"thread-body",
+				),
+			);
+			await expect.element(margin.getByText("Could this be shorter?")).not.toBeInTheDocument();
+			expect(screen.getByRole("alertdialog").query()).toBeNull();
+		});
+
+		it("keeps an edit open when it fails to save", async () => {
+			vi.mocked(editEditorialComment).mockRejectedValue(new Error("Server unavailable"));
+			const screen = await renderWithThreads([ownThread()]);
+			const margin = await openThreadMenu(screen);
+
+			await screen.getByRole("menuitem", { name: "Edit" }).click();
+			const composer = margin.getByRole("combobox", { name: "Edit comment" });
+			await composer.fill("Could this be much shorter?");
+			await margin.getByRole("button", { name: "Save", exact: true }).click();
+
+			await expect.element(margin.getByText("Comment not saved")).toBeVisible();
+			await expect.element(composer).toHaveValue("Could this be much shorter?");
+		});
+	});
+
+	describe("without edit access", () => {
+		it("lets a Contributor who can't edit the entry comment on a field", async () => {
+			vi.mocked(createEditorialThread).mockResolvedValue(fieldThread("title"));
+			vi.mocked(fetchEditorialThreads).mockResolvedValue([]);
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				currentUser: { id: "u-3", role: 20 },
+				readOnly: true,
+			});
+			await expect.element(screen.getByLabelText("Title", { exact: true })).toBeDisabled();
+
+			await screen.getByRole("button", { name: "Comment on Title" }).click();
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await margin.getByRole("combobox", { name: "Comment" }).fill("Shorter, please");
+			await margin.getByRole("button", { name: "Comment", exact: true }).last().click();
+
+			await vi.waitFor(() =>
+				expect(vi.mocked(createEditorialThread)).toHaveBeenCalledWith(
+					expect.objectContaining({ id: "item-1" }),
+					expect.objectContaining({ anchor: { type: "field", field: "title" } }),
+				),
+			);
+		});
+
+		it("lets someone viewing an entry another person has locked reply and start threads", async () => {
+			vi.mocked(fetchEditorialThreads).mockResolvedValue([fieldThread("body")]);
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				currentUser: { id: "u-1", role: 50 },
+				readOnly: true,
+			});
+
+			await screen.getByRole("button", { name: "1 comment thread on Body" }).click();
+
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await expect.element(margin.getByRole("combobox", { name: "Reply" })).toBeEnabled();
+			await expect
+				.element(margin.getByRole("button", { name: "Comment", exact: true }))
+				.toBeEnabled();
+		});
+	});
+
+	it("drops an unfinished field comment when another entry opens", async () => {
+		vi.mocked(fetchEditorialThreads).mockResolvedValue([]);
+		const props: ContentEditorProps = {
+			collection: "posts",
+			collectionLabel: "Post",
+			fields: defaultFields,
+			isNew: false,
+			onSave: vi.fn(),
+			item: makeItem(),
+			currentUser: { id: "u-1", role: 50 },
+		};
+		const screen = await render(<ContentEditor {...props} />, { wrapper: Toasty });
+		await screen.getByRole("button", { name: "Comment on Title" }).click();
+		const composer = screen
+			.getByRole("complementary", { name: "Comments" })
+			.getByRole("combobox", { name: "Comment" });
+		await composer.fill("Half a thought");
+
+		await screen.rerender(
+			<ContentEditor {...props} item={makeItem({ id: "item-2", data: { title: "Other" } })} />,
+		);
+
+		await expect.element(screen.getByLabelText("Title", { exact: true })).toHaveValue("Other");
+		await expect.element(composer).not.toBeInTheDocument();
+	});
+
+	describe("when threads can't be fetched", () => {
+		it("says the threads couldn't be loaded, in place of the instructions", async () => {
+			vi.mocked(fetchEditorialThreads).mockRejectedValue(new Error("Server unavailable"));
+			const screen = await renderEditor({
+				isNew: false,
+				item: makeItem(),
+				currentUser: { id: "u-1", role: 50 },
+			});
+
+			await screen.getByRole("button", { name: "Show comments" }).click();
+
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			const alert = margin.getByRole("alert");
+			await expect.element(alert).toHaveTextContent("Comments couldn’t be loaded");
+			expect(margin.getByText(/Select text and press Comment/).query()).toBeNull();
+
+			vi.mocked(fetchEditorialThreads).mockResolvedValue([fieldThread("body")]);
+			await alert.getByRole("button", { name: "Try again" }).click();
+
+			await expect.element(margin.getByText("Could this be shorter?")).toBeVisible();
+			expect(margin.getByRole("alert").query()).toBeNull();
+		});
+
+		it("keeps the threads it has when a refresh fails", async () => {
+			const screen = await renderWithThreads([fieldThread("body")]);
+			await screen.getByRole("button", { name: "Show comments" }).click();
+			const margin = screen.getByRole("complementary", { name: "Comments" });
+			await expect.element(margin.getByText("Could this be shorter?")).toBeVisible();
+			vi.mocked(fetchEditorialThreads).mockRejectedValue(new Error("Server unavailable"));
+
+			// The window regaining focus refreshes the open margin's threads.
+			window.dispatchEvent(new Event("visibilitychange"));
+
+			await expect
+				.element(margin.getByRole("alert"))
+				.toHaveTextContent("Comments couldn’t be refreshed");
+			await expect.element(margin.getByText("Could this be shorter?")).toBeVisible();
+		});
+	});
+
+	it("moves the cards below a thread down as its reply grows", async () => {
+		const layout = document.createElement("style");
+		layout.textContent = `
+			.relative { position: relative; }
+			.absolute { position: absolute; }
+			.inset-x-0 { inset-inline: 0; }
+			.field-sizing-content { field-sizing: content; }
+		`;
+		document.head.append(layout);
+		// Wide enough for the settings panel too, so nothing else moves the cards meanwhile.
+		await page.viewport(1800, 900);
+		onTestFinished(async () => {
+			layout.remove();
+			await page.viewport(1280, 800);
+		});
+		const screen = await renderWithThreads([fieldThread("title"), fieldThread("body")]);
+		await screen.getByRole("button", { name: "1 comment thread on Title" }).click();
+		const margin = screen.getByRole("complementary", { name: "Comments" });
+		const cards = () =>
+			Array.from(
+				margin.element().querySelectorAll<HTMLElement>("[data-editorial-thread-card]"),
+				(card) => card.parentElement!,
+			);
+		const reply = margin.getByRole("combobox", { name: "Reply" });
+		await expect.element(reply).toBeVisible();
+		// Lets the cards settle where they start, so only the reply can move them.
+		for (let frame = 0; frame < 5; frame++) {
+			// oxlint-disable-next-line no-await-in-loop -- one frame at a time
+			await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+		}
+		await reply.fill(["One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight"].join("\n"));
+
+		await vi.waitFor(() => {
+			const [first, second] = cards();
+			const firstBottom = first!.getBoundingClientRect().bottom;
+			expect(second!.getBoundingClientRect().top).toBeGreaterThanOrEqual(firstBottom);
+		});
+	});
+
+	it("marks only fields with open threads", async () => {
+		const screen = await renderWithThreads([
+			{ ...fieldThread("title"), status: "resolved" },
+			fieldThread("body"),
+		]);
+
+		await expect
+			.element(screen.getByRole("button", { name: "1 comment thread on Body" }))
+			.toBeVisible();
+		expect(screen.getByRole("button", { name: /comment thread on Title/ }).query()).toBeNull();
 	});
 });
