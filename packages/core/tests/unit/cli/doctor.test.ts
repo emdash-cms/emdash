@@ -57,7 +57,7 @@ describe("doctor scheduler wiring", () => {
 		]);
 		expect(results[0]!.message).toContain("Cron Trigger is configured");
 		expect(results[0]!.message).toContain(
-			'export { EmDashWorker as default, PluginBridge } from "@emdash-cms/cloudflare/worker";',
+			'export { EmDashWorker as default, EmDashRoom, EmDashRoomSite, PluginBridge } from "@emdash-cms/cloudflare/worker";',
 		);
 	});
 
@@ -101,6 +101,29 @@ describe("doctor scheduler wiring", () => {
 		]);
 	});
 
+	it.each([
+		`export { default } from "@emdash-cms/cloudflare/worker";`,
+		`export { default, EmDashRoom, EmDashRoomSite, PluginBridge } from "@emdash-cms/cloudflare/worker";`,
+		`import handler, { createScheduledHandler } from "@emdash-cms/cloudflare/worker";
+		export default { ...handler, scheduled: createScheduledHandler() };`,
+	])("adds a Workers Cache migration hint for legacy wiring: %s", async (source) => {
+		const cwd = await createSite(
+			`{ "main": "./src/worker.ts", "triggers": { "crons": ["* * * * *"] } }`,
+			source,
+		);
+
+		const results = await checkSchedulerWiring(cwd);
+
+		expect(results).toEqual([
+			expect.objectContaining({ name: "scheduler wiring", status: "pass" }),
+		]);
+		expect(results[0]!.message).toContain("for scheduled Workers Cache purges");
+		expect(results[0]!.message).toContain("EmDashWorker as default");
+		expect(results[0]!.message).toContain("EmDashRoom, EmDashRoomSite, PluginBridge");
+		expect(results[0]!.message).toContain("keep existing named exports");
+		expect(results[0]!.message).toContain("invalidateViaDefaultEntrypoint: true");
+	});
+
 	it("accepts an EmDashWorker subclass as the default export", async () => {
 		const cwd = await createSite(
 			`{
@@ -113,7 +136,11 @@ describe("doctor scheduler wiring", () => {
 		);
 
 		await expect(checkSchedulerWiring(cwd)).resolves.toEqual([
-			expect.objectContaining({ name: "scheduler wiring", status: "pass" }),
+			expect.objectContaining({
+				name: "scheduler wiring",
+				status: "pass",
+				message: expect.not.stringContaining("for scheduled Workers Cache purges"),
+			}),
 		]);
 	});
 
@@ -130,8 +157,33 @@ describe("doctor scheduler wiring", () => {
 		);
 
 		await expect(checkSchedulerWiring(cwd)).resolves.toEqual([
-			expect.objectContaining({ name: "scheduler wiring", status: "pass" }),
+			expect.objectContaining({
+				name: "scheduler wiring",
+				status: "pass",
+				message: expect.not.stringContaining("for scheduled Workers Cache purges"),
+			}),
 		]);
+	});
+
+	it.each([
+		["", true],
+		["{ invalidateViaDefaultEntrypoint: false }", true],
+		["{ invalidateViaDefaultEntrypoint: true }", false],
+	])("checks RPC invalidation in custom scheduled overrides: %s", async (options, needsHint) => {
+		const cwd = await createSite(
+			`{ "main": "./src/worker.ts", "triggers": { "crons": ["* * * * *"] } }`,
+			`import { EmDashWorker, createScheduledHandler } from "@emdash-cms/cloudflare/worker";
+			export default class extends EmDashWorker {
+				scheduled(controller) {
+					return createScheduledHandler(${options})(controller, this.env, this.ctx);
+				}
+			}`,
+		);
+
+		const results = await checkSchedulerWiring(cwd);
+
+		expect(results[0]!.status).toBe("pass");
+		expect(results[0]!.message.includes("for scheduled Workers Cache purges")).toBe(needsHint);
 	});
 
 	it("accepts the legacy object-style custom Worker form", async () => {

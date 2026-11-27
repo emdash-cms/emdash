@@ -171,7 +171,7 @@ The `exports` field can't be combined with the `migrations` array. If `wrangler.
 
 ### A custom `fetch` handler
 
-A custom Worker entry point must extend `EmDashWorker`. Call `handleRoomUpgrade` before custom routing, then delegate other requests to `super.fetch(request)`. The class provides `this.env` and `this.ctx` for custom handlers:
+To enable scheduled Workers Cache purges, extend `EmDashWorker` in a custom Worker entry point. `super.fetch(request)` handles room upgrades before Astro runs. Call `handleRoomUpgrade` explicitly before custom routing so that routing cannot intercept room connections. The class provides `this.env` and `this.ctx` for custom handlers:
 
 ```ts title="src/worker.ts"
 import {
