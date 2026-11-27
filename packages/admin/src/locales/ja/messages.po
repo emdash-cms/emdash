@@ -316,7 +316,7 @@ msgstr "{0, plural, one {#件のメニューをインポート} other {#件の�
 #. placeholder {0}: result.menus.skipped
 #: packages/admin/src/components/WordPressImport.tsx:2331
 msgid "{0, plural, one {# menu skipped (already exists)} other {# menus skipped (already exist)}}"
-msgstr ""
+msgstr "{0, plural, one {#件のメニューをスキップ（既に存在）} other {#件のメニューをスキップ（既に存在）}}"
 
 #. placeholder {0}: navMenus.length
 #: packages/admin/src/components/WordPressImport.tsx:1970
@@ -1924,7 +1924,7 @@ msgstr "管理者"
 #: packages/admin/src/components/Sidebar.tsx:461
 msgctxt "navigation group"
 msgid "Admin"
-msgstr ""
+msgstr "システム管理"
 
 #: packages/admin/src/components/Sidebar.tsx:742
 msgid "Admin navigation"
@@ -2541,7 +2541,7 @@ msgstr "著者"
 #: packages/admin/src/components/settings/transfer/labels.ts:8
 msgctxt "site transfer record kind: user accounts"
 msgid "Authors"
-msgstr ""
+msgstr "投稿者"
 
 #: packages/admin/src/components/settings/transfer/labels.ts:170
 msgid "Authors will be assigned to users on this site"
@@ -13578,7 +13578,7 @@ msgstr "選択"
 #: packages/admin/src/components/FieldEditor.tsx:1706
 msgctxt "field type"
 msgid "Select"
-msgstr ""
+msgstr "セレクト"
 
 #: packages/admin/src/components/BlockKitMediaPickerField.tsx:197
 #: packages/admin/src/components/ContentEditor.tsx:5145
@@ -17235,7 +17235,7 @@ msgstr "メール送信サービスが設定されていない場合は、招待
 
 #: packages/admin/src/components/WordPressImport.tsx:237
 msgid "WordPress did not approve the connection, or the approval expired."
-msgstr ""
+msgstr "WordPressが接続を承認しなかったか、承認の有効期限が切れました。"
 
 #: packages/admin/src/components/WordPressImport.tsx:1549
 msgid "WordPress Username"
