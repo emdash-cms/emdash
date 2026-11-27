@@ -597,6 +597,7 @@ const COMMENTS_STYLES = `
 	.emdash-inline-ui .emdash-comments-button {
 		height: 28px;
 		padding: 0 10px;
+		border: 0;
 		border-radius: 6px;
 		background: var(--emdash-ui-surface);
 		box-shadow: 0 0 0 1px var(--emdash-ui-line);
