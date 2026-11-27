@@ -2198,7 +2198,7 @@ function ContentEditPage() {
 			keepReplacedRevision?: boolean;
 		}) => {
 			const { referenceRows, keepReplacedRevision, ...changes } = payload;
-			void serializeEditorSave(() =>
+			const saved = serializeEditorSave(() =>
 				autosaveMutation.mutateAsync({
 					targetId: id,
 					targetLocale: rawItem?.locale ?? activeLocale,
@@ -2206,7 +2206,9 @@ function ContentEditPage() {
 					referenceRows,
 					keepReplacedRevision,
 				}),
-			).catch(() => undefined);
+			);
+			void saved.catch(() => undefined);
+			return saved;
 		},
 		[activeLocale, autosaveMutation.mutateAsync, id, rawItem?.locale, serializeEditorSave],
 	);

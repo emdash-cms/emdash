@@ -66,6 +66,7 @@ interface RecordedRequest {
 }
 
 interface MockServerOptions {
+	manifest?: AdminManifest;
 	initialBylines?: ContentItem["bylines"];
 	initialScheduledAt?: string;
 	omitScheduleChangeRevision?: boolean;
@@ -112,7 +113,7 @@ function createMockServer(options: MockServerOptions = {}) {
 		requests.push(request);
 
 		if (method === "GET" && url === "/_emdash/api/manifest") {
-			return jsonResponse({ data: MANIFEST });
+			return jsonResponse({ data: options.manifest ?? MANIFEST });
 		}
 		if (method === "GET" && url === "/_emdash/api/auth/me") {
 			return jsonResponse({ data: { id: "user_1", role: 40 } });
@@ -167,6 +168,9 @@ function createMockServer(options: MockServerOptions = {}) {
 					scheduledAt: currentScheduledAt,
 				}),
 			);
+		}
+		if (method === "POST" && url === "/_emdash/api/content/posts/post_1/preview-url") {
+			return jsonResponse({ data: { url: "https://example.com/preview", expiresAt: 0 } });
 		}
 		if (method === "POST" && url.startsWith("/_emdash/api/content/posts/post_1/publish")) {
 			const index = publishCount++;
@@ -985,6 +989,35 @@ describe("ContentEditPage publish and autosave ordering", () => {
 			data: { title: "After schedule" },
 			_rev: "rev-schedule-1",
 		});
+	});
+
+	it("Preview loads its tab only once the autosave it sends has saved", async () => {
+		const posts = MANIFEST.collections.posts!;
+		const autosave = deferredResponse();
+		server = createMockServer({
+			manifest: {
+				...MANIFEST,
+				collections: { posts: { ...posts, supports: [...posts.supports, "preview"] } },
+			},
+			onPut: () => autosave.promise,
+		});
+		const tab = { location: { href: "about:blank" }, opener: window, focus: vi.fn() };
+		const open = vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+		try {
+			const screen = await renderEditPage();
+			await screen.getByRole("textbox", { name: "Title" }).fill("Typed just now");
+			await screen.getByRole("button", { name: "Preview" }).click();
+
+			await vi.waitFor(() => expect(contentMutations(server!.requests)).toHaveLength(1));
+			expect(open).toHaveBeenCalledExactlyOnceWith("", "emdash-preview-posts-post_1");
+			await vi.advanceTimersByTimeAsync(100);
+			expect(tab.location.href).toBe("about:blank");
+
+			autosave.resolve(contentResponse(makeItem({ _rev: "rev-autosave" })));
+			await vi.waitFor(() => expect(tab.location.href).toBe("https://example.com/preview"));
+		} finally {
+			open.mockRestore();
+		}
 	});
 });
 

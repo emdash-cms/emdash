@@ -707,7 +707,7 @@ export interface ContentEditorProps {
 		referenceRows?: Record<string, ReferenceEntryRow[]>;
 		/** Keep the draft revision this autosave replaces, as a manual save does. */
 		keepReplacedRevision?: true;
-	}) => void;
+	}) => void | Promise<unknown>;
 	/** Whether autosave is in progress */
 	isAutosaving?: boolean;
 	/** Whether the current entry's autosave should drive visual feedback. */
@@ -867,7 +867,7 @@ export interface ContentEditorProps {
 	onSaveOutsideValues?: (
 		changes: OutsideListChanges | ((latest: ContentItem) => Promise<OutsideListChanges>),
 	) => Promise<unknown>;
-	/** In a room: Preview didn't open because no save of this tab's edits arrived. */
+	/** Preview didn't open because no save of this tab's edits arrived. */
 	onPreviewNotSaved?: () => void;
 	/** Set to read the form's data and slug, which the page keeps before it joins a room. */
 	readFormRef?: React.RefObject<
@@ -1266,6 +1266,15 @@ export function ContentEditor({
 	const autosaveTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 	/** Sends the scheduled autosave; set while one is pending. */
 	const runAutosaveRef = React.useRef<(() => void) | null>(null);
+	/** The last save sent, autosave or manual, until it settles. */
+	const saveInFlightRef = React.useRef<Promise<unknown> | null>(null);
+	const trackSaveInFlight = React.useCallback((saved: Promise<unknown>) => {
+		saveInFlightRef.current = saved;
+		const settle = () => {
+			if (saveInFlightRef.current === saved) saveInFlightRef.current = null;
+		};
+		void saved.then(settle, settle);
+	}, []);
 	const flushPendingAutosave = React.useCallback(() => {
 		const runAutosave = runAutosaveRef.current;
 		if (!autosaveTimeoutRef.current || !runAutosave) return;
@@ -1395,6 +1404,7 @@ export function ContentEditor({
 		pendingAutosavePatchesRef.current = null;
 		savedSaveKeyRef.current = null;
 		sentSaveKeyRef.current = null;
+		saveInFlightRef.current = null;
 		entrySwitchesRef.current++;
 		// A late save from the previous entry can't then count as saving a newer patch.
 		keptPatchCountRef.current = patchCountRef.current;
@@ -2276,12 +2286,13 @@ export function ContentEditor({
 			pendingAutosaveKeyRef.current = key;
 			pendingAutosavePatchesRef.current = patches;
 			autosaveSwitchesRef.current = switches;
-			onAutosave({
+			const saved = onAutosave({
 				...payload,
 				...(referenceRows && { referenceRows }),
 				// The first save of a patch keeps the revision it replaces, as a manual save does.
 				...(patches > keptPatchCountRef.current && { keepReplacedRevision: true }),
 			});
+			if (saved) trackSaveInFlight(saved);
 		};
 
 		// Schedule autosave
@@ -2320,6 +2331,7 @@ export function ContentEditor({
 		rejectedAutosaveState,
 		hasSaveConflict,
 		room,
+		trackSaveInFlight,
 	]);
 
 	const urlFields = React.useMemo(
@@ -2356,6 +2368,7 @@ export function ContentEditor({
 		const saved = beginSave(payload);
 		const result = onSave?.(payload);
 		if (!result) return;
+		trackSaveInFlight(result);
 		void result.then(
 			() => {
 				markSaved(saved.state, saved.referenceRows, saved.key, saved.switches, saved.patches);
@@ -2600,12 +2613,14 @@ export function ContentEditor({
 			});
 		};
 
-		if (room) {
-			// The tab opens on the click, and loads once the room has saved this tab's edits.
+		flushPendingAutosave();
+		const saving = room ? room.whenCovered({ save: false }) : saveInFlightRef.current;
+		if (saving) {
+			// The tab opens on the click, and loads once this tab's edits are saved.
 			const opened = openBlankPreviewWindow(collection, entry.id);
 			setIsLoadingPreview(true);
 			try {
-				await room.whenCovered({ save: false });
+				await saving;
 			} catch {
 				if (opened?.created) opened.preview.close();
 				setIsLoadingPreview(false);
@@ -2613,7 +2628,7 @@ export function ContentEditor({
 				return;
 			}
 			try {
-				const url = await previewUrl(slugText(room.fields.get("slug")));
+				const url = await previewUrl(room ? slugText(room.fields.get("slug")) : slug);
 				if (opened) {
 					opened.preview.location.href = url;
 					opened.preview.focus();

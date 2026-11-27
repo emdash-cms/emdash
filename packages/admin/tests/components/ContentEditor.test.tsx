@@ -2814,6 +2814,149 @@ describe("ContentEditor", () => {
 			}
 		});
 
+		it.each([
+			{ autosave: "waiting for its delay", sentBeforeClick: false },
+			{ autosave: "already sent", sentBeforeClick: true },
+		])(
+			"Preview opens its tab on the click and loads it once the autosave $autosave has saved",
+			async ({ sentBeforeClick }) => {
+				vi.useFakeTimers();
+				const tab = { location: { href: "about:blank" }, opener: window, focus: vi.fn() };
+				const open = vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+				try {
+					const save = deferred();
+					const onAutosave = vi.fn(() => save.promise);
+					const screen = await renderEditor({
+						isNew: false,
+						item: makeItem({ status: "draft" }),
+						supportsPreview: true,
+						onAutosave,
+					});
+					await screen.getByLabelText("Title").fill("Typed just now");
+					await vi.advanceTimersByTimeAsync(sentBeforeClick ? 2000 : 500);
+					expect(onAutosave).toHaveBeenCalledTimes(sentBeforeClick ? 1 : 0);
+
+					await screen.getByRole("button", { name: "Preview" }).click();
+					expect(onAutosave).toHaveBeenCalledExactlyOnceWith(
+						expect.objectContaining({ data: expect.objectContaining({ title: "Typed just now" }) }),
+					);
+					expect(open).toHaveBeenCalledExactlyOnceWith("", "emdash-preview-posts-item-1");
+					await vi.advanceTimersByTimeAsync(100);
+					expect(tab.location.href).toBe("about:blank");
+
+					save.resolve();
+					await vi.waitFor(() => expect(tab.location.href).toBe("https://example.com/preview"));
+					expect(tab.focus).toHaveBeenCalled();
+				} finally {
+					open.mockRestore();
+					vi.useRealTimers();
+				}
+			},
+		);
+
+		it("Preview right after Save loads its tab only once that save has finished", async () => {
+			const tab = { location: { href: "about:blank" }, opener: window, focus: vi.fn() };
+			const open = vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+			try {
+				const save = deferred();
+				const onSave = vi.fn(() => save.promise);
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({ status: "draft" }),
+					supportsPreview: true,
+					onSave,
+					onAutosave: vi.fn(),
+				});
+				await screen.getByLabelText("Title").fill("Saved just now");
+				await screen.getByRole("button", { name: "Save" }).first().click();
+				expect(onSave).toHaveBeenCalledOnce();
+
+				await screen.getByRole("button", { name: "Preview" }).click();
+				expect(open).toHaveBeenCalledExactlyOnceWith("", "emdash-preview-posts-item-1");
+				expect(tab.location.href).toBe("about:blank");
+
+				save.resolve();
+				await vi.waitFor(() => expect(tab.location.href).toBe("https://example.com/preview"));
+			} finally {
+				open.mockRestore();
+			}
+		});
+
+		it("Preview closes the tab it opened when the autosave it waits for fails, and doesn't wait for that save again", async () => {
+			vi.useFakeTimers();
+			const tab = {
+				location: { href: "about:blank" },
+				opener: window,
+				close: vi.fn(),
+				focus: vi.fn(),
+			};
+			const open = vi.spyOn(window, "open").mockReturnValue(tab as unknown as Window);
+			try {
+				const onPreviewNotSaved = vi.fn();
+				const screen = await renderEditor({
+					isNew: false,
+					item: makeItem({ status: "draft" }),
+					supportsPreview: true,
+					onAutosave: vi.fn(() => Promise.reject(new Error("Autosave failed"))),
+					onPreviewNotSaved,
+				});
+				await screen.getByLabelText("Title").fill("Typed just now");
+				await screen.getByRole("button", { name: "Preview" }).click();
+
+				await vi.waitFor(() => expect(onPreviewNotSaved).toHaveBeenCalledOnce());
+				expect(tab.close).toHaveBeenCalledOnce();
+				expect(tab.location.href).toBe("about:blank");
+
+				await screen.getByRole("button", { name: "Preview" }).click();
+				await vi.waitFor(() =>
+					expect(open).toHaveBeenLastCalledWith(
+						"https://example.com/preview",
+						"emdash-preview-posts-item-1",
+					),
+				);
+				expect(onPreviewNotSaved).toHaveBeenCalledOnce();
+			} finally {
+				open.mockRestore();
+				vi.useRealTimers();
+			}
+		});
+
+		it("Preview after an entry switch doesn't wait for the previous entry's save", async () => {
+			vi.useFakeTimers();
+			const open = vi.spyOn(window, "open").mockReturnValue(null);
+			try {
+				const onAutosave = vi.fn(() => deferred().promise);
+				const props: ContentEditorProps = {
+					collection: "posts",
+					collectionLabel: "Post",
+					fields: defaultFields,
+					isNew: false,
+					item: makeItem({ status: "draft" }),
+					supportsPreview: true,
+					onSave: vi.fn(),
+					onAutosave,
+				};
+				const screen = await render(<ContentEditor {...props} />, { wrapper: Toasty });
+				await screen.getByLabelText("Title").fill("Typed just now");
+				await vi.advanceTimersByTimeAsync(2000);
+				expect(onAutosave).toHaveBeenCalledOnce();
+
+				await screen.rerender(
+					<ContentEditor {...props} item={makeItem({ id: "item-2", status: "draft" })} />,
+				);
+				await screen.getByRole("button", { name: "Preview" }).click();
+				await vi.waitFor(() =>
+					expect(open).toHaveBeenCalledExactlyOnceWith(
+						"https://example.com/preview",
+						"emdash-preview-posts-item-2",
+					),
+				);
+			} finally {
+				open.mockRestore();
+				vi.useRealTimers();
+			}
+		});
+
 		it("keeps one publish action reachable below lg", async () => {
 			const media = installMatchMedia(true);
 			try {
