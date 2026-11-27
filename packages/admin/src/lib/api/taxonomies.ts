@@ -227,7 +227,10 @@ export async function updateTerm(
 	options: LocaleOptions = {},
 ): Promise<TaxonomyTerm> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/taxonomies/${taxonomyName}/terms/${slug}`, options.locale),
+		withLocale(
+			`${API_BASE}/taxonomies/${taxonomyName}/terms/${encodeURIComponent(slug)}`,
+			options.locale,
+		),
 		{
 			method: "PUT",
 			headers: { "Content-Type": "application/json" },
@@ -270,7 +273,10 @@ export async function deleteTerm(
 	options: LocaleOptions = {},
 ): Promise<void> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/taxonomies/${taxonomyName}/terms/${slug}`, options.locale),
+		withLocale(
+			`${API_BASE}/taxonomies/${taxonomyName}/terms/${encodeURIComponent(slug)}`,
+			options.locale,
+		),
 		{ method: "DELETE" },
 	);
 	if (!response.ok) await throwResponseError(response, i18n._(msg`Failed to delete term`));
@@ -283,7 +289,10 @@ export async function fetchTermTranslations(
 	options: LocaleOptions = {},
 ): Promise<TermTranslationsResponse> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/taxonomies/${taxonomyName}/terms/${slug}/translations`, options.locale),
+		withLocale(
+			`${API_BASE}/taxonomies/${taxonomyName}/terms/${encodeURIComponent(slug)}/translations`,
+			options.locale,
+		),
 	);
 	return parseApiResponse<TermTranslationsResponse>(
 		response,
@@ -302,7 +311,10 @@ export async function createTermTranslation(
 	options: LocaleOptions = {},
 ): Promise<TaxonomyTerm> {
 	const response = await apiFetch(
-		withLocale(`${API_BASE}/taxonomies/${taxonomyName}/terms/${slug}/translations`, options.locale),
+		withLocale(
+			`${API_BASE}/taxonomies/${taxonomyName}/terms/${encodeURIComponent(slug)}/translations`,
+			options.locale,
+		),
 		{
 			method: "POST",
 			headers: { "Content-Type": "application/json" },

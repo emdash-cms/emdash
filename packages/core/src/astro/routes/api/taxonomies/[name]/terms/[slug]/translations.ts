@@ -18,6 +18,7 @@ import {
 } from "#api/handlers/taxonomies.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery } from "#api/schemas.js";
+import { getTermSlug } from "#api/term-slug.js";
 import { taxonomyTag } from "#cache/chrome-tags.js";
 import { invalidateRouteCache } from "#cache/route-cache.js";
 
@@ -33,8 +34,8 @@ const createTermTranslationBody = z
 
 export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
-	const { name, slug } = params;
-	if (!name || !slug) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
+	const { name } = params;
+	if (!name) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -47,6 +48,8 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	if (isParseError(query)) return query;
 
 	try {
+		const slug = getTermSlug(request);
+		if (!slug) return apiError("VALIDATION_ERROR", "Valid term slug required", 400);
 		const anchor = await handleTermGet(emdash.db, name, slug, { locale: query.locale });
 		if (!anchor.success) return unwrapResult(anchor);
 		const result = await handleTermTranslations(emdash.db, anchor.data.term.id);
@@ -58,8 +61,8 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 
 export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
-	const { name, slug } = params;
-	if (!name || !slug) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
+	const { name } = params;
+	if (!name) return apiError("VALIDATION_ERROR", "Taxonomy name and slug required", 400);
 
 	if (!emdash?.db) {
 		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
@@ -72,6 +75,8 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	if (isParseError(query)) return query;
 
 	try {
+		const slug = getTermSlug(request);
+		if (!slug) return apiError("VALIDATION_ERROR", "Valid term slug required", 400);
 		const body = await parseBody(request, createTermTranslationBody);
 		if (isParseError(body)) return body;
 
