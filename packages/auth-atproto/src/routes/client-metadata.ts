@@ -23,7 +23,7 @@ export const GET: APIRoute = async ({ url, locals }) => {
 	const metadata = {
 		client_id: `${baseUrl}/.well-known/atproto-client-metadata.json`,
 		redirect_uris: [`${baseUrl}/_emdash/api/auth/atproto/callback`],
-		scope: "atproto transition:generic",
+		scope: "atproto",
 		application_type: "web",
 		subject_type: "public",
 		response_types: ["code"],

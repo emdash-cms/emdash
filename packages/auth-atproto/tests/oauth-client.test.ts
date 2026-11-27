@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+import { resolveAtprotoProfile } from "../src/oauth-client.js";
 
 const LOCALHOST_RE = /^http:\/\/localhost/;
 
@@ -8,6 +10,109 @@ async function freshImport() {
 	vi.resetModules();
 	return import("../src/oauth-client.js");
 }
+
+const routes = new Map<string, () => Response>();
+
+function servePlc(did: string, handle: string) {
+	routes.set(`https://plc.directory/${encodeURIComponent(did)}`, () =>
+		Response.json({
+			id: did,
+			alsoKnownAs: [`at://${handle}`],
+			service: [
+				{
+					id: "#atproto_pds",
+					type: "AtprotoPersonalDataServer",
+					serviceEndpoint: "https://pds.example.com",
+				},
+			],
+		}),
+	);
+}
+
+function serveDns(handle: string, did: string) {
+	const name = `_atproto.${handle}`;
+	routes.set(`https://cloudflare-dns.com/dns-query?name=${name}&type=TXT`, () =>
+		Response.json({
+			Status: 0,
+			TC: false,
+			RD: true,
+			RA: true,
+			AD: false,
+			CD: false,
+			Question: [{ name, type: 16 }],
+			Answer: [{ name, type: 16, TTL: 300, data: `"did=${did}"` }],
+		}),
+	);
+}
+
+function serveProfile(did: string, displayName: string) {
+	routes.set(
+		`https://pds.example.com/xrpc/com.atproto.repo.getRecord?repo=${encodeURIComponent(did)}&collection=app.bsky.actor.profile&rkey=self`,
+		() => Response.json({ value: { displayName } }),
+	);
+}
+
+describe("resolveAtprotoProfile", () => {
+	const did = "did:plc:aaaaaaaaaaaaaaaaaaaaaaaa" as const;
+	const handle = "alice.example.com";
+
+	beforeEach(() => {
+		routes.clear();
+		vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+			const route = routes.get(input instanceof Request ? input.url : input.toString());
+			if (!route) throw new TypeError("fetch failed");
+			return route();
+		});
+		vi.spyOn(console, "warn").mockImplementation(() => {});
+	});
+
+	afterEach(() => {
+		vi.restoreAllMocks();
+	});
+
+	it("returns the verified handle and display name without using the session", async () => {
+		servePlc(did, handle);
+		serveDns(handle, did);
+		serveProfile(did, "Alice");
+		const session = { did, handle: vi.fn() };
+
+		await expect(resolveAtprotoProfile(session)).resolves.toEqual({
+			handle,
+			displayName: "Alice",
+		});
+		expect(session.handle).not.toHaveBeenCalled();
+	});
+
+	it("falls back to the DID when the document's handle resolves to another DID", async () => {
+		servePlc(did, handle);
+		serveDns(handle, "did:plc:bbbbbbbbbbbbbbbbbbbbbbbb");
+		serveProfile(did, "Alice");
+
+		await expect(resolveAtprotoProfile({ did })).resolves.toEqual({
+			handle: did,
+			displayName: "Alice",
+		});
+	});
+
+	it("returns a null display name when the account has no profile record", async () => {
+		servePlc(did, handle);
+		serveDns(handle, did);
+
+		await expect(resolveAtprotoProfile({ did })).resolves.toEqual({
+			handle,
+			displayName: null,
+		});
+	});
+
+	it("falls back to the DID when the DID document cannot be resolved", async () => {
+		serveProfile(did, "Alice");
+
+		await expect(resolveAtprotoProfile({ did })).resolves.toEqual({
+			handle: did,
+			displayName: null,
+		});
+	});
+});
 
 describe("getAtprotoOAuthClient (HTTPS - public client)", () => {
 	beforeEach(() => {
@@ -46,7 +151,7 @@ describe("getAtprotoOAuthClient (HTTPS - public client)", () => {
 	it("requests atproto scope", async () => {
 		const { getAtprotoOAuthClient } = await freshImport();
 		const client = await getAtprotoOAuthClient("https://example.com");
-		expect(client.metadata.scope).toBe("atproto transition:generic");
+		expect(client.metadata.scope).toBe("atproto");
 	});
 
 	it("creates a fresh instance per call (no shared state between requests)", async () => {
