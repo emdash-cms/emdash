@@ -1,0 +1,468 @@
+import { Role } from "@emdash-cms/auth";
+import { sql, type Kysely } from "kysely";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+	handleEditorialCommentCreate,
+	handleEditorialCommentDelete,
+	handleEditorialCommentUpdate,
+	handleEditorialMentionable,
+	handleEditorialThreadCreate,
+	handleEditorialThreadList,
+	type EditorialActor,
+	type EditorialEntryRef,
+} from "../../../src/api/handlers/editorial-comments.js";
+import { ContentRepository } from "../../../src/database/repositories/content.js";
+import { RevisionRepository } from "../../../src/database/repositories/revision.js";
+import type { Database } from "../../../src/database/types.js";
+import {
+	buildEditorialNotificationEmail,
+	sendEditorialCommentNotifications,
+	type EditorialCommentCreated,
+} from "../../../src/editorial/notifications.js";
+import type { EmailPipeline } from "../../../src/plugins/email.js";
+import type { EmailMessage } from "../../../src/plugins/types.js";
+import {
+	describeEachDialect,
+	setupForDialectWithCollections,
+	teardownForDialect,
+	type DialectTestContext,
+} from "../../utils/test-db.js";
+
+const ADA: EditorialActor = { id: "user-ada", role: Role.CONTRIBUTOR };
+const GRACE: EditorialActor = { id: "user-grace", role: Role.EDITOR };
+const LIN: EditorialActor = { id: "user-lin", role: Role.AUTHOR };
+const SUBSCRIBER = "user-sub";
+const DISABLED = "user-disabled";
+
+const ANCHOR = { type: "entry" } as const;
+const ADMIN_BASE = "https://example.com/_emdash";
+
+function expectData<T>(
+	result: { success: true; data: T } | { success: false; error: { code: string } },
+): T {
+	if (!result.success) throw new Error(`Expected success, got ${result.error.code}`);
+	return result.data;
+}
+
+function fakeEmail(available = true) {
+	const sent: EmailMessage[] = [];
+	const email = {
+		isAvailable: () => available,
+		send: vi.fn(async (message: EmailMessage) => {
+			sent.push(message);
+		}),
+	};
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- notifications use only these two methods
+	return { email: email as unknown as EmailPipeline, sent };
+}
+
+describeEachDialect("editorial mentions and notifications", (dialect) => {
+	let ctx: DialectTestContext;
+	let db: Kysely<Database>;
+	let entry: EditorialEntryRef;
+
+	beforeEach(async () => {
+		ctx = await setupForDialectWithCollections(dialect);
+		db = ctx.db;
+		await db
+			.insertInto("users")
+			.values([
+				...[
+					{ actor: ADA, name: "Ada Lovelace" },
+					{ actor: GRACE, name: "Grace Hopper" },
+					{ actor: LIN, name: "Lin 100%_real" },
+				].map(({ actor, name }) => ({
+					id: actor.id,
+					email: `${actor.id}@example.com`,
+					name,
+					role: actor.role,
+					email_verified: 1,
+					disabled: 0,
+				})),
+				{
+					id: SUBSCRIBER,
+					email: "sub@example.com",
+					name: "Sub Scriber",
+					role: Role.SUBSCRIBER,
+					email_verified: 1,
+					disabled: 0,
+				},
+				{
+					id: DISABLED,
+					email: "gone@example.com",
+					name: "Ada Disabled",
+					role: Role.EDITOR,
+					email_verified: 1,
+					disabled: 1,
+				},
+			])
+			.execute();
+		const item = await new ContentRepository(db).create({
+			type: "post",
+			data: { title: "Launch post" },
+			authorId: LIN.id,
+		});
+		entry = { collection: "post", id: item.id };
+	});
+
+	afterEach(async () => {
+		await teardownForDialect(ctx);
+	});
+
+	it("rejects mentions of users who can't take part, on create and on edit", async () => {
+		for (const id of [SUBSCRIBER, DISABLED, "user-missing"]) {
+			const result = await handleEditorialThreadCreate(db, ADA, entry, {
+				anchor: ANCHOR,
+				body: `Thoughts, <@${id}>?`,
+			});
+			expect(result).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+		}
+
+		const thread = expectData(
+			await handleEditorialThreadCreate(db, ADA, entry, { anchor: ANCHOR, body: "Draft" }),
+		);
+		const edit = await handleEditorialCommentUpdate(
+			db,
+			ADA,
+			entry,
+			thread.id,
+			thread.comments[0]!.id,
+			{
+				body: `cc <@${SUBSCRIBER}>`,
+			},
+		);
+		expect(edit).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+	});
+
+	it("keeps an edit's existing mentions of users who can no longer take part", async () => {
+		const thread = expectData(
+			await handleEditorialThreadCreate(db, ADA, entry, {
+				anchor: ANCHOR,
+				body: `Ask <@${GRACE.id}> and <@${LIN.id}>. Draft`,
+			}),
+		);
+		await db.updateTable("users").set({ disabled: 1 }).where("id", "=", GRACE.id).execute();
+		await db.updateTable("users").set({ role: Role.SUBSCRIBER }).where("id", "=", LIN.id).execute();
+
+		const edited = expectData(
+			await handleEditorialCommentUpdate(db, ADA, entry, thread.id, thread.comments[0]!.id, {
+				body: `Ask <@${GRACE.id}> and <@${LIN.id}>. Final`,
+			}),
+		);
+		expect(edited.comments[0]!.body).toBe(`Ask <@${GRACE.id}> and <@${LIN.id}>. Final`);
+
+		await db.deleteFrom("users").where("id", "=", GRACE.id).execute();
+		expectData(
+			await handleEditorialCommentUpdate(db, ADA, entry, thread.id, thread.comments[0]!.id, {
+				body: `Ask <@${GRACE.id}> and <@${LIN.id}>. Final, really`,
+			}),
+		);
+
+		const added = await handleEditorialCommentUpdate(
+			db,
+			ADA,
+			entry,
+			thread.id,
+			thread.comments[0]!.id,
+			{ body: `Ask <@${GRACE.id}> and <@${LIN.id}>. cc <@${SUBSCRIBER}>` },
+		);
+		expect(added).toMatchObject({ success: false, error: { code: "VALIDATION_ERROR" } });
+	});
+
+	it("returns mentioned users with their current names", async () => {
+		await handleEditorialThreadCreate(db, ADA, entry, {
+			anchor: ANCHOR,
+			body: `<@${GRACE.id}> can you check this?`,
+		});
+		await db
+			.updateTable("users")
+			.set({ name: "Rear Admiral Hopper" })
+			.where("id", "=", GRACE.id)
+			.execute();
+
+		const [thread] = expectData(
+			await handleEditorialThreadList(db, ADA, entry, { status: "open", limit: 50 }),
+		).items;
+
+		expect(thread!.mentions).toEqual([
+			{ id: GRACE.id, name: "Rear Admiral Hopper", avatarUrl: null },
+		]);
+	});
+
+	it("lists mentionable users by name, without email addresses", async () => {
+		const all = expectData(await handleEditorialMentionable(db, entry, ""));
+		expect(all.items.map((user) => user.id)).toEqual([ADA.id, GRACE.id, LIN.id]);
+		expect(JSON.stringify(all)).not.toContain("@example.com");
+
+		const ada = expectData(await handleEditorialMentionable(db, entry, "ada"));
+		expect(ada.items.map((user) => user.id)).toEqual([ADA.id]);
+
+		const literal = expectData(await handleEditorialMentionable(db, entry, "100%_"));
+		expect(literal.items.map((user) => user.id)).toEqual([LIN.id]);
+		const wildcard = expectData(await handleEditorialMentionable(db, entry, "%"));
+		expect(wildcard.items.map((user) => user.id)).toEqual([LIN.id]);
+	});
+
+	it("matches names outside ASCII whatever their case", async () => {
+		await db
+			.insertInto("users")
+			.values(
+				[
+					{ id: "u-emile", name: "Émile Zola" },
+					{ id: "u-anna", name: "Анна Петрова" },
+				].map(({ id, name }) => ({
+					id,
+					email: `${id}@example.com`,
+					name,
+					role: Role.CONTRIBUTOR,
+					email_verified: 1,
+					disabled: 0,
+				})),
+			)
+			.execute();
+
+		for (const [query, id] of [
+			["ém", "u-emile"],
+			["ÉMILE", "u-emile"],
+			["ан", "u-anna"],
+			["ПЕТ", "u-anna"],
+		]) {
+			const found = expectData(await handleEditorialMentionable(db, entry, query!));
+			expect(found.items.map((user) => user.id)).toEqual([id]);
+		}
+	});
+
+	it("lists users without a name last, and only without a search term", async () => {
+		const unnamed = [
+			{ id: "a-blank", name: "" },
+			{ id: "a-nameless", name: null },
+			{ id: "a-spaces", name: "   " },
+		];
+		await db
+			.insertInto("users")
+			.values(
+				unnamed.map(({ id, name }) => ({
+					id,
+					email: `${id}@example.com`,
+					name,
+					role: Role.CONTRIBUTOR,
+					email_verified: 1,
+					disabled: 0,
+				})),
+			)
+			.execute();
+
+		const all = expectData(await handleEditorialMentionable(db, entry, ""));
+		expect(all.items.map((user) => user.id)).toEqual([
+			ADA.id,
+			GRACE.id,
+			LIN.id,
+			"a-blank",
+			"a-nameless",
+			"a-spaces",
+		]);
+		const searched = expectData(await handleEditorialMentionable(db, entry, "a"));
+		expect(searched.items.map((user) => user.id)).not.toContain("a-nameless");
+	});
+
+	async function startThread(actor: EditorialActor, body: string) {
+		let created: EditorialCommentCreated | undefined;
+		const thread = expectData(
+			await handleEditorialThreadCreate(db, actor, entry, { anchor: ANCHOR, body }, (value) => {
+				created = value;
+			}),
+		);
+		return { thread, created: created! };
+	}
+
+	async function reply(actor: EditorialActor, threadId: string, body: string) {
+		let created: EditorialCommentCreated | undefined;
+		expectData(
+			await handleEditorialCommentCreate(db, actor, entry, threadId, { body }, (value) => {
+				created = value;
+			}),
+		);
+		return created!;
+	}
+
+	it("emails mentioned users and earlier participants, but not the author", async () => {
+		const { email, sent } = fakeEmail();
+		const { thread, created } = await startThread(ADA, `<@${GRACE.id}> is this claim sourced?`);
+
+		await sendEditorialCommentNotifications(db, email, { ...created, adminBaseUrl: ADMIN_BASE });
+		expect(sent.map((message) => message.to)).toEqual([`${GRACE.id}@example.com`]);
+		expect(sent[0]!.subject).toBe('Ada Lovelace mentioned you on "Launch post"');
+		expect(sent[0]!.text).toContain("@Grace Hopper is this claim sourced?");
+		expect(sent[0]!.text).toContain(
+			`${ADMIN_BASE}/admin/content/post/${entry.id}?thread=${thread.id}`,
+		);
+
+		sent.length = 0;
+		const graceReply = await reply(GRACE, thread.id, `Adding <@${LIN.id}>, who wrote it.`);
+		await sendEditorialCommentNotifications(db, email, { ...graceReply, adminBaseUrl: ADMIN_BASE });
+		expect(
+			sent
+				.map((message) => [message.to, message.subject])
+				.toSorted(([a], [b]) => a!.localeCompare(b!)),
+		).toEqual([
+			[`${ADA.id}@example.com`, 'Grace Hopper commented on "Launch post"'],
+			[`${LIN.id}@example.com`, 'Grace Hopper mentioned you on "Launch post"'],
+		]);
+	});
+
+	it("names the entry by the title in its draft", async () => {
+		const draft = await new RevisionRepository(db).create({
+			collection: "post",
+			entryId: entry.id,
+			data: { title: "Relaunch post" },
+		});
+		await sql`UPDATE ec_post SET draft_revision_id = ${draft.id} WHERE id = ${entry.id}`.execute(
+			db,
+		);
+		const { email, sent } = fakeEmail();
+		const { created } = await startThread(ADA, `<@${GRACE.id}> is this claim sourced?`);
+
+		await sendEditorialCommentNotifications(db, email, { ...created, adminBaseUrl: ADMIN_BASE });
+
+		expect(sent[0]!.subject).toBe('Ada Lovelace mentioned you on "Relaunch post"');
+	});
+
+	it("names someone whose name is only spaces as a teammate", async () => {
+		await db.updateTable("users").set({ name: "   " }).where("id", "=", ADA.id).execute();
+		const { email, sent } = fakeEmail();
+		const { created } = await startThread(ADA, `<@${GRACE.id}> is this claim sourced?`);
+
+		await sendEditorialCommentNotifications(db, email, { ...created, adminBaseUrl: ADMIN_BASE });
+
+		expect(sent[0]!.subject).toBe('a teammate mentioned you on "Launch post"');
+	});
+
+	it("skips participants who can no longer comment", async () => {
+		const { email, sent } = fakeEmail();
+		const { thread } = await startThread(ADA, "Needs a source.");
+		await db.updateTable("users").set({ role: Role.SUBSCRIBER }).where("id", "=", ADA.id).execute();
+
+		const created = await reply(GRACE, thread.id, "Agreed.");
+		const count = await sendEditorialCommentNotifications(db, email, {
+			...created,
+			adminBaseUrl: ADMIN_BASE,
+		});
+
+		expect(count).toBe(0);
+		expect(sent).toEqual([]);
+	});
+
+	it("emails only the users an edit newly mentions", async () => {
+		const { email, sent } = fakeEmail();
+		const { thread } = await startThread(ADA, "Needs a source.");
+		const graceReply = await reply(GRACE, thread.id, "Agreed.");
+		const hook = vi.fn();
+
+		expectData(
+			await handleEditorialCommentUpdate(
+				db,
+				GRACE,
+				entry,
+				thread.id,
+				graceReply.commentId,
+				{ body: `Agreed. <@${LIN.id}>, can you find one?` },
+				hook,
+			),
+		);
+		expect(hook).toHaveBeenCalledOnce();
+		await sendEditorialCommentNotifications(db, email, {
+			...hook.mock.calls[0]![0],
+			adminBaseUrl: ADMIN_BASE,
+		});
+		expect(sent.map((message) => [message.to, message.subject])).toEqual([
+			[`${LIN.id}@example.com`, 'Grace Hopper mentioned you on "Launch post"'],
+		]);
+
+		hook.mockClear();
+		expectData(
+			await handleEditorialCommentUpdate(
+				db,
+				GRACE,
+				entry,
+				thread.id,
+				graceReply.commentId,
+				{ body: `Agreed. <@${LIN.id}>, could you find one?` },
+				hook,
+			),
+		);
+		expect(hook).not.toHaveBeenCalled();
+	});
+
+	it("stops emailing someone whose comments in the thread were deleted", async () => {
+		const { email, sent } = fakeEmail();
+		const { thread } = await startThread(ADA, "Needs a source.");
+		const linReply = await reply(LIN, thread.id, "On it.");
+		expectData(await handleEditorialCommentDelete(db, LIN, entry, thread.id, linReply.commentId));
+
+		const created = await reply(GRACE, thread.id, "Any luck?");
+		await sendEditorialCommentNotifications(db, email, { ...created, adminBaseUrl: ADMIN_BASE });
+
+		expect(sent.map((message) => message.to)).toEqual([`${ADA.id}@example.com`]);
+	});
+
+	it("sends nothing without an email provider", async () => {
+		const { email, sent } = fakeEmail(false);
+		const { created } = await startThread(ADA, `<@${GRACE.id}> please look`);
+
+		const count = await sendEditorialCommentNotifications(db, email, {
+			...created,
+			adminBaseUrl: ADMIN_BASE,
+		});
+
+		expect(count).toBe(0);
+		expect(email.send).not.toHaveBeenCalled();
+		expect(sent).toEqual([]);
+	});
+
+	it("doesn't call the created hook when the write is refused", async () => {
+		const onCreated = vi.fn();
+
+		await handleEditorialThreadCreate(
+			db,
+			ADA,
+			entry,
+			{ anchor: ANCHOR, body: `<@${SUBSCRIBER}>` },
+			onCreated,
+		);
+
+		expect(onCreated).not.toHaveBeenCalled();
+	});
+});
+
+describe("buildEditorialNotificationEmail", () => {
+	const base = {
+		to: "grace@example.com",
+		authorName: "Ada Lovelace",
+		mentioned: true,
+		entryTitle: "Launch post",
+		excerpt: "Looks good.",
+		link: "https://example.com/_emdash/admin/content/post/1?thread=t1",
+	};
+
+	it("escapes names and titles in the HTML and keeps the subject on one line", () => {
+		const message = buildEditorialNotificationEmail({
+			...base,
+			authorName: "<img src=x onerror=alert(1)>",
+			entryTitle: "Launch\r\nBcc: everyone@example.com",
+		});
+
+		expect(message.html).not.toContain("<img");
+		expect(message.html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+		expect(message.subject).not.toMatch(/[\r\n]/);
+	});
+
+	it("shortens a long excerpt without splitting a character", () => {
+		const message = buildEditorialNotificationEmail({
+			...base,
+			excerpt: `${"a".repeat(499)}😀😀`,
+		});
+
+		expect(message.text).toContain(`${"a".repeat(499)}😀…`);
+	});
+});

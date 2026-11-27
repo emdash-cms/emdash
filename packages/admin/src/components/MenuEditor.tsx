@@ -677,6 +677,7 @@ export function MenuEditor() {
 			</header>
 
 			<ContentPickerModal
+				filterLocale={menuLocale}
 				open={isContentPickerOpen}
 				onOpenChange={setIsContentPickerOpen}
 				onConfirm={(rows) => {

@@ -123,7 +123,7 @@ msgstr ""
 msgid " (default)"
 msgstr " (standard)"
 
-#: packages/admin/src/components/MenuEditor.tsx:753
+#: packages/admin/src/components/MenuEditor.tsx:754
 msgid " (opens in new window)"
 msgstr " (åpnes i nytt vindu)"
 
@@ -137,7 +137,7 @@ msgid ", "
 msgstr ""
 
 #. placeholder {0}: item.label
-#: packages/admin/src/components/MenuEditor.tsx:805
+#: packages/admin/src/components/MenuEditor.tsx:806
 msgid "\"{0}\" and its nested items will be removed from this menu. This action cannot be undone."
 msgstr ""
 
@@ -157,7 +157,7 @@ msgid "\"{0}\" will be permanently deleted."
 msgstr ""
 
 #. placeholder {0}: item.label
-#: packages/admin/src/components/MenuEditor.tsx:806
+#: packages/admin/src/components/MenuEditor.tsx:807
 msgid "\"{0}\" will be removed from this menu. This action cannot be undone."
 msgstr ""
 
@@ -1655,13 +1655,13 @@ msgid "Add column before"
 msgstr "Legg til kolonne før"
 
 #: packages/admin/src/components/MenuEditor.tsx:585
-#: packages/admin/src/components/MenuEditor.tsx:725
+#: packages/admin/src/components/MenuEditor.tsx:726
 msgid "Add Content"
 msgstr "Legg til innhold"
 
 #: packages/admin/src/components/MenuEditor.tsx:598
 #: packages/admin/src/components/MenuEditor.tsx:603
-#: packages/admin/src/components/MenuEditor.tsx:728
+#: packages/admin/src/components/MenuEditor.tsx:729
 msgid "Add Custom Link"
 msgstr "Legg til egendefinert lenke"
 
@@ -1735,7 +1735,7 @@ msgstr ""
 msgid "Add link"
 msgstr "Legg til lenke"
 
-#: packages/admin/src/components/MenuEditor.tsx:718
+#: packages/admin/src/components/MenuEditor.tsx:719
 msgid "Add links to build your navigation menu"
 msgstr "Legg til lenker for å bygge navigasjonsmenyen din"
 
@@ -1770,7 +1770,7 @@ msgstr "Legg til passnøkkel"
 msgid "Add reference"
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:215
+#: packages/admin/src/components/ContentPickerModal.tsx:219
 msgid "Add references"
 msgstr ""
 
@@ -1788,7 +1788,7 @@ msgstr ""
 msgid "Add scripts and styles to your site's pages"
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:390
+#: packages/admin/src/components/ContentPickerModal.tsx:394
 msgid "Add selected"
 msgstr ""
 
@@ -2954,7 +2954,7 @@ msgstr ""
 #: packages/admin/src/components/BylineFormDialog.tsx:556
 #: packages/admin/src/components/CapabilityConsentDialog.tsx:343
 #: packages/admin/src/components/ConfirmDialog.tsx:163
-#: packages/admin/src/components/ContentPickerModal.tsx:386
+#: packages/admin/src/components/ContentPickerModal.tsx:390
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:608
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:827
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:421
@@ -2965,7 +2965,7 @@ msgstr ""
 #: packages/admin/src/components/MediaPickerModal.tsx:1641
 #: packages/admin/src/components/MenuEditor.tsx:565
 #: packages/admin/src/components/MenuEditor.tsx:664
-#: packages/admin/src/components/MenuEditor.tsx:894
+#: packages/admin/src/components/MenuEditor.tsx:895
 #: packages/admin/src/components/MenuList.tsx:238
 #: packages/admin/src/components/PortableTextEditor.tsx:1431
 #: packages/admin/src/components/PortableTextEditor.tsx:4636
@@ -3138,7 +3138,7 @@ msgstr ""
 msgid "Change the field's label and what it accepts."
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:830
+#: packages/admin/src/components/MenuEditor.tsx:831
 msgid "Change this item's label, link and place in the menu."
 msgstr ""
 
@@ -3551,9 +3551,9 @@ msgstr ""
 #: packages/admin/src/components/BulkTagDialog.tsx:275
 #: packages/admin/src/components/calendar/CalendarEntryPanel.tsx:324
 #: packages/admin/src/components/comments/CommentDetail.tsx:60
-#: packages/admin/src/components/ContentPickerModal.tsx:225
-#: packages/admin/src/components/ContentPickerModal.tsx:231
+#: packages/admin/src/components/ContentPickerModal.tsx:229
 #: packages/admin/src/components/ContentPickerModal.tsx:235
+#: packages/admin/src/components/ContentPickerModal.tsx:239
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:628
 #: packages/admin/src/components/editor/ImageDetailPanel.tsx:630
 #: packages/admin/src/components/MarketplacePluginDetail.tsx:466
@@ -3629,7 +3629,7 @@ msgid "colleague@example.com"
 msgstr "kollega@example.com"
 
 #: packages/admin/src/components/calendar/CalendarFilters.tsx:70
-#: packages/admin/src/components/ContentPickerModal.tsx:261
+#: packages/admin/src/components/ContentPickerModal.tsx:265
 msgid "Collection"
 msgstr "Samling"
 
@@ -4161,7 +4161,7 @@ msgstr ""
 msgid "Couldn't load byline fields."
 msgstr "Kunne ikke laste byline-felt."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:276
+#: packages/admin/src/components/ContentPickerModal.tsx:280
 msgid "Couldn't load content."
 msgstr ""
 
@@ -4537,12 +4537,12 @@ msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:652
 #: packages/admin/src/components/MenuEditor.tsx:655
-#: packages/admin/src/components/MenuEditor.tsx:873
-#: packages/admin/src/components/MenuEditor.tsx:876
+#: packages/admin/src/components/MenuEditor.tsx:874
+#: packages/admin/src/components/MenuEditor.tsx:877
 msgid "CSS classes"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:757
+#: packages/admin/src/components/MenuEditor.tsx:758
 msgid "CSS classes:"
 msgstr ""
 
@@ -4714,8 +4714,8 @@ msgstr "Definert i kode"
 #: packages/admin/src/components/MediaDetailPanel.tsx:1808
 #: packages/admin/src/components/MediaDetailPanel.tsx:1910
 #: packages/admin/src/components/MediaFolderDialog.tsx:198
-#: packages/admin/src/components/MenuEditor.tsx:790
-#: packages/admin/src/components/MenuEditor.tsx:808
+#: packages/admin/src/components/MenuEditor.tsx:791
+#: packages/admin/src/components/MenuEditor.tsx:809
 #: packages/admin/src/components/MenuList.tsx:291
 #: packages/admin/src/components/Redirects.tsx:539
 #: packages/admin/src/components/Redirects.tsx:902
@@ -4857,7 +4857,7 @@ msgstr ""
 msgid "Delete menu"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:802
+#: packages/admin/src/components/MenuEditor.tsx:803
 msgid "Delete menu item?"
 msgstr ""
 
@@ -4955,7 +4955,7 @@ msgstr "Sletting av \"{0}\" fjerner også {1, plural, one {# lagret verdi} other
 #: packages/admin/src/components/MediaDetailPanel.tsx:1808
 #: packages/admin/src/components/MediaDetailPanel.tsx:1911
 #: packages/admin/src/components/MediaFolderDialog.tsx:219
-#: packages/admin/src/components/MenuEditor.tsx:809
+#: packages/admin/src/components/MenuEditor.tsx:810
 #: packages/admin/src/components/MenuList.tsx:292
 #: packages/admin/src/components/Redirects.tsx:903
 #: packages/admin/src/components/RelationDeleteDialog.tsx:41
@@ -5513,7 +5513,7 @@ msgstr ""
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:380
 #: packages/admin/src/components/editor/PluginBlockNode.tsx:381
 #: packages/admin/src/components/MenuCard.tsx:59
-#: packages/admin/src/components/MenuEditor.tsx:785
+#: packages/admin/src/components/MenuEditor.tsx:786
 #: packages/admin/src/components/Redirects.tsx:530
 #: packages/admin/src/components/RelationList.tsx:230
 #: packages/admin/src/components/Sections.tsx:513
@@ -5648,7 +5648,7 @@ msgstr ""
 msgid "Edit menu"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:828
+#: packages/admin/src/components/MenuEditor.tsx:829
 msgid "Edit Menu Item"
 msgstr "Rediger menyelement"
 
@@ -8901,7 +8901,7 @@ msgstr ""
 #: packages/admin/src/components/MenuEditor.tsx:550
 #: packages/admin/src/components/MenuEditor.tsx:553
 #: packages/admin/src/components/MenuEditor.tsx:615
-#: packages/admin/src/components/MenuEditor.tsx:836
+#: packages/admin/src/components/MenuEditor.tsx:837
 #: packages/admin/src/components/MenuList.tsx:203
 #: packages/admin/src/components/MenuList.tsx:206
 #: packages/admin/src/components/TaxonomyManager.tsx:962
@@ -9159,7 +9159,7 @@ msgstr ""
 msgid "Live View"
 msgstr "Live-visning"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:374
+#: packages/admin/src/components/ContentPickerModal.tsx:378
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaUsedIn.tsx:248
 #: packages/admin/src/components/Redirects.tsx:867
@@ -9224,7 +9224,7 @@ msgstr "Laster kommentarer..."
 msgid "Loading configuration..."
 msgstr "Laster konfigurasjon..."
 
-#: packages/admin/src/components/ContentPickerModal.tsx:270
+#: packages/admin/src/components/ContentPickerModal.tsx:274
 msgid "Loading content..."
 msgstr "Laster innhold..."
 
@@ -9323,7 +9323,7 @@ msgstr "Laster moduler..."
 #: packages/admin/src/components/ContentList.tsx:950
 #: packages/admin/src/components/ContentList.tsx:989
 #: packages/admin/src/components/ContentList.tsx:1013
-#: packages/admin/src/components/ContentPickerModal.tsx:371
+#: packages/admin/src/components/ContentPickerModal.tsx:375
 #: packages/admin/src/components/MarketplaceBrowse.tsx:200
 #: packages/admin/src/components/MediaDetailPanel.tsx:607
 #: packages/admin/src/components/MediaDetailPanel.tsx:623
@@ -9919,7 +9919,7 @@ msgid "Move {0} up"
 msgstr ""
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:212
-#: packages/admin/src/components/MenuEditor.tsx:778
+#: packages/admin/src/components/MenuEditor.tsx:779
 #: packages/admin/src/components/RowMenuItems.tsx:83
 #: packages/admin/src/components/TaxonomyManager.tsx:429
 #: packages/admin/src/routes/byline-schema.tsx:443
@@ -9966,7 +9966,7 @@ msgid "Move to Trash?"
 msgstr "Flytte til papirkurven?"
 
 #: packages/admin/src/components/editor/BlockMenu.tsx:206
-#: packages/admin/src/components/MenuEditor.tsx:769
+#: packages/admin/src/components/MenuEditor.tsx:770
 #: packages/admin/src/components/RowMenuItems.tsx:76
 #: packages/admin/src/components/TaxonomyManager.tsx:421
 #: packages/admin/src/routes/byline-schema.tsx:436
@@ -10248,8 +10248,8 @@ msgstr "Ny taksonomi"
 
 #: packages/admin/src/components/MenuEditor.tsx:642
 #: packages/admin/src/components/MenuEditor.tsx:645
-#: packages/admin/src/components/MenuEditor.tsx:863
-#: packages/admin/src/components/MenuEditor.tsx:866
+#: packages/admin/src/components/MenuEditor.tsx:864
+#: packages/admin/src/components/MenuEditor.tsx:867
 msgid "New window"
 msgstr "Nytt vindu"
 
@@ -10396,11 +10396,11 @@ msgstr ""
 msgid "No content"
 msgstr "Ingen innhold"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:286
+#: packages/admin/src/components/ContentPickerModal.tsx:290
 msgid "No content found"
 msgstr "Fant ingen innhold"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:292
+#: packages/admin/src/components/ContentPickerModal.tsx:296
 msgid "No content in this collection"
 msgstr "Ingen innhold i denne samlingen"
 
@@ -10583,7 +10583,7 @@ msgstr ""
 msgid "No media found"
 msgstr "Fant ingen medier"
 
-#: packages/admin/src/components/MenuEditor.tsx:717
+#: packages/admin/src/components/MenuEditor.tsx:718
 msgid "No menu items yet"
 msgstr "Ingen menyelementer ennå"
 
@@ -11154,7 +11154,7 @@ msgstr ""
 msgid "Paragraph inserted before table"
 msgstr ""
 
-#: packages/admin/src/components/MenuEditor.tsx:883
+#: packages/admin/src/components/MenuEditor.tsx:884
 #: packages/admin/src/components/TaxonomyManager.tsx:763
 msgid "Parent"
 msgstr "Overordnet"
@@ -12737,7 +12737,7 @@ msgstr ""
 
 #: packages/admin/src/components/BylineCreditsEditor.tsx:371
 #: packages/admin/src/components/ContentEditor.tsx:4717
-#: packages/admin/src/components/ContentPickerModal.tsx:278
+#: packages/admin/src/components/ContentPickerModal.tsx:282
 #: packages/admin/src/components/MarketplaceBrowse.tsx:143
 #: packages/admin/src/components/media/MediaBrowserItems.tsx:221
 #: packages/admin/src/components/MediaDetailPanel.tsx:1558
@@ -12987,8 +12987,8 @@ msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:642
 #: packages/admin/src/components/MenuEditor.tsx:644
-#: packages/admin/src/components/MenuEditor.tsx:863
-#: packages/admin/src/components/MenuEditor.tsx:865
+#: packages/admin/src/components/MenuEditor.tsx:864
+#: packages/admin/src/components/MenuEditor.tsx:866
 msgid "Same window"
 msgstr "Samme vindu"
 
@@ -13003,7 +13003,7 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
-#: packages/admin/src/components/MenuEditor.tsx:896
+#: packages/admin/src/components/MenuEditor.tsx:897
 #: packages/admin/src/components/PortableTextEditor.tsx:1433
 #: packages/admin/src/components/Redirects.tsx:313
 #: packages/admin/src/components/SaveButton.tsx:51
@@ -13116,7 +13116,7 @@ msgstr ""
 #: packages/admin/src/components/MediaDetailPanel.tsx:1870
 #: packages/admin/src/components/MediaFolderDialog.tsx:207
 #: packages/admin/src/components/MenuEditor.tsx:571
-#: packages/admin/src/components/MenuEditor.tsx:896
+#: packages/admin/src/components/MenuEditor.tsx:897
 #: packages/admin/src/components/PluginSettings.tsx:150
 #: packages/admin/src/components/PluginSettings.tsx:193
 #: packages/admin/src/components/Redirects.tsx:310
@@ -13331,7 +13331,7 @@ msgstr "Søk i kommentarer"
 msgid "Search comments..."
 msgstr "Søk i kommentarer …"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:246
+#: packages/admin/src/components/ContentPickerModal.tsx:250
 msgid "Search content..."
 msgstr "Søk i innhold …"
 
@@ -13645,7 +13645,7 @@ msgstr ""
 msgid "Select comment by {0}"
 msgstr "Velg kommentar fra {0}"
 
-#: packages/admin/src/components/ContentPickerModal.tsx:215
+#: packages/admin/src/components/ContentPickerModal.tsx:219
 msgid "Select content"
 msgstr ""
 
@@ -13848,7 +13848,7 @@ msgid "SEO Title"
 msgstr "SEO-tittel"
 
 #: packages/admin/src/components/MenuEditor.tsx:650
-#: packages/admin/src/components/MenuEditor.tsx:871
+#: packages/admin/src/components/MenuEditor.tsx:872
 msgid "Separate class names with spaces. Themes can use them to style the link."
 msgstr ""
 
@@ -14722,7 +14722,7 @@ msgid "Taking over..."
 msgstr ""
 
 #: packages/admin/src/components/MenuEditor.tsx:637
-#: packages/admin/src/components/MenuEditor.tsx:858
+#: packages/admin/src/components/MenuEditor.tsx:859
 msgid "Target"
 msgstr "Mål"
 
@@ -16013,7 +16013,7 @@ msgstr ""
 msgid "Try a different search or filter."
 msgstr ""
 
-#: packages/admin/src/components/ContentPickerModal.tsx:287
+#: packages/admin/src/components/ContentPickerModal.tsx:291
 #: packages/admin/src/components/SectionPickerModal.tsx:103
 msgid "Try adjusting your search"
 msgstr "Prøv å justere søket"
@@ -16556,7 +16556,7 @@ msgstr ""
 #: packages/admin/src/components/FieldEditor.tsx:741
 #: packages/admin/src/components/FieldEditor.tsx:1707
 #: packages/admin/src/components/MenuEditor.tsx:626
-#: packages/admin/src/components/MenuEditor.tsx:847
+#: packages/admin/src/components/MenuEditor.tsx:848
 #: packages/admin/src/components/PortableTextEditor.tsx:1415
 #: packages/admin/src/components/PortableTextEditor.tsx:2429
 msgid "URL"

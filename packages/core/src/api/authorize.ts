@@ -6,7 +6,7 @@
  */
 
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
-import { hasPermission, canActOnOwn, hasScope } from "@emdash-cms/auth";
+import { hasPermission, canActOnOwn, hasScope, Permissions } from "@emdash-cms/auth";
 
 import { isRecord } from "../plugin-utils.js";
 import { apiError } from "./error.js";
@@ -161,6 +161,28 @@ export function requireAnyPerm(
 	}
 	if (!permissions.some((permission) => hasPermission(user, permission))) {
 		return apiError("FORBIDDEN", "Insufficient permissions", 403);
+	}
+	return null;
+}
+
+const EDITORIAL_PERMISSIONS = [
+	"content:read_drafts",
+	"editorial:comment",
+] as const satisfies readonly Permission[];
+
+/** The lowest role that holds every permission editorial threads need. */
+export function editorialMinRole(): number {
+	return Math.max(...EDITORIAL_PERMISSIONS.map((permission) => Permissions[permission]));
+}
+
+/**
+ * Editorial threads discuss unpublished content, so every editorial route needs
+ * `content:read_drafts` as well as `editorial:comment`.
+ */
+export function requireEditorialPerm(user: UserLike | null | undefined): Response | null {
+	for (const permission of EDITORIAL_PERMISSIONS) {
+		const denied = requirePerm(user, permission);
+		if (denied) return denied;
 	}
 	return null;
 }

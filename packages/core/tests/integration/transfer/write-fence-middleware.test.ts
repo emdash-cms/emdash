@@ -69,6 +69,12 @@ const UNFENCED_WRITES: Array<[string, string]> = [
 	["POST", "/_emdash/api/typegen"],
 	["POST", "/_emdash/api/mcp"],
 	["POST", "/_emdash/api/content/posts/01ABC/room"],
+	["POST", "/_emdash/api/content/posts/01ABC/threads"],
+	["PATCH", "/_emdash/api/content/posts/01ABC/threads/anchors"],
+	["PATCH", "/_emdash/api/content/posts/01ABC/threads/01DEF"],
+	["DELETE", "/_emdash/api/content/posts/01ABC/threads/01DEF"],
+	["POST", "/_emdash/api/content/posts/01ABC/threads/01DEF/comments"],
+	["PATCH", "/_emdash/api/content/posts/01ABC/threads/01DEF/comments/01GHI"],
 	["POST", "/some/site/page"],
 ];
 

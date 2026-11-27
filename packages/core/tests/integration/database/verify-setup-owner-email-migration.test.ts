@@ -3,7 +3,7 @@ import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import { sql } from "kysely";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
-import * as migration099 from "../../../src/database/migrations/099_verify_setup_owner_email.js";
+import * as migration100 from "../../../src/database/migrations/100_verify_setup_owner_email.js";
 import { createMigrator } from "../../../src/database/migrations/runner.js";
 import {
 	createForDialect,
@@ -19,7 +19,7 @@ describeEachDialect("verify setup owner email migration", (dialect) => {
 		ctx = await createForDialect(dialect);
 		const { error } = await createMigrator(ctx.db, {
 			migrationTableSchema: ctx.pgCtx?.schemaName,
-		}).migrateTo("098_user_last_login");
+		}).migrateTo("099_editorial_comments");
 		if (error) throw error;
 	});
 
@@ -73,8 +73,8 @@ describeEachDialect("verify setup owner email migration", (dialect) => {
 		await addUser("owner@example.com", "2025-01-01T00:00:00.000Z");
 		await addUser("second-admin@example.com", "2025-02-01T00:00:00.000Z");
 
-		await migration099.up(ctx.db);
-		await migration099.up(ctx.db);
+		await migration100.up(ctx.db);
+		await migration100.up(ctx.db);
 
 		expect(await verifiedEmails()).toEqual(["owner@example.com"]);
 	});
@@ -82,7 +82,7 @@ describeEachDialect("verify setup owner email migration", (dialect) => {
 	it("leaves an owner who has a linked provider account unverified", async () => {
 		await addUser("owner@example.com", "2025-01-01T00:00:00.000Z", { provider: true });
 
-		await migration099.up(ctx.db);
+		await migration100.up(ctx.db);
 
 		expect(await verifiedEmails()).toEqual([]);
 	});
@@ -90,7 +90,7 @@ describeEachDialect("verify setup owner email migration", (dialect) => {
 	it("leaves an owner without a passkey unverified", async () => {
 		await addUser("owner@example.com", "2025-01-01T00:00:00.000Z", { passkey: false });
 
-		await migration099.up(ctx.db);
+		await migration100.up(ctx.db);
 
 		expect(await verifiedEmails()).toEqual([]);
 	});
@@ -99,7 +99,7 @@ describeEachDialect("verify setup owner email migration", (dialect) => {
 		await addUser("owner@example.com", "2025-01-01T00:00:00.000Z", { role: Role.EDITOR });
 		await addUser("admin@example.com", "2025-02-01T00:00:00.000Z");
 
-		await migration099.up(ctx.db);
+		await migration100.up(ctx.db);
 
 		expect(await verifiedEmails()).toEqual([]);
 	});
@@ -107,7 +107,7 @@ describeEachDialect("verify setup owner email migration", (dialect) => {
 	it("leaves an AT Protocol placeholder address unverified", async () => {
 		await addUser("did-plc-abc@atproto.invalid", "2025-01-01T00:00:00.000Z");
 
-		await migration099.up(ctx.db);
+		await migration100.up(ctx.db);
 
 		expect(await verifiedEmails()).toEqual([]);
 	});

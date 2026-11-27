@@ -134,6 +134,8 @@ export default defineConfig({
 		"src/plugins/adapt-sandbox-entry.ts",
 		// Platform adapter runtime used behind lazy sandbox bridges.
 		"src/plugins/host.ts",
+		// Editorial comment helpers for the playground seeder in @emdash-cms/cloudflare
+		"src/editorial/index.ts",
 		// Co-editing host boundary, notifications, site and room engine, for hosts in other packages
 		"src/rooms/index.ts",
 		"src/rooms/notifications.ts",

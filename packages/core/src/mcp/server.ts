@@ -9,6 +9,7 @@
  * The handlers instance is passed per-request via authInfo on the transport.
  */
 
+import { blockText, locateQuote } from "@emdash-cms/admin/internal/editorial-anchors";
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
 import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -32,7 +33,20 @@ import {
 
 import { after } from "../after.js";
 import { entryEditAccess, toPublishedListView, toPublishedView } from "../api/authorize.js";
+import {
+	handleEditorialCommentCreate,
+	handleEditorialMentionable,
+	handleEditorialThreadCreate,
+	handleEditorialThreadList,
+	handleEditorialThreadUpdate,
+} from "../api/handlers/editorial-comments.js";
 import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
+import {
+	EDITORIAL_COMMENT_MAX_LENGTH,
+	EDITORIAL_CONTEXT_MAX_LENGTH,
+	EDITORIAL_QUOTE_MAX_LENGTH,
+	editorialAnchorSchema,
+} from "../api/schemas/editorial-comments.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
@@ -40,7 +54,12 @@ import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
 import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
+import type { EditorialAnchor } from "../database/repositories/editorial-threads.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import {
+	queueEditorialCommentNotifications,
+	type EditorialCommentCreated,
+} from "../editorial/notifications.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
 import { isRouteCachedMedia, mediaCacheTag } from "../media/image-endpoint.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
@@ -3932,6 +3951,310 @@ export function createMcpServer(
 			} catch (error) {
 				return respondHandlerError(error, "SETTINGS_UPDATE_ERROR");
 			}
+		},
+	);
+
+	// =====================================================================
+	// Editorial comment tools
+	// =====================================================================
+
+	const editorialEntryShape = {
+		collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
+		id: z.string().describe("Content item ID (ULID) or slug"),
+		locale: z
+			.string()
+			.optional()
+			.describe("Locale to scope slug lookup (e.g. 'fr'). Only affects slug resolution."),
+	};
+	const editorialBody = z
+		.string()
+		.trim()
+		.min(1)
+		.max(EDITORIAL_COMMENT_MAX_LENGTH)
+		.describe(
+			"Plain text. Mention a user with <@USER_ID>; editorial_mentionable_list finds their IDs.",
+		);
+
+	/** Threads discuss unpublished content, so every editorial tool needs draft access too. */
+	function editorialActor(extra: { authInfo?: { extra?: Record<string, unknown> } }) {
+		const { userId, userRole } = getExtra(extra);
+		const actor = { id: userId, role: userRole };
+		if (
+			!hasPermission(actor, "content:read_drafts") ||
+			!hasPermission(actor, "editorial:comment")
+		) {
+			throw new EmDashAuthError(
+				"Insufficient permissions for this operation",
+				"INSUFFICIENT_PERMISSIONS",
+			);
+		}
+		return actor;
+	}
+
+	function editorialNotifier(extra: { authInfo?: { extra?: Record<string, unknown> } }) {
+		if (!request) return undefined;
+		const ec = getEmDash(extra);
+		return (created: EditorialCommentCreated) =>
+			queueEditorialCommentNotifications(
+				{ db: ec.db, email: ec.email, request, config: ec.config },
+				created,
+			);
+	}
+
+	server.registerTool(
+		"editorial_thread_list",
+		{
+			title: "List Editorial Threads",
+			description:
+				"List the editorial comment threads staff left on a content item, oldest first, " +
+				"each with all of its comments. Threads are private review notes, separate from " +
+				"public comments. Open threads by default. Each thread's `anchor` says what it " +
+				"points at: the whole entry, a field, a Portable Text block, or a quoted range " +
+				"of text. Comment bodies mention users as <@USER_ID>; `mentions` lists their names. " +
+				"When there are more threads, pass the response's `nextCursor` as `cursor` to get them.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				status: z
+					.enum(["open", "resolved", "all"])
+					.optional()
+					.describe("Which threads to list (default 'open')"),
+				limit: z.number().int().min(1).max(100).optional().describe("Max threads (default 50)"),
+				cursor: z
+					.string()
+					.min(1)
+					.max(2048)
+					.optional()
+					.describe("Pagination cursor from a previous response"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const actor = editorialActor(extra);
+			return unwrap(
+				await handleEditorialThreadList(
+					getEmDash(extra).db,
+					actor,
+					{ collection: args.collection, id: args.id, locale: args.locale },
+					{ status: args.status ?? "open", limit: args.limit ?? 50, cursor: args.cursor },
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"editorial_mentionable_list",
+		{
+			title: "List People to Mention",
+			description:
+				"Find users who can be mentioned in an entry's editorial comments, matched by display " +
+				"name, up to 10, without email addresses. Mention one in a comment body as " +
+				"<@USER_ID> with the `id` returned here; `@Name` text mentions nobody.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				query: z
+					.string()
+					.max(100)
+					.optional()
+					.describe("Text to match against display names. Omit to list the first users by name."),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			editorialActor(extra);
+			return unwrap(
+				await handleEditorialMentionable(
+					getEmDash(extra).db,
+					{ collection: args.collection, id: args.id, locale: args.locale },
+					args.query ?? "",
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"editorial_thread_create",
+		{
+			title: "Start Editorial Thread",
+			description:
+				"Start an editorial comment thread on a content item. Without `field`, the thread " +
+				"is about the whole entry. With `field` alone, it is about that field. With " +
+				"`field` and `quote`, it points at that exact text in a rich text (portableText) " +
+				"field of the current draft; the quote must appear once, so pass `prefix` or " +
+				"`suffix` (text just before or after it) when it appears more than once.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				body: editorialBody,
+				field: z.string().optional().describe("Field slug the thread is about"),
+				quote: z
+					.string()
+					.min(1)
+					.max(EDITORIAL_QUOTE_MAX_LENGTH)
+					.optional()
+					.describe("Exact text in a rich text field to comment on. Requires `field`."),
+				prefix: z
+					.string()
+					.max(EDITORIAL_CONTEXT_MAX_LENGTH)
+					.optional()
+					.describe("Text just before the quote, to tell repeated quotes apart"),
+				suffix: z
+					.string()
+					.max(EDITORIAL_CONTEXT_MAX_LENGTH)
+					.optional()
+					.describe("Text just after the quote, to tell repeated quotes apart"),
+			}),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			const actor = editorialActor(extra);
+			const ec = getEmDash(extra);
+			const ref = { collection: args.collection, id: args.id, locale: args.locale };
+
+			if (args.quote === undefined && (args.prefix !== undefined || args.suffix !== undefined)) {
+				return respondError("VALIDATION_ERROR", "`prefix` and `suffix` need a `quote`");
+			}
+
+			let anchor: EditorialAnchor = { type: "entry" };
+			let rev: string | undefined;
+			if (args.quote !== undefined) {
+				if (!args.field) {
+					return respondError("VALIDATION_ERROR", "`quote` needs the `field` it appears in");
+				}
+				const current = await ec.handleContentGet(args.collection, args.id, args.locale);
+				if (!current.success || !current.data) return unwrap(current);
+				const field = (await getCollectionFields(ec, args.collection))?.find(
+					(candidate) => candidate.slug === args.field,
+				);
+				if (!field) {
+					return respondError("VALIDATION_ERROR", `Unknown field '${args.field}'`);
+				}
+				if (field.type !== "portableText") {
+					return respondError(
+						"VALIDATION_ERROR",
+						`'${args.field}' isn't a rich text field, so it has no text to quote. ` +
+							"Omit `quote` to comment on the whole field.",
+					);
+				}
+				const data = current.data.item.data;
+				const fieldValue =
+					data && typeof data === "object" ? Reflect.get(data, args.field) : undefined;
+				const located = locateQuote(fieldValue, args.field, args.quote, {
+					prefix: args.prefix,
+					suffix: args.suffix,
+				});
+				if (located.status === "missing") {
+					const { quote } = args;
+					const inKeylessBlock =
+						Array.isArray(fieldValue) &&
+						fieldValue.some(
+							(block: unknown) =>
+								!(
+									block &&
+									typeof block === "object" &&
+									typeof Reflect.get(block, "_key") === "string"
+								) && blockText(block)?.includes(quote),
+						);
+					return respondError(
+						"VALIDATION_ERROR",
+						inKeylessBlock
+							? `The quote is in a block of '${args.field}' that has no \`_key\`, so a comment can't be anchored to it. ` +
+									"Give the field's blocks `_key`s with content_update, or omit `quote` to comment on the whole field."
+							: `The quote doesn't appear in a text block of '${args.field}'`,
+					);
+				}
+				if (located.status === "ambiguous") {
+					return respondError(
+						"VALIDATION_ERROR",
+						"The quote appears more than once. Add a `prefix` or `suffix` to say which.",
+					);
+				}
+				const checked = editorialAnchorSchema.safeParse(located.anchor);
+				if (!checked.success) {
+					return respondError(
+						"VALIDATION_ERROR",
+						"The quoted text's block has a `_key` too long to anchor a comment to",
+					);
+				}
+				anchor = located.anchor;
+				rev = extractContentRev(current.data);
+			} else if (args.field) {
+				anchor = { type: "field", field: args.field };
+			}
+
+			return unwrap(
+				await handleEditorialThreadCreate(
+					ec.db,
+					actor,
+					ref,
+					{ _rev: rev, anchor, body: args.body },
+					editorialNotifier(extra),
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"editorial_comment_create",
+		{
+			title: "Reply to Editorial Thread",
+			description:
+				"Reply to an editorial comment thread on a content item. Replying to a resolved " +
+				"thread reopens it. Returns the thread with all of its comments.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				threadId: z.string().min(1).describe("Thread ID from editorial_thread_list"),
+				body: editorialBody,
+			}),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			const actor = editorialActor(extra);
+			return unwrap(
+				await handleEditorialCommentCreate(
+					getEmDash(extra).db,
+					actor,
+					{ collection: args.collection, id: args.id, locale: args.locale },
+					args.threadId,
+					{ body: args.body },
+					editorialNotifier(extra),
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"editorial_thread_resolve",
+		{
+			title: "Resolve Editorial Thread",
+			description:
+				"Resolve an editorial comment thread, or reopen it with status 'open'. Editors can " +
+				"resolve any thread. Other users can resolve threads they started, and Authors " +
+				"can resolve threads on entries they own. Replying to a resolved thread reopens it.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				threadId: z.string().min(1).describe("Thread ID from editorial_thread_list"),
+				status: z
+					.enum(["resolved", "open"])
+					.optional()
+					.describe("'resolved' (default) or 'open' to reopen"),
+			}),
+			annotations: { destructiveHint: false, idempotentHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			const actor = editorialActor(extra);
+			return unwrap(
+				await handleEditorialThreadUpdate(
+					getEmDash(extra).db,
+					actor,
+					{ collection: args.collection, id: args.id, locale: args.locale },
+					args.threadId,
+					{ status: args.status ?? "resolved" },
+				),
+			);
 		},
 	);
 

@@ -47,6 +47,28 @@ export interface ToolbarLabels {
 	noImagesFound: string;
 	mediaLoadFailed: string;
 	uploadingFile: string;
+	commentOnEntry: string;
+	commentOnField: string;
+	commentsOnEntryCount: string;
+	commentsOnFieldCount: string;
+	commentsOnEntry: string;
+	commentsOnField: string;
+	noOpenComments: string;
+	newComment: string;
+	comment: string;
+	writeReply: string;
+	reply: string;
+	resolve: string;
+	close: string;
+	commentDeleted: string;
+	deletedUser: string;
+	unknownUser: string;
+	unnamedUser: string;
+	onField: string;
+	onQuote: string;
+	onBlock: string;
+	commentsLoadFailed: string;
+	commentActionFailed: string;
 }
 
 const SCRIPT_LINE_SEPARATOR_RE = /\u2028/g;
@@ -574,6 +596,62 @@ export function renderToolbar(config: ToolbarConfig): string {
     position: fixed;
     inset: 0;
     z-index: 999999;
+  }
+
+  /* Editorial comments */
+  .emdash-cm-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 0;
+    height: 0;
+    z-index: 999998;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .emdash-cm-trigger {
+    position: absolute;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    min-width: 24px;
+    height: 24px;
+    padding: 0 6px;
+    border: none;
+    border-radius: 999px;
+    background: #1a1a1a;
+    color: #e0e0e0;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.12);
+    font: 600 11px/1 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    cursor: pointer;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s;
+  }
+
+  .emdash-cm-trigger[hidden] {
+    display: none;
+  }
+
+  .emdash-cm-trigger--has-threads {
+    background: #f59e0b;
+    color: #1a1a1a;
+  }
+
+  .emdash-cm-trigger--has-threads,
+  .emdash-cm-trigger[data-active],
+  .emdash-cm-trigger[data-focus-within],
+  .emdash-cm-trigger[aria-expanded="true"],
+  .emdash-cm-trigger:focus-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .emdash-cm-trigger:focus-visible {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
   }
 </style>
 
@@ -1628,6 +1706,507 @@ export function renderToolbar(config: ToolbarConfig): string {
         target = target.parentElement;
       }
     }, true);
+  }
+
+  // --- Editorial comments ---
+  // Controls live in a layer outside the annotated elements, because inline
+  // editing reads and saves those elements' text.
+  var COMMENT_ICON = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>';
+  var COMMENT_REQUEST_LIMIT = 4;
+  var threadsByEntry = new Map();
+  var failedCommentEntries = new Set();
+  var commentTargets = [];
+  var commentTargetsByElement = new Map();
+  var commentLayer = null;
+  var openCommentTarget = null;
+  var hoveredCommentTarget = null;
+  var focusedCommentTarget = null;
+  var commentLayoutFrame = null;
+
+  function fillLabel(label, values) {
+    return String(label).replace(/\\{(\\w+)\\}/g, function(match, name) {
+      return Object.prototype.hasOwnProperty.call(values, name) ? values[name] : match;
+    });
+  }
+
+  function parseAnnotation(element) {
+    try {
+      var ref = JSON.parse(element.getAttribute("data-emdash-ref"));
+      return ref && typeof ref.collection === "string" && typeof ref.id === "string" ? ref : null;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Threads anchor to top-level fields, so a nested ref such as "seo.title"
+  // collects the threads of "seo".
+  function anchorField(annotation) {
+    return annotation.field ? String(annotation.field).split(".")[0] : null;
+  }
+
+  // A field's threads go to the entry's badge when the page shows no badge
+  // for the field, so they can still be reached.
+  function fieldHasBadge(key, field) {
+    return commentTargets.some(function(target) {
+      return target.visible !== false && anchorField(target.annotation) === field &&
+        entryKey(target.annotation.collection, target.annotation.id) === key;
+    });
+  }
+
+  function threadsFor(annotation) {
+    var field = anchorField(annotation);
+    var key = entryKey(annotation.collection, annotation.id);
+    var threads = threadsByEntry.get(key) || [];
+    return threads.filter(function(thread) {
+      var anchor = thread.anchor || {};
+      if (field) return anchor.type !== "entry" && anchor.field === field;
+      return anchor.type === "entry" || !anchor.field || !fieldHasBadge(key, anchor.field);
+    });
+  }
+
+  function fieldLabel(annotation) {
+    var field = anchorField(annotation);
+    var collection = manifestCache && manifestCache.collections && manifestCache.collections[annotation.collection];
+    var definition = collection && collection.fields && collection.fields[field];
+    return (definition && definition.label) || field;
+  }
+
+  function threadsUrl(annotation) {
+    return "/_emdash/api/content/" + encodeURIComponent(annotation.collection) + "/" + encodeURIComponent(annotation.id) + "/threads";
+  }
+
+  function fetchOpenThreads(annotation) {
+    var items = [];
+    function page(cursor) {
+      var url = threadsUrl(annotation) + "?status=open&limit=100" + (cursor ? "&cursor=" + encodeURIComponent(cursor) : "");
+      return ecFetch(url, { credentials: "same-origin" })
+        .then(function(res) {
+          if (!res.ok) {
+            var error = new Error("Thread list failed: " + res.status);
+            error.status = res.status;
+            throw error;
+          }
+          return res.json();
+        })
+        .then(function(body) {
+          var data = body && body.data;
+          if (!data || !Array.isArray(data.items)) throw new Error("Thread list returned no items");
+          items = items.concat(data.items);
+          return data.nextCursor ? page(data.nextCursor) : items;
+        });
+    }
+    return page(null);
+  }
+
+  function eachWithLimit(items, limit, task) {
+    var next = 0;
+    function work() {
+      if (next >= items.length) return Promise.resolve();
+      var item = items[next++];
+      return Promise.resolve().then(function() { return task(item); }).then(work, work);
+    }
+    var workers = [];
+    for (var i = 0; i < Math.min(limit, items.length); i++) workers.push(work());
+    return Promise.all(workers);
+  }
+
+  function sendThreadRequest(url, method, payload) {
+    return ecFetch(url, {
+      method: method,
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    })
+    .then(function(res) {
+      return res.json().catch(function() { return null; }).then(function(body) {
+        if (!res.ok || !body || !body.data) throw new Error("Thread request failed: " + res.status);
+        return body.data;
+      });
+    });
+  }
+
+  function storeThread(annotation, thread) {
+    var key = entryKey(annotation.collection, annotation.id);
+    var threads = (threadsByEntry.get(key) || []).filter(function(existing) { return existing.id !== thread.id; });
+    if (thread.status === "open") {
+      var index = (threadsByEntry.get(key) || []).findIndex(function(existing) { return existing.id === thread.id; });
+      if (index === -1) threads.push(thread);
+      else threads.splice(index, 0, thread);
+    }
+    threadsByEntry.set(key, threads);
+    commentTargets.forEach(function(target) {
+      if (entryKey(target.annotation.collection, target.annotation.id) === key && target.button) renderCommentTrigger(target);
+    });
+    scheduleCommentLayout();
+  }
+
+  function commentTitle(annotation) {
+    return annotation.field
+      ? fillLabel(toolbarLabels.commentsOnField, { field: fieldLabel(annotation) })
+      : toolbarLabels.commentsOnEntry;
+  }
+
+  function renderCommentTrigger(target) {
+    var annotation = target.annotation;
+    var count = threadsFor(annotation).length;
+    var button = target.button;
+    if (!button) {
+      button = document.createElement("button");
+      button.type = "button";
+      button.className = "emdash-cm-trigger";
+      button.setAttribute("aria-haspopup", "dialog");
+      button.setAttribute("aria-expanded", "false");
+      button.addEventListener("click", function(e) {
+        e.preventDefault();
+        toggleComments(target);
+      });
+      button.hidden = true;
+      target.button = button;
+      if (hoveredCommentTarget === target) button.setAttribute("data-active", "");
+      if (focusedCommentTarget === target) button.setAttribute("data-focus-within", "");
+      // Keep buttons in the document order of their targets, so tabbing
+      // through the layer follows the page.
+      var index = commentTargets.indexOf(target);
+      var next = null;
+      for (var i = index + 1; i < commentTargets.length && !next; i++) next = commentTargets[i].button;
+      commentLayer.insertBefore(button, next);
+    }
+    var name;
+    if (count) {
+      name = annotation.field
+        ? fillLabel(toolbarLabels.commentsOnFieldCount, { field: fieldLabel(annotation), count: String(count) })
+        : fillLabel(toolbarLabels.commentsOnEntryCount, { count: String(count) });
+    } else {
+      name = annotation.field
+        ? fillLabel(toolbarLabels.commentOnField, { field: fieldLabel(annotation) })
+        : toolbarLabels.commentOnEntry;
+    }
+    button.innerHTML = COMMENT_ICON;
+    if (count) {
+      var countEl = document.createElement("span");
+      countEl.textContent = String(count);
+      button.appendChild(countEl);
+    }
+    button.classList.toggle("emdash-cm-trigger--has-threads", count > 0);
+    button.setAttribute("aria-label", name);
+    button.title = name;
+  }
+
+  function scheduleCommentLayout() {
+    if (commentLayoutFrame !== null) return;
+    commentLayoutFrame = requestAnimationFrame(function() {
+      commentLayoutFrame = null;
+      layoutComments();
+    });
+  }
+
+  function isRtl(element) {
+    return getComputedStyle(element).direction === "rtl";
+  }
+
+  function clampX(x, width) {
+    return Math.max(8, Math.min(x, document.documentElement.clientWidth - width - 8));
+  }
+
+  var COMMENT_BADGE_GAP = 4;
+
+  function isShown(element) {
+    if (!element.isConnected) return false;
+    if (typeof element.checkVisibility === "function" && !element.checkVisibility({ visibilityProperty: true })) return false;
+    var rect = element.getBoundingClientRect();
+    return rect.width > 0 || rect.height > 0;
+  }
+
+  // True when an ancestor that clips its overflow, short of the page's own
+  // scroller, has the point outside its padding box.
+  function isClipped(element, x, y) {
+    var scroller = document.scrollingElement || document.documentElement;
+    for (var node = element.parentElement; node && node !== scroller && node !== document.body; node = node.parentElement) {
+      var style = getComputedStyle(node);
+      var clipsX = style.overflowX !== "visible";
+      var clipsY = style.overflowY !== "visible";
+      if (!clipsX && !clipsY) continue;
+      var box = node.getBoundingClientRect();
+      var left = box.left + node.clientLeft;
+      var top = box.top + node.clientTop;
+      if (clipsX && (x < left - 1 || x > left + node.clientWidth + 1)) return true;
+      if (clipsY && (y < top - 1 || y > top + node.clientHeight + 1)) return true;
+    }
+    return false;
+  }
+
+  function overlaps(a, b) {
+    return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
+  }
+
+  // Each badge sits on its element's top end corner. A badge that would cover
+  // one already placed, such as a field's on its entry's shared corner, moves
+  // towards the start of the line until it is clear, or to a row below when
+  // that would take it off screen. Layout is read in passes between the
+  // writes, so a scroll frame forces at most one reflow.
+  function layoutComments() {
+    if (!commentLayer) return;
+    var origin = commentLayer.getBoundingClientRect();
+    var items = [];
+    commentTargets.forEach(function(target) {
+      if (!target.button) return;
+      var rect = target.element.getBoundingClientRect();
+      var rtl = isRtl(target.element);
+      var visible = isShown(target.element);
+      var shown = visible && !isClipped(target.element, rtl ? rect.left : rect.right, rect.top);
+      items.push({ target: target, rect: rect, rtl: rtl, visible: visible, shown: shown });
+    });
+    var changedEntries = new Set();
+    items.forEach(function(item) {
+      if ((item.target.visible !== false) !== item.visible) {
+        item.target.visible = item.visible;
+        changedEntries.add(entryKey(item.target.annotation.collection, item.target.annotation.id));
+      }
+      item.target.button.hidden = !item.shown;
+      if (!item.shown && openCommentTarget === item.target && commentsPopover) {
+        commentsPopover.then(function(popover) { popover.close(); });
+      }
+    });
+    items.forEach(function(item) {
+      var annotation = item.target.annotation;
+      if (!annotation.field && changedEntries.has(entryKey(annotation.collection, annotation.id))) {
+        renderCommentTrigger(item.target);
+      }
+    });
+    var shown = items.filter(function(item) { return item.shown; });
+    shown.forEach(function(item) {
+      item.width = item.target.button.offsetWidth;
+      item.height = item.target.button.offsetHeight;
+    });
+    var placed = [];
+    shown.forEach(function(item) {
+      var rect = item.rect;
+      var rtl = item.rtl;
+      var startX = clampX(rtl ? rect.left - item.width / 2 : rect.right - item.width / 2, item.width);
+      var box = { x: startX, y: rect.top - item.height / 2, width: item.width, height: item.height };
+      for (var i = 0; i < placed.length; i++) {
+        if (!overlaps(box, placed[i])) continue;
+        var x = rtl ? placed[i].x + placed[i].width + COMMENT_BADGE_GAP : placed[i].x - box.width - COMMENT_BADGE_GAP;
+        if (clampX(x, box.width) === x) {
+          box.x = x;
+        } else {
+          box.x = startX;
+          box.y = placed[i].y + placed[i].height + COMMENT_BADGE_GAP;
+        }
+        i = -1;
+      }
+      placed.push(box);
+      item.target.button.style.left = (box.x - origin.left) + "px";
+      item.target.button.style.top = (box.y - origin.top) + "px";
+    });
+  }
+
+  function setFocusedCommentTarget(target) {
+    if (focusedCommentTarget === target) return;
+    if (focusedCommentTarget && focusedCommentTarget.button) focusedCommentTarget.button.removeAttribute("data-focus-within");
+    focusedCommentTarget = target;
+    if (target && target.button) target.button.setAttribute("data-focus-within", "");
+  }
+
+  function setHoveredCommentTarget(target) {
+    if (hoveredCommentTarget === target) return;
+    if (hoveredCommentTarget && hoveredCommentTarget.button) hoveredCommentTarget.button.removeAttribute("data-active");
+    hoveredCommentTarget = target;
+    if (target && target.button) target.button.setAttribute("data-active", "");
+  }
+
+  var COMMENTS_ISLAND_PAGE = "/_emdash/visual-editing/comments";
+  var commentsPopover = null;
+  var commentsUnavailable = false;
+
+  // The popover is a React island on COMMENTS_ISLAND_PAGE, which the site's
+  // Astro build bundles. Astro renders a client:only island as
+  // <astro-island component-url="..." component-export="..."
+  // before-hydration-url="...">, and those attributes are the only part of
+  // Astro's island markup the toolbar reads. Like Astro's own island loader,
+  // it imports before-hydration-url first when present: in astro dev that
+  // installs the React refresh preamble the component's module checks for.
+  function findCommentsIsland(html) {
+    var island = new DOMParser().parseFromString(html, "text/html").querySelector("astro-island[component-url]");
+    if (!island) return null;
+    var beforeHydration = island.getAttribute("before-hydration-url");
+    return {
+      url: new URL(island.getAttribute("component-url"), location.href).href,
+      exportName: island.getAttribute("component-export") || "default",
+      beforeHydrationUrl: beforeHydration ? new URL(beforeHydration, location.href).href : null,
+    };
+  }
+
+  // Fetches the island page and imports the popover once per page; clicks
+  // made while it loads share the same promise.
+  function loadCommentsPopover() {
+    if (!commentsPopover) {
+      commentsPopover = ecFetch(COMMENTS_ISLAND_PAGE, { credentials: "same-origin" })
+        .then(function(res) {
+          if (!res.ok) throw new Error(COMMENTS_ISLAND_PAGE + " returned " + res.status);
+          return res.text();
+        })
+        .then(function(html) {
+          var island = findCommentsIsland(html);
+          if (!island) throw new Error("No island with a component-url on " + COMMENTS_ISLAND_PAGE);
+          var ready = island.beforeHydrationUrl ? import(island.beforeHydrationUrl) : Promise.resolve();
+          return ready.then(function() { return import(island.url); }).then(function(module) {
+            var host = module[island.exportName];
+            if (!host || typeof host.mount !== "function") {
+              throw new Error(island.url + " has no " + island.exportName + ".mount()");
+            }
+            return host.mount();
+          });
+        });
+    }
+    return commentsPopover;
+  }
+
+  function adminEntryUrl(annotation) {
+    return "/_emdash/admin/content/" + encodeURIComponent(annotation.collection) + "/" + encodeURIComponent(annotation.id);
+  }
+
+  // Where a badge leads when the popover can't load: its first open thread,
+  // or the entry.
+  function commentFallbackUrl(target) {
+    var threads = threadsFor(target.annotation);
+    return threads.length
+      ? adminEntryUrl(target.annotation) + "?thread=" + encodeURIComponent(threads[0].id)
+      : adminEntryUrl(target.annotation);
+  }
+
+  function useCommentLinks() {
+    commentsUnavailable = true;
+    commentTargets.forEach(function(target) {
+      if (target.button) target.button.removeAttribute("aria-haspopup");
+    });
+  }
+
+  function toggleComments(target) {
+    if (commentsUnavailable) {
+      window.open(commentFallbackUrl(target), adminWindowName(target.annotation.collection, target.annotation.id));
+      return;
+    }
+    loadCommentsPopover()
+      .then(function(popover) {
+        if (openCommentTarget === target) {
+          popover.close();
+          return;
+        }
+        openCommentTarget = target;
+        target.button.setAttribute("aria-expanded", "true");
+        var annotation = target.annotation;
+        var threads = threadsFor(annotation);
+        var fieldLabels = {};
+        threads.forEach(function(thread) {
+          var field = thread.anchor && thread.anchor.field;
+          if (field) fieldLabels[field] = fieldLabel({ collection: annotation.collection, field: field });
+        });
+        popover.open({
+          anchor: target.button,
+          title: commentTitle(annotation),
+          field: anchorField(annotation),
+          threads: threads,
+          fieldLabels: fieldLabels,
+          loadFailed: failedCommentEntries.has(entryKey(annotation.collection, annotation.id)),
+          labels: toolbarLabels,
+          threadsUrl: threadsUrl(annotation),
+          adminUrl: adminEntryUrl(annotation),
+          adminTarget: adminWindowName(annotation.collection, annotation.id),
+          request: sendThreadRequest,
+          onThreadChange: function(thread) { storeThread(annotation, thread); },
+          onClose: function() {
+            target.button.setAttribute("aria-expanded", "false");
+            if (openCommentTarget === target) openCommentTarget = null;
+          },
+        });
+      })
+      .catch(function(err) {
+        console.error("[emdash] The comment popover failed to load; comment badges now open the admin:", err);
+        useCommentLinks();
+        window.open(commentFallbackUrl(target), adminWindowName(target.annotation.collection, target.annotation.id));
+      });
+  }
+
+  function startEditorialComments() {
+    var entries = new Map();
+    document.querySelectorAll("[data-emdash-ref]").forEach(function(element) {
+      if (toolbar.contains(element)) return;
+      var annotation = parseAnnotation(element);
+      if (!annotation) return;
+      var target = { element: element, annotation: annotation, button: null };
+      commentTargets.push(target);
+      commentTargetsByElement.set(element, target);
+      var key = entryKey(annotation.collection, annotation.id);
+      if (!entries.has(key)) entries.set(key, { annotation: annotation, targets: [] });
+      entries.get(key).targets.push(target);
+    });
+    if (!entries.size) return;
+
+    commentLayer = document.createElement("div");
+    commentLayer.className = "emdash-cm-layer";
+    document.body.appendChild(commentLayer);
+
+    var manifestReady = fetchManifest().catch(function() { return null; });
+    eachWithLimit(Array.from(entries.values()), COMMENT_REQUEST_LIMIT, function(entry) {
+      return fetchOpenThreads(entry.annotation)
+        .then(function(threads) {
+          threadsByEntry.set(entryKey(entry.annotation.collection, entry.annotation.id), threads);
+          return manifestReady.then(function() {
+            entry.targets.forEach(renderCommentTrigger);
+            scheduleCommentLayout();
+          });
+        })
+        .catch(function(err) {
+          console.error("Failed to load comments:", err);
+          // 401 and 403 mean this user can't take part in editorial comments.
+          if (err && (err.status === 401 || err.status === 403)) return;
+          failedCommentEntries.add(entryKey(entry.annotation.collection, entry.annotation.id));
+          return manifestReady.then(function() {
+            entry.targets.forEach(renderCommentTrigger);
+            scheduleCommentLayout();
+          });
+        });
+    });
+
+    document.addEventListener("mouseover", function(e) {
+      var node = e.target;
+      if (!node || !node.closest) return;
+      var trigger = node.closest(".emdash-cm-trigger");
+      var target = null;
+      if (trigger) {
+        target = commentTargets.find(function(candidate) { return candidate.button === trigger; }) || null;
+      } else if (!node.closest("[data-emdash-comments]")) {
+        var element = node.closest("[data-emdash-ref]");
+        target = element ? commentTargetsByElement.get(element) || null : null;
+      } else {
+        return;
+      }
+      setHoveredCommentTarget(target);
+    });
+
+    document.addEventListener("focusin", function(e) {
+      var node = e.target;
+      if (!node || !node.closest || node.closest(".emdash-cm-trigger, [data-emdash-comments]")) return;
+      var element = node.closest("[data-emdash-ref]");
+      setFocusedCommentTarget(element ? commentTargetsByElement.get(element) || null : null);
+    });
+    document.addEventListener("focusout", function(e) {
+      if (!e.relatedTarget) setFocusedCommentTarget(null);
+    });
+
+    document.addEventListener("scroll", scheduleCommentLayout, { capture: true, passive: true });
+    window.addEventListener("resize", scheduleCommentLayout);
+    window.addEventListener("load", scheduleCommentLayout);
+    if (typeof ResizeObserver === "function") {
+      var observer = new ResizeObserver(scheduleCommentLayout);
+      observer.observe(document.body);
+      commentTargets.forEach(function(target) { observer.observe(target.element); });
+    }
+  }
+
+  if (isEditMode) {
+    startEditorialComments();
   }
 
   updateStatus();
