@@ -376,11 +376,12 @@ function CommentsPopover({
 					</button>
 				</div>
 				<div className="emdash-comments-body">
-					{options.loadFailed ? (
+					{options.loadFailed && (
 						<p className="emdash-inline-ui-field-error" role="alert">
 							{labels.commentsLoadFailed}
 						</p>
-					) : threads.length ? (
+					)}
+					{threads.length ? (
 						<ul className="emdash-comments-threads">
 							{threads.map((thread) => (
 								<Thread
@@ -395,7 +396,7 @@ function CommentsPopover({
 								/>
 							))}
 						</ul>
-					) : (
+					) : options.loadFailed ? null : (
 						<p className="emdash-comments-empty">{labels.noOpenComments}</p>
 					)}
 					<CommentForm

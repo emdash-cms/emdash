@@ -233,4 +233,16 @@ describe("editorial comments popover", () => {
 		expect(dialog().querySelector('[role="alert"]')!.textContent).toBe("Couldn't load comments");
 		expect(dialog().textContent).not.toContain("No open comments");
 	});
+
+	it("shows a comment saved after the comments couldn't load", async () => {
+		const created = thread("t-new", {}, "Needs work");
+		await open({ loadFailed: true, request: vi.fn(async () => created) });
+
+		await type(dialog().querySelector<HTMLTextAreaElement>("textarea")!, "Needs work");
+		await act(async () => button("Comment").click());
+
+		expect(dialog().querySelectorAll(".emdash-comments-thread")).toHaveLength(1);
+		expect(dialog().textContent).toContain("Needs work");
+		expect(dialog().querySelector('[role="alert"]')!.textContent).toBe("Couldn't load comments");
+	});
 });
