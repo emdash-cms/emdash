@@ -29,11 +29,15 @@ export interface CheckResult {
 
 const WRANGLER_CONFIG_FILES = ["wrangler.jsonc", "wrangler.json", "wrangler.toml"] as const;
 const CLOUDFLARE_WORKER_MODULE = "@emdash-cms/cloudflare/worker";
-const WORKER_FIX = `export { default, PluginBridge } from "${CLOUDFLARE_WORKER_MODULE}";`;
+const WORKER_FIX = `export { EmDashWorker as default, EmDashRoom, EmDashRoomSite, PluginBridge } from "${CLOUDFLARE_WORKER_MODULE}";`;
 const MAIN_FIX_JSONC = `"main": "./src/worker.ts"`;
 const MAIN_FIX_TOML = `main = "./src/worker.ts"`;
 const TRIGGER_FIX_JSONC = `"triggers": { "crons": ["* * * * *"] }`;
 const TRIGGER_FIX_TOML = `[triggers]\ncrons = ["* * * * *"]`;
+const EMDASH_WORKER_SUBCLASS_PATTERN =
+	/export\s+default\s+class(?:\s+[A-Za-z_$][\w$]*)?\s+extends\s+EmDashWorker\b/m;
+const SCHEDULED_FACTORY_CALL_PATTERN = /\bcreateScheduledHandler\s*\(/m;
+const RPC_INVALIDATION_OPTION_PATTERN = /\binvalidateViaDefaultEntrypoint\s*:\s*true\b/m;
 const SCHEDULED_HANDLER_PATTERN = /\bscheduled\s*:\s*createScheduledHandler\s*\(/m;
 
 function triggerFix(configPath: string): string {
@@ -73,7 +77,7 @@ async function findWranglerConfig(cwd: string): Promise<string | null> {
 	return null;
 }
 
-function workerExportsScheduledMaintenance(source: string): boolean {
+function workerExportsScheduledMaintenance(source: string): "rpc" | "legacy" | "custom" | null {
 	const modulePattern = CLOUDFLARE_WORKER_MODULE.replaceAll("/", "\\/");
 	const reExportsWorker = new RegExp(
 		`export\\s*\\{[^}]*\\bdefault\\b[^}]*\\}\\s*from\\s*["']${modulePattern}["']`,
@@ -83,10 +87,28 @@ function workerExportsScheduledMaintenance(source: string): boolean {
 		`import\\s+[^;]*\\{[^}]*\\bcreateScheduledHandler\\b[^}]*\\}\\s*from\\s*["']${modulePattern}["']`,
 		"m",
 	);
-	return (
+	const importsEmDashWorker = new RegExp(
+		`import\\s+[^;]*\\{[^}]*\\bEmDashWorker\\b[^}]*\\}\\s*from\\s*["']${modulePattern}["']`,
+		"m",
+	);
+	const reExportsEmDashWorker = new RegExp(
+		`export\\s*\\{[^}]*\\bEmDashWorker\\s+as\\s+default\\b[^}]*\\}\\s*from\\s*["']${modulePattern}["']`,
+		"m",
+	);
+	if (reExportsEmDashWorker.test(source)) return "rpc";
+	if (importsEmDashWorker.test(source) && EMDASH_WORKER_SUBCLASS_PATTERN.test(source)) {
+		return SCHEDULED_FACTORY_CALL_PATTERN.test(source) &&
+			!RPC_INVALIDATION_OPTION_PATTERN.test(source)
+			? "custom"
+			: "rpc";
+	}
+	if (
 		reExportsWorker.test(source) ||
 		(importsFactory.test(source) && SCHEDULED_HANDLER_PATTERN.test(source))
-	);
+	) {
+		return "legacy";
+	}
+	return null;
 }
 
 export async function checkSchedulerWiring(cwd: string): Promise<CheckResult[]> {
@@ -154,10 +176,10 @@ async function checkSchedulerWiringAtPath(cwd: string, configPath: string): Prom
 	}
 
 	const workerPath = resolve(cwd, main);
-	let hasScheduledHandler = false;
+	let scheduledHandler: "rpc" | "legacy" | "custom" | null = null;
 	try {
 		const workerSource = await readFile(workerPath, "utf8");
-		hasScheduledHandler = workerExportsScheduledMaintenance(workerSource);
+		scheduledHandler = workerExportsScheduledMaintenance(workerSource);
 	} catch (error) {
 		const code = isRecord(error) && typeof error.code === "string" ? error.code : null;
 		if (code !== "ENOENT") {
@@ -178,7 +200,7 @@ async function checkSchedulerWiringAtPath(cwd: string, configPath: string): Prom
 		];
 	}
 
-	if (hasCronTrigger && !hasScheduledHandler) {
+	if (hasCronTrigger && !scheduledHandler) {
 		return [
 			{
 				name: "scheduler handler",
@@ -188,7 +210,7 @@ async function checkSchedulerWiringAtPath(cwd: string, configPath: string): Prom
 		];
 	}
 
-	if (hasScheduledHandler && !hasCronTrigger) {
+	if (scheduledHandler && !hasCronTrigger) {
 		return [
 			{
 				name: "scheduler trigger",
@@ -198,15 +220,21 @@ async function checkSchedulerWiringAtPath(cwd: string, configPath: string): Prom
 		];
 	}
 
-	if (!hasCronTrigger && !hasScheduledHandler) {
+	if (!hasCronTrigger && !scheduledHandler) {
 		return [];
 	}
 
+	const cacheHint =
+		scheduledHandler === "legacy"
+			? ` — for scheduled Workers Cache purges, use EmDashWorker as the default export: ${WORKER_FIX} (keep existing named exports; for custom handlers, extend EmDashWorker and pass invalidateViaDefaultEntrypoint: true when delegating to createScheduledHandler)`
+			: scheduledHandler === "custom"
+				? " — for scheduled Workers Cache purges, pass invalidateViaDefaultEntrypoint: true when delegating to createScheduledHandler"
+				: "";
 	return [
 		{
 			name: "scheduler wiring",
 			status: "pass",
-			message: `Cron Trigger and scheduled() handler found (${main})`,
+			message: `Cron Trigger and scheduled() handler found (${main})${cacheHint}`,
 		},
 	];
 }

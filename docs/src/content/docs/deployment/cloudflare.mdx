@@ -82,25 +82,18 @@ If the site does not use marketplace, registry, or `sandboxed` plugins, omit `sa
 
 ## Add the Worker entry point
 
-The Worker entry point connects Astro to the Cron Trigger, forwards co-editing connections to their rooms, and exports the plugin bridge and the room classes:
+The Worker entry point connects Astro to the Cron Trigger, forwards co-editing connections to their rooms, and exports the plugin bridge and the room classes. Re-export `EmDashWorker` as the default so scheduled cache invalidations run through the site's default entrypoint:
 
 ```ts title="src/worker.ts"
-import handler, {
-	createScheduledHandler,
+export {
+	EmDashWorker as default,
 	EmDashRoom,
 	EmDashRoomSite,
 	PluginBridge,
 } from "@emdash-cms/cloudflare/worker";
-
-export { EmDashRoom, EmDashRoomSite, PluginBridge };
-
-export default {
-	...handler,
-	scheduled: createScheduledHandler(),
-} satisfies ExportedHandler;
 ```
 
-The spread `handler` includes a `fetch` that sends room connections to their Durable Object before Astro runs. A Worker with its own `fetch` must [call `handleRoomUpgrade` first](#a-custom-fetch-handler).
+`EmDashWorker` is the site's default entrypoint. Its RPC purge path clears Workers Cache entries for the site, including when the Worker uses placement. The legacy object default export and direct `createScheduledHandler()` usage remain supported, but scheduled Workers Cache purges require `EmDashWorker`.
 
 The `PluginBridge` export is harmless when no sandboxed plugin is installed. Keep it if the same project may enable plugins later.
 
@@ -178,30 +171,42 @@ The `exports` field can't be combined with the `migrations` array. If `wrangler.
 
 ### A custom `fetch` handler
 
-A Worker entry point with its own `fetch` must call `handleRoomUpgrade` before anything else. It returns the room's response for a room connection, and `null` for any other request:
+To enable scheduled Workers Cache purges, extend `EmDashWorker` in a custom Worker entry point. `super.fetch(request)` handles room upgrades before Astro runs. Call `handleRoomUpgrade` explicitly before custom routing so that routing cannot intercept room connections. The class provides `this.env` and `this.ctx` for custom handlers:
 
 ```ts title="src/worker.ts"
-import handler, {
+import {
 	createScheduledHandler,
 	EmDashRoom,
 	EmDashRoomSite,
+	EmDashWorker,
 	handleRoomUpgrade,
 	PluginBridge,
 } from "@emdash-cms/cloudflare/worker";
 
 export { EmDashRoom, EmDashRoomSite, PluginBridge };
 
-export default {
-	...handler,
-	fetch(request, env, ctx) {
-		const upgrade = handleRoomUpgrade(request, env);
+export default class extends EmDashWorker {
+	async fetch(request: Request) {
+		const upgrade = handleRoomUpgrade(request, this.env);
 		if (upgrade) return upgrade;
 		// Your own routing
-		return handler.fetch(request, env, ctx);
-	},
-	scheduled: createScheduledHandler(),
-} satisfies ExportedHandler;
+		return super.fetch(request);
+	}
+
+	async scheduled(controller: ScheduledController) {
+		return createScheduledHandler({
+			generalCron: "* * * * *",
+			invalidateViaDefaultEntrypoint: true,
+		})(
+			controller,
+			this.env,
+			this.ctx,
+		);
+	}
+}
 ```
+
+If custom scheduling is not needed, omit the `scheduled` method. When overriding it, set `generalCron` to the same expression as the site's Cron Trigger and pass `invalidateViaDefaultEntrypoint: true` to keep scheduled purges on the default entrypoint. This option requires `EmDashWorker` (or a subclass) as the site's default export. Calls without the option invalidate in the cron invocation for compatibility with other cache providers.
 
 ### Turn co-editing off
 

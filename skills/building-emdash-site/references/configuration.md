@@ -111,18 +111,18 @@ Requires a `wrangler.jsonc` with D1 and R2 bindings:
 }
 ```
 
-Use the EmDash Worker entry point so scheduled publishing and maintenance run through the same deployment:
+Use the EmDash Worker entry point so scheduled publishing, maintenance, and Workers Cache purges run through the site's default entrypoint:
 
 ```typescript
-import handler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
-
-export { PluginBridge };
-
-export default {
-	...handler,
-	scheduled: createScheduledHandler(),
-} satisfies ExportedHandler;
+export {
+	EmDashWorker as default,
+	EmDashRoom,
+	EmDashRoomSite,
+	PluginBridge,
+} from "@emdash-cms/cloudflare/worker";
 ```
+
+`EmDashWorker` is required as the default export for scheduled Workers Cache purges, including when the Worker uses placement. The legacy object default export and direct `createScheduledHandler()` usage remain supported for other scheduled work.
 
 ### Plugins
 

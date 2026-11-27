@@ -55,18 +55,18 @@ Dynamic Workers are available on the [Workers Paid plan](https://developers.clou
    });
    ```
 
-2. Export `PluginBridge` from the Worker entry point, and point `main` at that file. `PluginBridge` is the entrypoint through which sandboxed plugins reach content, media, storage, and email; the runner looks it up on the exports of the entry module:
+2. Re-export `EmDashWorker` as the default from the Worker entry point, and point `main` at that file. `PluginBridge` is the entrypoint through which sandboxed plugins reach content, media, storage, and email; the runner looks it up on the exports of the entry module:
 
    ```ts title="src/worker.ts"
-   import handler, { createScheduledHandler, PluginBridge } from "@emdash-cms/cloudflare/worker";
-
-   export { PluginBridge };
-
-   export default {
-   	...handler,
-   	scheduled: createScheduledHandler(),
-   } satisfies ExportedHandler;
+   export {
+    EmDashWorker as default,
+    EmDashRoom,
+    EmDashRoomSite,
+    PluginBridge,
+   } from "@emdash-cms/cloudflare/worker";
    ```
+
+   For custom fetch or scheduled handlers, extend `EmDashWorker` as shown in [Cloudflare deployment](/deployment/cloudflare/#a-custom-fetch-handler).
 
    ```jsonc title="wrangler.jsonc"
    {
