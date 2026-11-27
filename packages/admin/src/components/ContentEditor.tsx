@@ -3880,7 +3880,8 @@ function FieldRenderer({
 						aria-invalid={tooLong || undefined}
 						description={hint}
 						error={boundsError(hint, tooLong)}
-						dir="auto"
+						dir={text ? "auto" : undefined}
+						placeholder={t`Enter text...`}
 						className="text-lg!"
 					/>
 				);
@@ -3896,7 +3897,8 @@ function FieldRenderer({
 					aria-invalid={tooLong || undefined}
 					description={hint}
 					error={boundsError(hint, tooLong)}
-					dir="auto"
+					dir={text ? "auto" : undefined}
+					placeholder={t`Enter text...`}
 					className={
 						minimal
 							? "border-0 bg-transparent px-0 text-lg font-medium focus-visible:ring-0 focus-visible:ring-offset-0"
@@ -4052,8 +4054,8 @@ function FieldRenderer({
 					aria-invalid={tooLong || undefined}
 					description={hint}
 					error={boundsError(hint, tooLong)}
-					dir="auto"
-					placeholder={t`Enter markdown content...`}
+					dir={text ? "auto" : undefined}
+					placeholder={t`Enter plain text...`}
 				/>
 			);
 		}
