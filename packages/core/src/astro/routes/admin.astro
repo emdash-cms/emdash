@@ -19,6 +19,7 @@ import { componentDataByCssVariable } from "virtual:astro:assets/fonts/internal"
 export const prerender = false;
 
 import { resolveLocale, loadMessages, getLocaleDir } from "@emdash-cms/admin/locales";
+import { translateAdminShellStrings } from "@emdash-cms/admin/locales/server";
 import { getSiteSettingsWithDb } from "#settings/index.js";
 
 const resolvedLocale = resolveLocale(Astro.request);
@@ -26,7 +27,8 @@ const resolvedDir = getLocaleDir(resolvedLocale);
 const messages = await loadMessages(resolvedLocale);
 
 const adminConfig = Astro.locals.emdash?.config?.admin;
-const pageTitle = adminConfig?.siteName ? `${adminConfig.siteName} Admin` : "EmDash Admin";
+const shellStrings = translateAdminShellStrings(resolvedLocale, messages, adminConfig?.siteName);
+const pageTitle = shellStrings.pageTitle;
 
 // The admin shell must never be stored by a shared cache. Without an explicit
 // Cache-Control, caches fall back to RFC 9111 heuristic freshness — e.g.
@@ -139,7 +141,7 @@ const faviconType = adminConfig?.favicon ? undefined : siteFaviconType;
 				</style>
 				<div class="loader-inner">
 					<div class="spinner"></div>
-					<p>{adminConfig?.siteName ? `Loading ${adminConfig.siteName}...` : "Loading EmDash..."}</p>
+					<p>{shellStrings.loading}</p>
 				</div>
 			</div>
 			<AdminWrapper
