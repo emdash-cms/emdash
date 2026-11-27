@@ -561,9 +561,21 @@ jobs:
           key: ${{ steps.playwright-key.outputs.key }}
       - run: pnpm exec playwright install --only-shell chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
+      # Playwright's own --shard splits by test count, so the spec files are
+      # dealt out by their recorded durations instead.
+      - name: Pick this shard's spec files
+        id: specs
+        env:
+          SHARD: ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        run: |
+          specs=$(pnpm exec playwright test --list --reporter=json | node .github/scripts/e2e-shard.mjs --shard "$SHARD" --target node)
+          echo "$specs" | tr ' ' '\n'
+          echo "specs=$specs" >> "$GITHUB_OUTPUT"
       - name: Run Node E2E
         id: e2e
-        run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        env:
+          SPECS: ${{ steps.specs.outputs.specs }}
+        run: pnpm exec playwright test $SPECS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure() && steps.e2e.outcome == 'failure'
         with:
@@ -572,6 +584,13 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+      # The durations behind .github/scripts/e2e-shard-times.json; see its --record mode.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() && steps.e2e.outcome != 'skipped' }}
+        with:
+          name: e2e-timings-node-${{ matrix.shardIndex }}
+          path: e2e-timings/
+          retention-days: 14
 
   test-e2e-cloudflare:
     name: Cloudflare E2E shard (${{ matrix.shardIndex }}/${{ matrix.shardTotal }})
@@ -606,11 +625,20 @@ jobs:
           key: ${{ steps.playwright-key.outputs.key }}
       - run: pnpm exec playwright install --only-shell chromium
         if: steps.playwright-cache.outputs.cache-hit != 'true'
+      - name: Pick this shard's spec files
+        id: specs
+        env:
+          SHARD: ${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
+        run: |
+          specs=$(pnpm exec playwright test --list --reporter=json | node .github/scripts/e2e-shard.mjs --shard "$SHARD" --target cloudflare)
+          echo "$specs" | tr ' ' '\n'
+          echo "specs=$specs" >> "$GITHUB_OUTPUT"
       - name: Run Cloudflare E2E
         id: e2e
-        run: pnpm exec playwright test --shard=${{ matrix.shardIndex }}/${{ matrix.shardTotal }}
         env:
           EMDASH_E2E_TARGET: cloudflare
+          SPECS: ${{ steps.specs.outputs.specs }}
+        run: pnpm exec playwright test $SPECS
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: failure() && steps.e2e.outcome == 'failure'
         with:
@@ -619,6 +647,13 @@ jobs:
             playwright-report/
             test-results/
           retention-days: 7
+      # The durations behind .github/scripts/e2e-shard-times.json; see its --record mode.
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: ${{ !cancelled() && steps.e2e.outcome != 'skipped' }}
+        with:
+          name: e2e-timings-cloudflare-${{ matrix.shardIndex }}
+          path: e2e-timings/
+          retention-days: 14
 
   test-e2e-table:
     name: Table E2E

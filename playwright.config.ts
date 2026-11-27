@@ -18,7 +18,14 @@ export default defineConfig({
 	retries: process.env.CI ? 1 : 0,
 	// GitHub ignores `::error` commands that don't start a line, and before
 	// Playwright 1.62 the `dot` reporter leaves its line open ahead of them.
-	reporter: process.env.CI ? [["line"], ["github"], ["html"]] : "html",
+	reporter: process.env.CI
+		? [
+				["line"],
+				["github"],
+				["html"],
+				["json", { outputFile: `e2e-timings/${process.env.EMDASH_E2E_TARGET ?? "node"}.json` }],
+			]
+		: "html",
 	// The Cloudflare (workerd) dev runner compiles each admin route slowly on
 	// first hit; give it headroom so cold compilation doesn't time out specs.
 	timeout: process.env.EMDASH_E2E_TARGET === "cloudflare" ? 90_000 : 30000,
