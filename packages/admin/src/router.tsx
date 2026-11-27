@@ -4167,7 +4167,7 @@ function ErrorScreen({ error }: { error: string }) {
 	const { t } = useLingui();
 	return (
 		<div className="flex items-center justify-center min-h-screen">
-			<div className="text-center">
+			<div className="flex flex-col items-center text-center">
 				<h1 className="text-2xl font-semibold leading-tight text-kumo-danger">{t`Error`}</h1>
 				<p className="mt-2 text-sm text-kumo-subtle">{error}</p>
 				<Button onClick={() => window.location.reload()} className="mt-4">
