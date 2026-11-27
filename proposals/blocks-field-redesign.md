@@ -191,7 +191,7 @@ The marketing template has no list with a single sub-field, so the mockup shows 
 - Explicit layout settings on block fields, such as help text, groups or widths. They would change the block type schema and the API, so they need an RFC. The name-based rules in this plan would stay as the fallback for fields without settings. Until then, labels show as written, so instructions a seed writes into a label stay in the label.
 - Letting drafts save blocks with empty required fields. The server rejects them on every save, and changing that is an API change for its own proposal.
 - Top-level collection fields, including top-level `repeater` fields, which keep their current look.
-- Lists inside list items, and new sub-field types such as a list of strings inside an item. Pricing plan features stay one per line in a text area.
+- New sub-field types inside a list item, such as a list of strings. Pricing plan features stay one per line in a text area. Lists inside list items are proposed in [Nested repeaters in native block types and repeater fields](nested-repeaters-native-blocks.md), which would change this line if accepted.
 - A thumbnail grid for lists that hold only images.
 - Blocks inside the rich text editor (Portable Text blocks).
 
