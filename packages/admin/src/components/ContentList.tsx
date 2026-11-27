@@ -1029,6 +1029,9 @@ export function ContentList({
 	);
 }
 
+/** The author Select's value for "All authors"; an empty value would show as a placeholder. */
+const ALL_AUTHORS = "__all__";
+
 interface FilterBarProps {
 	statusFilter: ContentStatusFilter;
 	onStatusFilterChange: (status: ContentStatusFilter) => void;
@@ -1125,17 +1128,22 @@ function FilterBar({
 			{showAuthorFilter && (
 				<Select
 					size="sm"
+					className="emdash-author-filter-trigger min-w-32 ps-3.5"
 					aria-label={t`Filter by author`}
-					value={authorFilter}
-					onValueChange={(v) => onAuthorFilterChange?.(v ?? "")}
+					value={authorFilter || ALL_AUTHORS}
+					onValueChange={(v) =>
+						onAuthorFilterChange?.(typeof v === "string" && v !== ALL_AUTHORS ? v : "")
+					}
 					items={{
-						"": t`All authors`,
+						[ALL_AUTHORS]: t`All authors`,
 						...Object.fromEntries(authors.map((a) => [a.id, a.name || a.email || t`Unnamed user`])),
 					}}
 				>
-					<Select.Option value="">{t`All authors`}</Select.Option>
+					<Select.Option value={ALL_AUTHORS} className="emdash-compact-select-option text-xs">
+						{t`All authors`}
+					</Select.Option>
 					{authors.map((a) => (
-						<Select.Option key={a.id} value={a.id}>
+						<Select.Option key={a.id} value={a.id} className="emdash-compact-select-option text-xs">
 							{a.name || a.email || t`Unnamed user`}
 						</Select.Option>
 					))}
