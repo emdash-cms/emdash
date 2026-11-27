@@ -8,9 +8,13 @@ import {
 	writeError,
 } from "../src/admin-errors.js";
 
+const deleteFailed = { id: "AB1bxU", message: "Failed to delete form" };
+
 describe("forms admin error messages", () => {
 	it("reports a 403 on forms/list as a permission problem", () => {
-		expect(formsLoadError({ status: 403 })).toBe("You don't have permission to view forms.");
+		expect(formsLoadError({ status: 403 }).message).toBe(
+			"You don't have permission to view forms.",
+		);
 	});
 
 	it("reports other forms/list failures as a load failure", () => {
@@ -20,7 +24,7 @@ describe("forms admin error messages", () => {
 	});
 
 	it("reports a 403 on submissions/list as a permission problem, not an empty list", () => {
-		expect(submissionsLoadError({ status: 403 })).toBe(
+		expect(submissionsLoadError({ status: 403 }).message).toBe(
 			"You don't have permission to view submissions.",
 		);
 	});
@@ -32,12 +36,12 @@ describe("forms admin error messages", () => {
 	});
 
 	it("reports a 403 on a write as a permission problem", () => {
-		expect(writeError({ status: 403 }, "Failed to delete form")).toBe(
+		expect(writeError({ status: 403 }, deleteFailed).message).toBe(
 			"You don't have permission to do this.",
 		);
 	});
 
 	it("keeps the action-specific message for other write failures", () => {
-		expect(writeError({ status: 500 }, "Failed to delete form")).toBe("Failed to delete form");
+		expect(writeError({ status: 500 }, deleteFailed)).toBe(deleteFailed);
 	});
 });
