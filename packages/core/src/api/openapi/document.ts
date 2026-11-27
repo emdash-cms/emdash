@@ -41,6 +41,8 @@ import {
 	contentScheduleBody,
 	contentTermsBody,
 	contentTermsResponseSchema,
+	contentEmptyTrashQuery,
+	contentEmptyTrashResponseSchema,
 	contentTrashQuery,
 	contentTranslationsResponseSchema,
 	contentUpdateBody,
@@ -1093,6 +1095,32 @@ const contentPaths = {
 					content: {
 						[JSON_CONTENT]: {
 							schema: successEnvelope(trashedContentListResponseSchema),
+						},
+					},
+				},
+				...authErrors,
+				...standardErrors(400, 500),
+			},
+		},
+		delete: {
+			operationId: "emptyContentTrash",
+			summary: "Permanently delete a batch of trashed content items",
+			description:
+				"Permanently removes one batch of trashed items from the collection. Repeat the " +
+				"request until `remaining` is 0. This cannot be undone.",
+			tags: ["Content"],
+			requestParams: {
+				path: z.object({
+					collection: z.string().meta({ description: "Collection slug" }),
+				}),
+				query: contentEmptyTrashQuery,
+			},
+			responses: {
+				"200": {
+					description: "Batch permanently deleted",
+					content: {
+						[JSON_CONTENT]: {
+							schema: successEnvelope(contentEmptyTrashResponseSchema),
 						},
 					},
 				},

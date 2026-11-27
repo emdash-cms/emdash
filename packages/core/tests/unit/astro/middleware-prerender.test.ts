@@ -72,6 +72,7 @@ const {
 			handleContentRestore: ok,
 			handleContentPermanentDelete: ok,
 			handleContentCountTrashed: ok,
+			handleContentEmptyTrash: ok,
 			handleContentGetIncludingTrashed: ok,
 			handleContentGetForWrite: ok,
 			handleContentGetById: ok,
