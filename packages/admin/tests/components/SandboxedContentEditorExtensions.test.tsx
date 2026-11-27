@@ -993,6 +993,138 @@ describe("SandboxedContentEditorPanel", () => {
 		expect(fetchMock).toHaveBeenCalledTimes(2);
 	});
 
+	it("keeps keyboard focus inside the panel across replaced forms, errors, and retries without stealing external focus", async () => {
+		const externalPending = Promise.withResolvers<Response>();
+		const bodyBlurPending = Promise.withResolvers<Response>();
+		const fetchMock = vi
+			.fn<() => Promise<Response>>()
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{ type: "header", text: "Variant pricing" },
+							{
+								type: "form",
+								block_id: "pricing-v1",
+								fields: [
+									{
+										type: "text_input",
+										action_id: "price",
+										label: "Price",
+										initial_value: "1800",
+									},
+								],
+								submit: { action_id: "save", label: "Save pricing" },
+							},
+						],
+					},
+				}),
+			)
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{
+								type: "actions",
+								elements: [{ type: "button", action_id: "edit", label: "Edit pricing" }],
+							},
+							{ type: "section", text: "Saved: $24.00" },
+						],
+						toast: { type: "success", message: "Pricing saved" },
+					},
+				}),
+			)
+			.mockResolvedValueOnce(new Response(null, { status: 502 }))
+			.mockResolvedValueOnce(
+				Response.json({
+					data: {
+						blocks: [
+							{
+								type: "actions",
+								block_id: "recovered-actions",
+								elements: [{ type: "button", action_id: "sync", label: "Sync inventory" }],
+							},
+						],
+					},
+				}),
+			)
+			.mockReturnValueOnce(externalPending.promise)
+			.mockReturnValueOnce(bodyBlurPending.promise);
+		vi.stubGlobal("fetch", fetchMock);
+		const screen = await render(
+			<div>
+				<SandboxedContentEditorPanel
+					pluginId="commerce"
+					panelId="pricing"
+					title="Pricing"
+					collection="products"
+					entryId="prod-1"
+					versionToken="v1"
+				/>
+				<button type="button">Delete entry</button>
+			</div>,
+			{ wrapper: Wrapper },
+		);
+
+		await userEvent.click(screen.getByRole("button", { name: "Pricing" }));
+		const price = screen.getByRole("textbox", { name: "Price" });
+		await expect.element(price).toBeVisible();
+		await price.fill("2400");
+		await userEvent.keyboard("{Enter}");
+
+		const edit = screen.getByRole("button", { name: "Edit pricing" });
+		await expect.element(edit).toBeVisible();
+		expect(document.activeElement).not.toBe(document.body);
+		await userEvent.tab();
+		expect(document.activeElement).toBe(edit.element());
+
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("alert")).toBeVisible();
+		expect(document.activeElement).not.toBe(document.body);
+		await userEvent.tab();
+		const retry = screen.getByRole("button", { name: "Retry" });
+		expect(document.activeElement).toBe(retry.element());
+
+		await userEvent.keyboard("{Enter}");
+		const sync = screen.getByRole("button", { name: "Sync inventory" });
+		await expect.element(sync).toBeVisible();
+		expect(document.activeElement).not.toBe(document.body);
+		await userEvent.tab();
+		expect(document.activeElement).toBe(sync.element());
+
+		await userEvent.keyboard("{Enter}");
+		const deleteButton = screen.getByRole("button", { name: "Delete entry" }).element();
+		deleteButton.focus();
+		externalPending.resolve(
+			Response.json({
+				data: {
+					blocks: [
+						{
+							type: "actions",
+							block_id: "synced-actions",
+							elements: [{ type: "button", action_id: "resync", label: "Resync inventory" }],
+						},
+					],
+				},
+			}),
+		);
+		const resync = screen.getByRole("button", { name: "Resync inventory" });
+		await expect.element(resync).toBeVisible();
+		expect(document.activeElement).toBe(deleteButton);
+
+		resync.element().focus();
+		await userEvent.keyboard("{Enter}");
+		await expect.element(screen.getByRole("status")).toHaveTextContent("Loading plugin panel");
+		(document.activeElement as HTMLElement | null)?.blur();
+		expect(document.activeElement).toBe(document.body);
+
+		bodyBlurPending.resolve(
+			Response.json({ data: { blocks: [{ type: "header", text: "Synced after blur" }] } }),
+		);
+		await expect.element(screen.getByRole("heading", { name: "Synced after blur" })).toBeVisible();
+		expect(document.activeElement).toBe(document.body);
+	});
+
 	it("applies panel refresh and safe navigation terminal effects", async () => {
 		const onEntryRefresh = vi.fn();
 		const open = vi.spyOn(window, "open").mockImplementation(() => null);

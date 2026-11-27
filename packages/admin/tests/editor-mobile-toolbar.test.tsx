@@ -4,13 +4,13 @@ import { msg } from "@lingui/core/macro";
 import { I18nProvider } from "@lingui/react";
 import { RouterContextProvider } from "@tanstack/react-router";
 import * as React from "react";
-import { afterEach, describe, expect, it } from "vitest";
-import { page } from "vitest/browser";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { page, userEvent } from "vitest/browser";
 
 import { ContentEditor, type FieldDescriptor } from "../src/components/ContentEditor";
 
 import "../dist/styles.css";
-import type { ContentItem } from "../src/lib/api";
+import type { AdminManifest, ContentItem } from "../src/lib/api";
 import { loadMessages } from "../src/locales/loadMessages";
 import { LocaleDirectionProvider } from "../src/locales/LocaleDirectionProvider.js";
 import { createAdminRouter } from "../src/router";
@@ -51,6 +51,7 @@ async function renderDirectEditor(
 		isAutosaving?: boolean;
 		isNew?: boolean;
 		supportsRevisions?: boolean;
+		manifest?: AdminManifest;
 	} = {},
 ) {
 	const router = createAdminRouter(createTestQueryClient());
@@ -67,6 +68,7 @@ async function renderDirectEditor(
 							fields={fields}
 							item={options.isNew ? undefined : entry}
 							isNew={options.isNew}
+							manifest={options.manifest}
 							supportsDrafts
 							supportsRevisions={options.supportsRevisions}
 							supportsPreview={options.supportsPreview}
@@ -125,6 +127,7 @@ function expectFourColumnGrid(toolbar: HTMLElement) {
 }
 
 afterEach(async () => {
+	vi.unstubAllGlobals();
 	await page.viewport(1280, 800);
 	i18n.loadAndActivate({ locale: "en", messages: {} });
 });
@@ -388,5 +391,110 @@ describe("ContentEditor mobile action bar", () => {
 		await expect.element(screen.getByRole("alert")).toBeVisible();
 		await screen.getByRole("button", { name: "Clear error" }).click();
 		expect(document.querySelector('[role="alert"]')).toBeNull();
+	});
+
+	it("keeps the mobile settings sheet open and retains focus inside it when a plugin panel saves", async () => {
+		await page.viewport(390, 800);
+		const manifest: AdminManifest = {
+			version: "1.0.0",
+			hash: "test",
+			authMode: "passkey",
+			collections: {
+				posts: {
+					label: "Posts",
+					labelSingular: "Post",
+					supports: ["drafts"],
+					hasSeo: false,
+					fields: { title: { kind: "string", label: "Title" } },
+				},
+			},
+			taxonomies: [],
+			plugins: {
+				commerce: {
+					enabled: true,
+					adminMode: "blocks",
+					editorPanels: [{ id: "pricing", title: "Pricing", route: "pricing" }],
+				},
+			},
+		};
+		let panelCalls = 0;
+		const fetchMock = vi.fn<typeof fetch>(async (input) => {
+			const url = String(input instanceof Request ? input.url : input);
+			if (url.includes("/plugin-extensions/commerce/panel/pricing")) {
+				panelCalls++;
+				if (panelCalls === 1) {
+					return Response.json({
+						data: {
+							blocks: [
+								{ type: "header", text: "Variant pricing" },
+								{
+									type: "form",
+									block_id: "pricing-v1",
+									fields: [
+										{
+											type: "text_input",
+											action_id: "price",
+											label: "Price",
+											initial_value: "1800",
+										},
+									],
+									submit: { action_id: "save", label: "Save pricing" },
+								},
+							],
+						},
+					});
+				}
+				return Response.json({
+					data: {
+						blocks: [
+							{
+								type: "form",
+								fields: [
+									{
+										type: "text_input",
+										action_id: "price",
+										label: "Price",
+										initial_value: "2400",
+									},
+								],
+								submit: { action_id: "save", label: "Save pricing" },
+							},
+							{ type: "section", text: "Saved: $24.00" },
+						],
+						toast: { type: "success", message: "Pricing saved" },
+					},
+				});
+			}
+			return Response.json({ data: { taxonomies: [], items: [], nextCursor: null } });
+		});
+		vi.stubGlobal("fetch", fetchMock);
+
+		const { screen } = await renderDirectEditor(item(false), "en", { manifest });
+		await userEvent.click(
+			screen.getByRole("button", { name: "Show settings", exact: true }).first(),
+		);
+		const sheet = screen.getByRole("navigation", { name: "Settings" });
+		await expect.element(sheet).toBeVisible();
+
+		await userEvent.click(sheet.getByRole("button", { name: "Pricing" }));
+		const price = sheet.getByRole("textbox", { name: "Price" });
+		await expect.element(price).toBeVisible();
+		await price.fill("2400");
+		await userEvent.keyboard("{Enter}");
+
+		await expect.element(sheet.getByText("Saved: $24.00")).toBeVisible();
+		expect(sheet.element()).not.toHaveAttribute("inert");
+		expect(sheet.element().contains(document.activeElement)).toBe(true);
+
+		await userEvent.tab();
+		const updatedPrice = sheet.getByRole("textbox", { name: "Price" });
+		expect(document.activeElement).toBe(updatedPrice.element());
+
+		const backdrop = document.querySelector<HTMLElement>("[data-sidebar-backdrop]");
+		expect(backdrop).not.toBeNull();
+		await userEvent.click(backdrop!, { position: { x: 20, y: 200 } });
+		await expect
+			.element(screen.getByRole("navigation", { name: "Settings", includeHidden: true }))
+			.toHaveAttribute("inert");
 	});
 });
