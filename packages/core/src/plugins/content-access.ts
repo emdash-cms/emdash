@@ -1,5 +1,6 @@
 import type { Kysely } from "kysely";
 
+import { getBasePath, withBasePath } from "../api/public-url.js";
 import { ContentRepository } from "../database/repositories/content.js";
 import { normalizeRevisionLimit, RevisionRepository } from "../database/repositories/revision.js";
 import { SeoRepository } from "../database/repositories/seo.js";
@@ -139,7 +140,7 @@ export function createContentAccess(
 				locale: item.locale || site.locale,
 				trailingSlash: site.trailingSlash,
 			});
-			return path === null ? null : `${site.url}${path}`;
+			return path === null ? null : `${withBasePath(site.url, getBasePath())}${path}`;
 		},
 
 		...(accessOptions?.revisions

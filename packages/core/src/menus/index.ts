@@ -11,6 +11,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { withBase } from "../api/public-url.js";
 import { menuTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
@@ -441,7 +442,7 @@ async function resolveMenuItem(
 				);
 				if (url === null) return null;
 			} else {
-				url = `/${item.reference_collection}/`;
+				url = withBase(`/${item.reference_collection}/`);
 			}
 			break;
 
@@ -586,7 +587,7 @@ async function resolveContentUrl(
 	if (!referenceGroup) return null;
 	const row = contentLookup.get(collection)?.get(referenceGroup);
 	if (!row) return null;
-	return resolveLocalizedContentRoutePath({
+	const path = await resolveLocalizedContentRoutePath({
 		pattern: urlPatterns.get(collection) ?? null,
 		collection,
 		slug: row.slug,
@@ -595,6 +596,7 @@ async function resolveContentUrl(
 		locale,
 		trailingSlash,
 	});
+	return path === null ? null : withBase(path);
 }
 
 interface TaxonomyReferenceRow {
@@ -664,5 +666,5 @@ function resolveTaxonomyUrl(
 	if (!referenceGroup) return null;
 	const taxonomy = taxonomyLookup.get(referenceGroup);
 	if (!taxonomy) return null;
-	return `/${taxonomy.name}/${taxonomy.slug}`;
+	return withBase(`/${taxonomy.name}/${taxonomy.slug}`);
 }

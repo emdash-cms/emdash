@@ -158,6 +158,18 @@ export function getPublicSiteUrl(
 	return withBasePath(storedUrl || getPublicOrigin(url, config), base);
 }
 
+/** Astro's base without its trailing slash: `""` at the root, `"/blog"` under a base. */
+export function getBasePath(): string {
+	// Packages that Vite leaves external, such as the workerd plugin bridge,
+	// load this module natively, where `import.meta.env` is undefined.
+	return (import.meta.env?.BASE_URL ?? "/").replace(TRAILING_SLASH_RE, "");
+}
+
+/** Prefix a root-relative site path with Astro's base. */
+export function withBase(path: string): string {
+	return `${getBasePath()}${path}`;
+}
+
 /** Append Astro's base to an absolute site URL unless its pathname already ends with it. */
 export function withBasePath(siteUrl: string, base: string): string {
 	const trimmed = siteUrl.replace(TRAILING_SLASH_RE, "");

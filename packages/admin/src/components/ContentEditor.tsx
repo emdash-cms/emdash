@@ -2597,6 +2597,7 @@ export function ContentEditor({
 				i18n,
 				id: entry.id,
 				date: entry.publishedAt,
+				basePath: manifest?.basePath,
 			});
 		};
 
@@ -2830,6 +2831,7 @@ export function ContentEditor({
 					i18n,
 					id: item.id,
 					date: item.publishedAt,
+					basePath: manifest?.basePath,
 				})
 			: null;
 

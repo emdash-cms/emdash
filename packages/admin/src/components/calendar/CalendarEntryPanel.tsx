@@ -80,6 +80,7 @@ export interface CalendarEntryPanelProps {
 	/** On wide layouts, the element beside the calendar that the panel fills. */
 	dock?: HTMLElement | null;
 	i18n: AdminManifest["i18n"];
+	basePath?: AdminManifest["basePath"];
 	/** Each collection's public URL pattern, for View live. */
 	urlPatterns: Readonly<Record<string, string | undefined>>;
 	user: CurrentUser | undefined;
@@ -174,6 +175,7 @@ function CalendarEntryPanelContent({
 	now,
 	compact,
 	i18n,
+	basePath,
 	urlPatterns,
 	user,
 	collections,
@@ -267,6 +269,7 @@ function CalendarEntryPanelContent({
 					i18n,
 					id: item.id,
 					date: entry?.publishedAt,
+					basePath,
 				},
 			);
 			openPreviewWindow(result?.url ?? fallback, item.collection, item.id);
@@ -281,6 +284,7 @@ function CalendarEntryPanelContent({
 					i18n,
 					id: item.id,
 					date: entry.publishedAt,
+					basePath,
 				})
 			: undefined;
 

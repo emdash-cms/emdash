@@ -18,6 +18,9 @@
  *      `interpolateUrlPattern` + `localizePath` helpers.
  *   4. the generic `/{collection}/{id}` fallback.
  *
+ * Paths from 3 and 4 get Astro's `base` in front. An explicit pattern (1 or 2)
+ * is a full site path and is used as given.
+ *
  * Response:
  * {
  *   url: string;      // The preview URL with token
@@ -30,6 +33,7 @@ import type { APIRoute } from "astro";
 import { requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError, unwrapResult } from "#api/error.js";
 import { parseOptionalBody, isParseError } from "#api/parse.js";
+import { withBase } from "#api/public-url.js";
 import { contentPreviewUrlBody } from "#api/schemas.js";
 import { requireScope } from "#auth/scopes.js";
 import { resolveSecretsCached } from "#config/secrets.js";
@@ -159,7 +163,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				// configured i18n list; fall back to the un-prefixed path so we
 				// still hand back a usable preview link rather than failing.
 				const localized = await localizePath(path, entryLocale ?? "");
-				const url = buildPreviewUrl({ path: localized ?? path, token });
+				const url = buildPreviewUrl({ path: withBase(localized ?? path), token });
 				return apiSuccess({ url, expiresAt });
 			}
 		}
@@ -170,7 +174,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			pathPattern: explicitPattern || "/{collection}/{id}",
 			locale: localeSegment,
 		});
-		const url = buildPreviewUrl({ path, token });
+		const url = buildPreviewUrl({ path: explicitPattern ? path : withBase(path), token });
 
 		return apiSuccess({ url, expiresAt });
 	} catch (error) {

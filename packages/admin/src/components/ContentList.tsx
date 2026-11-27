@@ -144,6 +144,8 @@ export interface ContentListProps {
 	trashedCount?: number;
 	/** i18n config — present when multiple locales are configured */
 	i18n?: { defaultLocale: string; locales: string[]; prefixDefaultLocale?: boolean };
+	/** Astro's `base` without its trailing slash, for links into the public site */
+	basePath?: string;
 	/** Currently active locale filter */
 	activeLocale?: string;
 	/** Callback when locale filter changes */
@@ -290,6 +292,7 @@ export function ContentList({
 	hasMoreTrashed,
 	trashedCount = 0,
 	i18n,
+	basePath,
 	activeLocale,
 	onLocaleChange,
 	urlPattern,
@@ -891,6 +894,7 @@ export function ContentList({
 										onDuplicate={!canDuplicate || canDuplicate(item) ? onDuplicate : undefined}
 										showLocale={!!i18n}
 										i18n={i18n}
+										basePath={basePath}
 										urlPattern={urlPattern}
 										titleField={titleField}
 										dateField={dateField}
@@ -1520,6 +1524,7 @@ interface ContentListItemProps {
 	onDuplicate?: (id: string) => void;
 	showLocale?: boolean;
 	i18n?: { defaultLocale: string; locales: string[]; prefixDefaultLocale?: boolean };
+	basePath?: string;
 	urlPattern?: string;
 	titleField?: string;
 	dateField?: string;
@@ -1538,6 +1543,7 @@ function ContentListItem({
 	onDuplicate,
 	showLocale,
 	i18n,
+	basePath,
 	urlPattern,
 	titleField,
 	dateField,
@@ -1658,6 +1664,7 @@ function ContentListItem({
 								i18n,
 								id: item.id,
 								date: item.publishedAt,
+								basePath,
 							})}
 							target="_blank"
 							rel="noreferrer"

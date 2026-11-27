@@ -387,6 +387,7 @@ function Calendar({ manifest }: { manifest: AdminManifest }) {
 					now={now}
 					compact={compact}
 					i18n={manifest.i18n}
+					basePath={manifest.basePath}
 					urlPatterns={urlPatterns}
 					user={user}
 					collections={manifest.collections}

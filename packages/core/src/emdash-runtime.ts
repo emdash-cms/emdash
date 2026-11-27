@@ -46,6 +46,7 @@ import {
 	listsMatch,
 	type ListPreconditions,
 } from "./api/list-preconditions.js";
+import { getBasePath } from "./api/public-url.js";
 import { encodeRev, validateRev } from "./api/rev.js";
 import { resolveSiteTitle } from "./api/site-title.js";
 import { getSiteBaseUrl, resolveSiteOrigin } from "./api/site-url.js";
@@ -4221,6 +4222,7 @@ export class EmDashRuntime {
 			taxonomies: manifestTaxonomies,
 			authMode: authModeValue,
 			i18n,
+			basePath: getBasePath(),
 			contentLocale: {
 				defaultLocale: i18nConfig?.defaultLocale ?? "en",
 				implicit: i18nConfig === null,
