@@ -9,7 +9,7 @@ This guide deploys an EmDash site to Cloudflare Workers with D1 for its database
 
 ## Prerequisites
 
-- A Cloudflare account
+- A Cloudflare account. On the Workers Free plan, editing regularly goes over the CPU time limit (see [CPU time on Workers Free](#cpu-time-on-workers-free)).
 - The project dependencies installed
 - Wrangler authenticated with Cloudflare (`pnpm wrangler login`)
 
@@ -46,7 +46,8 @@ The template uses the following bindings:
 	"exports": {
 		"EmDashRoom": { "type": "durable-object", "storage": "sqlite" },
 	},
-	"worker_loaders": [{ "binding": "LOADER" }],
+	// Sandboxed plugins require Worker Loader, available on Workers paid plans. Uncomment to enable:
+	// "worker_loaders": [{ "binding": "LOADER" }],
 	"triggers": { "crons": ["* * * * *"] },
 }
 ```
@@ -78,7 +79,7 @@ export default defineConfig({
 });
 ```
 
-If the site does not use marketplace, registry, or `sandboxed` plugins, omit `sandboxRunner` and the `LOADER` binding.
+If the site uses marketplace, registry, or `sandboxed` plugins, uncomment the `LOADER` binding, which requires a Workers paid plan. Otherwise, omit `sandboxRunner` and leave the `LOADER` binding commented out.
 
 ## Add the Worker entry point
 
@@ -206,6 +207,14 @@ export default {
 ### Turn co-editing off
 
 Remove `coEditing: true` from the `emdash()` options, and leave the binding, the `exports` entry and the room exports in place. The Worker then leaves the room engine out of its upload. A room that still holds unsaved edits keeps them in its storage until co-editing is on again, and then saves them as a recovery revision.
+
+## CPU time on Workers Free
+
+The Workers Free plan allows each request and each Cron Trigger run [10 ms of CPU time](https://developers.cloudflare.com/workers/platform/limits/#cpu-time). Time spent waiting for D1, R2, or KV doesn't count toward it.
+
+Editing regularly goes over 10 ms. Saving an entry, rendering a preview, the first request a newly started Worker handles, and a typical Cron Trigger run often use more than that. Cloudflare lets a Worker run over the limit now and then, and stops its requests and Cron Trigger runs when it runs over consistently, so some of them can fail. A stopped request fails with [error 1102](https://developers.cloudflare.com/support/troubleshooting/http-status-codes/cloudflare-1xxx-errors/error-1102/) (`Worker exceeded resource limits`). Workers Logs show a stopped request or Cron Trigger run with the outcome `exceededCpu`.
+
+The Workers Paid plan allows 30 seconds of CPU time per request by default.
 
 ## Place the Worker near D1
 
