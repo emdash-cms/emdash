@@ -403,8 +403,8 @@ Options for `access()`:
 | `audience`       | `string`  | —                      | Application Audience (AUD) tag. On Workers, prefer `audienceEnvVar`.                          |
 | `audienceEnvVar` | `string`  | `"CF_ACCESS_AUDIENCE"` | Environment variable to read the audience tag from at runtime                                |
 | `autoProvision`  | `boolean` | `true`                 | Create an EmDash user on first login                                                         |
-| `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)) |
-| `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` on every login instead of only at provisioning                        |
+| `defaultRole`    | `number`  | `30`                   | Role level for users not matched by `roleMapping` (see [User roles](/guides/authentication/#user-roles)). When the site has no existing users, the first provisioned user is assigned Admin (`50`) regardless of `defaultRole` or `roleMapping`. With `syncRoles: true`, that user's role is re-resolved on subsequent authenticated requests and falls back to `defaultRole` unless an IdP group maps to `50`. |
+| `syncRoles`      | `boolean` | `false`                | Re-apply `roleMapping` (and `defaultRole` fallback) on every authenticated request instead of only at provisioning |
 | `syncName`       | `boolean` | `true`                 | Replace the user's name with the IdP name on every authenticated request. Set `false` to make names editable in the admin |
 | `roleMapping`    | `object`  | —                      | Map IdP group names or GitHub `org/team` names to EmDash role levels; [first match wins](/guides/authentication/#role-mapping)                                  |
 | `matchGroupsBy`  | `"name"` \| `"id"` | `"name"`         | Compare `roleMapping` keys with group display names or group IDs. Use `"id"` when directory members can create groups. See [Matching groups by ID](/guides/authentication/#matching-groups-by-id) |
@@ -982,12 +982,10 @@ s3({
 })
 ```
 
-Runtime environment variable resolution is a Node-only feature. On Cloudflare
-Workers, secrets and variables are exposed through the `env` parameter of the
-fetch handler, not through `process.env`, so `S3_*` environment variables are
-not picked up. Workers deployments should either use the [`r2(config)`](#r2config)
-adapter or pass explicit values to `s3({...})`. See
-[Storage Options](/deployment/storage/#s3-compatible-storage) for details.
+Runtime `S3_*` resolution reads `process.env` and is intended for Node.js
+deployments. On Cloudflare Workers, use the [`r2(config)`](#r2config) adapter
+instead. See [Storage Options](/deployment/storage/#s3-compatible-storage) for
+details.
 
 ## Object cache adapters
 
@@ -1135,7 +1133,6 @@ EmDash respects these environment variables:
 | ------------------------- | ---------------------------------------- |
 | `EMDASH_SITE_URL`         | Public browser-facing origin (falls back to `SITE_URL`) |
 | `EMDASH_ALLOWED_ORIGINS`  | Comma-separated list of additional origins accepted by passkey verification (multi-subdomain deployments). |
-| `EMDASH_DATABASE_URL`     | Override database URL                    |
 | `EMDASH_ENCRYPTION_KEY`   | Key for encrypting plugin secrets at rest. Operator-provided — never stored in the database. |
 | `EMDASH_PREVIEW_SECRET`   | Optional override for preview HMAC secret. When unset, a stable per-site value is generated and stored in the database. |
 | `EMDASH_IP_SALT`          | Optional override for the commenter-IP hash salt. When unset, a stable per-site value is generated and stored in the database. |
