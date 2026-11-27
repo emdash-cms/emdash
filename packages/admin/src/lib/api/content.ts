@@ -415,8 +415,8 @@ export async function emptyContentTrash(
 	if (options?.locale) params.set("locale", options.locale);
 	const query = params.toString();
 	const response = await apiFetch(
-		`${API_BASE}/content/${collection}/trash${query ? `?${query}` : ""}`,
-		{ method: "DELETE" },
+		`${API_BASE}/content/${collection}/trash/empty${query ? `?${query}` : ""}`,
+		{ method: "POST" },
 	);
 	return parseApiResponse<{ deleted: number; remaining: number }>(
 		response,

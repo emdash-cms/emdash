@@ -1102,7 +1102,9 @@ const contentPaths = {
 				...standardErrors(400, 500),
 			},
 		},
-		delete: {
+	},
+	"/_emdash/api/content/{collection}/trash/empty": {
+		post: {
 			operationId: "emptyContentTrash",
 			summary: "Permanently delete a batch of trashed content items",
 			description:

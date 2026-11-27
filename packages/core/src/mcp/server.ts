@@ -41,6 +41,7 @@ import {
 	handleEditorialThreadUpdate,
 } from "../api/handlers/editorial-comments.js";
 import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
+import { localeCode } from "../api/schemas/common.js";
 import {
 	EDITORIAL_COMMENT_MAX_LENGTH,
 	EDITORIAL_CONTEXT_MAX_LENGTH,
@@ -1736,8 +1737,7 @@ export function createMcpServer(
 				"are not in the trash are never touched. This cannot be undone.",
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
-				locale: z
-					.string()
+				locale: localeCode
 					.optional()
 					.describe("Only delete trashed items in this locale (default: every locale)"),
 			}),

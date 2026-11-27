@@ -188,6 +188,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/trash/empty",
+		entrypoint: resolveRoute("api/content/[collection]/trash/empty.ts"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/restore",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/restore.ts"),
 	});

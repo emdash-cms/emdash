@@ -5254,8 +5254,9 @@ export class EmDashRuntime {
 
 	/**
 	 * Permanently delete one batch of a collection's trash. Callers repeat
-	 * until `remaining` is 0; a success either deletes something or leaves the
-	 * scope empty, so that loop ends.
+	 * until `remaining` is 0. An entry another request deleted first is
+	 * skipped rather than counted as a failure, so concurrent runs both
+	 * succeed; the call fails only when nothing could be deleted.
 	 */
 	async handleContentEmptyTrash(
 		collection: string,
@@ -5270,13 +5271,15 @@ export class EmDashRuntime {
 			});
 
 			const deletedIds: string[] = [];
+			let failed = 0;
 			for (const item of items) {
 				const result = await this.handleContentPermanentDelete(collection, item.id);
 				if (result.success) deletedIds.push(result.data.id);
+				else if (result.error.code !== "NOT_FOUND") failed++;
 			}
 
 			const remaining = await repo.countTrashed(collection, where);
-			if (deletedIds.length === 0 && remaining > 0) {
+			if (deletedIds.length === 0 && failed > 0) {
 				return {
 					success: false,
 					error: { code: "CONTENT_DELETE_ERROR", message: "Failed to empty the trash" },

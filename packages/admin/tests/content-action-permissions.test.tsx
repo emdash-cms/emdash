@@ -90,8 +90,14 @@ function serve(user: { id: string; role: number }, entries: Entry[], trash?: Tra
 		if (path === "/_emdash/api/content/posts") {
 			return Response.json({ data: { items: entries.map(contentItem), total: entries.length } });
 		}
+		if (
+			trash?.emptyTrash &&
+			method === "POST" &&
+			path === "/_emdash/api/content/posts/trash/empty"
+		) {
+			return trash.emptyTrash(url);
+		}
 		if (trash && path === "/_emdash/api/content/posts/trash") {
-			if (method === "DELETE" && trash.emptyTrash) return trash.emptyTrash(url);
 			const items = trash.trashed.map((entry) => ({
 				...contentItem(entry),
 				deletedAt: "2025-01-02T00:00:00Z",
@@ -339,12 +345,30 @@ describe("content trash actions", () => {
 
 		await expect.element(dialog).not.toBeInTheDocument();
 		await expect.element(screen.getByText("Permanently deleted 120 items")).toBeVisible();
-		expect(requests.filter((request) => request.startsWith("DELETE"))).toEqual([
-			"DELETE /_emdash/api/content/posts/trash",
-			"DELETE /_emdash/api/content/posts/trash",
-			"DELETE /_emdash/api/content/posts/trash",
+		expect(requests.filter((request) => request.endsWith("/trash/empty"))).toEqual([
+			"POST /_emdash/api/content/posts/trash/empty",
+			"POST /_emdash/api/content/posts/trash/empty",
+			"POST /_emdash/api/content/posts/trash/empty",
 		]);
 	});
+
+	it("stops emptying when a batch deletes nothing, even with items left", async () => {
+		serve(ADMIN, [], {
+			trashed,
+			emptyTrash: async () => Response.json({ data: { deleted: 0, remaining: 5 } }),
+		});
+		const screen = await renderAt({ to: "/content/$collection", params: { collection: "posts" } });
+		await screen.getByRole("tab", { name: /Trash/ }).click();
+
+		await screen.getByRole("button", { name: "Empty trash" }).click();
+		const dialog = screen.getByRole("dialog", { name: "Empty trash?" });
+		await expect.element(dialog.getByRole("button", { name: "Empty trash" })).toBeVisible();
+		dialog.getByRole("button", { name: "Empty trash" }).element().click();
+
+		await expect.element(dialog).not.toBeInTheDocument();
+		expect(requests.filter((request) => request.endsWith("/trash/empty"))).toHaveLength(1);
+	});
+
 	it("empties only the trash of the locale the list shows", async () => {
 		const deleteUrls: URL[] = [];
 		serve(ADMIN, [], {

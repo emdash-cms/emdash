@@ -1,7 +1,7 @@
 import { Role, type RoleLevel } from "@emdash-cms/auth";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { DELETE as emptyTrash } from "../../../src/astro/routes/api/content/[collection]/trash.js";
+import { POST as emptyTrash } from "../../../src/astro/routes/api/content/[collection]/trash/empty.js";
 import type { EmDashHandlers } from "../../../src/astro/types.js";
 import { ContentRepository } from "../../../src/database/repositories/content.js";
 import { RevisionRepository } from "../../../src/database/repositories/revision.js";
@@ -66,13 +66,13 @@ describeEachDialect("Empty trash", (dialect) => {
 		user: { id: string; role: RoleLevel },
 		locale?: string,
 	): Promise<{ status: number; body: EmptyTrashBody; invalidate: ReturnType<typeof vi.fn> }> {
-		const url = new URL("http://localhost/_emdash/api/content/post/trash");
+		const url = new URL("http://localhost/_emdash/api/content/post/trash/empty");
 		if (locale) url.searchParams.set("locale", locale);
 		const invalidate = vi.fn();
 		const response = await emptyTrash({
 			params: { collection: "post" },
 			url,
-			request: new Request(url, { method: "DELETE" }),
+			request: new Request(url, { method: "POST" }),
 			locals: { emdash: handlers, user },
 			cache: { enabled: true, invalidate },
 		} as unknown as Parameters<typeof emptyTrash>[0]);
@@ -134,6 +134,21 @@ describeEachDialect("Empty trash", (dialect) => {
 		const allowed = await callRoute(admin);
 		expect(allowed.status).toBe(200);
 		expect(allowed.body.data).toEqual({ deleted: 2, remaining: 0 });
+	});
+
+	it("skips entries another request deleted first instead of failing", async () => {
+		await seed(40);
+		const runtime = createTestRuntime(ctx.db);
+		const permanentDelete = runtime.handleContentPermanentDelete.bind(runtime);
+		vi.spyOn(runtime, "handleContentPermanentDelete").mockImplementation(async (collection, id) => {
+			await permanentDelete(collection, id);
+			return permanentDelete(collection, id);
+		});
+
+		const result = await runtime.handleContentEmptyTrash("post");
+
+		expect(result).toMatchObject({ success: true, data: { deletedIds: [] } });
+		expect(result.success && result.data.remaining).toBeGreaterThan(0);
 	});
 
 	it("removes a deleted entry's revisions", async () => {
