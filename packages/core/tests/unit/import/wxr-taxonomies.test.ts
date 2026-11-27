@@ -244,6 +244,118 @@ describe("preImportWxrTaxonomies", () => {
 		expect(plan.missingTaxonomies).not.toContain("genre");
 	});
 
+	it("nests terms under their WordPress parents, whatever the order in the file", async () => {
+		await db
+			.insertInto("_emdash_taxonomy_defs")
+			.values({
+				id: "taxdef_region",
+				name: "region",
+				label: "Regions",
+				hierarchical: 1,
+				collections: JSON.stringify(["posts"]),
+			})
+			.execute();
+
+		const categories: WxrCategory[] = [
+			{ id: 7, nicename: "munich", name: "Munich", parent: "bavaria" },
+			{ id: 6, nicename: "bavaria", name: "Bavaria", parent: "germany" },
+			{ id: 5, nicename: "germany", name: "Germany" },
+			{ id: 8, nicename: "orphan", name: "Orphan", parent: "not-in-the-file" },
+			{ id: 11, nicename: "loop-a", name: "Loop A", parent: "loop-b" },
+			{ id: 12, nicename: "loop-b", name: "Loop B", parent: "loop-a" },
+		];
+		const terms: WxrTerm[] = [
+			{ id: 10, taxonomy: "region", slug: "alps", name: "Alps", parent: "europe" },
+			{ id: 9, taxonomy: "region", slug: "europe", name: "Europe" },
+		];
+
+		await preImportWxrTaxonomies(db, [], categories, [], terms, undefined);
+
+		const rows = await db
+			.selectFrom("taxonomies")
+			.select(["name", "slug", "parent_id", "translation_group"])
+			.execute();
+		const slugByGroup = new Map(rows.map((row) => [row.translation_group, row.slug]));
+		const parentOf = (name: string, slug: string) => {
+			const row = rows.find((r) => r.name === name && r.slug === slug);
+			return row?.parent_id ? (slugByGroup.get(row.parent_id) ?? null) : null;
+		};
+		expect(parentOf("category", "munich")).toBe("bavaria");
+		expect(parentOf("category", "bavaria")).toBe("germany");
+		expect(parentOf("category", "germany")).toBeNull();
+		expect(parentOf("category", "orphan")).toBeNull();
+		expect(parentOf("category", "loop-a")).toBe("loop-b");
+		expect(parentOf("category", "loop-b")).toBeNull();
+		expect(parentOf("region", "alps")).toBe("europe");
+	});
+
+	it("leaves terms flat when the EmDash taxonomy is not hierarchical", async () => {
+		await db
+			.insertInto("_emdash_taxonomy_defs")
+			.values({
+				id: "taxdef_region",
+				name: "region",
+				label: "Regions",
+				hierarchical: 0,
+				collections: JSON.stringify(["posts"]),
+			})
+			.execute();
+		await db
+			.updateTable("_emdash_taxonomy_def_groups")
+			.set({ hierarchical: 0 })
+			.where("name", "=", "category")
+			.execute();
+
+		const categories: WxrCategory[] = [
+			{ id: 5, nicename: "germany", name: "Germany" },
+			{ id: 6, nicename: "bavaria", name: "Bavaria", parent: "germany" },
+		];
+		const terms: WxrTerm[] = [
+			{ id: 9, taxonomy: "region", slug: "europe", name: "Europe" },
+			{ id: 10, taxonomy: "region", slug: "alps", name: "Alps", parent: "europe" },
+		];
+
+		await preImportWxrTaxonomies(db, [], categories, [], terms, undefined);
+
+		const rows = await db
+			.selectFrom("taxonomies")
+			.select(["slug", "parent_id"])
+			.where("slug", "in", ["germany", "bavaria", "europe", "alps"])
+			.execute();
+		expect(rows).toHaveLength(4);
+		expect(rows.every((row) => row.parent_id === null)).toBe(true);
+	});
+
+	it("keeps an existing term's parent when importing its translation", async () => {
+		setI18nConfig({ defaultLocale: "en", locales: ["en", "de"] });
+		const repo = new TaxonomyRepository(db);
+		await repo.create({ name: "category", slug: "munich", label: "Munich", locale: "en" });
+
+		await preImportWxrTaxonomies(
+			db,
+			[],
+			[
+				{ id: 7, nicename: "munich", name: "München", parent: "bavaria" },
+				{ id: 6, nicename: "bavaria", name: "Bayern" },
+			],
+			[],
+			[],
+			"de",
+		);
+
+		const munich = await db
+			.selectFrom("taxonomies")
+			.select(["locale", "parent_id"])
+			.where("name", "=", "category")
+			.where("slug", "=", "munich")
+			.orderBy("locale")
+			.execute();
+		expect(munich).toEqual([
+			{ locale: "de", parent_id: null },
+			{ locale: "en", parent_id: null },
+		]);
+	});
+
 	it("records (but does not auto-create) taxonomies that have no EmDash def", async () => {
 		const terms: WxrTerm[] = [{ id: 1, taxonomy: "industry", slug: "tech", name: "Technology" }];
 
