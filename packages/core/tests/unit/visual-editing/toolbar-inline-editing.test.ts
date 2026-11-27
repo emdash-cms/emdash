@@ -62,7 +62,7 @@ function ref(field: string): string {
 
 function mountEditablePage(
 	content: string,
-	options: { hidden?: boolean; labels?: typeof LABELS } = {},
+	options: { hidden?: boolean; labels?: typeof LABELS; actionToken?: string } = {},
 ): void {
 	const toolbar = renderToolbar({ editMode: true, isPreview: false, labels: LABELS, ...options });
 	document.body.innerHTML = content + toolbar;
@@ -123,6 +123,38 @@ afterEach(() => {
 	vi.restoreAllMocks();
 	vi.unstubAllGlobals();
 	document.body.innerHTML = "";
+});
+
+describe("toolbar request data", () => {
+	it("round-trips escaped tokens and labels without interpreting them as markup", async () => {
+		const token = `token<&"'`;
+		const label = `Expired </script><img src=x onerror="alert(1)"> & ' \u2028\u2029`;
+		const fetchMock = vi.fn(async () =>
+			Response.json(
+				{ success: false, error: { code: "VISUAL_ACTION_TOKEN_INVALID" } },
+				{ status: 403 },
+			),
+		);
+		vi.stubGlobal("fetch", fetchMock);
+		mountEditablePage(
+			`<article data-emdash-ref='${JSON.stringify({ collection: "posts", id: "post-1", status: "draft" })}'></article>`,
+			{
+				actionToken: token,
+				labels: { ...LABELS, sessionExpired: label },
+			},
+		);
+		document.getElementById("emdash-tb-publish")!.click();
+		await vi.waitFor(() =>
+			expect(document.getElementById("emdash-tb-status")!.textContent).toBe(label),
+		);
+		expect(fetchMock).toHaveBeenCalledWith(
+			"/_emdash/api/visual-editing/content/posts/post-1/publish",
+			expect.objectContaining({
+				headers: expect.objectContaining({ "X-EmDash-Visual-Action": token }),
+			}),
+		);
+		expect(document.querySelector("img")).toBeNull();
+	});
 });
 
 describe("toolbar language", () => {
@@ -220,6 +252,13 @@ describe("toolbar language", () => {
 });
 
 describe("toolbar admin link", () => {
+	it("hides unavailable actions until an entry can be edited or published", () => {
+		stubApi();
+		mountEditablePage("<h1>Public page</h1>");
+		expect(getComputedStyle(document.getElementById("emdash-tb-admin")!).display).toBe("none");
+		expect(getComputedStyle(document.getElementById("emdash-tb-publish")!).display).toBe("none");
+	});
+
 	it("opens each entry in its own admin window", () => {
 		stubApi();
 		const entry = JSON.stringify({ collection: "posts", id: "post-1", status: "published" });
@@ -277,7 +316,7 @@ describe("toolbar multi-entry publishing", () => {
 				entry("new", { status: "draft" }),
 		);
 		expect(document.getElementById("emdash-tb-status")!.textContent).toBe("Draft");
-		expect(publishButton().style.display).not.toBe("none");
+		expect(getComputedStyle(publishButton()).display).not.toBe("none");
 		publishButton().click();
 		await vi.waitFor(() => expect(api.published).toHaveLength(1));
 		api.answer(new Response(null, { status: 200 }));
@@ -292,7 +331,7 @@ describe("toolbar multi-entry publishing", () => {
 		holdPublishing();
 		mountEditablePage(entry("live") + entry("pending", { hasDraft: true }));
 		expect(document.getElementById("emdash-tb-status")!.textContent).toBe("Unpublished changes");
-		expect(publishButton().style.display).not.toBe("none");
+		expect(getComputedStyle(publishButton()).display).not.toBe("none");
 	});
 
 	it.each([403, 409, "network"])(
@@ -331,7 +370,7 @@ describe("toolbar multi-entry publishing", () => {
 		const api = holdPublishing();
 		mountEditablePage(entry("one") + entry("two"));
 		await editInPlace(document.querySelectorAll("h2")[0]!, "Edited one");
-		await vi.waitFor(() => expect(publishButton().style.display).not.toBe("none"));
+		await vi.waitFor(() => expect(getComputedStyle(publishButton()).display).not.toBe("none"));
 		let finishSave!: () => void;
 		const done = new Promise<void>((resolve) => {
 			finishSave = resolve;
