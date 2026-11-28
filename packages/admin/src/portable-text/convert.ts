@@ -1243,16 +1243,25 @@ function convertPTBlock(
 				const title = typeof malformed.title === "string" ? malformed.title : "";
 				return {
 					type: "image",
-					attrs: {
-						src: typeof malformed.url === "string" ? malformed.url : "",
-						alt: typeof malformed.alt === "string" ? malformed.alt : "",
-						title,
-						caption: Object.hasOwn(malformed, "caption")
-							? typeof malformed.caption === "string"
-								? malformed.caption
-								: ""
-							: title,
-					},
+					attrs: attrsWithPortableTextKey(
+						{
+							src: typeof malformed.url === "string" ? malformed.url : "",
+							alt: typeof malformed.alt === "string" ? malformed.alt : "",
+							title,
+							caption: Object.hasOwn(malformed, "caption")
+								? typeof malformed.caption === "string"
+									? malformed.caption
+									: ""
+								: title,
+							width: attrNum(malformed.width),
+							height: attrNum(malformed.height),
+							displayWidth: attrNum(malformed.displayWidth),
+							displayHeight: attrNum(malformed.displayHeight),
+							alignment: attrStr(malformed.alignment),
+							link: normalizeImageLink(malformed.link),
+						},
+						block._key,
+					),
 				};
 			}
 			const imageBlock = block;

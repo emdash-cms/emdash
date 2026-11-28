@@ -1,9 +1,15 @@
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
-	_pmToPortableText as pmToPortableText,
-	_portableTextToPM as portableTextToPM,
-} from "../../../src/components/InlinePortableTextEditor.js";
+	destroyInlineEditors,
+	inlineDocument as portableTextToPM,
+	topLevelNodes,
+	saveDocument as pmToPortableText,
+} from "../../utils/inline-portable-text.js";
+
+afterEach(destroyInlineEditors);
 
 type PMNode = {
 	type?: string;
@@ -149,7 +155,7 @@ describe("inline Portable Text list conversion", () => {
 			numbered("six", "Six", 1, 1),
 		];
 		const pm = portableTextToPM(blocks);
-		const rootNodes = pm.content as PMNode[];
+		const rootNodes = topLevelNodes(pm) as PMNode[];
 		const lists = rootNodes.filter((node) => node.type === "orderedList");
 
 		expect(lists.map((list) => list.attrs?.start)).toEqual([1, 2, 3, 4, 5, 6]);

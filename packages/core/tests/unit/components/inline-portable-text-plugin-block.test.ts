@@ -1,254 +1,92 @@
+// @vitest-environment jsdom
+
 /**
- * Inline editor plugin-block round-trip tests.
- *
- * Regression tests for the bug where the visual-editing inline editor
- * coerced unknown Portable Text block types (e.g. `marketing.hero`) into
- * `pluginBlock` ProseMirror nodes that only carried `{ blockType, id }`,
- * silently dropping every other field. On save, `pmToPortableText` then
- * serialised the block back as `{ _type, _key, id }`, persisting the data
- * loss.
- *
- * The fix preserves all non-well-known fields on a `data` attribute and
- * spreads them back out during the PM → PT direction. See
- * `InlinePortableTextEditor.tsx` `case "pluginBlock"` and the unknown-block
- * fallback in `convertPTBlock`.
+ * Plugin-contributed and unknown block types can't be edited in the inline
+ * editor. They show as placeholders and save with every field they loaded
+ * with.
  */
 
-import { describe, it, expect } from "vitest";
+import type { PortableTextBlock } from "@emdash-cms/admin/internal/portable-text";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
-	_pmToPortableText as pmToPortableText,
-	_portableTextToPM as portableTextToPM,
-} from "../../../src/components/InlinePortableTextEditor.js";
+	destroyInlineEditors,
+	loadInline,
+	roundTripInline,
+	saveInline,
+} from "../../utils/inline-portable-text.js";
 
-function pmDoc(...content: unknown[]) {
-	return { type: "doc", content };
-}
+afterEach(destroyInlineEditors);
 
-describe("inline editor: PT → PM (unknown blocks)", () => {
-	it("captures every non-well-known field into data", () => {
-		const block = {
-			_type: "marketing.hero",
-			_key: "hero",
-			headline: "Build products people want",
-			subheadline: "The all-in-one platform",
-			primaryCtaLabel: "Sign up",
-			primaryCtaUrl: "/signup",
-			centered: true,
-		};
-
-		const pm = portableTextToPM([block]);
-		const node = pm.content?.[0] as {
-			type: string;
-			attrs: { blockType: string; id: string; data: Record<string, unknown> };
-		};
-
-		expect(node.type).toBe("pluginBlock");
-		expect(node.attrs.blockType).toBe("marketing.hero");
-		expect(node.attrs.id).toBe("");
-		expect(node.attrs.data).toEqual({
-			headline: "Build products people want",
-			subheadline: "The all-in-one platform",
-			primaryCtaLabel: "Sign up",
-			primaryCtaUrl: "/signup",
-			centered: true,
-		});
-	});
-
-	it("strips _-prefixed keys from data to prevent accumulation", () => {
-		const block = {
-			_type: "embed",
-			_key: "k1",
-			_internal: "should-strip",
-			caption: "should-keep",
-		};
-
-		const pm = portableTextToPM([block]);
-		const node = pm.content?.[0] as { attrs: { data: Record<string, unknown> } };
-
-		expect(node.attrs.data).toEqual({ caption: "should-keep" });
-		expect(node.attrs.data).not.toHaveProperty("_internal");
-	});
-
-	it("uses url as a fallback for id", () => {
-		const block = { _type: "youtube", _key: "k1", url: "https://youtu.be/abc" };
-
-		const pm = portableTextToPM([block]);
-		const node = pm.content?.[0] as { attrs: { id: string } };
-
-		expect(node.attrs.id).toBe("https://youtu.be/abc");
-	});
+const paragraph = (key: string, text: string): PortableTextBlock => ({
+	_type: "block",
+	_key: key,
+	style: "normal",
+	markDefs: [],
+	children: [{ _type: "span", _key: `${key}-s`, text, marks: [] }],
 });
 
-describe("inline editor: PM → PT (pluginBlock)", () => {
-	it("spreads data fields back into the PT block", () => {
-		const doc = pmDoc({
-			type: "pluginBlock",
-			attrs: {
-				blockType: "marketing.hero",
-				id: "",
-				data: { headline: "Hi", centered: true },
-			},
-		});
+describe("inline editor plugin blocks", () => {
+	it("shows each block it can't edit as a placeholder naming its type", () => {
+		const editor = loadInline([
+			{ _type: "marketing.hero", _key: "hero", headline: "Hi" },
+			{ _type: "gallery", _key: "g", images: [] },
+			{ _type: "video", _key: "v", url: "https://example.com/v.mp4" },
+			{ _type: "iframe", _key: "i", src: "https://example.com" },
+		]);
 
-		const blocks = pmToPortableText(doc);
-
-		expect(blocks[0]).toMatchObject({
-			_type: "marketing.hero",
-			id: "",
-			headline: "Hi",
-			centered: true,
-		});
+		const placeholders = editor.view.dom.querySelectorAll("[data-emdash-plugin-block]");
+		expect(Array.from(placeholders, (node) => node.textContent)).toEqual([
+			"Plugin block: marketing.hero (edit in admin)",
+			"Plugin block: gallery (edit in admin)",
+			"Plugin block: video (edit in admin)",
+			"Plugin block: iframe (edit in admin)",
+		]);
+		expect(placeholders[0]?.getAttribute("contenteditable")).toBe("false");
 	});
 
-	it("data fields cannot overwrite _type or _key", () => {
-		const doc = pmDoc({
-			type: "pluginBlock",
-			attrs: {
-				blockType: "marketing.hero",
-				id: "",
-				data: { _type: "evil", _key: "evil", headline: "kept" },
-			},
-		});
-
-		const blocks = pmToPortableText(doc);
-
-		expect(blocks[0]!._type).toBe("marketing.hero");
-		expect(blocks[0]!._key).not.toBe("evil");
-		expect(blocks[0]).toMatchObject({ headline: "kept" });
-	});
-
-	it("falls back blockType to 'embed' when missing", () => {
-		const doc = pmDoc({
-			type: "pluginBlock",
-			attrs: { blockType: null, id: "u", data: {} },
-		});
-
-		const blocks = pmToPortableText(doc);
-
-		expect(blocks[0]!._type).toBe("embed");
-	});
-
-	it("handles non-object data gracefully", () => {
-		// Defensive: data could be malformed if persisted from a buggy source.
-		const doc = pmDoc({
-			type: "pluginBlock",
-			attrs: { blockType: "embed", id: "u", data: null },
-		});
-
-		const blocks = pmToPortableText(doc);
-
-		expect(blocks[0]).toMatchObject({ _type: "embed", id: "u" });
-	});
-});
-
-describe("inline editor: round-trip preserves plugin block payloads", () => {
-	it("a marketing.hero-shaped block survives PT → PM → PT intact", () => {
-		const original = {
+	it("saves a plugin block with nested fields unchanged", () => {
+		const hero = {
 			_type: "marketing.hero",
 			_key: "hero",
 			headline: "Build products people want",
-			subheadline: "The all-in-one platform",
-			primaryCtaLabel: "Sign up",
-			primaryCtaUrl: "/signup",
-			secondaryCtaLabel: "Watch demo",
-			secondaryCtaUrl: "/demo",
 			centered: true,
-		};
-
-		const pm = portableTextToPM([original]);
-		const roundTripped = pmToPortableText(pm);
-
-		expect(roundTripped).toHaveLength(1);
-		expect(roundTripped[0]).toMatchObject({
-			_type: "marketing.hero",
-			headline: "Build products people want",
-			subheadline: "The all-in-one platform",
-			primaryCtaLabel: "Sign up",
-			primaryCtaUrl: "/signup",
-			secondaryCtaLabel: "Watch demo",
-			secondaryCtaUrl: "/demo",
-			centered: true,
-		});
-	});
-
-	it("nested objects in unknown fields survive round-trip", () => {
-		const original = {
-			_type: "marketing.hero",
-			_key: "hero",
 			primaryCta: { label: "Sign up", url: "/signup" },
-			image: { url: "/hero.png", alt: "Hero" },
-		};
-
-		const pm = portableTextToPM([original]);
-		const roundTripped = pmToPortableText(pm);
-
-		expect(roundTripped[0]).toMatchObject({
-			_type: "marketing.hero",
-			primaryCta: { label: "Sign up", url: "/signup" },
-			image: { url: "/hero.png", alt: "Hero" },
-		});
-	});
-
-	it("a url-identified embed keeps url and does not gain an id", () => {
-		const original = {
-			_type: "embed",
-			_key: "e1",
-			url: "https://www.youtube.com/watch?v=abc",
-			provider: "youtube",
-			html: "<iframe></iframe>",
-		};
-
-		const [roundTripped] = pmToPortableText(portableTextToPM([original]));
-
-		expect(roundTripped).toMatchObject({
-			_type: "embed",
-			url: "https://www.youtube.com/watch?v=abc",
-			provider: "youtube",
-			html: "<iframe></iframe>",
-		});
-		expect(roundTripped).not.toHaveProperty("id");
-	});
-
-	it("a block with both id and url keeps both", () => {
-		const original = { _type: "embed", _key: "e1", id: "vid-1", url: "https://youtu.be/abc" };
-
-		const [roundTripped] = pmToPortableText(portableTextToPM([original]));
-
-		expect(roundTripped).toMatchObject({ id: "vid-1", url: "https://youtu.be/abc" });
-	});
-
-	it("a non-string id is kept as data", () => {
-		const original = { _type: "embed", _key: "e1", id: 5, url: "https://youtu.be/abc" };
-
-		const [roundTripped] = pmToPortableText(portableTextToPM([original]));
-
-		expect(roundTripped).toMatchObject({ id: 5, url: "https://youtu.be/abc" });
-	});
-
-	it("a block without id or url does not gain one", () => {
-		const original = { _type: "marketing.hero", _key: "hero", headline: "Hi" };
-
-		const [roundTripped] = pmToPortableText(portableTextToPM([original]));
-
-		expect(roundTripped).not.toHaveProperty("id");
-		expect(roundTripped).not.toHaveProperty("url");
-	});
-
-	it("repeated round-trips are stable (no _-key leakage)", () => {
-		const original = {
-			_type: "marketing.faq",
-			_key: "faq",
 			items: [{ question: "Q?", answer: "A." }],
 		};
 
-		const rt1 = pmToPortableText(portableTextToPM([original]));
-		const rt2 = pmToPortableText(portableTextToPM(rt1));
+		expect(roundTripInline([hero])).toEqual([hero]);
+	});
 
-		expect(rt2[0]).toMatchObject({
-			_type: "marketing.faq",
-			items: [{ question: "Q?", answer: "A." }],
-		});
-		expect(Object.keys(rt2[0]!).filter((k) => k.startsWith("_"))).toEqual(["_type", "_key"]);
+	it("keeps whichever of id and url a block has, and adds neither", () => {
+		const blocks = [
+			{ _type: "embed", _key: "url", url: "https://youtu.be/abc", provider: "youtube" },
+			{ _type: "embed", _key: "both", id: "vid-1", url: "https://youtu.be/abc" },
+			{ _type: "embed", _key: "number", id: 5 },
+			{ _type: "marketing.hero", _key: "none", headline: "Hi" },
+		];
+
+		expect(roundTripInline(blocks)).toEqual(blocks);
+	});
+
+	it("keeps a plugin's own video and iframe fields", () => {
+		const blocks = [
+			{ _type: "video", _key: "v", provider: "vimeo", videoId: "123", autoplay: true },
+			{ _type: "iframe", _key: "i", src: "https://example.com", sandbox: "allow-scripts" },
+		];
+
+		expect(roundTripInline(blocks)).toEqual(blocks);
+	});
+
+	it("saves a plugin block unchanged after an edit beside it", () => {
+		const hero = { _type: "marketing.hero", _key: "hero", headline: "Hi" };
+		const editor = loadInline([paragraph("p", "Before"), hero]);
+
+		editor.commands.insertContentAt(1, "Edited ");
+
+		const [edited, saved] = saveInline(editor);
+		const children = (edited as { children: Array<{ text: string }> }).children;
+		expect(children.map((span) => span.text).join("")).toBe("Edited Before");
+		expect(saved).toEqual(hero);
 	});
 });

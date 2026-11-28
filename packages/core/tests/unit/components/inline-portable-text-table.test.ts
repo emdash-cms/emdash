@@ -1,75 +1,45 @@
 // @vitest-environment jsdom
 
-import { Editor, type JSONContent } from "@tiptap/core";
-import StarterKit from "@tiptap/starter-kit";
+import type { PortableTextBlock } from "@emdash-cms/admin/internal/portable-text";
+import { NodeSelection, Selection } from "@tiptap/pm/state";
 import { createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import {
-	InlinePortableTextEditor,
-	_InlineTableBlockNode as InlineTableBlockNode,
-	_pmToPortableText as pmToPortableText,
-	_portableTextToPM as portableTextToPM,
-} from "../../../src/components/InlinePortableTextEditor.js";
+import { InlinePortableTextEditor } from "../../../src/components/InlinePortableTextEditor.js";
+import { editorFixtures } from "../../utils/admin-portable-text-round-trip.js";
+import { destroyInlineEditors, loadInline, saveInline } from "../../utils/inline-portable-text.js";
 
-const table = {
-	_type: "table",
-	_key: "table-original",
-	hasHeaderRow: true,
-	rows: [
-		{
-			_type: "tableRow",
-			_key: "row-header",
-			cells: [
-				{
-					_type: "tableCell",
-					_key: "cell-header",
-					isHeader: true,
-					content: [{ _type: "span", _key: "span-header", text: "Name" }],
-				},
-			],
-		},
-		{
-			_type: "tableRow",
-			_key: "row-body",
-			cells: [
-				{
-					_type: "tableCell",
-					_key: "cell-body",
-					colwidth: [192],
-					textAlign: "right",
-					content: [{ _type: "span", _key: "span-body", text: "EmDash", marks: ["strong"] }],
-				},
-			],
-		},
-	],
-};
+const table = editorFixtures
+	.find((fixture) => fixture.name.startsWith("table with a header row"))!
+	.blocks.find((block) => block._type === "table")!;
 
-const editors: Editor[] = [];
+const paragraph = (key: string, text: string): PortableTextBlock => ({
+	_type: "block",
+	_key: key,
+	style: "normal",
+	markDefs: [],
+	children: [{ _type: "span", _key: `${key}-s`, text, marks: [] }],
+});
+
 const elements: HTMLElement[] = [];
 const roots: Root[] = [];
 
-function createEditor(content: JSONContent): Editor {
-	const element = document.createElement("div");
-	document.body.append(element);
-	elements.push(element);
-	const editor = new Editor({
-		element,
-		extensions: [StarterKit, InlineTableBlockNode],
-		content,
-	});
-	editors.push(editor);
-	return editor;
-}
-
 afterEach(() => {
 	for (const root of roots.splice(0)) root.unmount();
-	for (const editor of editors.splice(0)) editor.destroy();
 	for (const element of elements.splice(0)) element.remove();
+	destroyInlineEditors();
 });
 
-describe("inline editor table preservation", () => {
+function tablePosition(editor: ReturnType<typeof loadInline>): number {
+	let position = -1;
+	editor.state.doc.forEach((node, offset) => {
+		if (node.type.name === "table") position = offset;
+	});
+	return position;
+}
+
+describe("inline editor tables", () => {
 	it("keeps table labels local to each editor", async () => {
 		const element = document.body.appendChild(document.createElement("div"));
 		elements.push(element);
@@ -88,91 +58,47 @@ describe("inline editor table preservation", () => {
 		});
 	});
 
-	it("keeps the raw table when cutting its opaque placeholder", () => {
-		const editor = createEditor(portableTextToPM([table]));
-		editor.commands.setNodeSelection(0);
-		const before = editor.getJSON();
-		const cut = new Event("cut", { bubbles: true, cancelable: true });
-		Object.defineProperty(cut, "clipboardData", {
-			value: { clearData() {}, setData() {} },
-		});
-		editor.view.dom.dispatchEvent(cut);
-		expect(editor.getJSON()).toEqual(before);
+	it("shows a table as a read-only placeholder without its cells", () => {
+		const editor = loadInline([table]);
+
+		const placeholder = editor.view.dom.querySelector("[data-emdash-table-block]");
+		expect(placeholder?.textContent).toBe("Table (edit in admin)");
+		expect(placeholder?.getAttribute("contenteditable")).toBe("false");
+		expect(editor.view.dom.querySelector("td, th")).toBeNull();
 	});
 
-	it("stores the complete table in one opaque ProseMirror node", () => {
-		const document = portableTextToPM([table]);
-		const node = document.content?.[0];
-
-		expect(node?.type).toBe("table");
-		expect(node?.attrs).toEqual({ rawTable: table, emdashKey: "table-original" });
-		expect(node?.attrs).not.toHaveProperty("id");
-	});
-
-	it("preserves the table payload and structural keys exactly across a round trip", () => {
-		const roundTripped = pmToPortableText(portableTextToPM([table]));
-
-		expect(roundTripped).toEqual([table]);
-	});
-
-	it("survives schema loading, an adjacent edit, and editor serialization", () => {
-		const content = portableTextToPM([
-			{
-				_type: "block",
-				_key: "before",
-				style: "normal",
-				children: [{ _type: "span", _key: "before-span", text: "Before" }],
-			},
-			table,
-			{
-				_type: "block",
-				_key: "after",
-				style: "normal",
-				children: [{ _type: "span", _key: "after-span", text: "After" }],
-			},
-		]);
-		const editor = createEditor(content);
+	it("saves a table unchanged after an edit beside it", () => {
+		const editor = loadInline([paragraph("before", "Before"), table, paragraph("after", "After")]);
 
 		editor.commands.insertContentAt(1, "Edited ");
 
-		const tableNode = editor.getJSON().content?.find((node) => node.type === "table");
-		const serializedTable = pmToPortableText(editor.getJSON()).find(
-			(block) => block._type === "table",
-		);
-		expect(tableNode?.attrs?.rawTable).toEqual(table);
-		expect(serializedTable).toEqual(table);
+		const saved = saveInline(editor);
+		expect(saved[1]).toEqual(table);
+		expect(saved).toHaveLength(3);
 	});
 
-	it("rejects a pasted rendered placeholder that has no raw table payload", () => {
-		const source = createEditor(portableTextToPM([table]));
-		const placeholder = source.view.dom.querySelector<HTMLElement>(
-			'[data-emdash-table-block="true"]',
+	it("selects a table as one block from the line after it, never a cell it doesn't show", () => {
+		const editor = loadInline([table, paragraph("after", "After")]);
+		const afterTable = tablePosition(editor) + editor.state.doc.child(0).nodeSize;
+
+		const found = Selection.findFrom(editor.state.doc.resolve(afterTable), -1);
+
+		expect(found).toBeInstanceOf(NodeSelection);
+		expect((found as NodeSelection).node.type.name).toBe("table");
+	});
+
+	it("doesn't cut a table, because the clipboard copy would lose its extra fields", () => {
+		const captioned = { ...table, caption: "Quarterly results" };
+		const editor = loadInline([captioned, paragraph("after", "After")]);
+		const { view } = editor;
+		view.dispatch(
+			view.state.tr.setSelection(NodeSelection.create(view.state.doc, tablePosition(editor))),
 		);
-		expect(placeholder).not.toBeNull();
 
-		const target = createEditor({
-			type: "doc",
-			content: [{ type: "paragraph", content: [{ type: "text", text: "Keep" }] }],
-		});
-		target.commands.setTextSelection(5);
-		const clipboardData = {
-			files: [],
-			items: [],
-			types: ["text/html", "text/plain"],
-			getData: (type: string) => {
-				if (type === "text/html") return placeholder?.outerHTML ?? "";
-				if (type === "text/plain") return "Table (edit in admin)";
-				return "";
-			},
-		};
-		const paste = new Event("paste", { bubbles: true, cancelable: true });
-		Object.defineProperty(paste, "clipboardData", { value: clipboardData });
+		const cut = new Event("cut", { bubbles: true, cancelable: true });
+		view.dom.dispatchEvent(cut);
 
-		target.view.dom.dispatchEvent(paste);
-
-		expect(paste.defaultPrevented).toBe(true);
-		expect(target.getText()).toBe("Keep");
-		expect(target.getJSON().content?.some((node) => node.type === "table")).toBe(false);
-		expect(pmToPortableText(target.getJSON()).some((block) => block._type === "table")).toBe(false);
+		expect(cut.defaultPrevented).toBe(true);
+		expect(saveInline(editor)[0]).toEqual(captioned);
 	});
 });
