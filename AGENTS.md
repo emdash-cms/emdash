@@ -399,6 +399,7 @@ In libraries used in a Worker but not themselves Workers, install `@cloudflare/w
 # Testing
 
 - **Framework:** Vitest for package tests and Playwright for browser tests. Package tests usually live in that package's `tests/` or `test/` directory; core tests live in `packages/core/tests/`, and browser tests live in `e2e/tests/`.
+- **Edit-loop filtering:** During iterative edits in a package, run `vitest run --changed` (uncommitted edits) or `vitest run --changed origin/main` (branch delta) to run only affected tests. Still run the full relevant test suite before finishing (`--since-last-run` waits for upstream Vitest 5.1).
 - **No mocks for the DB.** Node's built-in SQLite driver by default. PostgreSQL parity tests via a real `pg` connection with per-test schema isolation (set `EMDASH_TEST_PG` to a connection string for a role with `CREATEDB` to opt in).
 - **Utilities:** `tests/utils/test-db.ts` exposes `setupTestDatabase()`, `setupTestDatabaseWithCollections()`, `teardownTestDatabase()` for SQLite and `setupTestPostgresDatabase()` etc. for Postgres. Dialect-agnostic: `setupForDialect`, `setupForDialectWithCollections`, `teardownForDialect`, plus `describeEachDialect(name, fn)`. Use the dialect wrapper for query-builder code -- regressions tend to be dialect-specific.
 - **Core structure:** `packages/core/tests/unit/`, `packages/core/tests/integration/`, and `packages/core/tests/workerd/`. Test files mirror source structure. Each database test gets a fresh DB.
