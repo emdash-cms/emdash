@@ -7,6 +7,11 @@ import { kyselyLogOption } from "../../src/database/instrumentation.js";
 import { runMigrations } from "../../src/database/migrations/runner.js";
 import { MediaUsageRepository } from "../../src/database/repositories/media-usage.js";
 import type { Database } from "../../src/database/types.js";
+import { refreshContentMediaUsage } from "../../src/media/usage/content-refresh.js";
+import {
+	repairContentMediaUsageAll,
+	repairContentMediaUsageCollection,
+} from "../../src/media/usage/content-repair.js";
 import { extractMediaUsageOccurrences } from "../../src/media/usage/extractor.js";
 import {
 	MEDIA_USAGE_MAINTENANCE_LIMITS,
@@ -130,6 +135,152 @@ it("keeps the largest entry step below the shared reservation", async () => {
 	expect(measurement.wallDurationMs).toBeLessThan(5_000);
 	console.info(`PR8_D1_MAINTENANCE_STEP=${JSON.stringify(measurement)}`);
 });
+
+it("bounds a large content repair and preserves its partial status", async () => {
+	const slug = `d1_repair_${Date.now().toString(36)}`;
+	const collection = await seedRepairCollection(slug, 180, 1);
+	const { db, measurement, metrics } = instrumentedD1();
+	const result = await runWithContext({ editMode: false, metrics }, () =>
+		repairContentMediaUsageCollection(db, { collectionSlug: slug }),
+	);
+	await db.destroy();
+
+	const status = await adminDb
+		.selectFrom("_emdash_media_usage_index_status")
+		.select(["status", "indexed_source_count", "last_error_code"])
+		.where("collection_id", "=", collection.id)
+		.executeTakeFirstOrThrow();
+	const writes = await adminDb
+		.selectFrom("_emdash_media_usage_generation_writes")
+		.selectAll()
+		.execute();
+
+	expect(result.status).toBe("partial");
+	expect(result.indexedSourceCount).toBeGreaterThan(0);
+	expect(result.indexedSourceCount).toBeLessThan(180);
+	expect(result.lastErrorCode).toBe("CONTENT_USAGE_QUERY_LIMIT");
+	expect(status).toMatchObject({
+		status: "partial",
+		indexed_source_count: result.indexedSourceCount,
+		last_error_code: "CONTENT_USAGE_QUERY_LIMIT",
+	});
+	expect(writes).toHaveLength(0);
+	expect(measurement.queries).toBeLessThan(900);
+	expect(metrics.dbCount).toBe(measurement.queries);
+});
+
+it("does not apply the repair reservation to an ordinary usage refresh", async () => {
+	const slug = `d1_refresh_${Date.now().toString(36)}`;
+	await seedRepairCollection(slug, 1, 1);
+	const { db, metrics } = instrumentedD1();
+	metrics.dbCount = 740;
+
+	const result = await runWithContext({ editMode: false, metrics }, () =>
+		refreshContentMediaUsage(db, slug, `${slug}-0`),
+	);
+
+	expect(result.success).toBe(true);
+	expect(await new MediaUsageRepository(db).findCurrentUsageByMediaId(`${slug}-0-0`)).toHaveLength(
+		1,
+	);
+	await db.destroy();
+});
+
+it("rejects an oversized source before leasing or promoting it", async () => {
+	const slug = `d1_huge_repair_${Date.now().toString(36)}`;
+	const collection = await seedRepairCollection(slug, 1, 5_501);
+	const { db, measurement, metrics } = instrumentedD1();
+	const result = await runWithContext({ editMode: false, metrics }, () =>
+		repairContentMediaUsageCollection(db, { collectionSlug: slug }),
+	);
+	await db.destroy();
+
+	const status = await adminDb
+		.selectFrom("_emdash_media_usage_index_status")
+		.select(["status", "indexed_source_count", "last_error_code"])
+		.where("collection_id", "=", collection.id)
+		.executeTakeFirstOrThrow();
+	const writes = await adminDb
+		.selectFrom("_emdash_media_usage_generation_writes")
+		.selectAll()
+		.execute();
+	const sources = await adminDb
+		.selectFrom("_emdash_media_usage_sources")
+		.selectAll()
+		.where("collection_id", "=", collection.id)
+		.execute();
+
+	expect(result.status).toBe("failed");
+	expect(result.indexedSourceCount).toBe(0);
+	expect(result.lastErrorCode).toBe("CONTENT_USAGE_QUERY_LIMIT");
+	expect(status).toMatchObject({ status: "failed", indexed_source_count: 0 });
+	expect(status.last_error_code).toBe("CONTENT_USAGE_QUERY_LIMIT");
+	expect(writes).toHaveLength(0);
+	expect(sources).toHaveLength(0);
+	expect(measurement.queries).toBeLessThan(900);
+	expect(metrics.dbCount).toBe(measurement.queries);
+});
+
+it("keeps an all-collection repair within the request query budget", async () => {
+	const suffix = Date.now().toString(36);
+	await seedRepairCollection(`d1_all_a_${suffix}`, 180, 1);
+	await seedRepairCollection(`d1_all_b_${suffix}`, 180, 1);
+	const { db, measurement, metrics } = instrumentedD1();
+	const result = await runWithContext({ editMode: false, metrics }, () =>
+		repairContentMediaUsageAll(db),
+	);
+	await db.destroy();
+
+	expect(result.status).toBe("partial");
+	expect(
+		result.collections.some(
+			(collection) => collection.lastErrorCode === "CONTENT_USAGE_QUERY_LIMIT",
+		),
+	).toBe(true);
+	expect(measurement.queries).toBeLessThan(900);
+	expect(metrics.dbCount).toBe(measurement.queries);
+});
+
+async function seedRepairCollection(slug: string, count: number, occurrences: number) {
+	await adminDb
+		.updateTable("_emdash_media_usage_activation")
+		.set({ state: "active" })
+		.where("task_key", "=", "incremental_capture")
+		.execute();
+	const registry = new SchemaRegistry(adminDb);
+	const collection = await registry.createCollection({ slug, label: slug });
+	await registry.createField(slug, { slug: "body", label: "Body", type: "portableText" });
+	const filler = "Portable text filler ".repeat(220);
+	for (let index = 0; index < count; index++) {
+		const body: Array<Record<string, unknown>> = Array.from(
+			{ length: occurrences },
+			(_, occurrence) => ({
+				_type: "image",
+				_key: `${index}-${occurrence}`,
+				asset: { _ref: `${slug}-${index}-${occurrence}` },
+			}),
+		);
+		body.unshift({
+			_type: "block",
+			_key: `${index}-text`,
+			children: [{ _type: "span", text: filler }],
+		});
+		await sql`
+			INSERT INTO ${sql.ref(`ec_${slug}`)} (id, slug, status, body)
+			VALUES (${`${slug}-${index}`}, ${`${slug}-${index}`}, 'published', ${JSON.stringify(body)})
+		`.execute(adminDb);
+	}
+	return collection;
+}
+
+function instrumentedD1() {
+	const measurement = emptyMeasurement();
+	const db = new Kysely<Database>({
+		dialect: new RawBindingD1Dialect({ database: captureD1(env.DB, measurement) }),
+		log: kyselyLogOption(),
+	});
+	return { db, measurement, metrics: createRequestMetrics(performance.now()) };
+}
 
 it("keeps the largest admitted activation trigger replacement inside one step", async () => {
 	await adminDb

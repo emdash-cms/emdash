@@ -243,7 +243,13 @@ export function formatRepairUsageSummary(
 			return `${collection.collection}: ${collection.status}${error}`;
 		})
 		.join("; ");
-	const suffix = details ? ` ${details}.` : "";
+	const queryLimit = result.collections.some(
+		(collection) => collection.lastErrorCode === "CONTENT_USAGE_QUERY_LIMIT",
+	);
+	const limitMessage = queryLimit
+		? " The per-request database query limit was reached; repair stopped before exhausting the queries needed to release write leases and save status. Complete coverage was not established."
+		: "";
+	const suffix = (details ? ` ${details}.` : "") + limitMessage;
 
 	if (result.status === "stale") {
 		return {

@@ -3,6 +3,9 @@ import { ulid } from "ulidx";
 
 import { MediaUsageWorkRepository } from "../../database/repositories/media-usage-work.js";
 import {
+	assertMediaUsageRepairQueryBudget,
+	mediaUsageRepairQueryBudgetAllows,
+	MediaUsageQueryLimitError,
 	MediaUsageRepository,
 	type MediaUsageSource,
 } from "../../database/repositories/media-usage.js";
@@ -39,6 +42,7 @@ export const CONTENT_MEDIA_USAGE_REPAIR_ERROR = {
 	DRAFT_REVISION_MISMATCH: "DRAFT_REVISION_MISMATCH",
 	DRAFT_REVISION_INVALID: "DRAFT_REVISION_INVALID",
 	CONTENT_USAGE_REPAIR_ERROR: "CONTENT_USAGE_REPAIR_ERROR",
+	CONTENT_USAGE_QUERY_LIMIT: "CONTENT_USAGE_QUERY_LIMIT",
 	CONTENT_USAGE_REPAIR_CONFLICT: "CONTENT_USAGE_REPAIR_CONFLICT",
 	INVALID_REPEATER_VALIDATION: "INVALID_REPEATER_VALIDATION",
 	INVALID_BLOCK_VALIDATION: "INVALID_BLOCK_VALIDATION",
@@ -285,6 +289,19 @@ async function repairContentMediaUsageCollectionUnlocked(
 ): Promise<ContentMediaUsageRepairCollectionResult> {
 	const requestedAt = new Date().toISOString();
 	const scope = contentMediaUsageCollectionScope(collectionSlug);
+	if (!mediaUsageRepairQueryBudgetAllows(db, 20)) {
+		return {
+			scope,
+			status: "failed",
+			indexedSourceCount: 0,
+			failedSourceCount: 1,
+			skippedSourceCount: 0,
+			deletedSourceCount: 0,
+			lastErrorCode: CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_QUERY_LIMIT,
+			startedAt: requestedAt,
+			completedAt: requestedAt,
+		};
+	}
 	const identityBound = await isIncrementalCaptureActive(db);
 	const collection = await loadContentMediaUsageCollectionRecord(db, collectionSlug);
 	if (
@@ -361,16 +378,20 @@ async function repairContentMediaUsageCollectionUnlocked(
 			});
 		}
 		const counts = await repairScannedContentSources(db, repo, scan, execution?.collectionId);
-		const finalScan = await scanContentMediaUsageCollection(
-			db,
-			collectionSlug,
-			execution?.collectionId,
-		);
-		if (!finalScan) {
-			counts.failedSourceCount++;
-			counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND;
-		} else if (!sameContentIds(repairedContentIds(scan.contentIds, counts), finalScan.contentIds)) {
-			markRepairConflict(counts);
+		if (counts.lastErrorCode !== CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_QUERY_LIMIT) {
+			const finalScan = await scanContentMediaUsageCollection(
+				db,
+				collectionSlug,
+				execution?.collectionId,
+			);
+			if (!finalScan) {
+				counts.failedSourceCount++;
+				counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.COLLECTION_NOT_FOUND;
+			} else if (
+				!sameContentIds(repairedContentIds(scan.contentIds, counts), finalScan.contentIds)
+			) {
+				markRepairConflict(counts);
+			}
 		}
 		const completedAt = new Date().toISOString();
 		const status = determineRepairStatus(counts);
@@ -440,23 +461,33 @@ async function repairScannedContentSources(
 		missingContentIds: new Set(),
 	};
 
-	const fieldDiscovery = await loadContentMediaUsageFields(db, scan.collectionSlug, collectionId);
-	const observedSources = await repo.findSources(buildContentSourceKeysForScan(scan, collectionId));
-
-	for (const contentId of scan.contentIds) {
-		await repairContentSource(
-			db,
-			repo,
-			scan.collectionSlug,
-			contentId,
-			fieldDiscovery,
-			observedSources,
-			counts,
-			collectionId,
+	try {
+		const fieldDiscovery = await loadContentMediaUsageFields(db, scan.collectionSlug, collectionId);
+		const observedSources = await repo.findSources(
+			buildContentSourceKeysForScan(scan, collectionId),
 		);
-	}
 
-	await reconcileOrphanedContentSources(db, repo, scan.collectionSlug, counts, collectionId);
+		for (const contentId of scan.contentIds) {
+			assertMediaUsageRepairQueryBudget(db, 20);
+			await repairContentSource(
+				db,
+				repo,
+				scan.collectionSlug,
+				contentId,
+				fieldDiscovery,
+				observedSources,
+				counts,
+				collectionId,
+			);
+		}
+
+		assertMediaUsageRepairQueryBudget(db, 20);
+		await reconcileOrphanedContentSources(db, repo, scan.collectionSlug, counts, collectionId);
+	} catch (error) {
+		if (!(error instanceof MediaUsageQueryLimitError)) throw error;
+		counts.failedSourceCount++;
+		counts.lastErrorCode = CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_QUERY_LIMIT;
+	}
 	return counts;
 }
 
@@ -487,7 +518,7 @@ async function repairContentSource(
 		counts.lastErrorCode = snapshotsResult.error;
 		if (snapshotsResult.snapshots) {
 			// Partial snapshot failures keep absent variants in place; the attempted source is marked below.
-			await repairSnapshotSources(repo, snapshotsResult.snapshots, observedSources, counts);
+			await repairSnapshotSources(db, repo, snapshotsResult.snapshots, observedSources, counts);
 		}
 		if (snapshotsResult.source) {
 			const result = await repo.markSourceAttemptedIfMatching(
@@ -511,6 +542,7 @@ async function repairContentSource(
 	}
 
 	const expectedSourceKeys = await repairSnapshotSources(
+		db,
 		repo,
 		snapshotsResult.snapshots,
 		observedSources,
@@ -521,11 +553,12 @@ async function repairContentSource(
 		if (expectedSourceKeys.has(sourceKey)) continue;
 		const observedSource = observedSources.get(sourceKey);
 		if (!observedSource) continue;
-		await deleteObservedSource(repo, sourceKey, observedSource, counts);
+		await deleteObservedSource(db, repo, sourceKey, observedSource, counts);
 	}
 }
 
 async function repairSnapshotSources(
+	db: Kysely<Database>,
 	repo: MediaUsageRepository,
 	snapshots: readonly ContentMediaUsageSnapshot[],
 	observedSources: Map<string, MediaUsageSource>,
@@ -533,11 +566,13 @@ async function repairSnapshotSources(
 ): Promise<Set<string>> {
 	const expectedSourceKeys = new Set<string>();
 	for (const snapshot of snapshots) {
+		assertMediaUsageRepairQueryBudget(db, 10);
 		expectedSourceKeys.add(snapshot.source.sourceKey);
 		const result = await repo.replaceSourceIfMatching(
 			snapshot.source,
 			snapshot.occurrences,
 			observedSources.get(snapshot.source.sourceKey) ?? null,
+			{ reserveRepairQueries: true },
 		);
 		if (result.replaced || result.unchanged) {
 			counts.indexedSourceCount++;
@@ -570,11 +605,11 @@ async function reconcileOrphanedContentSources(
 
 	for (const source of sources) {
 		if (!source.contentId) {
-			await deleteObservedSource(repo, source.sourceKey, source, counts);
+			await deleteObservedSource(db, repo, source.sourceKey, source, counts);
 			continue;
 		}
 		if (existingContentIds.has(source.contentId)) continue;
-		await deleteObservedSourceIfContentAbsent(repo, collectionSlug, source, counts);
+		await deleteObservedSourceIfContentAbsent(db, repo, collectionSlug, source, counts);
 	}
 }
 
@@ -591,6 +626,7 @@ async function findExistingContentIds(
 
 	const tableName = getContentTableName(collectionSlug);
 	for (const contentIdBatch of chunks(uniqueContentIds, SQL_BATCH_SIZE)) {
+		assertMediaUsageRepairQueryBudget(db, 1);
 		const result = await sql<{ id: string }>`
 			SELECT content.id
 			FROM ${sql.ref(tableName)} AS content
@@ -615,12 +651,14 @@ async function findExistingContentIds(
 }
 
 async function deleteObservedSourceIfContentAbsent(
+	db: Kysely<Database>,
 	repo: MediaUsageRepository,
 	collectionSlug: string,
 	observedSource: MediaUsageSource,
 	counts: RepairCounts,
 ): Promise<void> {
 	if (!observedSource.contentId) return;
+	assertMediaUsageRepairQueryBudget(db, 10);
 	const result = await repo.deleteSourceIfMatchingContentAbsent(
 		observedSource.sourceKey,
 		observedSource,
@@ -638,11 +676,13 @@ async function deleteObservedSourceIfContentAbsent(
 }
 
 async function deleteObservedSource(
+	db: Kysely<Database>,
 	repo: MediaUsageRepository,
 	sourceKey: string,
 	observedSource: MediaUsageSource,
 	counts: RepairCounts,
 ): Promise<void> {
+	assertMediaUsageRepairQueryBudget(db, 10);
 	const result = await repo.deleteSourceIfMatching(sourceKey, observedSource);
 	if (result.deleted) {
 		counts.deletedSourceCount++;

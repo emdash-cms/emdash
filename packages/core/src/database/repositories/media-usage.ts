@@ -112,6 +112,30 @@ export function chunkJsonRows<T>(rows: readonly T[]): T[][] {
 	return batches;
 }
 
+export class MediaUsageQueryLimitError extends Error {
+	constructor() {
+		super("Media usage repair reached the per-request database query limit");
+		this.name = "MediaUsageQueryLimitError";
+	}
+}
+
+export function assertMediaUsageRepairQueryBudget(db: Kysely<Database>, queries: number): void {
+	if (!mediaUsageRepairQueryBudgetAllows(db, queries)) throw new MediaUsageQueryLimitError();
+}
+
+export function mediaUsageRepairQueryBudgetAllows(db: Kysely<Database>, queries: number): boolean {
+	const adapter = db.getExecutor().adapter;
+	if (!("maxQueriesPerRequest" in adapter)) return true;
+	const limit = adapter.maxQueriesPerRequest;
+	if (typeof limit !== "number" || !Number.isSafeInteger(limit) || limit <= 0) return true;
+	const metrics = getRequestContext()?.metrics;
+	return (
+		!metrics ||
+		metrics.dbCount + queries + MEDIA_USAGE_QUERY_RESERVE <=
+			Math.min(limit, MEDIA_USAGE_EVENT_QUERY_CEILING)
+	);
+}
+
 function mediaUsageQueryBudgetAllows(queries: number): boolean {
 	const metrics = getRequestContext()?.metrics;
 	return (
@@ -718,12 +742,20 @@ export class MediaUsageRepository {
 		source: MediaUsageSourceInput,
 		occurrences: readonly MediaUsageOccurrenceInput[],
 		expectedSource: MediaUsageSource | null,
+		options: { reserveRepairQueries?: boolean } = {},
 	): Promise<MediaUsageGuardedReplaceResult> {
 		if (
 			expectedSource !== null &&
 			(await this.projectionMatchesExpectedSource(source, expectedSource))
 		) {
 			return { replaced: false, unchanged: true, source: null };
+		}
+		if (options.reserveRepairQueries) {
+			// Reserve the entire mutation before taking a lease, including its release.
+			assertMediaUsageRepairQueryBudget(
+				this.db,
+				Math.ceil(occurrences.length / OCCURRENCE_INSERT_BATCH_SIZE) + 10,
+			);
 		}
 		const generation = ulid();
 		let replaced = false;

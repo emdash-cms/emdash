@@ -530,7 +530,9 @@ npx emdash media repair-usage --all --json
 
 Pass exactly one of `--collection` or `--all`. Remote repair requires an Admin user and an auth token with the `admin` scope.
 
-All-content repair runs synchronously and can be slow or expensive on large sites. Prefer `--collection` when you only need to repair one collection.
+Repair runs synchronously, including with `--collection`. There are no cursor or limit options. Prefer `--collection` when you only need to repair one collection.
+
+On D1 with Workers Paid, if repair reaches its per-request database query budget, it stops with `CONTENT_USAGE_QUERY_LIMIT` in the affected collection's `lastErrorCode`. The result preserves the number of sources already indexed and reports `partial` (or `failed` if no progress was made), leaving queries available to release write leases and save status. This does not establish complete coverage. A single large collection can still exceed this budget; this command does not yet support resumable batches. Rerunning restarts at the first entry, so repeated runs may also be unable to finish the collection. This safeguard does not account for the lower D1 query allowance on Workers Free.
 
 Structured `complete`, `partial`, and `stale` repair results exit `0`; structured `failed` results exit `1`. Automation and cron jobs should use `--json` and parse `status`, `failedSourceCount`, `skippedSourceCount`, and per-collection summaries instead of treating exit `0` as complete coverage.
 

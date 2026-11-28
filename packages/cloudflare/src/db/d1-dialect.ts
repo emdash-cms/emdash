@@ -41,6 +41,7 @@ interface AtomicBatchAdapter {
  */
 export class D1BaseAdapter extends LockingSqliteAdapter implements CompoundSelectLimitedAdapter {
 	readonly compoundSelectLimit = D1_COMPOUND_SELECT_LIMIT;
+	readonly maxQueriesPerRequest = 1_000;
 }
 
 export class D1Adapter extends D1BaseAdapter implements AtomicBatchAdapter {
