@@ -443,12 +443,28 @@ test.describe("Search", () => {
 				await page.goto(`${serverInfo.baseUrl}/live-search`);
 				const search = page.locator("emdash-live-search");
 				const input = search.locator(".emdash-live-search-input");
+				await expect
+					.poll(() => page.evaluate(() => Boolean(customElements.get("emdash-live-search"))))
+					.toBe(true);
 				await input.fill("Searchable page");
 				const result = search.locator(".emdash-live-search-result", { hasText: "Searchable page" });
 				await expect(result).toBeVisible({ timeout: 10000 });
 				await expect(result).toHaveAttribute("href", "/my-page");
 			} finally {
-				if (id) await apiRequest(serverInfo, "DELETE", `/_emdash/api/content/pages/${id}`);
+				if (id) {
+					const trashed = await apiRequest(
+						serverInfo,
+						"DELETE",
+						`/_emdash/api/content/pages/${id}`,
+					);
+					expect.soft(trashed.ok).toBe(true);
+					const purged = await apiRequest(
+						serverInfo,
+						"DELETE",
+						`/_emdash/api/content/pages/${id}/permanent`,
+					);
+					expect.soft(purged.ok).toBe(true);
+				}
 				if (!wasEnabled) {
 					await apiRequest(serverInfo, "POST", "/_emdash/api/search/enable", {
 						collection: "pages",
