@@ -65,6 +65,17 @@ describe("interpolateUrlPattern", () => {
 		).toBe("/blog/hello%20world");
 	});
 
+	it("keeps the slashes of a multi-segment slug and encodes each segment", () => {
+		expect(
+			interpolateUrlPattern({
+				pattern: "/{slug}",
+				collection: "pages",
+				slug: "about/our team",
+				id: "abc",
+			}),
+		).toBe("/about/our%20team");
+	});
+
 	it("collapses repeated slashes and trims trailing slash", () => {
 		expect(
 			interpolateUrlPattern({
