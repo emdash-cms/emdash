@@ -27,7 +27,7 @@
 	"peerDependencies": {
 		"@lingui/react": "catalog:",
 		"astro": ">=5",
-		"emdash": "workspace:>=0.15.0",
+		"emdash": "workspace:>=1.7.0",
 		"react": ">=18"
 	},
 	"devDependencies": {

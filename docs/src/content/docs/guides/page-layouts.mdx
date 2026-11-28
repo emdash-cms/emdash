@@ -109,7 +109,8 @@ if (!slug) {
   return Astro.rewrite("/404");
 }
 
-const { entry: page } = await getEmDashEntry("pages", slug);
+const { entry: page, error } = await getEmDashEntry("pages", slug);
+if (error) throw error;
 
 if (!page) {
   return Astro.rewrite("/404");

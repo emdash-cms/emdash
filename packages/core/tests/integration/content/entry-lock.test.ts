@@ -300,7 +300,7 @@ describe("entry edit lock", () => {
 						emdash: {
 							db,
 							rooms: rooms(),
-							handleContentGet: async () => ({
+							handleContentGetForWrite: async () => ({
 								success: true,
 								data: { item: { id: entryId, authorId: ADA, status: "draft" }, _rev: "rev" },
 							}),

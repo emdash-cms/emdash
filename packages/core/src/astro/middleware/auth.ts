@@ -23,6 +23,7 @@ import virtualConfig from "virtual:emdash/config";
 import { checkPublicCsrf } from "../../api/csrf.js";
 import { apiError } from "../../api/error.js";
 import { getPublicOrigin } from "../../api/public-url.js";
+import { createFirstAdmin } from "../../api/setup-complete.js";
 
 /** Cache headers for middleware error responses (matches API_CACHE_HEADERS in api/error.ts) */
 const MW_CACHE_HEADERS = {
@@ -579,28 +580,31 @@ async function handleExternalAuth(
 				});
 			}
 
-			// Check if this is the first user (they become admin)
-			const userCount = await emdash.db
-				.selectFrom("users")
-				.select(emdash.db.fn.count("id").as("count"))
-				.executeTakeFirst();
-
-			const isFirstUser = Number(userCount?.count ?? 0) === 0;
-			const role = isFirstUser ? ROLE_ADMIN : toRoleLevel(authResult.role);
-
-			// Create user
-			const now = new Date().toISOString();
-			const newUser = {
-				id: ulid(),
+			// The first user becomes admin; the conditional insert makes sure
+			// only one of several concurrent first sign-ins gets that role.
+			const firstAdmin = await createFirstAdmin(emdash.db, {
 				email: authResult.email,
 				name: authResult.name,
-				role,
-				email_verified: 1,
-				created_at: now,
-				updated_at: now,
-			};
+				emailVerified: true,
+			});
+			const isFirstUser = firstAdmin !== null;
+			const role = isFirstUser ? ROLE_ADMIN : toRoleLevel(authResult.role);
 
-			await emdash.db.insertInto("users").values(newUser).execute();
+			if (!isFirstUser) {
+				const now = new Date().toISOString();
+				await emdash.db
+					.insertInto("users")
+					.values({
+						id: ulid(),
+						email: authResult.email.toLowerCase(),
+						name: authResult.name,
+						role,
+						email_verified: 1,
+						created_at: now,
+						updated_at: now,
+					})
+					.execute();
+			}
 
 			user = await adapter.getUserByEmail(authResult.email);
 

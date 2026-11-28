@@ -310,6 +310,42 @@ async function syndicatePublishedContent(
 	}
 }
 
+async function deleteSyndicatedRecords(
+	ctx: PluginContext,
+	collection: string,
+	id: string,
+): Promise<void> {
+	const deleteOnUnpublish = (await ctx.kv.get<boolean>("settings:deleteOnUnpublish")) ?? true;
+	if (!deleteOnUnpublish) return;
+
+	const storageKey = `${collection}:${id}`;
+	const existing = (await ctx.storage.records!.get(storageKey)) as SyndicationRecord | null;
+	if (!existing || !existing.atUri) return;
+
+	try {
+		const { accessJwt, did, pdsHost } = await ensureSession(ctx);
+		const rkey = rkeyFromUri(existing.atUri);
+		await deleteRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", rkey);
+
+		if (existing.bskyPostUri) {
+			const postRkey = rkeyFromUri(existing.bskyPostUri);
+			await deleteRecord(ctx, pdsHost, accessJwt, did, "app.bsky.feed.post", postRkey);
+		}
+
+		await ctx.storage.records!.delete(storageKey);
+		ctx.log.info(`Deleted AT Protocol records for ${collection}/${id}`);
+	} catch (error) {
+		ctx.log.error(`Failed to delete AT Protocol records for ${collection}/${id}`, error);
+		await ctx.storage.records!.put(storageKey, {
+			...existing,
+			status: "error",
+			lastSyncedAt: new Date().toISOString(),
+			errorMessage: `Could not remove the published records: ${error instanceof Error ? error.message : String(error)}`,
+			retryCount: (existing.retryCount || 0) + 1,
+		});
+	}
+}
+
 // ── Plugin definition ───────────────────────────────────────────
 
 export default {
@@ -338,31 +374,19 @@ export default {
 			},
 		},
 
+		"content:afterUnpublish": {
+			handler: async (
+				event: { content: Record<string, unknown>; collection: string },
+				ctx: PluginContext,
+			) => {
+				if (typeof event.content.id !== "string") return;
+				await deleteSyndicatedRecords(ctx, event.collection, event.content.id);
+			},
+		},
+
 		"content:afterDelete": {
 			handler: async (event: { id: string; collection: string }, ctx: PluginContext) => {
-				const { id, collection } = event;
-				const deleteOnUnpublish = (await ctx.kv.get<boolean>("settings:deleteOnUnpublish")) ?? true;
-				if (!deleteOnUnpublish) return;
-
-				const storageKey = `${collection}:${id}`;
-				const existing = (await ctx.storage.records!.get(storageKey)) as SyndicationRecord | null;
-				if (!existing || !existing.atUri) return;
-
-				try {
-					const { accessJwt, did, pdsHost } = await ensureSession(ctx);
-					const rkey = rkeyFromUri(existing.atUri);
-					await deleteRecord(ctx, pdsHost, accessJwt, did, "site.standard.document", rkey);
-
-					if (existing.bskyPostUri) {
-						const postRkey = rkeyFromUri(existing.bskyPostUri);
-						await deleteRecord(ctx, pdsHost, accessJwt, did, "app.bsky.feed.post", postRkey);
-					}
-
-					await ctx.storage.records!.delete(storageKey);
-					ctx.log.info(`Deleted AT Protocol records for ${collection}/${id}`);
-				} catch (error) {
-					ctx.log.error(`Failed to delete AT Protocol records for ${collection}/${id}`, error);
-				}
+				await deleteSyndicatedRecords(ctx, event.collection, event.id);
 			},
 		},
 

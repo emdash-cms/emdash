@@ -23,6 +23,7 @@ import type { EmDashHandlers } from "../../src/astro/types.js";
 import type { Database } from "../../src/database/types.js";
 import { EmDashRuntime } from "../../src/emdash-runtime.js";
 import { createMcpServer, type PluginMcpRegistration } from "../../src/mcp/server.js";
+import { EmailPipeline } from "../../src/plugins/email.js";
 import { createHookPipeline } from "../../src/plugins/hooks.js";
 import type { ResolvedPlugin } from "../../src/plugins/types.js";
 import { invalidateUrlPatternCache } from "../../src/query.js";
@@ -97,7 +98,10 @@ function createAuthenticatedPair(authInfo: {
 // ---------------------------------------------------------------------------
 
 export interface TestRuntimeOptions {
-	/** Optional plugins to participate in the hook pipeline. Default: none. */
+	/**
+	 * Optional plugins to participate in the hook pipeline. Default: none.
+	 * The first plugin with an `email:deliver` hook becomes the email provider.
+	 */
 	plugins?: ResolvedPlugin[];
 	/** Optional partial config override. Default: empty config. */
 	config?: Partial<EmDashConfig>;
@@ -123,6 +127,8 @@ export function createTestRuntime(
 	const pipelineFactoryOptions = { db } as const;
 	const hooks = createHookPipeline(plugins, pipelineFactoryOptions);
 	const pipelineRef = { current: hooks };
+	const [emailProvider] = hooks.getExclusiveHookProviders("email:deliver");
+	if (emailProvider) hooks.setExclusiveSelection("email:deliver", emailProvider.pluginId);
 
 	// runtimeDeps is only consumed by `rebuildHookPipeline()`, which is not
 	// invoked by any MCP tool path. We pass a minimal stub so the field
@@ -156,7 +162,7 @@ export function createTestRuntime(
 		mediaProviderEntries: [],
 		cronExecutor: null,
 		cronScheduler: null,
-		emailPipeline: null,
+		emailPipeline: emailProvider ? new EmailPipeline(hooks) : null,
 		allPipelinePlugins: plugins,
 		pipelineFactoryOptions,
 		runtimeDeps,
@@ -178,6 +184,8 @@ export function handlersFromRuntime(runtime: EmDashRuntime): EmDashHandlers {
 		handleContentList: runtime.handleContentList.bind(runtime),
 		handleContentGet: runtime.handleContentGet.bind(runtime),
 		handleContentGetIncludingTrashed: runtime.handleContentGetIncludingTrashed.bind(runtime),
+		handleContentGetForWrite: runtime.handleContentGetForWrite.bind(runtime),
+		handleContentGetById: runtime.handleContentGetById.bind(runtime),
 		handleContentCreate: runtime.handleContentCreate.bind(runtime),
 		handleContentUpdate: runtime.handleContentUpdate.bind(runtime),
 		handleContentDelete: runtime.handleContentDelete.bind(runtime),

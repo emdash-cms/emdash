@@ -19,6 +19,7 @@ vi.mock("@aws-sdk/client-s3", () => {
 	return {
 		S3Client,
 		PutObjectCommand: Command,
+		CopyObjectCommand: Command,
 		GetObjectCommand: Command,
 		DeleteObjectCommand: Command,
 		HeadObjectCommand: Command,
@@ -325,6 +326,35 @@ describe("S3Storage same-key upload", () => {
 				Key: "hero.png",
 				Body: new Uint8Array([9, 8]),
 				CacheControl: "public, max-age=0, must-revalidate",
+			},
+		]);
+	});
+});
+
+describe("S3Storage copy", () => {
+	afterEach(() => s3Send.mockClear());
+
+	it("copies the object inside the bucket with the given content type", async () => {
+		const storage = createStorage({
+			endpoint: "https://s3.example.com",
+			bucket: "my-bucket",
+			accessKeyId: "key",
+			secretAccessKey: "secret",
+		});
+
+		await storage.copy?.({
+			sourceKey: "uploads/a b.png",
+			key: "uploads/a b.01J.png",
+			contentType: "image/png",
+		});
+
+		expect(s3Send.mock.calls.map(([command]) => (command as { input: unknown }).input)).toEqual([
+			{
+				Bucket: "my-bucket",
+				Key: "uploads/a b.01J.png",
+				CopySource: "my-bucket/uploads/a%20b.png",
+				ContentType: "image/png",
+				MetadataDirective: "REPLACE",
 			},
 		]);
 	});

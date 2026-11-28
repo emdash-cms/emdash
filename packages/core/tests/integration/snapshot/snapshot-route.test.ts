@@ -121,6 +121,70 @@ describe("GET /_emdash/api/snapshot", () => {
 		expect(JSON.stringify(snapshot)).not.toContain("private/unused.webp");
 	});
 
+	it("leaves out the SEO row of an unpublished entry whose translation is published", async () => {
+		await sql`
+			INSERT INTO ec_post (
+				id, slug, status, title, locale, translation_group, created_at, updated_at, version
+			)
+			VALUES
+				('p3', 'launch', 'draft', 'Launch', 'en', 'p3', datetime('now'), datetime('now'), 1),
+				('p4', 'lancement', 'published', 'Lancement', 'fr', 'p3', datetime('now'), datetime('now'), 1)
+		`.execute(db);
+		await sql`
+			INSERT INTO _emdash_seo (collection, content_id, seo_title, seo_image)
+			VALUES
+				('post', 'p3', 'Unpublished original SEO secret', 'media-unused'),
+				('post', 'p4', 'SEO en ligne', NULL)
+		`.execute(db);
+		await sql`
+			INSERT INTO content_taxonomies (collection, entry_id, taxonomy_id)
+			VALUES ('post', 'p3', 'term-group-live')
+		`.execute(db);
+
+		const { status, snapshot } = await request({
+			signature: await signatureHeader("https://mysite.com"),
+		});
+		expect(status).toBe(200);
+		expect(snapshot?.tables.ec_post?.map((row) => row.id)).toEqual(["p1", "p4"]);
+		expect(snapshot?.tables._emdash_seo?.map((row) => row.content_id)).toEqual(["p1", "p4"]);
+		expect(snapshot?.tables.media?.map((row) => row.id)).toEqual(["media-live"]);
+		expect(JSON.stringify(snapshot)).not.toContain("Unpublished original SEO secret");
+		expect(snapshot?.tables.content_taxonomies?.map((row) => row.entry_id)).toEqual([
+			"group-live",
+			"p3",
+		]);
+	});
+
+	it("does not show which published entries have staged edits or when they go live", async () => {
+		await sql`
+			INSERT INTO revisions (id, collection, entry_id, data)
+			VALUES ('r2', 'post', 'p1', '{"title":"Live, reworked"}')
+		`.execute(db);
+		await sql`
+			UPDATE ec_post SET draft_revision_id = 'r2', scheduled_at = '2031-01-01T00:00:00.000Z'
+			WHERE id = 'p1'
+		`.execute(db);
+
+		const signed = await request({ signature: await signatureHeader("https://mysite.com") });
+		expect(signed.snapshot?.schema.ec_post?.columns).toEqual(
+			expect.arrayContaining(["draft_revision_id", "scheduled_at"]),
+		);
+		expect(signed.snapshot?.tables.ec_post).toMatchObject([
+			{ id: "p1", title: "Live", draft_revision_id: null, scheduled_at: null },
+		]);
+
+		const published = await request({ role: 40 });
+		expect(published.snapshot?.tables.ec_post).toMatchObject([
+			{ id: "p1", draft_revision_id: null, scheduled_at: null },
+		]);
+
+		const editor = await request({ query: "?drafts=true", role: 40 });
+		expect(editor.snapshot?.tables.ec_post?.find((row) => row.id === "p1")).toMatchObject({
+			draft_revision_id: "r2",
+			scheduled_at: "2031-01-01T00:00:00.000Z",
+		});
+	});
+
 	it("leaves revision payloads out of a published-only snapshot", async () => {
 		const { status, snapshot } = await request({
 			signature: await signatureHeader("https://mysite.com"),

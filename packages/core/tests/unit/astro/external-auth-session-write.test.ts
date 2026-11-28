@@ -35,7 +35,7 @@ afterAll(() => {
 type StoredUser = { id: string } | null | undefined;
 
 async function authenticatedRequest(db: Kysely<Database>, read: () => Promise<StoredUser>) {
-	const session = { get: vi.fn(read), set: vi.fn() };
+	const session = { get: vi.fn(read), set: vi.fn(), regenerate: vi.fn(async () => {}) };
 	const url = new URL("/_emdash/api/plugins/example/config", "https://example.com");
 	const context = {
 		request: new Request(url, { headers: { "Cf-Access-Jwt-Assertion": "access-jwt" } }),
@@ -104,6 +104,7 @@ describe("external auth session write", () => {
 
 		expect(session.get).toHaveBeenCalledWith("user");
 		expect(session.set).not.toHaveBeenCalled();
+		expect(session.regenerate).not.toHaveBeenCalled();
 		expect(user.last_login_at).toBe(previousLogin);
 	});
 
@@ -134,6 +135,10 @@ describe("external auth session write", () => {
 			.executeTakeFirstOrThrow();
 
 		expect(session.set).toHaveBeenCalledExactlyOnceWith("user", { id: "user-1" });
+		expect(session.regenerate).toHaveBeenCalledOnce();
+		expect(session.regenerate.mock.invocationCallOrder[0]).toBeLessThan(
+			session.set.mock.invocationCallOrder[0]!,
+		);
 		expect(user.last_login_at).toEqual(expect.any(String));
 	});
 

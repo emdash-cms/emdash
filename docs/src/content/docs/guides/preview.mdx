@@ -46,9 +46,7 @@ const { slug } = Astro.params;
 
 const { entry, isPreview, error } = await getEmDashEntry("posts", slug);
 
-if (error) {
-  return new Response("Server error", { status: 500 });
-}
+if (error) throw error;
 
 if (!entry) {
   return Astro.rewrite("/404");
@@ -145,7 +143,7 @@ await getPreviewUrl({
 // Returns: /hello?_preview=...
 ```
 
-The admin's **View on site** link goes through `POST /_emdash/api/content/{collection}/{id}/preview-url`. The endpoint uses the entry's database ID and supplies its locale automatically. Set `EMDASH_PREVIEW_PATH_PATTERN` when your public route differs from the default `/{collection}/{id}` pattern. For example, `/{locale}/posts/{id}` produces `/pt-br/posts/01ABC...` for a Portuguese entry and `/posts/01ABC...` for an unprefixed default-locale entry. The destination route can pass that database ID to `getEmDashEntry()`. A `pathPattern` in the request body overrides the environment value.
+The admin's **View on site** link goes through `POST /_emdash/api/content/{collection}/{id}/preview-url`. The endpoint uses the entry's database ID and supplies its locale automatically. Its token is signed for that database ID even when the request addresses the entry by slug, so the link never opens a different entry that takes the slug later. An API token needs both `content:read` and `content:write` to call it. Set `EMDASH_PREVIEW_PATH_PATTERN` when your public route differs from the default `/{collection}/{id}` pattern. For example, `/{locale}/posts/{id}` produces `/pt-br/posts/01ABC...` for a Portuguese entry and `/posts/01ABC...` for an unprefixed default-locale entry. The destination route can pass that database ID to `getEmDashEntry()`. A `pathPattern` in the request body overrides the environment value.
 
 The endpoint cannot substitute the entry's slug separately from its database ID. If a preview URL must use the slug, generate it in server-side application code with `getPreviewUrl()` and pass the slug as `id`.
 
@@ -179,6 +177,8 @@ await getPreviewUrl({ ...preview, expiresIn: 3600 });
 ```
 
 Supported units: `s` (seconds), `m` (minutes), `h` (hours), `d` (days), `w` (weeks).
+
+The preview URL endpoint accepts the same `expiresIn` formats in its request body, from one second up to seven days (`"7d"`, `"1w"`, or `604800`). It responds with a `400` validation error for a longer, zero, negative, or unrecognized value. A preview link cannot be revoked on its own and stays valid until it expires, even if the account that requested it is later disabled. `getPreviewUrl()` and `generatePreviewToken()` apply no maximum.
 
 ## Verify tokens in a custom flow
 
@@ -295,9 +295,7 @@ const { slug } = Astro.params;
 
 const { entry, isPreview, error } = await getEmDashEntry("posts", slug);
 
-if (error) {
-  return new Response("Server error", { status: 500 });
-}
+if (error) throw error;
 
 if (!entry) {
   return Astro.rewrite("/404");

@@ -21,7 +21,7 @@ const {
 	cacheHint: projectCacheHint,
 } = await getEmDashEntry("projects", slug);
 
-if (error) return new Response("Could not load the project", { status: 500 });
+if (error) throw error;
 if (!project) {
 	if (Astro.cache?.enabled) Astro.cache.set(projectCacheHint);
 	return Astro.rewrite("/404");
@@ -40,9 +40,7 @@ const olderResult = await getEmDashCollection("projects", {
 		? { where: { published_at: { lte: publishedAt.toISOString() } } }
 		: {}),
 });
-if (olderResult.error) {
-	return new Response("Could not load related projects", { status: 500 });
-}
+if (olderResult.error) throw olderResult.error;
 const { entries: olderProjects, cacheHint: olderCacheHint } = olderResult;
 const currentIndex = olderProjects.findIndex((p) => p.id === project.id);
 const nextProject =

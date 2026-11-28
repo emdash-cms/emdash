@@ -4,6 +4,7 @@ import { validateContentEditorPanelInteraction } from "@emdash-cms/blocks/server
 
 import { requirePerm, requireOwnerPerm } from "../api/authorize.js";
 import { apiError, apiSuccess } from "../api/error.js";
+import { getPublicUrl } from "../api/public-url.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { requireScope } from "../auth/scopes.js";
 import type { PluginEditorExtensionDispatch } from "../emdash-runtime.js";
@@ -79,8 +80,15 @@ function authorizePrivatePluginRouteRequest(
 	return null;
 }
 
+/** Behind a TLS-terminating proxy `request.url` is the internal address, not the one the browser is on. */
+function publicRequestUrl(request: Request, config: EmDashHandlers["config"] | undefined): string {
+	const url = new URL(request.url);
+	return getPublicUrl(url, config, `${url.pathname}${url.search}`);
+}
+
 export interface PluginApiRequestContext {
-	runtime: Pick<EmDashHandlers, "getPluginRouteMeta" | "handlePluginApiRoute">;
+	runtime: Pick<EmDashHandlers, "getPluginRouteMeta" | "handlePluginApiRoute"> &
+		Partial<Pick<EmDashHandlers, "config">>;
 	pluginId: string;
 	path: string;
 	request: Request;
@@ -145,7 +153,9 @@ export async function dispatchPluginApiRequest({
 			response = pluginRouteResponseFromWire(
 				await pluginRouteResponseToWire(
 					result.data,
-					routeMeta.public ? { publicRequestUrl: request.url } : { allowExternalLocation: true },
+					routeMeta.public
+						? { publicRequestUrl: publicRequestUrl(request, runtime.config) }
+						: { allowExternalLocation: true },
 				),
 				method,
 			);
@@ -176,6 +186,7 @@ export interface PluginEditorExtensionApiRequestContext {
 		| "handlePluginApiRoute"
 		| "getPluginEditorExtension"
 		| "handleContentGet"
+		| "handleContentGetForWrite"
 		| "getPluginEditorDraftSchema"
 		| "rooms"
 	>;
@@ -219,12 +230,31 @@ export async function dispatchPluginEditorExtensionApiRequest({
 	const denied = authorizePrivatePluginRouteRequest(routeMeta, request, user, tokenScopes);
 	if (denied) return denied;
 
+	let ownershipUser: { id: string; role: RoleLevel } | null | undefined =
+		user == null ? user : undefined;
+	if (user) {
+		const ownerRole = toRoleLevel(user.role);
+		if (ownerRole === null) {
+			return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
+		}
+		ownershipUser = { id: user.id, role: ownerRole };
+	}
+	const roleDenied = requirePerm(ownershipUser, "content:edit_own");
+	if (roleDenied) return roleDenied;
+
 	const requestedLocale = new URL(request.url).searchParams.get("locale") || undefined;
-	const contentResult = await runtime.handleContentGet(collection, entryId, requestedLocale);
+	const contentResult =
+		kind === "action"
+			? await runtime.handleContentGetForWrite(collection, entryId, requestedLocale)
+			: await runtime.handleContentGet(collection, entryId, requestedLocale);
 	if (!contentResult.success) {
-		return contentResult.error?.code === "NOT_FOUND"
-			? apiError("NOT_FOUND", "Content item not found", 404)
-			: apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
+		if (contentResult.error?.code === "NOT_FOUND") {
+			return apiError("NOT_FOUND", "Content item not found", 404);
+		}
+		if (contentResult.error?.code === "AMBIGUOUS_LOCALE") {
+			return apiError("AMBIGUOUS_LOCALE", contentResult.error.message, 400);
+		}
+		return apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
 	}
 	const contentData = contentResult.data;
 	const item =
@@ -235,15 +265,6 @@ export async function dispatchPluginEditorExtensionApiRequest({
 		return apiError("CONTENT_GET_ERROR", "Failed to load content item", 500);
 	}
 	const authorId = "authorId" in item && typeof item.authorId === "string" ? item.authorId : "";
-	let ownershipUser: { id: string; role: RoleLevel } | null | undefined =
-		user == null ? user : undefined;
-	if (user) {
-		const ownerRole = toRoleLevel(user.role);
-		if (ownerRole === null) {
-			return apiError("INVALID_USER", "Authenticated user has an invalid role", 500);
-		}
-		ownershipUser = { id: user.id, role: ownerRole };
-	}
 	const ownershipDenied = requireOwnerPerm(
 		ownershipUser,
 		authorId,

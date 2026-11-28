@@ -228,6 +228,7 @@ import {
 	handleContentAuthors,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
+	handleContentGetById,
 	handleContentCreate,
 	handleContentUpdate,
 	handleContentDelete,
@@ -972,9 +973,14 @@ export class EmDashRuntime {
 		string,
 		{ stateKey: string; retryAt: number; error: unknown }
 	>();
-	private storageIndexesSyncPromises = new Map<
+	private readonly storageIndexSyncStates = new Map<
 		string,
-		{ declaration: object; promise: Promise<StorageIndexSyncResult> }
+		{
+			lock: InitLock;
+			needsReconciliation: boolean;
+			pendingDrops: number;
+			lastFailure?: { declaration: object };
+		}
 	>();
 	/** Factory options for the hook pipeline context factory */
 	private pipelineFactoryOptions: {
@@ -1336,19 +1342,39 @@ export class EmDashRuntime {
 		return map;
 	}
 
-	private async runStorageIndexSync(pluginId: string): Promise<StorageIndexSyncResult> {
+	private async runStorageIndexSync(
+		pluginId: string,
+		isCurrentClaim: () => boolean,
+		syncState: { needsReconciliation: boolean; pendingDrops: number },
+	): Promise<StorageIndexSyncResult> {
 		const candidates = [...this.getStorageIndexPlugins().values()].filter(
 			(plugin) => !this.storageIndexesReady.has(plugin.id) && plugin.id === pluginId,
 		);
 		const errors: StorageIndexSyncResult["errors"] = [];
+		// Reclamation cannot cancel an issued statement, but must stop an old pass
+		// from issuing more DDL or registry writes after its replacement takes over.
+		const db = this.db.withPlugin({
+			transformQuery: ({ node }) => {
+				if (!isCurrentClaim()) {
+					// An already-issued DROP may finish after the replacement's pass.
+					syncState.needsReconciliation = true;
+					this.storageIndexesReady.delete(pluginId);
+					throw new Error("Storage index synchronization superseded");
+				}
+				return node;
+			},
+			transformResult: async ({ result }) => result,
+		});
 
 		for (const plugin of candidates) {
 			try {
-				const stored = await this.db
+				const stored = await db
 					.selectFrom("_plugin_indexes")
 					.select(["collection", "index_name"])
 					.where("plugin_id", "=", plugin.id)
 					.execute();
+				// A reclaimed owner must not resume DDL after its replacement has synchronized.
+				if (!isCurrentClaim()) continue;
 				const storage = { ...plugin.storage };
 				const expected = new Map<string, Set<string>>();
 				for (const [collection, config] of Object.entries(storage)) {
@@ -1370,14 +1396,31 @@ export class EmDashRuntime {
 					if (!Object.hasOwn(storage, row.collection)) storage[row.collection] = { indexes: [] };
 				}
 				const hasMissing = [...expected.values()].some((names) => names.size > 0);
-				if (hasExtra || hasMissing) {
-					const result = await syncDeclaredStorageIndexes(this.db, [{ id: plugin.id, storage }]);
+				if (syncState.needsReconciliation || hasExtra || hasMissing) {
+					// A cancelled DROP can leave its registry row behind. Until a full
+					// pass finishes, registry names alone cannot establish readiness.
+					syncState.needsReconciliation = true;
+					const result = await syncDeclaredStorageIndexes(db, [{ id: plugin.id, storage }], {
+						trackDrop: async (drop) => {
+							syncState.pendingDrops++;
+							try {
+								return await drop();
+							} finally {
+								syncState.pendingDrops--;
+							}
+						},
+					});
 					errors.push(...result.errors);
 					if (!result.ok) continue;
+					if (isCurrentClaim()) syncState.needsReconciliation = false;
 				}
 
 				// A version change can invalidate a pass while its database work is in flight.
-				if (this.getStorageIndexPlugins().get(plugin.id) === plugin) {
+				if (
+					isCurrentClaim() &&
+					syncState.pendingDrops === 0 &&
+					this.getStorageIndexPlugins().get(plugin.id) === plugin
+				) {
 					this.storageIndexesReady.add(plugin.id);
 				}
 			} catch (error) {
@@ -1395,7 +1438,7 @@ export class EmDashRuntime {
 	}
 
 	private invalidateStorageIndexReadiness(pluginId: string): void {
-		// Keep the flight: its DDL must finish before a replacement version can sync.
+		// Preserve the lock so a version change alone cannot start overlapping DDL.
 		this.storageIndexesReady.delete(pluginId);
 	}
 
@@ -1403,7 +1446,8 @@ export class EmDashRuntime {
 	 * Ensure declared storage indexes are ready before state-changing plugin
 	 * work runs. Returns `true` only when the requested plugin (or all plugins,
 	 * when no ID is given) has been successfully synchronized. Uses a single
-	 * in-flight sync per plugin, shared by targeted and all-plugin callers.
+	 * reclaimable lock per plugin. Waiters poll readiness rather than awaiting
+	 * another request's promise, which can be stranded by cancellation on Workers.
 	 */
 	async ensureStorageIndexesSynced(pluginId?: string): Promise<boolean> {
 		if (!pluginId) {
@@ -1418,23 +1462,46 @@ export class EmDashRuntime {
 
 		const declaration = this.getStorageIndexPlugins().get(pluginId);
 		if (!declaration) return false;
-		let flight = this.storageIndexesSyncPromises.get(pluginId);
-		if (!flight) {
-			const promise = this.runStorageIndexSync(pluginId).finally(() => {
-				if (this.storageIndexesSyncPromises.get(pluginId)?.promise === promise) {
-					this.storageIndexesSyncPromises.delete(pluginId);
-				}
-			});
-			flight = { declaration, promise };
-			this.storageIndexesSyncPromises.set(pluginId, flight);
+		let state = this.storageIndexSyncStates.get(pluginId);
+		if (!state) {
+			state = { lock: createInitLock(), needsReconciliation: false, pendingDrops: 0 };
+			this.storageIndexSyncStates.set(pluginId, state);
 		}
+		const syncState = state;
+		const failureAtCall = syncState.lastFailure;
+		const isReady = () =>
+			this.getStorageIndexPlugins().get(pluginId) === declaration &&
+			this.storageIndexesReady.has(pluginId);
 
-		await flight.promise;
-		if (this.getStorageIndexPlugins().get(pluginId) !== declaration) return false;
-		if (flight.declaration !== declaration) {
-			return this.ensureStorageIndexesSynced(pluginId);
+		try {
+			return await initWithLock(
+				syncState.lock,
+				() => {
+					if (this.getStorageIndexPlugins().get(pluginId) !== declaration) return false;
+					if (isReady()) return true;
+					// Share a failed attempt with existing waiters, but let later calls retry.
+					if (
+						syncState.lastFailure !== failureAtCall &&
+						syncState.lastFailure?.declaration === declaration
+					)
+						return false;
+					return null;
+				},
+				async (isCurrentClaim) => {
+					// An issued DROP can still execute even if its request never resumes.
+					// Reclaiming the JS lock cannot fence that database-side operation.
+					if (syncState.pendingDrops > 0) return false;
+					await this.runStorageIndexSync(pluginId, isCurrentClaim, syncState);
+					const ready = isReady();
+					if (isCurrentClaim() && !ready) syncState.lastFailure = { declaration };
+					return ready;
+				},
+				{ anchor: (promise) => after(() => promise) },
+			);
+		} catch (error) {
+			console.error(`[plugins] Storage index sync failed for ${pluginId}:`, error);
+			return false;
 		}
-		return this.storageIndexesReady.has(pluginId);
 	}
 
 	/**
@@ -4239,8 +4306,8 @@ export class EmDashRuntime {
 		return handleContentList(this.db, collection, params);
 	}
 
-	async handleContentAuthors(collection: string) {
-		return handleContentAuthors(this.db, collection);
+	async handleContentAuthors(collection: string, options?: { includeEmail?: boolean }) {
+		return handleContentAuthors(this.db, collection, options);
 	}
 
 	async handleContentGet(
@@ -4254,8 +4321,32 @@ export class EmDashRuntime {
 		return this.hydrateDraftData(result, draftOptions);
 	}
 
+	async handleContentGetById(collection: string, id: string) {
+		return handleContentGetById(this.db, collection, id);
+	}
+
 	async handleContentGetIncludingTrashed(collection: string, id: string, locale?: string) {
 		const result = await handleContentGetIncludingTrashed(this.db, collection, id, locale);
+		return this.hydrateDraftData(result);
+	}
+
+	/**
+	 * Resolve the entry a write targets. A slug shared by more than one locale
+	 * fails with AMBIGUOUS_LOCALE unless `locale` is given.
+	 */
+	async handleContentGetForWrite(
+		collection: string,
+		id: string,
+		locale?: string,
+		options: { includeTrashed?: boolean } = {},
+	) {
+		const result = options.includeTrashed
+			? await handleContentGetIncludingTrashed(this.db, collection, id, locale, {
+					refuseAmbiguousSlug: true,
+				})
+			: await handleContentGet(this.db, collection, id, locale, undefined, {
+					refuseAmbiguousSlug: true,
+				});
 		return this.hydrateDraftData(result);
 	}
 
@@ -5210,6 +5301,12 @@ export class EmDashRuntime {
 			action === "restore"
 				? await repo.findByIdOrSlugIncludingTrashed(collection, id)
 				: await repo.findByIdOrSlug(collection, id);
+		// Must run before the re-entrancy guard, whose error would also tell a live entry from a missing one.
+		if (action === "restore" && !(item && (await repo.isTrashed(collection, item.id)))) {
+			throw Object.assign(new Error(`Trashed content item not found: ${id}`), {
+				code: "NOT_FOUND",
+			});
+		}
 		const resolvedId = item?.id ?? id;
 		const key = this.pluginContentActionKey(collection, resolvedId);
 		if ((this.activePluginContentActions.get(key) ?? 0) > 0) {

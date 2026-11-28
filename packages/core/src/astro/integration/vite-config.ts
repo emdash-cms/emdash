@@ -454,13 +454,13 @@ const ADMIN_STYLES_ALIAS = /^@emdash-cms\/admin\/styles\.css/;
 const NODE_NATIVE_EXTERNALS = ["@libsql/kysely-libsql", "pg"];
 
 /**
- * The room engine and the editor schema it builds documents with. They load only when a room
- * first runs, so on Cloudflare the optimizer would discover them mid-session, and the reloads
- * that follow evaluate `@tiptap/pm/tables` twice ("Duplicate use of selection JSON ID cell").
+ * The editor schema that the inline Portable Text editor and the room engine build documents with.
+ * An editor's first visit to a page renders the inline editor, so on Cloudflare the optimizer
+ * would discover these one by one on that request and reload the worker after each, and the
+ * reloads evaluate `@tiptap/pm/tables` twice ("Duplicate use of selection JSON ID cell").
  */
-const ROOM_ENGINE_DEPS = [
-	"emdash > yjs",
-	"emdash > @tiptap/y-tiptap",
+const EDITOR_SCHEMA_DEPS = [
+	"emdash > marked",
 	"emdash > @tiptap/starter-kit",
 	"emdash > @tiptap/extension-code",
 	"emdash > @tiptap/extension-code-block",
@@ -473,14 +473,20 @@ const ROOM_ENGINE_DEPS = [
 	"emdash > @tiptap/pm/state",
 	"emdash > @tiptap/pm/tables",
 	"emdash > @tiptap/pm/transform",
-	"emdash > @emdash-cms/admin > lib0/decoding",
-	"emdash > @emdash-cms/admin > lib0/encoding",
-	"emdash > @emdash-cms/admin > y-protocols/sync",
-	"emdash > @emdash-cms/admin > @tiptap/extension-collaboration",
 	"emdash > @emdash-cms/admin > @tiptap/extension-table",
 	"emdash > @emdash-cms/admin > @tiptap/extension-table-cell",
 	"emdash > @emdash-cms/admin > @tiptap/extension-table-header",
 	"emdash > @emdash-cms/admin > @tiptap/extension-table-row",
+];
+
+/** The room engine, which loads only when a room first runs. */
+const ROOM_ENGINE_DEPS = [
+	"emdash > yjs",
+	"emdash > @tiptap/y-tiptap",
+	"emdash > @emdash-cms/admin > lib0/decoding",
+	"emdash > @emdash-cms/admin > lib0/encoding",
+	"emdash > @emdash-cms/admin > y-protocols/sync",
+	"emdash > @emdash-cms/admin > @tiptap/extension-collaboration",
 ];
 
 /**
@@ -776,6 +782,7 @@ export function createViteConfig(
 							// Only imported by the /_image route, so the first image
 							// request would otherwise discover it.
 							"@astrojs/cloudflare/image-transform-endpoint",
+							...EDITOR_SCHEMA_DEPS,
 							...(options.resolvedConfig.coEditing ? ROOM_ENGINE_DEPS : []),
 						],
 					},

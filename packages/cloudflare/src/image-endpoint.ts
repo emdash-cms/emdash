@@ -22,6 +22,7 @@ import {
 	canonicalTransformRedirect,
 	canonicalTransformSearch,
 	getTransformFingerprint,
+	canDelegateImageHref,
 	isCacheableMediaSource,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
@@ -36,6 +37,8 @@ import {
 import virtualConfig from "virtual:emdash/config";
 
 export const prerender = false;
+
+const ORIGINAL_FALLBACK = "original";
 
 const FORMAT_MIME: Record<ImageTransformFormat, ImageOutputOptions["format"]> = {
 	webp: "image/webp",
@@ -52,18 +55,6 @@ function resolveImagesBinding(): ImagesBinding | undefined {
 	// env from cloudflare:workers has no index signature, so a cast is needed.
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- Images binding accessed from untyped env object
 	return (env as Record<string, unknown>)[name] as ImagesBinding | undefined;
-}
-
-function streamOriginal(
-	body: ReadableStream<Uint8Array>,
-	contentType: string,
-	size: number,
-	lastModified?: Date,
-): Response {
-	return new Response(body, {
-		status: 200,
-		headers: originalMediaHeaders(contentType, size, lastModified),
-	});
 }
 
 function notModifiedResponse(
@@ -92,15 +83,20 @@ function isNotFound(error: unknown): boolean {
 
 export const GET: APIRoute = async (ctx) => {
 	const url = new URL(ctx.request.url);
-	const key = matchInternalMediaKey(url.searchParams.get("href"));
+	const href = url.searchParams.get("href");
+	const key = matchInternalMediaKey(href);
 	// App.Locals.emdash is augmented by `emdash/locals`, not loaded in this
 	// package's compilation; narrow to the field we need.
 	// eslint-disable-next-line typescript/no-unsafe-type-assertion -- App.Locals augmentation lives in the emdash package
 	const storage = (ctx.locals as { emdash?: { storage?: Storage | null } }).emdash?.storage;
 
-	// Not EmDash media, or storage unavailable: let the adapter's endpoint handle
-	// it (bundled assets via ASSETS, allowed remote via fetch).
-	if (!key || !storage) return adapterGET(ctx);
+	if (!key || !storage) {
+		if (!canDelegateImageHref(href, url.origin)) {
+			return new Response("Not Found", { status: 404 });
+		}
+		// Not EmDash media: bundled assets via ASSETS, allowed remote via fetch.
+		return adapterGET(ctx);
+	}
 
 	// Astro adds the adapter's assetQueryParams; the public `astro:assets` type omits it.
 	const config: typeof imageConfig & { assetQueryParams?: URLSearchParams } = imageConfig;
@@ -112,23 +108,35 @@ export const GET: APIRoute = async (ctx) => {
 
 	// An unread download keeps its storage read open even for a bodyless response.
 	let unusedBody: ReadableStream<Uint8Array> | undefined;
-	const serveOriginal = (source: {
-		body: ReadableStream<Uint8Array>;
-		contentType: string;
-		size: number;
-		lastModified?: Date;
-	}): Response => {
-		if (isNotModified(ctx.request, source.size, source.lastModified)) {
-			return notModifiedResponse(source.contentType, source.size, source.lastModified);
+	const serveOriginal = (
+		source: {
+			body: ReadableStream<Uint8Array>;
+			contentType: string;
+			size: number;
+			lastModified?: Date;
+		},
+		suffix?: string,
+	): Response => {
+		if (isNotModified(ctx.request, source.size, source.lastModified, suffix)) {
+			const notModified = notModifiedResponse(
+				source.contentType,
+				source.size,
+				source.lastModified,
+				suffix,
+			);
+			if (suffix) notModified.headers.delete("Last-Modified");
+			return notModified;
 		}
-		if (ctx.request.method === "HEAD") {
-			return new Response(null, {
-				status: 200,
-				headers: originalMediaHeaders(source.contentType, source.size, source.lastModified),
-			});
-		}
+		const headers: Record<string, string> = {
+			...originalMediaHeaders(source.contentType, source.size, source.lastModified),
+			...(suffix ? validatorHeaders(source.size, source.lastModified, suffix) : {}),
+		};
+		// The rendition shares this Last-Modified; a date-only revalidation must
+		// not keep the original once transforms work again.
+		if (suffix) delete headers["Last-Modified"];
+		if (ctx.request.method === "HEAD") return new Response(null, { status: 200, headers });
 		unusedBody = undefined;
-		return streamOriginal(source.body, source.contentType, source.size, source.lastModified);
+		return new Response(source.body, { status: 200, headers });
 	};
 
 	try {
@@ -163,10 +171,22 @@ export const GET: APIRoute = async (ctx) => {
 		const effectiveQuality = resolveTransformQuality(format, quality);
 		if (effectiveQuality !== undefined) output.quality = effectiveQuality;
 
-		const result = await images.input(source.body).transform(transform).output(output);
-		unusedBody = undefined;
-		const response = result.response();
-		if (!response.body) return new Response(null, { status: 500 });
+		let response: Response;
+		try {
+			const result = await images.input(source.body).transform(transform).output(output);
+			unusedBody = undefined;
+			response = result.response();
+			if (!response.body) throw new Error("Images binding returned no body");
+		} catch (error) {
+			// The Images binding fails once a plan's monthly transformations run
+			// out; the full-size original keeps the image visible.
+			console.error("[emdash] image transform failed, serving the original:", error);
+			if (unusedBody && !unusedBody.locked) await unusedBody.cancel().catch(() => undefined);
+			if (ctx.cache?.enabled) ctx.cache.set(false);
+			const original = await storage.download(key);
+			unusedBody = original.body;
+			return serveOriginal(original, ORIGINAL_FALLBACK);
+		}
 
 		if (
 			stockService &&

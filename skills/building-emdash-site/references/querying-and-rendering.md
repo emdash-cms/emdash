@@ -39,7 +39,8 @@ Fetch a single entry by slug. Returns `{ entry, error, isPreview, cacheHint }`.
 ```typescript
 import { getEmDashEntry } from "emdash";
 
-const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
+if (error) throw error;
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 if (!post) {
@@ -260,14 +261,15 @@ if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 ```astro
 ---
-import { getEmDashEntry, getSeoMeta } from "emdash";
+import { decodeSlug, getEmDashEntry, getSeoMeta } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Base from "../../layouts/Base.astro";
 
-const { slug } = Astro.params;
+const slug = decodeSlug(Astro.params.slug);
 if (!slug) return Astro.rewrite("/404");
 
-const { entry: post, cacheHint } = await getEmDashEntry("posts", slug);
+const { entry: post, error, cacheHint } = await getEmDashEntry("posts", slug);
+if (error) throw error;
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 if (!post) return Astro.rewrite("/404");
 

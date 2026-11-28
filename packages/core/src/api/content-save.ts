@@ -25,7 +25,11 @@ import type { contentUpdateBody } from "./schemas/index.js";
 /** The handlers a save needs: the runtime, or the `emdash` handlers in Astro locals. */
 export interface ContentSaveSite {
 	db: Kysely<Database>;
-	handleContentGet: (collection: string, id: string, locale?: string) => Promise<HandlerResponse>;
+	handleContentGetForWrite: (
+		collection: string,
+		id: string,
+		locale?: string,
+	) => Promise<HandlerResponse>;
 	handleContentUpdate: EmDashHandlers["handleContentUpdate"];
 }
 
@@ -169,7 +173,11 @@ async function checkEditAccess(
 	input: Pick<ContentSaveInput, "collection" | "id" | "locale" | "user">,
 ): Promise<EditGrant | ContentSaveError> {
 	const { collection, id, locale, user } = input;
-	const existing = await site.handleContentGet(collection, id, locale);
+	if (!user) return { code: "UNAUTHORIZED", message: "Authentication required" };
+	if (!hasPermission(user, "content:edit_own") && !hasPermission(user, "content:edit_own_drafts")) {
+		return { code: "FORBIDDEN", message: "Insufficient permissions" };
+	}
+	const existing = await site.handleContentGetForWrite(collection, id, locale);
 	if (!existing.success) {
 		return {
 			code: existing.error?.code ?? "UNKNOWN_ERROR",
@@ -190,7 +198,6 @@ async function checkEditAccess(
 			: existingData;
 	const authorId = typeof existingItem?.authorId === "string" ? existingItem.authorId : "";
 	const entry = { authorId, status: existingItem?.status };
-	if (!user) return { code: "UNAUTHORIZED", message: "Authentication required" };
 	const access = entryEditAccess(user, entry);
 	if (!access) return { code: "FORBIDDEN", message: "Insufficient permissions" };
 	return {

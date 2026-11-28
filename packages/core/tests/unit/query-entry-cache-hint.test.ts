@@ -146,4 +146,30 @@ describeEachDialect("getEmDashEntry cache hint", (dialect) => {
 		expect(direct.entry?.data.id).toBe(canonical.id);
 		expect(direct.cacheHint.tags).toEqual([canonical.id]);
 	});
+
+	it("tags an unscoped hit outside the default locale with the collection", async () => {
+		const french = await contentRepo.create(
+			createPostFixture({
+				slug: "page",
+				data: { title: "Bonjour" },
+				status: "draft",
+				locale: "fr",
+			}),
+		);
+		await contentRepo.publish("post", french.id);
+		const english = await contentRepo.create(
+			createPostFixture({ slug: "page", data: { title: "Hello" }, status: "draft", locale: "en" }),
+		);
+
+		const result = await read("page");
+
+		expect(result.entry?.data.id).toBe(french.id);
+		expect(result.cacheHint.tags).toEqual(expect.arrayContaining([french.id, "post"]));
+
+		await contentRepo.publish("post", english.id);
+		const after = await read("page");
+
+		expect(after.entry?.data.id).toBe(english.id);
+		expect(after.cacheHint.tags).toEqual([english.id]);
+	});
 });

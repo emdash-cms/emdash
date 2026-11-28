@@ -61,7 +61,7 @@ function context(input: unknown, media: unknown) {
 		storage: {
 			forms: {
 				get: async (id: string) => (id === "apply" ? form() : null),
-				put: async () => {},
+				updateIf: async () => ({ applied: false }),
 				query: async () => ({ items: [] }),
 			},
 			submissions: {

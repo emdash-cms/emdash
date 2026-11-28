@@ -27,10 +27,7 @@ const { entries: posts, error, cacheHint } = await getEmDashCollection("posts", 
   limit: 7,
 });
 
-if (error) {
-  console.error("Failed to load posts:", error);
-  return new Response("Unable to load posts", { status: 500 });
-}
+if (error) throw error;
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 ---
@@ -156,7 +153,7 @@ const { entries: posts, nextCursor, error } = await getEmDashCollection("posts",
   orderBy: { published_at: "desc" },
 });
 
-if (error) return new Response("Unable to load posts", { status: 500 });
+if (error) throw error;
 ---
 
 <ul>
@@ -193,7 +190,7 @@ const { entries: posts, hasMore, error } = await getEmDashCollection("posts", {
   orderBy: { published_at: "desc" },
 });
 
-if (error) return new Response("Unable to load posts", { status: 500 });
+if (error) throw error;
 ---
 
 <ul>
@@ -225,10 +222,7 @@ if (!slug) return Astro.rewrite("/404");
 
 const { entry: post, error, isPreview, cacheHint } = await getEmDashEntry("posts", slug);
 
-if (error) {
-  console.error("Failed to load post:", error);
-  return new Response("Unable to load post", { status: 500 });
-}
+if (error) throw error;
 
 if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 if (!post) return Astro.rewrite("/404");
@@ -264,7 +258,9 @@ provider renders through that provider. An empty video block, which has no `asse
 
 With [Astro's content security policy](https://docs.astro.build/en/reference/configuration-reference/#securitycsp)
 turned on, the browser blocks the styles and scripts inside isolated HTML blocks, so they render
-without their CSS, JavaScript or automatic height. Iframe blocks also lose their custom size, and
+without their CSS, JavaScript or automatic height. Their content stays 150 pixels tall even if your
+site's styles make the block's frame taller. If the policy sets `base-uri 'none'`, isolated HTML
+blocks don't load; allow `'self'` in `base-uri` to show them. Iframe blocks also lose their custom size, and
 the policy's `frame-src` must allow the hosts they embed. Video blocks whose media is on another
 host, such as a storage public URL or a media provider, need that host in `media-src`.
 
@@ -276,12 +272,16 @@ A [`reference` field](/reference/field-types/#reference) links an entry to entri
 
 ```astro title="src/pages/posts/[slug].astro"
 ---
-import { getEmDashEntry } from "emdash";
+import { decodeSlug, getEmDashEntry } from "emdash";
 
-const { entry: post } = await getEmDashEntry("posts", Astro.params.slug, {
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.rewrite("/404");
+
+const { entry: post, error } = await getEmDashEntry("posts", slug, {
   references: { author: true, related_posts: { limit: 6 } },
 });
 
+if (error) throw error;
 if (!post) return Astro.rewrite("/404");
 
 const author = post.references?.author.entries[0];

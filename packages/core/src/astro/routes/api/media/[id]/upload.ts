@@ -1,12 +1,11 @@
 import type { APIRoute } from "astro";
 import type { Storage } from "emdash";
-import { ulid } from "ulidx";
 
 import { requireOwnerPerm, requirePerm } from "#api/authorize.js";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { MediaRepository } from "#db/repositories/media.js";
 import { normalizeMime } from "#media/mime.js";
-import { removeUploadAttempt } from "#media/upload-attempts.js";
+import { createUploadAttemptKey, removeUploadAttempt } from "#media/upload-attempts.js";
 import { computeContentHash, MAX_CONTENT_HASH_BYTES } from "#utils/hash.js";
 
 export const prerender = false;
@@ -43,15 +42,6 @@ function preserveKnownLength(
 ): ReadableStream<Uint8Array> {
 	if (typeof FixedLengthStream === "undefined") return body;
 	return body.pipeThrough(new FixedLengthStream(expectedLength));
-}
-
-function createUploadAttemptKey(key: string): string {
-	const pathSeparator = key.lastIndexOf("/");
-	const extensionSeparator = key.lastIndexOf(".");
-	if (extensionSeparator > pathSeparator) {
-		return `${key.slice(0, extensionSeparator)}.${ulid()}${key.slice(extensionSeparator)}`;
-	}
-	return `${key}.${ulid()}`;
 }
 
 async function getStoredSize(storage: Storage, key: string): Promise<number | null> {

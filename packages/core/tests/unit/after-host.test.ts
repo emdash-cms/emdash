@@ -69,3 +69,74 @@ it("runs deferred work without a host binding on Node", async () => {
 	await waitForDeferredTasks();
 	expect(completed).toBe(true);
 });
+
+const VERCEL_REQUEST_CONTEXT = Symbol.for("@vercel/request-context");
+
+function setVercelWaitUntil(waitUntil: ReturnType<typeof vi.fn> | undefined): void {
+	(globalThis as Record<symbol, unknown>)[VERCEL_REQUEST_CONTEXT] = waitUntil
+		? { get: () => ({ waitUntil }) }
+		: undefined;
+}
+
+afterEach(() => {
+	delete (globalThis as Record<symbol, unknown>)[VERCEL_REQUEST_CONTEXT];
+});
+
+function mockHost(waitUntil: ReturnType<typeof vi.fn> | undefined, longLivedProcess = false) {
+	vi.doMock("virtual:emdash/wait-until", () => ({ waitUntil, longLivedProcess }));
+	vi.doMock("cloudflare:workers", () => {
+		throw new Error("unsupported module scheme");
+	});
+}
+
+it("prefers the request's waitUntil over the Vercel context and the adapter binding", async () => {
+	const fromRequest = vi.fn();
+	const fromVercel = vi.fn();
+	const fromAdapter = vi.fn();
+	mockHost(fromAdapter);
+	setVercelWaitUntil(fromVercel);
+	const { runWithContext } = await import("../../src/request-context.js");
+
+	await runWithContext({ editMode: false, hostWaitUntil: () => fromRequest }, () =>
+		expectAnchoredTask(fromRequest),
+	);
+	expect(fromVercel).not.toHaveBeenCalled();
+	expect(fromAdapter).not.toHaveBeenCalled();
+});
+
+it("uses the Vercel request context before the adapter binding", async () => {
+	const fromVercel = vi.fn();
+	const fromAdapter = vi.fn();
+	mockHost(fromAdapter);
+	setVercelWaitUntil(fromVercel);
+
+	await expectAnchoredTask(fromVercel);
+	expect(fromAdapter).not.toHaveBeenCalled();
+});
+
+it("reports whether deferred work can run after the response", async () => {
+	mockHost(undefined);
+	let { canRunAfterResponse } = await import("../../src/after.js");
+	expect(await canRunAfterResponse()).toBe(false);
+
+	setVercelWaitUntil(vi.fn());
+	expect(await canRunAfterResponse()).toBe(true);
+	setVercelWaitUntil(undefined);
+
+	const { runWithContext } = await import("../../src/request-context.js");
+	expect(
+		await runWithContext({ editMode: false, hostWaitUntil: () => vi.fn() }, () =>
+			canRunAfterResponse(),
+		),
+	).toBe(true);
+
+	vi.resetModules();
+	mockHost(vi.fn());
+	({ canRunAfterResponse } = await import("../../src/after.js"));
+	expect(await canRunAfterResponse()).toBe(true);
+
+	vi.resetModules();
+	mockHost(undefined, true);
+	({ canRunAfterResponse } = await import("../../src/after.js"));
+	expect(await canRunAfterResponse()).toBe(true);
+});

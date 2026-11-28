@@ -1,7 +1,8 @@
 ---
 import { getEmDashEntry } from "emdash";
 
-const { entry: post } = await getEmDashEntry("posts", "post-with-image");
+const { entry: post, error } = await getEmDashEntry("posts", "post-with-image");
+if (error) throw error;
 if (!post) return new Response("Not found", { status: 404 });
 ---
 

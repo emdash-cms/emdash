@@ -46,6 +46,10 @@
       "types": "./dist/internal/portable-text.d.ts",
       "default": "./dist/internal/portable-text.js"
     },
+    "./internal/portable-text-links": {
+      "types": "./dist/internal/portable-text-links.d.ts",
+      "default": "./dist/internal/portable-text-links.js"
+    },
     "./internal/portable-text-y-sync": {
       "types": "./dist/internal/portable-text-y-sync.d.ts",
       "default": "./dist/internal/portable-text-y-sync.js"
@@ -65,6 +69,10 @@
     "./internal/video-block": {
       "types": "./dist/internal/video-block.d.ts",
       "default": "./dist/internal/video-block.js"
+    },
+    "./internal/editorial-anchors": {
+      "types": "./dist/internal/editorial-anchors.d.ts",
+      "default": "./dist/internal/editorial-anchors.js"
     }
   },
   "scripts": {
