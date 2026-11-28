@@ -219,6 +219,7 @@ export class MiniflareDevRunner implements SandboxRunner {
 				settingsSchema: manifest.admin?.settingsSchema,
 				i18nConfig: getI18nConfig(),
 				siteInfo: this.siteInfo,
+				basePath: this.options.basePath,
 				db: this.options.db,
 				beforeContentWrite: this.options.beforeContentWrite,
 				contentCreateProvider: () => this.contentCreateCallback,

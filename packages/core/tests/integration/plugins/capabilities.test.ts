@@ -260,6 +260,33 @@ describe("Capability Enforcement Integration (v2)", () => {
 				},
 			);
 
+			it("uses the base the host passes in for public URLs", async () => {
+				await new SchemaRegistry(db).createCollection({
+					slug: "articles",
+					label: "Articles",
+					urlPattern: "/journal/{slug}",
+				});
+				const article = await new ContentRepository(db).create({
+					type: "articles",
+					slug: "hello",
+					status: "published",
+					data: {},
+				});
+				const access = createContentAccess(db, {
+					site: {
+						name: "Test",
+						url: "https://example.test",
+						locale: "en",
+						trailingSlash: "ignore",
+					},
+					basePath: "/site",
+				});
+
+				expect(await access.getPublicUrl!("articles", article.id)).toBe(
+					"https://example.test/site/journal/hello",
+				);
+			});
+
 			it("keeps revision history behind the separate access surface", async () => {
 				const revision = await new RevisionRepository(db).create({
 					collection: "posts",

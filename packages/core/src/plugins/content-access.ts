@@ -17,7 +17,7 @@ import type {
 
 export function createContentAccess(
 	db: Kysely<Database>,
-	accessOptions?: { site?: SiteInfo; revisions?: boolean },
+	accessOptions?: { site?: SiteInfo; revisions?: boolean; basePath?: string },
 ): ContentAccess {
 	const contentRepo = new ContentRepository(db);
 	const seoRepo = new SeoRepository(db);
@@ -140,7 +140,9 @@ export function createContentAccess(
 				locale: item.locale || site.locale,
 				trailingSlash: site.trailingSlash,
 			});
-			return path === null ? null : `${withBasePath(site.url, getBasePath())}${path}`;
+			return path === null
+				? null
+				: `${withBasePath(site.url, accessOptions?.basePath ?? getBasePath())}${path}`;
 		},
 
 		...(accessOptions?.revisions

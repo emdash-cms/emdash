@@ -1100,6 +1100,10 @@ export class WorkerdSandboxRunner implements SandboxRunner {
 		});
 	}
 
+	get basePath() {
+		return this.options.basePath;
+	}
+
 	/** Get the database for backing service operations */
 	get db() {
 		return this.options.db;

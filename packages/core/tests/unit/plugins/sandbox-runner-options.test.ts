@@ -22,7 +22,17 @@ describe("createSandboxRunnerOptions", () => {
 				locale: "nl",
 				trailingSlash: "ignore",
 			},
+			basePath: "",
 		});
+	});
+
+	it("passes Astro's base to the sandbox bridge", () => {
+		vi.stubEnv("BASE_URL", "/blog/");
+		try {
+			expect(createSandboxRunnerOptions({ db: {} as never }).basePath).toBe("/blog");
+		} finally {
+			vi.unstubAllEnvs();
+		}
 	});
 
 	it("preserves runner options while applying site defaults", () => {

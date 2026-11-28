@@ -11,7 +11,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
-import { withBase } from "../api/public-url.js";
+import { getBasePath, withBase } from "../api/public-url.js";
 import { menuTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
@@ -69,7 +69,9 @@ const lastResolvedNamespaces: Map<string, string[]> =
 export async function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
 	const locale = resolveLocale(options.locale);
 	const trailingSlash = options.trailingSlash ?? (await getHostTrailingSlash());
-	const key = `${name}:${locale ?? "*"}:${trailingSlash}`;
+	// Resolved URLs carry the base. A root site keeps its existing cache keys.
+	const base = getBasePath();
+	const key = `${name}:${locale ?? "*"}:${trailingSlash}${base ? `:${base}` : ""}`;
 	return requestCached(`menu:${key}`, async () => {
 		if (!(await isObjectCacheActive())) {
 			return getMenuWithDb(name, await getDb(), { locale, trailingSlash });

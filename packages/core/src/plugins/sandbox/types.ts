@@ -122,6 +122,8 @@ export interface SandboxOptions {
 		locale: string;
 		trailingSlash?: "always" | "never" | "ignore";
 	};
+	/** Astro's base without its trailing slash, for public URLs the bridge builds. */
+	basePath?: string;
 	/** Email send callback, wired from the EmailPipeline by the runtime */
 	emailSend?: SandboxEmailSendCallback;
 	commentModerate?: SandboxCommentModerateCallback;
