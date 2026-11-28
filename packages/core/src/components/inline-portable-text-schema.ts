@@ -17,6 +17,7 @@ import {
 } from "@emdash-cms/admin/internal/portable-text";
 import type { AnyExtension, NodeViewRenderer } from "@tiptap/core";
 import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import { Plugin } from "@tiptap/pm/state";
 
 import { InlineCodeBlockExtension } from "./inline-code-block.js";
 import { InlineImageExtension } from "./inline-image.js";
@@ -71,6 +72,7 @@ const InlinePluginBlockNode = PluginBlockNode.extend({
 });
 
 const InlineHtmlBlockNode = HtmlBlockNode.extend({
+	draggable: true,
 	addNodeView() {
 		return placeholderView("data-emdash-html-block", () => "HTML block (edit in admin)");
 	},
@@ -83,12 +85,14 @@ const InlineGalleryNode = GalleryNode.extend({
 });
 
 const InlineIframeBlockNode = IframeBlockNode.extend({
+	draggable: true,
 	addNodeView() {
 		return placeholderView("data-emdash-plugin-block", () => pluginBlockLabel("iframe"));
 	},
 });
 
 const InlineVideoBlockNode = VideoBlockNode.extend({
+	draggable: true,
 	addNodeView() {
 		return placeholderView("data-emdash-plugin-block", () => pluginBlockLabel("video"));
 	},
@@ -98,11 +102,14 @@ const InlineVideoBlockNode = VideoBlockNode.extend({
  * The table keeps its rows and cells as editor content, so it saves
  * unchanged, but shows only a placeholder: tables are edited in the admin.
  * As an atom, the caret and arrow keys select it whole instead of moving
- * into cells the placeholder doesn't show.
+ * into cells the placeholder doesn't show. Cutting a table is blocked
+ * because its HTML clipboard copy drops the extra fields it keeps in
+ * hidden attributes.
  */
 const InlineTable = PortableTextTable.extend<{ placeholder: string }>({
 	atom: true,
 	selectable: true,
+	draggable: true,
 
 	addOptions() {
 		return { ...this.parent!(), placeholder: DEFAULT_TABLE_PLACEHOLDER };
@@ -110,6 +117,27 @@ const InlineTable = PortableTextTable.extend<{ placeholder: string }>({
 	addNodeView() {
 		const { placeholder } = this.options;
 		return placeholderView("data-emdash-table-block", () => placeholder);
+	},
+	addProseMirrorPlugins() {
+		return [
+			...(this.parent?.() ?? []),
+			new Plugin({
+				props: {
+					handleDOMEvents: {
+						cut: (view, event) => {
+							let hasTable = false;
+							view.state.selection.content().content.descendants((node) => {
+								hasTable ||= node.type.name === "table";
+								return !hasTable;
+							});
+							if (!hasTable) return false;
+							event.preventDefault();
+							return true;
+						},
+					},
+				},
+			}),
+		];
 	},
 });
 

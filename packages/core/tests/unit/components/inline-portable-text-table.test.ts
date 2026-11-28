@@ -31,19 +31,6 @@ afterEach(() => {
 	destroyInlineEditors();
 });
 
-/** Each row's cells, as whether the cell is a header and its text. */
-function cellTexts(block: PortableTextBlock) {
-	const { rows } = block as {
-		rows: Array<{ cells: Array<{ isHeader?: boolean; content: Array<{ text: string }> }> }>;
-	};
-	return rows.map((row) =>
-		row.cells.map((cell) => [
-			cell.isHeader ?? false,
-			cell.content.map((span) => span.text).join(""),
-		]),
-	);
-}
-
 function tablePosition(editor: ReturnType<typeof loadInline>): number {
 	let position = -1;
 	editor.state.doc.forEach((node, offset) => {
@@ -100,20 +87,18 @@ describe("inline editor tables", () => {
 		expect((found as NodeSelection).node.type.name).toBe("table");
 	});
 
-	it("keeps the whole table when it's cut and pasted elsewhere", () => {
-		const editor = loadInline([table, paragraph("after", "After")]);
+	it("doesn't cut a table, because the clipboard copy would lose its extra fields", () => {
+		const captioned = { ...table, caption: "Quarterly results" };
+		const editor = loadInline([captioned, paragraph("after", "After")]);
 		const { view } = editor;
 		view.dispatch(
 			view.state.tr.setSelection(NodeSelection.create(view.state.doc, tablePosition(editor))),
 		);
-		const { dom } = view.serializeForClipboard(view.state.selection.content());
-		editor.commands.deleteSelection();
-		expect(tablePosition(editor)).toBe(-1);
 
-		editor.commands.setTextSelection(editor.state.doc.content.size - 1);
-		view.pasteHTML(dom.innerHTML, new Event("paste") as ClipboardEvent);
+		const cut = new Event("cut", { bubbles: true, cancelable: true });
+		view.dom.dispatchEvent(cut);
 
-		const pasted = saveInline(editor).find((block) => block._type === "table");
-		expect(pasted && cellTexts(pasted)).toEqual(cellTexts(table));
+		expect(cut.defaultPrevented).toBe(true);
+		expect(saveInline(editor)[0]).toEqual(captioned);
 	});
 });

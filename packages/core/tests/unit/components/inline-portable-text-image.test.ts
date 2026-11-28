@@ -198,6 +198,35 @@ describe("Image link and alignment round-trip (inline editor seam)", () => {
 		expect(restored.alignment).toBe("diagonal");
 		expect(restored.link).toBeUndefined();
 	});
+
+	it("keeps the key, size, alignment and link of an image stored with only a URL", () => {
+		const [restored] = pmToPortableText(
+			portableTextToPM([
+				{
+					_type: "image",
+					_key: "legacy",
+					url: "/photo.jpg",
+					width: 1200,
+					height: 800,
+					alignment: "right",
+					displayWidth: 400,
+					displayHeight: 300,
+					link: { href: "/target" },
+				},
+			]),
+		);
+
+		expect(restored).toMatchObject({
+			_key: "legacy",
+			asset: { url: "/photo.jpg" },
+			width: 1200,
+			height: 800,
+			alignment: "right",
+			displayWidth: 400,
+			displayHeight: 300,
+			link: { href: "/target" },
+		});
+	});
 });
 
 describe("Image media reference (inline editor seam)", () => {
