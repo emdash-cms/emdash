@@ -294,7 +294,7 @@ async function repairContentMediaUsageCollectionUnlocked(
 			scope,
 			status: "failed",
 			indexedSourceCount: 0,
-			failedSourceCount: 1,
+			failedSourceCount: 0,
 			skippedSourceCount: 0,
 			deletedSourceCount: 0,
 			lastErrorCode: CONTENT_MEDIA_USAGE_REPAIR_ERROR.CONTENT_USAGE_QUERY_LIMIT,

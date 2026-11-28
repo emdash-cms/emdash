@@ -241,6 +241,32 @@ it("keeps an all-collection repair within the request query budget", async () =>
 	expect(metrics.dbCount).toBe(measurement.queries);
 });
 
+it("does not count sources as failed when their collections were never started", async () => {
+	const suffix = Date.now().toString(36);
+	await seedRepairCollection(`d1_unstarted_a_${suffix}`, 1, 1);
+	await seedRepairCollection(`d1_unstarted_b_${suffix}`, 1, 1);
+	const { db, measurement, metrics } = instrumentedD1();
+	metrics.dbCount = 900;
+
+	const result = await runWithContext({ editMode: false, metrics }, () =>
+		repairContentMediaUsageAll(db),
+	);
+	await db.destroy();
+
+	expect(result.status).toBe("failed");
+	expect(result.indexedSourceCount).toBe(0);
+	expect(result.failedSourceCount).toBe(0);
+	expect(result.collections.length).toBeGreaterThanOrEqual(2);
+	for (const collection of result.collections) {
+		expect(collection).toMatchObject({
+			status: "failed",
+			failedSourceCount: 0,
+			lastErrorCode: "CONTENT_USAGE_QUERY_LIMIT",
+		});
+	}
+	expect(measurement.rowsWritten).toBe(0);
+});
+
 async function seedRepairCollection(slug: string, count: number, occurrences: number) {
 	await adminDb
 		.updateTable("_emdash_media_usage_activation")
