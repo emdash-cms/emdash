@@ -79,7 +79,7 @@ npx emdash-fleet provision bakery --admin owner@bakery.example.com --title "Corn
 ```
 
 ```txt
-bakery  limits        ok (Workers 41/500, Cron Triggers 41/250, custom domains on example.com 41/100)
+bakery  limits        ok (Workers 41/500, custom domains on example.com 41/100)
 bakery  database      created emdash-bakery (weur)
 bakery  media         created emdash-bakery-media
 bakery  sessions      created emdash-bakery-session
@@ -152,7 +152,7 @@ stopped after wave 2: 1 failed (lantern, still on 1.5.0), 2 skipped (orchard, no
 
 `@emdash-cms/fleet` is a new package in the monorepo, with the `emdash-fleet` command, like `@emdash-cms/plugin-cli` ships `emdash-plugin`. It exports every command as a function that returns the [command result](#command-results), and the CLI only parses arguments and prints those results. A web console can call the same functions later. `list` needs only the config, and `status` only the network, except for its pending-migrations column, which reads the build as `deploy` does. `provision` and `deploy` need the project's build and its Wrangler, and `update` needs Git, each repository's package manager and the npm registry, so a console would run those three in CI or a container, not in its own Worker.
 
-The package uses core and the Cloudflare package from the same release instead of copying them: core's CLI credential store, `emdash migrate`, and the setup function described under [Setup from the CLI](#setup-from-the-cli). Core exports the credential store and the setup function from an internal entry point for this. Each provider lives with its platform's package; the Cloudflare provider is `@emdash-cms/cloudflare/fleet`.
+The package uses core and the Cloudflare package from the same release instead of copying them: core's CLI credential store, `emdash migrate`, and the setup function described under [Setup from the CLI](#setup-from-the-cli). Core exports the credential store, the setup function and the functions that generate and check an encryption key from an internal entry point for this. Each provider lives with its platform's package; the Cloudflare provider is `@emdash-cms/cloudflare/fleet`.
 
 ### The site list
 
@@ -199,13 +199,13 @@ Every credential is an environment variable. The tool reads each one from the pr
 - **EmDash tokens:** per site, from core's CLI credential store, which `emdash login` fills and keys by the site's origin. The variable named in the site's `tokenEnv` overrides the store, so CI can hold one token per site. `EMDASH_TOKEN` alone isn't enough for a fleet and isn't used by fleet commands.
 - **Cloudflare token:** `CLOUDFLARE_API_TOKEN`, the variable Wrangler and `emdash migrate` already read. The tool never logs it.
 - **Repository host token:** from the variable the host names, `GITHUB_TOKEN` for GitHub, for provisioning and updating `repo` sites. The same rules apply. Git gets it through a credential helper, never in a URL, so it isn't written into a checkout's config.
-- **Generated site secrets:** `provision` generates `EMDASH_ENCRYPTION_KEY` per site and uploads it with the site's first deploy. On Cloudflare it reaches disk only as the file Wrangler's `--secrets-file` reads, created readable by the owner only and deleted after the deploy.
+- **The site's encryption key:** `provision` uploads `EMDASH_ENCRYPTION_KEY` with the site's first deploy. It generates the key, or takes it from the variable the entry's `encryptionKeyEnv` names, for an operator who keeps their own backup. A generated key exists only as the site's secret, which can't be read back, and the tool never prints a key or writes one anywhere else. On Cloudflare the key reaches disk only as the file Wrangler's `--secrets-file` reads, created readable by the owner only and deleted after the deploy. The tool doesn't read the variable `EMDASH_ENCRYPTION_KEY` itself: `create-emdash` writes it into a project's `.env` for local development, so every site provisioned from that directory would get the same development key.
 
 The permissions each token needs are listed under [Limits and permissions](#limits-and-permissions). `list`, `status` and `update` don't need a Cloudflare token, and neither does `adopt` for a `repo` site.
 
 ### Commands
 
-All commands accept `--json`, which prints one result object per site and a summary. Exit code 0 means every selected site reached the target state, 1 means at least one site failed, 2 means the command stopped before changing anything (bad config, missing selection, a limit reached), and 3 means no site failed but at least one waits for a person, such as an Admin whose sign-in link wasn't printed, an import that waits for `emdash login`, or an update pull request that waits for review.
+All commands accept `--json`, which prints one result object per site and a summary. Exit code 0 means every selected site reached the target state, 1 means at least one site failed, 2 means the command stopped before changing anything (bad config, missing selection, a limit reached), and 3 means no site failed but at least one waits for a person, such as an Admin whose sign-in link wasn't printed, an import that waits for `emdash login`, or an update pull request that waits for review. `update --no-wait` is the exception: it only opens the pull requests, so a site that waits for its pull request doesn't make the run exit with 3.
 
 #### `list`
 
@@ -243,7 +243,7 @@ For each site, the documented "build, migrate, deploy, check" steps run against 
 
 #### `update` (repo layout)
 
-Opens an update pull request in each selected `repo` site's repository, then waits until `/_emdash/api/health` reports the new version, for at most `--timeout` (default 60 minutes). `shared` sites in the selection are skipped and reported. The site's own pipeline builds, migrates and deploys the merged pull request, as it does for any other change. The site needs no trigger and no secret for this, and its repository needs no update workflow.
+Opens an update pull request in each selected `repo` site's repository, then waits until `/_emdash/api/health` reports the new version, for at most `--timeout` (default 60 minutes). With `--no-wait` it opens the pull requests and doesn't wait. `shared` sites in the selection are skipped and reported. The site's own pipeline builds, migrates and deploys the merged pull request, as it does for any other change. The site needs no trigger and no secret for this, and its repository needs no update workflow.
 
 Each site has one update branch, `emdash-update`, and at most one open update pull request. For each site:
 
@@ -264,16 +264,17 @@ What counts as done, and what a later run does:
 - **The branch holds someone else's commits,** as it does when a person finishes the work order there: the tool pushes nothing and goes to the wait. When that pull request is for an older version than the run's, the output says so.
 - **The pull request was closed without merging:** the tool doesn't open it again for the same version. The site is skipped with that reason until a newer release, or until `--reopen`.
 - **At the timeout,** failing checks, or a merged pull request that never deployed, count as failed. A pull request that's still open otherwise leaves its site `waiting`. Either way no further wave starts, and a run with waiting sites and no failed one exits with code 3.
+- **Without waiting.** `--no-wait` is for fleets where a person reviews every update pull request. In step 8 the tool then reads the health route and the pull request once and moves on. A site that already reports the run's version is done. Every other site is `waiting`, and its line says what it waits for: review, failing checks, or a merged pull request that isn't deployed yet. Nothing counts as failed for taking too long. A waiting site doesn't hold back the next wave, and the run exits with code 0 unless a site failed. A later run, with or without `--no-wait`, shows which sites have caught up, and so does `status`.
 - **Other update tooling.** A site can keep its own, such as Renovate. `status` works either way, and the tool never touches another tool's branches.
 - **A host without pull requests.** With the plain Git host, the tool pushes the branch and prints where to open the pull request. The wait then reads only the health route.
 
 #### Waves
 
-`--wave-size <k>` (default 1) sets how many sites run at the same time. Waves run one after another in the order of the config, or the order given by `--order <file>`. When any site in a wave fails or is left waiting, the sites already running finish and no further wave starts. Sites that weren't reached stay on their old version and are listed as skipped. A site counts as done only when its health route reports the target version and, after a `deploy`, the new deployment ID, because only the running site proves that the change arrived.
+`--wave-size <k>` (default 1) sets how many sites run at the same time. Waves run one after another in the order of the config, or the order given by `--order <file>`. When any site in a wave fails or is left waiting, the sites already running finish and no further wave starts. With `update --no-wait`, only a failed site stops the waves, and the wave size just limits how many sites the tool works on at once. Sites that weren't reached stay on their old version and are listed as skipped. A site counts as done only when its health route reports the target version and, after a `deploy`, the new deployment ID, because only the running site proves that the change arrived.
 
 #### `provision <key>`
 
-Creates a new site from its entry. `--admin <email>` is required for the first run. A `shared` site is created from the shared project's existing build, as `deploy` uses it, so the operator builds first. Each step first looks for its result on the platform or in the site's database and skips what exists, so a run that stopped can be started again. The steps for both layouts are listed under [Provision steps](#provision-steps). In short:
+Creates a new site from its entry. `--admin <email>` is required for the first run. A `shared` site is created from the shared project's existing build, as `deploy` uses it, so the operator builds first. Each step first looks for its result on the platform or in the site's database and skips what exists, so a run that stopped can be started again. When the entry names an `encryptionKeyEnv` and the site has no key yet, `provision` first checks that the variable holds a valid key, as `emdash secrets generate` prints it. The steps for both layouts are listed under [Provision steps](#provision-steps). In short:
 
 - **Shared layout:** limits check, database, media storage, session store, a per-site copy of any other storage the project binds, a generated deployment config, core migrations, setup with the marker, the template's seed, the title and the first Admin, a first deploy with the encryption key and without a public URL, the Cron Trigger, the custom domain, a health check and a one-time sign-in link. Optionally, a site package import.
 - **Repo layout:** the same resources, plus a new repository on the site's Git host, filled from a template, with the deployment config committed to it. The tool builds a checkout of it with the package manager and `build` script the template declares, and makes the first deploy from there. Then it hands deploys to the repository's pipeline and prints which token the operator must create for it.
@@ -286,7 +287,7 @@ The Worker has no public URL until setup is complete: the generated config sets 
 
 Compares each selected entry with the platform. It completes provisioning steps that are missing for a provisioned site, reports a site whose Cron Trigger or custom domain is missing, and, through the provider's list of site keys under the fleet's name prefix, reports resources that no entry names, marking those whose marker says they were removed. It never creates resources for an adopted site, and skips a removed one.
 
-`reconcile --site <key> --restore` brings a removed site back. It needs the site's entry in the config, clears `removedAt` in the marker, and sets the Cron Trigger and attaches the custom domain again.
+`reconcile --site <key> --restore` brings a removed site back. It needs the site's entry in the config, clears `removedAt` in the marker, and sets the Cron Trigger and attaches the custom domain again. When the account has no Cron Trigger left, it stops before it attaches the domain.
 
 `reconcile --abandon <key>` deletes the resources of a provisioning nobody has used yet, after a confirmation. It reads the site's database first, applies the ownership check of `provision`, and refuses once the Admin has signed in (the users table records the last sign-in) or registered a passkey, or the site has any other user. It never deletes a repository.
 
@@ -436,6 +437,8 @@ interface SiteEntry {
 	groups?: string[];
 	/** Name of the environment variable that holds this site's EmDash API token. */
 	tokenEnv?: string;
+	/** Name of the environment variable that holds the encryption key `provision` gives a new site. Without it, the tool generates the key. */
+	encryptionKeyEnv?: string;
 	/** Path of the Astro project: in the operator's repository for `shared`, inside the site's repository for `repo` (default: its root). */
 	project?: string;
 	/** `repo` layout: URL of the site's repository. */
@@ -466,7 +469,7 @@ Each step looks for its result first and skips what exists.
 
 #### Shared layout
 
-1. **limits:** asks the provider whether one more site fits. On Cloudflare it counts the account's Workers, its Cron Triggers, reading each Worker's schedules with one request per Worker, and the custom domains on the site's zone. The tool never creates a site Worker without a Cron Trigger, because it would never publish scheduled entries.
+1. **limits:** asks the provider whether one more site fits. On Cloudflare it counts the account's Workers and the custom domains on the site's zone. It doesn't count Cron Triggers: the API lists them only per Worker, which would cost one request for every Worker on the account. The **schedule** step handles an account that has none left.
 2. **database:** creates the D1 database with the configured location hint. When the database exists, it applies the ownership check under [The fleet marker](#the-fleet-marker).
 3. **media:** creates the R2 bucket.
 4. **sessions:** creates the KV namespace the build's `SESSION` binding uses for Astro sessions.
@@ -474,8 +477,8 @@ Each step looks for its result first and skips what exists.
 6. **config:** writes `.emdash/fleet/<key>/wrangler.json` from the build's own config (`dist/server/wrangler.json`). It sets the Worker name, points every storage binding at the site's resource, adds `CF_VERSION_METADATA`, drops the project's `routes`, and keeps the project's other bindings as they are. It keeps the project's `triggers.crons`, or uses `* * * * *` when there is none, because a handler created with `createScheduledHandler({ generalCron })` ignores any other expression. It sets `workers_dev: false` and `preview_urls: false`. The custom domain isn't in the config yet. It writes no binding without an ID, because Wrangler's automatic provisioning would create a new, empty resource on deploy instead of failing.
 7. **migrate:** applies the core migrations.
 8. **setup:** writes the marker, applies the seed, stores the site URL and title, creates the first Admin and completes setup, as described under [Setup from the CLI](#setup-from-the-cli). Skipped when setup is complete. With `--import`, it leaves out the seed's sample content, because an import needs a site without content.
-9. **deploy:** deploys the Worker with `EMDASH_ENCRYPTION_KEY`, which it generates when the Worker has no secret by that name. The key goes out with the deploy, so the site never runs without it and the deployment ID the deploy returns already includes it. A later run never generates it again, because the secret can't be read back and a new key would make the site's stored plugin secrets unreadable. The Worker has no public URL at this point.
-10. **schedule:** the Cron Trigger. On Cloudflare it's in the deployment config, so the deploy sets it, and this step checks that it's there and sets it through the API when it isn't.
+9. **deploy:** deploys the Worker with `EMDASH_ENCRYPTION_KEY`. When the Worker has no secret by that name, the key is the value of the variable named in the entry's `encryptionKeyEnv`, or a generated one when the entry names none. The key goes out with the deploy, so the site never runs without it and the deployment ID the deploy returns already includes it. A later run never sends a key again, because the secret can't be read back and a new key would make the site's stored plugin secrets unreadable. The Worker has no public URL at this point.
+10. **schedule:** the Cron Trigger. On Cloudflare it's in the deployment config, so the deploy sets it, and this step checks that it's there and sets it through the API when it isn't. When the account has no Cron Trigger left, Cloudflare refuses it, whether the deploy or this step asks. The site then fails, and the output names the limit. The tool never attaches a custom domain to a site without its Cron Trigger, because that site would never publish scheduled entries. Running `provision` again completes the site once a Cron Trigger is free.
 11. **domain:** attaches the custom domain through the provider. From then on, every deployment config the tool writes for the site carries the domain, so later deploys keep it.
 12. **health:** waits until the URL reports EmDash, the build's version and the deployment ID from **deploy**.
 13. **sign-in-link:** prints the link, on an interactive terminal or with `--print-sign-in-link`. Skipped once the Admin has a passkey, and on a site with external authentication.
@@ -637,14 +640,14 @@ interface CommandResult {
 
 ### Limits and permissions
 
-Read in the Cloudflare docs on 2026-11-10 and 2026-11-11.
+Read in the Cloudflare docs on 2026-11-10 and 2026-11-11, and the Cron Trigger limit again on 2026-11-28.
 
 #### Account limits
 
 | Resource                  | Workers Free                     | Workers Paid                       |
 | ------------------------- | -------------------------------- | ---------------------------------- |
 | Workers per account       | 100                              | 500                                |
-| Cron Triggers per account | 5                                | 250                                |
+| Cron Triggers per account | 5                                | 1,000                              |
 | D1 databases per account  | 10                               | 1,000,000 (first 100,000 included) |
 | R2 buckets per account    | unlimited, default limit 100,000 | unlimited, default limit 100,000   |
 | KV namespaces per account | 1,000                            | default limit 1,000                |
@@ -690,7 +693,7 @@ An organization can require approval for fine-grained tokens. Until an owner app
 Every change is additive:
 
 - `@emdash-cms/fleet` is a new package. No existing command changes.
-- Core moves the work of its two setup steps into one function, which the setup routes call as before, and exports it with the CLI credential store from an internal entry point. Setup through the wizard behaves as today.
+- Core moves the work of its two setup steps into one function, which the setup routes call as before, and exports it with the CLI credential store and the functions that generate and check an encryption key from an internal entry point. Setup through the wizard behaves as today.
 - `/_emdash/api/health` gains an optional `deploymentId` field. Clients that read only the version see no change.
 - The Cloudflare provider is a new export of `@emdash-cms/cloudflare`. The package's Kysely dialect for the D1 HTTP API, which only the migration runner can reach today, gets an internal entry point of its own.
 - There's no database migration. A site the tool creates or removes gets one option row, `emdash:fleet`, which core doesn't read.
@@ -719,7 +722,8 @@ This RFC doesn't depend on #4577. `update` uses `upgrade-emdash` as it ships tod
 - **The first Admin:** setup is complete, with the Admin in place, before the site has a public URL, so the wizard, OAuth, AT Protocol and external authentication all find a configured site. Certificate Transparency logs publish a new hostname as soon as its certificate is issued; in 2017, attackers found fresh WordPress sites that way within 30 minutes and ran their setup before the owner did. A fleet site has no setup left to run by then.
 - **The sign-in link** signs in as the Admin. It works once, expires after 1 hour by default, and is printed only on an interactive terminal unless `--print-sign-in-link` is passed, because anyone who reads the terminal output or CI log can use it until then.
 - **The site list** holds hostnames, repository names and an account ID, and no secret or resource ID. Those identifiers aren't credentials, but they tell a reader which customers an agency has, so operators keep the file in a private repository. Because it's a TypeScript module, loading it runs its code with the operator's environment, including the Cloudflare token; it's the operator's own code, like `astro.config.mjs`.
-- **Dry runs:** `--dry-run` output and every error message redact the provider's credentials (the variables in its `credentialEnv`), the repository host's token, the sign-in link and every generated secret value.
+- **A supplied encryption key** is handled like a token. The tool keeps every variable named in an `encryptionKeyEnv` out of the installs, builds and `upgrade-emdash` runs it starts.
+- **Dry runs:** `--dry-run` output and every error message redact the provider's credentials (the variables in its `credentialEnv`), the repository host's token, the sign-in link and every site's encryption key, generated or supplied.
 - **Untrusted input:** responses from sites are parsed as data. A site that reports an unexpected version or JSON shape fails its step, and nothing from a response is used as a URL or a command.
 - **Privacy:** each site's users and content stay in that site's database. The tool reads only version, deployment and update state, the site's marker and, during provisioning, whether the users table has a row and whether the Admin has a passkey. `remove` writes an export file that holds personal data, and the guide page for running many sites says to treat it like a backup.
 
@@ -731,16 +735,16 @@ The tool's own cost is outbound requests from the operator's machine or CI: one 
 
 `update` costs one clone and two installs for each `repo` site it updates, on the machine that runs it, and one Git host API request per poll while it waits.
 
-Account limits matter more than speed. The Cloudflare API has no account-wide count of Cron Triggers, so the **limits** step reads each Worker's schedules, one request per Worker. The **migrate** step costs more: `emdash migrate` sends each SQL statement to D1 as its own API request, and the core migrations on an empty database run about 600 statements. The **setup** step adds one request per statement of the seed and one per media file it uploads, so a template with sample content costs more than an empty one. One `provision` on an account with N Workers costs about 620 + N API requests before the seed, plus one `wrangler deploy`. At 250 Workers that's about 870 requests, against the API's limit of 1,200 requests per five minutes per user, so a second `provision` within five minutes can reach the limit. [Failure handling](#failure-handling) says how the tool stays under it. With one Worker, one Cron Trigger and one custom domain per site, an account holds at most 250 sites on Workers Paid, its Cron Trigger limit, and a zone at most 100, its custom domain limit, so a fleet beyond 100 sites spreads its hostnames over several zones. The limits are under [Limits and permissions](#limits-and-permissions).
+Account limits matter more than speed. The **migrate** step costs the most: `emdash migrate` sends each SQL statement to D1 as its own API request, and the core migrations on an empty database run about 600 statements. The **setup** step adds one request per statement of the seed and one per media file it uploads, so a template with sample content costs more than an empty one. One `provision` costs about 620 API requests before the seed, plus one `wrangler deploy`, against the API's limit of 1,200 requests per five minutes per user, so a second `provision` within five minutes can reach the limit. [Failure handling](#failure-handling) says how the tool stays under it. With one Worker, one Cron Trigger and one custom domain per site, an account holds at most 500 sites on Workers Paid, its Worker limit, and 5 on Workers Free, its Cron Trigger limit. A zone holds at most 100, its custom domain limit, so a fleet beyond 100 sites spreads its hostnames over several zones. The limits are under [Limits and permissions](#limits-and-permissions).
 
 ## Failure handling
 
 - **Provisioning stops halfway** (for example the deploy fails after the database exists): running `provision` or `reconcile` again finds what exists by name and continues from the first missing step. `reconcile --abandon` removes the half-created resources until someone has signed in.
-- **The encryption key:** Worker secrets can't be read back, so the **deploy** step only checks that a secret by that name exists, and never sends a new key once one is there.
+- **The encryption key:** Worker secrets can't be read back, so the **deploy** step only checks that a secret by that name exists, and never sends a new key once one is there. Until then, a variable named in `encryptionKeyEnv` that's empty or doesn't hold a valid key stops `provision` before it changes anything. Once the site has its key, the variable is no longer read.
 - **A database under the derived name belongs to someone else:** a marker that names another fleet or key, or completed setup without a marker, stops `provision` before anything changes. The operator picks another key, or adopts the site.
 - **No interactive terminal for the sign-in link:** the **sign-in-link** step reports `waiting`. A later run on a terminal, or with `--print-sign-in-link`, issues a new link, as long as the Admin has no passkey.
 - **The sign-in link expires unused:** the same; the next run issues a new one.
-- **A limit is reached:** `provision` stops before creating anything and names the limit. Options are a second account or a higher limit from Cloudflare.
+- **A limit is reached:** `provision` stops before creating anything and names the limit. Options are a second account or a higher limit from Cloudflare. Cron Triggers are the exception, because the tool doesn't count them: when the account has none left, the site fails at its **deploy** or **schedule** step, after its storage exists and before it has a public URL. Running `provision` again completes it once a Cron Trigger is free, and `reconcile --abandon` removes what was created.
 - **Two runs at once:** both look resources up by name. The second create of the same resource gets "already exists" and uses it, the migration lock serializes migrations, applying the seed is idempotent, and the second run's `createFirstAdmin()` inserts nothing.
 - **Setup stops halfway** (for example on a rate limit during the seed): setup isn't complete, and the site has no public URL yet. The next run applies the seed again, which skips what exists, and continues.
 - **A migration fails or the lock is held:** the wave stops, the site keeps its old Worker, and the output names the error from `emdash migrate`. The documented migration lock rules and the `--release-lock` and `--take-over-lock` options apply.
@@ -759,14 +763,14 @@ Account limits matter more than speed. The Cloudflare API has no account-wide co
 - Unit tests for the config: validation errors with their path, `defaults`, derived names, `namePrefix` and `sharedBindings`.
 - The provider conformance suite against the local test provider, and against the Cloudflare provider at the HTTP boundary: request shapes, the limits check, creation by name when the resource exists, pacing against the request budget, a clean stop on a 429, and token redaction in errors. `--dry-run` prints every API call.
 - Command tests against a local fleet of three sites: `status` with and without tokens, `deploy` in waves with one injected failing migration, a database that differs from the bound one, a deploy on an unchanged version confirmed by the deployment ID, and exit code 3 for a site that waits.
-- `update` tests against local Git repositories, the local repository host and a stand-in for `upgrade-emdash`, which otherwise always asks the npm registry: a wave that opens pull requests, a repository that's already on the release, a newer release taking over the open pull request, an update branch with someone else's commits, a declined pull request, a repository without a lockfile, a later site whose plan resolves another version, a pull request still open at the timeout, and a site that never reports the new version. One test runs the real `upgrade-emdash` on a fixture project.
+- `update` tests against local Git repositories, the local repository host and a stand-in for `upgrade-emdash`, which otherwise always asks the npm registry: a wave that opens pull requests, a repository that's already on the release, a newer release taking over the open pull request, an update branch with someone else's commits, a declined pull request, a repository without a lockfile, a later site whose plan resolves another version, a pull request still open at the timeout, a site that never reports the new version, and a `--no-wait` run that opens every pull request, reports the sites as waiting and exits with code 0. One test runs the real `upgrade-emdash` on a fixture project.
 - The repository-host part of the conformance suite, against the local host, against GitHub at the HTTP boundary, and against a real instance of each further Git host before its repository host ships: an empty repository filled from a template, a rerun in a repository that holds only the tool's commits, a repository with someone else's commits, and opening, updating and reading a pull request.
-- Provisioning tests for both layouts that fail at each step and then run `provision` again, a `repo` run that stops after **push** and continues in the same repository, a later `provision` run on a `repo` site whose repository has other commits by then, two `provision` runs of one site at once, `reconcile` finishing a half-done site and bringing back a removed site only with `--site <key> --restore`, and `--abandon` refusing a site whose Admin has signed in.
+- Provisioning tests for both layouts that fail at each step and then run `provision` again, a `repo` run that stops after **push** and continues in the same repository, a later `provision` run on a `repo` site whose repository has other commits by then, two `provision` runs of one site at once, a key taken from `encryptionKeyEnv` and a run stopped by an empty or malformed one, `reconcile` finishing a half-done site and bringing back a removed site only with `--site <key> --restore`, and `--abandon` refusing a site whose Admin has signed in.
 - Marker tests: `provision` stops at a database whose marker names another fleet or key, or whose setup is complete without a marker; `deploy` and `reconcile` skip a removed site; a project with an extra KV binding gets a per-site namespace, and one listed in `sharedBindings` doesn't.
 - Setup tests on a real SQLite database: the shared setup function gives the same database through the wizard's routes and through the CLI; after the **setup** step, the wizard's routes, an OAuth first sign-in, an AT Protocol first sign-in and an external-auth first user all create no Admin, and the runtime's first-request seed doesn't run; the sign-in link signs in once and expires; a second run issues a new link only while the Admin has no passkey; with external authentication, the `--admin` user signs in as Admin and no link is issued; the Vite plugin and the CLI resolve the same seed from one project.
 - Health tests: `deploymentId` from the version metadata binding and from `EMDASH_DEPLOYMENT_ID`, and left out when neither is set.
 - The query-count snapshot shows no change.
-- A manual run of `provision` (both layouts), `deploy`, `update` and `remove` on a throwaway Cloudflare account and GitHub organization.
+- A manual run of `provision` (both layouts), `deploy`, `update` and `remove` on a throwaway Cloudflare account and GitHub organization, including a `provision` on an account with no Cron Trigger left.
 
 ### Prototype findings
 
@@ -797,7 +801,7 @@ Each slice is usable without the next:
 
 1. `@emdash-cms/fleet` with `fleet.config.ts`, `list`, and core's internal export of the credential store.
 2. `status`, and `deploymentId` in health.
-3. The provider contract with its conformance suite, the Cloudflare provider, `adopt`, `provision` for the `shared` layout with setup from the CLI and the fleet marker, and `reconcile`. Core's shared setup function, the shared seed resolution and their internal export ship here.
+3. The provider contract with its conformance suite, the Cloudflare provider, `adopt`, `provision` for the `shared` layout with setup from the CLI and the fleet marker, and `reconcile`. Core's shared setup function, the shared seed resolution, the encryption key functions and their internal export ship here.
 4. `deploy`, `remove` and `reconcile --restore`.
 5. `update`, with the GitHub repository host's find and pull-request operations, and the plain Git host. `status` gains its pull-request column and `adopt` its repository check here.
 6. `provision` for the `repo` layout, with repository creation on GitHub.
@@ -826,7 +830,7 @@ It isn't the design here:
 - A Worker request can have at most 4 distinct Dynamic Workers in flight, so one Cron Trigger reaches sites in batches of 4.
 - Production memory per child, startup against the 1 s limit, image transforms, sandboxed plugins and the Workers Cache inside a child are unmeasured.
 
-It would remove the Worker and the Cron Trigger per site that cap a fleet at 250 sites per account, so a later RFC can build a provider on it against the same contract.
+It would remove the Worker and the Cron Trigger per site, and with them the cap of 500 sites per account, so a later RFC can build a provider on it against the same contract.
 
 ### A shared database with a tenant column
 
@@ -869,11 +873,6 @@ Renovate opens version pull requests on many Git hosts, and a site can keep usin
 - Creating sites works only on Cloudflare in this RFC, and creating repositories on GitHub first, with GitLab, Gitea and Forgejo in the last slice. The Docker host is a sketch.
 - The Cloudflare token in the operator's CI can delete every Worker on the account and read every site's database.
 - It isn't what Discussion #139 literally asked for: each site is still its own deployment, and an operator with many sites pays for one Worker, one database and one Cron Trigger each, within the account limits.
-- `update` waits on pipelines it doesn't control, so a wave of `repo` sites can stall on one pull request.
+- `update` waits on pipelines it doesn't control, so a wave of `repo` sites can stall on one pull request. `--no-wait` avoids the stall and leaves the follow-up to a later run.
 - Resource names and the marker are fixed by the site key, and a key never names another site. Renaming a key means moving the site's resources and its marker by hand.
 - `update` runs each repository's install where the tool runs, so it suits repositories the operator trusts, or one site per CI job.
-
-## Open questions
-
-- **The encryption key:** `provision` sets `EMDASH_ENCRYPTION_KEY` once and never generates it again, because the Worker secret can't be read back. Losing it still loses every plugin secret on the site. Should the tool also write it to an operator-chosen file, print it once, or leave the backup to the operator's own secret manager?
-- **Waiting in `update`:** should there be a mode that opens pull requests in waves without waiting for the new version, for fleets where every update pull request is reviewed by hand?
