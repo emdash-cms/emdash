@@ -76,6 +76,24 @@ describe("CLI media usage repair contract", () => {
 		requests = [];
 	});
 
+	it.each(["partial", "failed"] as const)(
+		"explains query-budget exhaustion for a %s repair",
+		(status) => {
+			const result = repairResponse(status);
+			result.collections[0].lastErrorCode = "CONTENT_USAGE_QUERY_LIMIT";
+
+			const summary = formatRepairUsageSummary(result, {
+				scope: "collection",
+				collection: "posts",
+			});
+
+			expect(summary.level).toBe("warn");
+			expect(summary.message).toContain("CONTENT_USAGE_QUERY_LIMIT");
+			expect(summary.message).toContain("per-request database query limit");
+			expect(summary.message).toContain("Complete coverage was not established");
+		},
+	);
+
 	it("rejects omitted repair scope before calling the client", async () => {
 		const result = await runCli("media", "repair-usage");
 

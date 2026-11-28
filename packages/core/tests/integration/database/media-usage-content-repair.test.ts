@@ -20,6 +20,7 @@ import {
 	buildContentMediaUsageSourceKey,
 	type MediaUsageContentSourceVariant,
 } from "../../../src/media/usage/source-key.js";
+import { createRequestMetrics, runWithContext } from "../../../src/request-context.js";
 import { BlockTypeRegistry } from "../../../src/schema/block-type-registry.js";
 import { SchemaRegistry } from "../../../src/schema/registry.js";
 import {
@@ -46,6 +47,23 @@ describeEachDialect("content media usage repair", (dialect) => {
 
 	afterEach(async () => {
 		await teardownForDialect(ctx);
+	});
+
+	it("does not impose a D1 request budget on databases without a request query limit", async () => {
+		await insertPost(ctx, {
+			slug: "unlimited-repair",
+			status: "published",
+			data: { hero: { id: "unlimited-media", provider: "local" } },
+		});
+		const metrics = createRequestMetrics(performance.now());
+		metrics.dbCount = 2_000;
+
+		const result = await runWithContext({ editMode: false, metrics }, () =>
+			repairContentMediaUsageCollection(ctx.db, { collectionSlug: "posts" }),
+		);
+
+		expect(result.status).toBe("complete");
+		expect(await usageRepo.findCurrentUsageByMediaId("unlimited-media")).toHaveLength(1);
 	});
 
 	it("scans collection content IDs in deterministic order", async () => {
