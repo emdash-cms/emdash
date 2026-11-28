@@ -1,7 +1,7 @@
 ---
 title: Run many sites from one place with emdash fleet
 type: rfc
-status: proposed
+status: accepted
 authors:
   - Daniel Mueller (@danielmlr)
 champion: Daniel Mueller (@danielmlr)
