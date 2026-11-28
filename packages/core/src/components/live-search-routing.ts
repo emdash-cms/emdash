@@ -2,6 +2,7 @@ export interface LiveSearchRoutableResult {
 	collection: string;
 	id: string;
 	slug?: string | null;
+	url?: string;
 }
 
 export type LiveSearchRouteMap = Record<string, string>;
@@ -18,7 +19,7 @@ export function buildLiveSearchResultUrl(
 	const template = routeMap[result.collection];
 
 	if (!template) {
-		return `/${result.collection}/${path}`;
+		return result.url ?? `/${result.collection}/${path}`;
 	}
 
 	return [

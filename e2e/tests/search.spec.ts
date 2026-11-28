@@ -379,6 +379,104 @@ test.describe("Search", () => {
 	});
 
 	test.describe("LiveSearch component", () => {
+		test("uses the collection URL pattern for page result links", async ({ page, serverInfo }) => {
+			const schemaResponse = await apiRequest(
+				serverInfo,
+				"GET",
+				"/_emdash/api/schema/collections/pages",
+			);
+			expect(schemaResponse.ok).toBe(true);
+			const schema = (await schemaResponse.json()) as {
+				data: { item: { urlPattern: string | null } };
+			};
+			const statsResponse = await apiRequest(serverInfo, "GET", "/_emdash/api/search/stats");
+			expect(statsResponse.ok).toBe(true);
+			const stats = (await statsResponse.json()) as {
+				data: { collections: Record<string, unknown> };
+			};
+			const wasEnabled = "pages" in stats.data.collections;
+			let id: string | undefined;
+			try {
+				const update = await apiRequest(
+					serverInfo,
+					"PUT",
+					"/_emdash/api/schema/collections/pages",
+					{
+						urlPattern: "/{slug}",
+					},
+				);
+				expect(update.ok).toBe(true);
+				await enableSearch(serverInfo, "pages");
+
+				const create = await apiRequest(serverInfo, "POST", "/_emdash/api/content/pages", {
+					slug: "my-page",
+					data: { title: "Searchable page" },
+				});
+				expect(create.ok).toBe(true);
+				const created = (await create.json()) as { data: { item: { id: string } } };
+				id = created.data.item.id;
+				expect(id).toBeTruthy();
+				const publish = await apiRequest(
+					serverInfo,
+					"POST",
+					`/_emdash/api/content/pages/${id}/publish`,
+					{},
+				);
+				expect(publish.ok).toBe(true);
+				await apiRequest(serverInfo, "POST", "/_emdash/api/search/rebuild", {
+					collection: "pages",
+				});
+
+				const searchApi = await apiRequest(
+					serverInfo,
+					"GET",
+					"/_emdash/api/search?q=Searchable%20page&collections=pages&limit=10",
+				);
+				expect(searchApi.ok).toBe(true);
+				const searchBody = (await searchApi.json()) as {
+					data: { items: Array<{ collection: string; slug: string; url?: string }> };
+				};
+				expect(searchBody.data.items).toContainEqual(
+					expect.objectContaining({ collection: "pages", slug: "my-page", url: "/my-page" }),
+				);
+
+				await page.goto(`${serverInfo.baseUrl}/live-search`);
+				const search = page.locator("emdash-live-search");
+				const input = search.locator(".emdash-live-search-input");
+				await expect
+					.poll(() => page.evaluate(() => Boolean(customElements.get("emdash-live-search"))))
+					.toBe(true);
+				await input.fill("Searchable page");
+				const result = search.locator(".emdash-live-search-result", { hasText: "Searchable page" });
+				await expect(result).toBeVisible({ timeout: 10000 });
+				await expect(result).toHaveAttribute("href", "/my-page");
+			} finally {
+				if (id) {
+					const trashed = await apiRequest(
+						serverInfo,
+						"DELETE",
+						`/_emdash/api/content/pages/${id}`,
+					);
+					expect.soft(trashed.ok).toBe(true);
+					const purged = await apiRequest(
+						serverInfo,
+						"DELETE",
+						`/_emdash/api/content/pages/${id}/permanent`,
+					);
+					expect.soft(purged.ok).toBe(true);
+				}
+				if (!wasEnabled) {
+					await apiRequest(serverInfo, "POST", "/_emdash/api/search/enable", {
+						collection: "pages",
+						enabled: false,
+					});
+				}
+				await apiRequest(serverInfo, "PUT", "/_emdash/api/schema/collections/pages", {
+					urlPattern: schema.data.item.urlPattern,
+				});
+			}
+		});
+
 		test("keeps arrow keys and Escape working once a result has focus", async ({
 			page,
 			serverInfo,

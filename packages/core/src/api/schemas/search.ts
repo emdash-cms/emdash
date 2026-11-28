@@ -56,6 +56,7 @@ export const searchResultSchema = z
 		id: z.string(),
 		slug: z.string().nullable(),
 		locale: z.string(),
+		url: z.string().optional(),
 		title: z.string().optional(),
 		snippet: z.string().optional(),
 		score: z.number(),

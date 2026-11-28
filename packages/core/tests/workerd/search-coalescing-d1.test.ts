@@ -86,8 +86,8 @@ async function createCollection(
 	const contentTable = sql.ref(`ec_${slug}`);
 	const ftsTable = sql.ref(`_emdash_fts_${slug}`);
 	await sql`
-		INSERT INTO _emdash_collections (id, slug, search_config, title_field)
-		VALUES (${`${slug}-id`}, ${slug}, ${config}, 'title')
+		INSERT INTO _emdash_collections (id, slug, search_config, title_field, url_pattern)
+		VALUES (${`${slug}-id`}, ${slug}, ${config}, 'title', NULL)
 	`.execute(database);
 	await sql`
 		INSERT INTO _emdash_fields (collection_id, slug, type, validation, searchable)
@@ -96,7 +96,7 @@ async function createCollection(
 	await sql`
 		CREATE TABLE ${contentTable} (
 			id TEXT PRIMARY KEY, slug TEXT, locale TEXT NOT NULL, status TEXT NOT NULL,
-			deleted_at TEXT, title TEXT
+			deleted_at TEXT, published_at TEXT, title TEXT
 		)
 	`.execute(database);
 	await sql`
@@ -117,7 +117,7 @@ async function createCollection(
 async function createSchema(database: Kysely<Database>) {
 	await resetD1Schema(database);
 	await sql`CREATE TABLE _emdash_collections (
-		id TEXT PRIMARY KEY, slug TEXT NOT NULL, search_config TEXT, title_field TEXT
+		id TEXT PRIMARY KEY, slug TEXT NOT NULL, search_config TEXT, title_field TEXT, url_pattern TEXT
 	)`.execute(database);
 	await sql`CREATE TABLE _emdash_fields (
 		collection_id TEXT NOT NULL, slug TEXT NOT NULL, type TEXT NOT NULL,

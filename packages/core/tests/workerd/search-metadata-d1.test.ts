@@ -34,7 +34,8 @@ beforeEach(async () => {
 			id TEXT PRIMARY KEY,
 			slug TEXT NOT NULL,
 			search_config TEXT,
-			title_field TEXT
+			title_field TEXT,
+			url_pattern TEXT
 		)
 	`.execute(db);
 	await sql`
@@ -51,6 +52,7 @@ beforeEach(async () => {
 			locale TEXT NOT NULL,
 			status TEXT NOT NULL,
 			deleted_at TEXT,
+			published_at TEXT,
 			title TEXT,
 			body TEXT
 		)
@@ -64,11 +66,11 @@ beforeEach(async () => {
 		)
 	`.execute(db);
 	await sql`
-		INSERT INTO _emdash_collections (id, slug, search_config, title_field)
+		INSERT INTO _emdash_collections (id, slug, search_config, title_field, url_pattern)
 		VALUES ('articles-id', 'articles', ${JSON.stringify({
 			enabled: true,
 			weights: { title: 3, body: 1 },
-		})}, 'title')
+		})}, 'title', '/{slug}')
 	`.execute(db);
 	await sql`
 		INSERT INTO _emdash_fields (collection_id, slug, searchable)
@@ -83,8 +85,8 @@ beforeEach(async () => {
 		VALUES ('article-1', 'en', 'The farrier', 'A useful horse shoeing guide')
 	`.execute(db);
 	await sql`
-		INSERT INTO _emdash_collections (id, slug, search_config, title_field)
-		VALUES ('guides-id', 'guides', ${JSON.stringify({ enabled: true })}, NULL)
+		INSERT INTO _emdash_collections (id, slug, search_config, title_field, url_pattern)
+		VALUES ('guides-id', 'guides', ${JSON.stringify({ enabled: true })}, NULL, NULL)
 	`.execute(db);
 	await sql`
 		INSERT INTO _emdash_fields (collection_id, slug, searchable)
@@ -93,7 +95,7 @@ beforeEach(async () => {
 	await sql`
 		CREATE TABLE ec_guides (
 			id TEXT PRIMARY KEY, slug TEXT, locale TEXT NOT NULL, status TEXT NOT NULL,
-			deleted_at TEXT, body TEXT
+			deleted_at TEXT, published_at TEXT, body TEXT
 		)
 	`.execute(db);
 	await sql`
@@ -126,6 +128,7 @@ describe("search metadata on D1", () => {
 		expect(matching.items).toHaveLength(1);
 		expect(matching.items[0]).toMatchObject({
 			title: "The farrier",
+			url: "/article-one",
 			snippet: "The <mark>farrier</mark>",
 		});
 		expect(matching.items[0]?.score).toBeGreaterThan(0);
@@ -142,6 +145,7 @@ describe("search metadata on D1", () => {
 		const suggestions = await getSuggestions(db, "far", { collections: ["articles"] });
 		expect(executeQuery).toHaveBeenCalledTimes(2);
 		expect(suggestions.map((item) => item.title)).toEqual(["The farrier"]);
+		expect(suggestions[0]?.url).toBe("/article-one");
 
 		executeQuery.mockClear();
 		expect(await getSuggestions(db, "blacksmith", { collections: ["articles"] })).toEqual([]);
@@ -154,23 +158,23 @@ describe("search metadata on D1", () => {
 
 	it("loads metadata once for multiple collections and skips disabled or missing indexes", async () => {
 		await sql`
-			INSERT INTO _emdash_collections (id, slug, search_config, title_field)
+			INSERT INTO _emdash_collections (id, slug, search_config, title_field, url_pattern)
 			VALUES
-				('disabled-id', 'disabled', ${JSON.stringify({ enabled: false })}, NULL),
-				('missing-id', 'missing', ${JSON.stringify({ enabled: true })}, NULL)
+				('disabled-id', 'disabled', ${JSON.stringify({ enabled: false })}, NULL, NULL),
+				('missing-id', 'missing', ${JSON.stringify({ enabled: true })}, NULL, NULL)
 		`.execute(db);
 		await sql`
 			INSERT INTO _emdash_fields (collection_id, slug, searchable)
 			VALUES ('disabled-id', 'title', 1), ('missing-id', 'title', 1)
 		`.execute(db);
 		await sql`
-			CREATE TABLE ec_disabled (id TEXT, slug TEXT, locale TEXT, status TEXT, deleted_at TEXT, title TEXT)
+			CREATE TABLE ec_disabled (id TEXT, slug TEXT, locale TEXT, status TEXT, deleted_at TEXT, published_at TEXT, title TEXT)
 		`.execute(db);
 		await sql`
 			CREATE VIRTUAL TABLE _emdash_fts_disabled USING fts5(id UNINDEXED, locale UNINDEXED, title)
 		`.execute(db);
 		await sql`
-			CREATE TABLE ec_missing (id TEXT, slug TEXT, locale TEXT, status TEXT, deleted_at TEXT, title TEXT)
+			CREATE TABLE ec_missing (id TEXT, slug TEXT, locale TEXT, status TEXT, deleted_at TEXT, published_at TEXT, title TEXT)
 		`.execute(db);
 
 		const executeQuery = queryCounter();

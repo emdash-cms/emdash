@@ -72,6 +72,8 @@ export interface SearchResult {
 	slug: string | null;
 	/** Content locale */
 	locale: string;
+	/** Locale-aware entry path resolved from the collection URL pattern, when routable. */
+	url?: string;
 	/** Entry title (if available) */
 	title?: string;
 	/**
@@ -124,6 +126,8 @@ export interface Suggestion {
 	id: string;
 	/** Entry slug, when available */
 	slug?: string | null;
+	/** Locale-aware entry path resolved from the collection URL pattern, when routable. */
+	url?: string;
 	/** Entry title */
 	title: string;
 }
