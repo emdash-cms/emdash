@@ -35,7 +35,7 @@ export interface FetchVerifiedResourceOptions {
 }
 
 export interface VerifiedResource {
-	bytes: Uint8Array;
+	bytes: Uint8Array<ArrayBuffer>;
 	url: URL;
 	status: number;
 	headers: Headers;
@@ -243,7 +243,7 @@ async function readResponse(
 	maximumBytes: number,
 	startedAt: number,
 	totalTimeoutMs: number,
-): Promise<VerificationResult<Uint8Array>> {
+): Promise<VerificationResult<Uint8Array<ArrayBuffer>>> {
 	if (response.body === null) return { success: true, value: new Uint8Array() };
 	const reader = response.body.getReader();
 	const chunks: Uint8Array[] = [];

@@ -40,11 +40,10 @@ describe("atproto auth config", () => {
 			}
 		});
 
-		it("declares storage collections for OAuth state", () => {
+		it("declares a storage collection for OAuth state", () => {
 			const descriptor = atproto();
 			expect(descriptor.storage).toBeDefined();
 			expect(descriptor.storage).toHaveProperty("states");
-			expect(descriptor.storage).toHaveProperty("sessions");
 		});
 
 		it("declares publicRoutes with specific paths", () => {

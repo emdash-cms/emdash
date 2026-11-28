@@ -10,6 +10,7 @@ import type { APIRoute } from "astro";
 import { apiError, apiSuccess, handleError } from "#api/error.js";
 import { isParseError, parseQuery } from "#api/parse.js";
 import { searchQuery } from "#api/schemas.js";
+import { requireSearchSupport } from "#api/search.js";
 import { searchWithDb } from "#search/index.js";
 
 export const prerender = false;
@@ -44,10 +45,11 @@ export const GET: APIRoute = async ({ url, locals }) => {
 			? query.status
 			: "published";
 
+	const unavailable = requireSearchSupport(emdash.db);
+	if (unavailable) return unavailable;
+
 	try {
-		// Verify FTS indexes are healthy on first use. At most once per worker
-		// lifetime; no-op after that. Moved off the cold-start hot path to
-		// keep anonymous public reads fast.
+		// Repair missing or empty FTS tables on first use without full row counts.
 		await emdash.ensureSearchHealthy?.();
 
 		const result = await searchWithDb(emdash.db, query.q, {

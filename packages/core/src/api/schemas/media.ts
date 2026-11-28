@@ -32,7 +32,7 @@ export const mediaListQuery = cursorPaginationQuery
 				description:
 					"Filter by a media folder ID. Use `unfiled` for the Main library; omit for all media.",
 			}),
-		/** Case-insensitive filename substring search (also matches extensions). */
+		/** Case-insensitive substring search across filename, storage key, or ID; media URLs use their last path segment. */
 		q: z.string().trim().min(1).max(200).optional(),
 		includeUsage: z.literal("1").optional().meta({
 			description: "Include a coverage-aware usage summary on each media item",
@@ -129,7 +129,12 @@ export function mediaUploadUrlBody(maxSize: number) {
 				.nonnegative()
 				.max(maxSize, `File size must not exceed ${formatFileSize(maxSize)}`),
 			contentHash: z.string().optional(),
-			fieldId: z.string().optional(),
+			fieldId: z
+				.string()
+				.optional()
+				.describe(
+					"Schema field ID, repeaterFieldId.subFieldSlug, or outerFieldId:blockKey:fieldSlug[.subFieldSlug] for a block field",
+				),
 			blockType: z.string().optional().describe("Block type slug for a composite block fieldId"),
 			blockVersion: z
 				.number()
@@ -180,7 +185,12 @@ export const mediaDirectUploadBody = z
 		width: z.string().optional(),
 		height: z.string().optional(),
 		thumbnail: binaryFileSchema.optional(),
-		fieldId: z.string().optional(),
+		fieldId: z
+			.string()
+			.optional()
+			.describe(
+				"Schema field ID, repeaterFieldId.subFieldSlug, or outerFieldId:blockKey:fieldSlug[.subFieldSlug] for a block field",
+			),
 		blockType: z.string().optional().describe("Block type slug for a composite block fieldId"),
 		blockVersion: z.string().optional().describe("Retained block version number as a string"),
 		deduplicate: z.enum(["true", "false"]).optional(),

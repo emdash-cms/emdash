@@ -13,9 +13,16 @@ import type { APIRoute } from "astro";
 import { GET as genericGET } from "astro/assets/endpoint/generic";
 // @ts-ignore - astro:assets is resolved by the consumer's Astro build
 import { getConfiguredImageService, imageConfig } from "astro:assets";
+// @ts-ignore - virtual module
+import virtualConfig from "virtual:emdash/config";
 
 import {
+	cacheMediaResponse,
+	canonicalTransformRedirect,
+	canonicalTransformSearch,
 	getTransformFingerprint,
+	canDelegateImageHref,
+	isCacheableMediaSource,
 	matchInternalMediaKey,
 	MUTABLE_MEDIA_CACHE_CONTROL,
 	originalMediaHeaders,
@@ -33,6 +40,14 @@ const FORMAT_MIME: Record<string, string> = {
 	jpg: "image/jpeg",
 	gif: "image/gif",
 };
+
+const MISSING_SHARP_KEY = Symbol.for("emdash:image-endpoint:missing-sharp");
+/** Validator suffix for originals served in place of a rendition. */
+const ORIGINAL_FALLBACK_SUFFIX = "original";
+
+function sharpMissing(): boolean {
+	return (globalThis as Record<symbol, unknown>)[MISSING_SHARP_KEY] === true;
+}
 
 function isNotFound(error: unknown): boolean {
 	return (
@@ -72,15 +87,28 @@ function notModifiedResponse(
 
 export const GET: APIRoute = async (ctx) => {
 	const url = new URL(ctx.request.url);
-	const key = matchInternalMediaKey(url.searchParams.get("href"));
+	const href = url.searchParams.get("href");
+	const key = matchInternalMediaKey(href);
 	const storage = ctx.locals.emdash?.storage;
 
-	// Not EmDash media, or storage unavailable: let the stock endpoint handle it
-	// (bundled assets, allowed remote, `publicUrl` media).
-	if (!key || !storage) return genericGET(ctx);
+	if (!key || !storage) {
+		if (!canDelegateImageHref(href, url.origin)) {
+			return new Response("Not Found", { status: 404 });
+		}
+		// Not EmDash media: bundled assets, allowed remote, `publicUrl` media.
+		return genericGET(ctx);
+	}
 
 	const service = await getConfiguredImageService();
 	if (!("transform" in service)) return genericGET(ctx);
+
+	// Astro adds the adapter's assetQueryParams; the public astro:assets type omits it.
+	const config: typeof imageConfig & { assetQueryParams?: URLSearchParams } = imageConfig;
+	const isStockService = imageConfig.service?.entrypoint === "astro/assets/services/sharp";
+	if (isStockService) {
+		const canonical = canonicalTransformSearch(url, config.assetQueryParams);
+		if (canonical !== null) return canonicalTransformRedirect(url, canonical);
+	}
 
 	// An unread download retains its storage connection even for a bodyless response.
 	let unusedBody: ReadableStream<Uint8Array> | undefined;
@@ -104,7 +132,7 @@ export const GET: APIRoute = async (ctx) => {
 			return response;
 		}
 
-		const transform = await service.parseURL(url, imageConfig);
+		const transform = await service.parseURL(url, imageConfig, ctx.logger);
 		if (!transform) {
 			if (isNotModified(ctx.request, source.size, source.lastModified)) {
 				return notModifiedResponse(source.contentType, source.size, source.lastModified);
@@ -120,15 +148,62 @@ export const GET: APIRoute = async (ctx) => {
 			return response;
 		}
 
+		const serveFallbackOriginal = (
+			body: ReadableStream<Uint8Array> | Uint8Array<ArrayBuffer>,
+		): Response => {
+			const headers: Record<string, string> = {
+				...originalMediaHeaders(source.contentType, source.size, source.lastModified),
+				...validatorHeaders(source.size, source.lastModified, ORIGINAL_FALLBACK_SUFFIX),
+			};
+			// The rendition shares this Last-Modified; a date-only revalidation must
+			// not keep the original once transforms work again.
+			delete headers["Last-Modified"];
+			return new Response(ctx.request.method === "HEAD" ? null : body, { status: 200, headers });
+		};
+
+		if (sharpMissing()) {
+			if (ctx.cache?.enabled) ctx.cache.set(false);
+			if (isNotModified(ctx.request, source.size, source.lastModified, ORIGINAL_FALLBACK_SUFFIX)) {
+				const notModified = notModifiedResponse(
+					source.contentType,
+					source.size,
+					source.lastModified,
+					ORIGINAL_FALLBACK_SUFFIX,
+				);
+				notModified.headers.delete("Last-Modified");
+				return notModified;
+			}
+			if (ctx.request.method === "HEAD") return serveFallbackOriginal(new Uint8Array());
+			unusedBody = undefined;
+			return serveFallbackOriginal(source.body);
+		}
+
 		const fingerprint = getTransformFingerprint(url.searchParams);
 		if (isNotModified(ctx.request, source.size, source.lastModified, fingerprint)) {
 			return notModifiedResponse(source.contentType, source.size, source.lastModified, fingerprint);
 		}
 
 		const inputBuffer = new Uint8Array(await new Response(source.body).arrayBuffer());
-		const { data, format } = await service.transform(inputBuffer, transform, imageConfig);
+		let output: { data: Uint8Array; format: string };
+		try {
+			output = await service.transform(inputBuffer, transform, imageConfig, ctx.logger);
+		} catch (error) {
+			if (!(error instanceof Error && error.name === "MissingSharp")) throw error;
+			(globalThis as Record<symbol, unknown>)[MISSING_SHARP_KEY] = true;
+			console.error("[emdash] sharp is not installed, serving original images:", error);
+			if (ctx.cache?.enabled) ctx.cache.set(false);
+			return serveFallbackOriginal(inputBuffer);
+		}
+		const { data, format } = output;
 
-		return new Response(data, {
+		if (
+			isStockService &&
+			virtualConfig?.routeCacheProvider !== "memory" &&
+			isCacheableMediaSource(url.searchParams.get("href"), url)
+		) {
+			cacheMediaResponse(ctx.cache, key);
+		}
+		return new Response(new Uint8Array(data), {
 			status: 200,
 			headers: {
 				"Content-Type": FORMAT_MIME[format] ?? source.contentType,

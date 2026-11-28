@@ -23,7 +23,9 @@ export async function buildUiTypes(): Promise<void> {
 			if (!file.endsWith(".astro")) continue;
 			const filename = join(src, file);
 			const { code, diagnostics } = await convertToTSX(await readFile(filename, "utf8"), {
-				filename,
+				// The compiler writes this name into the sourcemap JSON verbatim and parses
+				// that JSON back, so Windows separators must not reach it as backslashes.
+				filename: filename.replaceAll("\\", "/"),
 				includeScripts: false,
 				includeStyles: false,
 				sourcemap: "external",

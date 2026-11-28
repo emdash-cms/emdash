@@ -244,18 +244,24 @@ export async function createNodeRegistryArtifactTransport(
 								});
 								upstream.once("error", reject);
 								upstream.once("end", () => {
-									const bytes = concatBytes(chunks, total);
-									const headers = new Headers();
-									for (let index = 0; index < upstream.rawHeaders.length; index += 2) {
-										headers.append(upstream.rawHeaders[index], upstream.rawHeaders[index + 1]);
+									// Node's parser accepts statuses the Response constructor refuses, and
+									// a throw from this listener would be uncaught instead of a rejection.
+									try {
+										const bytes = concatBytes(chunks, total);
+										const headers = new Headers();
+										for (let index = 0; index < upstream.rawHeaders.length; index += 2) {
+											headers.append(upstream.rawHeaders[index], upstream.rawHeaders[index + 1]);
+										}
+										resolve(
+											parsedResponseToWebResponse({
+												status: upstream.statusCode ?? 502,
+												headers,
+												body: bytes,
+											}),
+										);
+									} catch (error) {
+										reject(error);
 									}
-									resolve(
-										parsedResponseToWebResponse({
-											status: upstream.statusCode ?? 502,
-											headers,
-											body: bytes,
-										}),
-									);
 								});
 							},
 						);

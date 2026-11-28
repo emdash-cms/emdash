@@ -1,4 +1,4 @@
-import type { Kysely, Selectable, Updateable } from "kysely";
+import type { Insertable, Kysely, Selectable, Updateable } from "kysely";
 import { ulid } from "ulidx";
 
 import { chunks, SQL_BATCH_SIZE } from "../../utils/chunks.js";
@@ -52,7 +52,7 @@ export type UserDataValue =
 	| { readonly [key: string]: UserDataValue };
 
 /** Top-level `users.data` keys that core writes one at a time. */
-export type UserDataKey = "welcomeDismissed" | "adminLayout";
+export type UserDataKey = "welcomeDismissed" | "adminLayout" | "firstAdminClaim";
 
 /**
  * User repository for CRUD operations
@@ -66,7 +66,7 @@ export class UserRepository {
 	async create(input: CreateUserInput): Promise<User> {
 		const id = ulid();
 
-		const row: Omit<UserTable, "created_at" | "updated_at" | "disabled"> = {
+		const row: Insertable<UserTable> = {
 			id,
 			email: input.email.toLowerCase(),
 			name: input.name ?? null,

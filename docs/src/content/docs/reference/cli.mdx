@@ -334,6 +334,13 @@ If someone has the entry open in the admin, the server returns 409 with code
 pass `--override-lock`. The same flag is available on `content delete`,
 `content publish`, `content unpublish` and `content schedule`.
 
+`content delete`, `content publish`, `content unpublish`, `content schedule`
+and `content restore` also accept `--locale`. When the ID argument is a slug
+that exists in more than one locale, these commands and `content update` fail
+with `AMBIGUOUS_LOCALE` until you pass `--locale` or use the entry's ID.
+`content get` without `--locale` returns the default locale's entry, or the
+entry with the lowest locale code when the default locale has none.
+
 #### `content delete <collection> <id>`
 
 ```bash
@@ -344,6 +351,8 @@ Soft-deletes the content item (moves to trash).
 
 Pass `--override-lock` to delete an entry that another editor has open.
 
+Pass `--locale` to choose the entry when the ID argument is a slug that exists in more than one locale.
+
 #### `content publish <collection> <id>`
 
 ```bash
@@ -352,6 +361,8 @@ npx emdash content publish posts 01ABC123
 
 Pass `--override-lock` to publish an entry that another editor has open.
 
+Pass `--locale` to choose the entry when the ID argument is a slug that exists in more than one locale.
+
 #### `content unpublish <collection> <id>`
 
 ```bash
@@ -359,6 +370,8 @@ npx emdash content unpublish posts 01ABC123
 ```
 
 Pass `--override-lock` to unpublish an entry that another editor has open.
+
+Pass `--locale` to choose the entry when the ID argument is a slug that exists in more than one locale.
 
 #### `content schedule <collection> <id>`
 
@@ -372,6 +385,8 @@ npx emdash content schedule posts 01ABC123 --at 2026-03-01T09:00:00Z
 
 Pass `--override-lock` to schedule an entry that another editor has open.
 
+Pass `--locale` to choose the entry when the ID argument is a slug that exists in more than one locale.
+
 #### `content restore <collection> <id>`
 
 ```bash
@@ -379,6 +394,8 @@ npx emdash content restore posts 01ABC123
 ```
 
 Restores a trashed content item.
+
+Pass `--locale` to choose the entry when the ID argument is a slug that exists in more than one locale.
 
 #### `content translations <collection> <id>`
 
@@ -697,7 +714,7 @@ The prepare step writes these files to the output directory:
 - `migration-config.json` maps each WordPress post type to a collection and each post-meta key to a field. Set `enabled` to `false` to leave a post type or field out, or change `collection` or `field` to rename the target.
 - `suggested-live.config.ts` lists the collections and fields to create in the admin under **Content Types**.
 
-The execute step converts Gutenberg and Classic Editor markup to Portable Text and writes one file per entry to `<output-dir>/<collection>/<slug>.json`. Each `collection` value is converted to a valid collection slug before it is used as a directory name. WordPress posts with the status `future` are written with the status `scheduled` and a `scheduledAt` date. Entries are named by slug, so two entries in the same collection with the same slug, such as translations, write the same file. The step also writes `_redirects.json`, which maps each WordPress URL to its converted path, and `.wp-migration-progress.json`.
+The execute step converts Gutenberg and Classic Editor markup to Portable Text and writes one file per entry to `<output-dir>/<collection>/<slug>.json`. Each `collection` value is converted to a valid collection slug before it is used as a directory name. WordPress posts with the status `future` are written with the status `scheduled` and a `scheduledAt` date. Password-protected posts are written with the status `draft` whatever their WordPress status, and the step lists them in its output and in the `passwordProtected` field of the `--json` result. Entries are named by slug, so two entries in the same collection with the same slug, such as translations, write the same file. The step also writes `_redirects.json`, which maps each WordPress URL to its converted path, and `.wp-migration-progress.json`.
 
 Unless you pass `--skip-media`, the execute step downloads every attachment URL into the media directory. An attachment under `/wp-content/uploads/` keeps its upload path, such as `<media-dir>/2025/01/hero.jpg`; any other attachment is saved under a directory named after its WordPress ID. The WordPress site must be reachable, and URLs that resolve to private network addresses are refused.
 
@@ -875,10 +892,12 @@ Add common commands as `package.json` scripts for convenience:
 		"dev": "astro dev",
 		"types": "emdash types",
 		"export-seed": "emdash export-seed",
-		"db:reset": "rm -f data.db"
+		"db:reset": "rm -f data.db data.db-wal data.db-shm"
 	}
 }
 ```
+
+Stop the dev server and any other processes using the database before running `db:reset`. This permanently deletes the local SQLite database, including committed data in its write-ahead log (`data.db-wal`). If the main file is missing but `data.db-wal` or `data.db-shm` remains, EmDash refuses to create a replacement database. To recover from an accidental rename, restore the original main file and preserve these sidecars instead of running `db:reset`.
 
 ## General exit codes
 

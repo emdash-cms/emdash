@@ -107,16 +107,21 @@ Reference fields are not part of an entry's `data`. Name the fields a page rende
 
 ```astro title="src/pages/posts/[slug].astro"
 ---
-import { getEmDashEntry } from "emdash";
+import { decodeSlug, getEmDashEntry } from "emdash";
 
-const { entry: post } = await getEmDashEntry("posts", Astro.params.slug, {
+const slug = decodeSlug(Astro.params.slug);
+if (!slug) return Astro.rewrite("/404");
+
+const { entry: post, error } = await getEmDashEntry("posts", slug, {
   references: { author: true },
 });
+if (error) throw error;
+if (!post) return Astro.rewrite("/404");
 
-const author = post?.references?.author.entries[0];
+const author = post.references?.author.entries[0];
 ---
 
-<h1>{post?.data.title}</h1>
+<h1>{post.data.title}</h1>
 {author && <p>By {author.data.name}</p>}
 ```
 

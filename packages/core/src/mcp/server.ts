@@ -9,6 +9,7 @@
  * The handlers instance is passed per-request via authInfo on the transport.
  */
 
+import { blockText, locateQuote } from "@emdash-cms/admin/internal/editorial-anchors";
 import type { Permission, RoleLevel } from "@emdash-cms/auth";
 import { canActOnOwn, hasPermission, Permissions, Role } from "@emdash-cms/auth";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
@@ -31,8 +32,21 @@ import {
 } from "#api/schemas.js";
 
 import { after } from "../after.js";
-import { entryEditAccess } from "../api/authorize.js";
+import { entryEditAccess, toPublishedListView, toPublishedView } from "../api/authorize.js";
+import {
+	handleEditorialCommentCreate,
+	handleEditorialMentionable,
+	handleEditorialThreadCreate,
+	handleEditorialThreadList,
+	handleEditorialThreadUpdate,
+} from "../api/handlers/editorial-comments.js";
 import { claimEntryLockForWrite } from "../api/handlers/entry-lock.js";
+import {
+	EDITORIAL_COMMENT_MAX_LENGTH,
+	EDITORIAL_CONTEXT_MAX_LENGTH,
+	EDITORIAL_QUOTE_MAX_LENGTH,
+	editorialAnchorSchema,
+} from "../api/schemas/editorial-comments.js";
 import type { MediaUsageRepairRequest } from "../api/schemas/media-usage.js";
 import type { EmDashHandlers } from "../astro/types.js";
 import { hasScope } from "../auth/api-tokens.js";
@@ -40,8 +54,14 @@ import { menuTag, siteSettingsTag, taxonomyTag } from "../cache/chrome-tags.js";
 import { invalidateRouteCache } from "../cache/route-cache.js";
 import { convertDataForRead, convertDataForWrite } from "../client/portable-text.js";
 import type { FieldSchema } from "../client/portable-text.js";
+import type { EditorialAnchor } from "../database/repositories/editorial-threads.js";
 import { decodeCursor, InvalidCursorError } from "../database/repositories/types.js";
+import {
+	queueEditorialCommentNotifications,
+	type EditorialCommentCreated,
+} from "../editorial/notifications.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
+import { isRouteCachedMedia, mediaCacheTag } from "../media/image-endpoint.js";
 import type { RouteCallerInput } from "../plugins/routes.js";
 import {
 	TRANSFER_SCOPES,
@@ -91,6 +111,10 @@ const REV_MISSING_ERROR =
  * see the tool schema, and re-reading never clears ENTRY_LOCKED, so when to
  * override is stated here.
  */
+const SLUG_LOCALE_PARAM_DESCRIPTION =
+	"Locale to scope slug lookup (e.g. 'fr'). Required when the slug exists in more " +
+	"than one locale. IDs are globally unique.";
+
 const OVERRIDE_LOCK_PARAM_DESCRIPTION =
 	"Write even though someone else has this item open in the admin. Without it, " +
 	"the call fails with ENTRY_LOCKED and the error names who is editing; calling " +
@@ -180,11 +204,17 @@ const settingsSeoSchema = z.object({
 		.string()
 		.max(5000)
 		.optional()
-		.describe("Custom robots.txt body. Leave unset for the EmDash default."),
+		.describe(
+			"Custom robots.txt body. Leave unset for the EmDash default. Changes are rejected " +
+				"when the site serves its own src/pages/robots.txt.",
+		),
 	disallowAiTraining: z
 		.boolean()
 		.optional()
-		.describe("Add robots.txt rules asking AI crawlers not to use the site for training"),
+		.describe(
+			"Add robots.txt rules asking AI crawlers not to use the site for training. " +
+				"Changes are rejected when the site serves its own src/pages/robots.txt.",
+		),
 	googleVerification: z
 		.string()
 		.max(100)
@@ -636,7 +666,7 @@ async function convertWriteData(
 async function applyReadMarkdown(
 	ec: EmDashHandlers,
 	collection: string,
-	items: Array<Record<string, unknown>>,
+	items: Array<{ data?: unknown }>,
 ): Promise<void> {
 	const fields = await getCollectionFields(ec, collection);
 	if (!fields) return;
@@ -859,6 +889,28 @@ function extractContentRev(data: unknown): string | undefined {
 	return typeof rev === "string" ? rev : undefined;
 }
 
+/**
+ * The publish or unpublish `content_update` chains after saving fields. When it conflicts, the
+ * fields stay saved, so the error says so and names the `_rev` they saved.
+ */
+function afterSavedFields(
+	result: HandlerResult,
+	savedRev: string | undefined,
+	step: "publish" | "unpublish",
+): HandlerResult {
+	const error = result.error as { code?: unknown; message?: unknown } | undefined;
+	if (result.success || savedRev === undefined || error?.code !== "CONFLICT") return result;
+	const reason = typeof error.message === "string" ? `: ${error.message}` : "";
+	return {
+		success: false,
+		error: {
+			code: "CONFLICT",
+			message: `The fields were saved, but the ${step} conflicted${reason}`,
+			details: { _rev: savedRev },
+		},
+	};
+}
+
 // ---------------------------------------------------------------------------
 // Server factory
 // ---------------------------------------------------------------------------
@@ -1072,8 +1124,9 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			// Subscribers must only see published content; force the status
 			// filter regardless of caller-supplied value.
-			const status = canReadDrafts(extra) ? args.status : "published";
-			const result = await ec.handleContentList(args.collection, {
+			const readDrafts = canReadDrafts(extra);
+			const status = readDrafts ? args.status : "published";
+			const listed = await ec.handleContentList(args.collection, {
 				status,
 				limit: args.limit,
 				cursor: args.cursor,
@@ -1081,6 +1134,11 @@ export function createMcpServer(
 				order: args.order,
 				locale: args.locale,
 			});
+			// A published entry can still carry a pending draft.
+			const result =
+				listed.success && !readDrafts
+					? { ...listed, data: toPublishedListView(listed.data) }
+					: listed;
 			if (result.success && args.markdown) {
 				const payload = result.data;
 				if (
@@ -1102,7 +1160,8 @@ export function createMcpServer(
 			title: "Get Content",
 			description:
 				"Get a single content item by its ID or slug. Returns the full content data " +
-				"including all field values, metadata, and a _rev token. content_update, " +
+				"including all field values, metadata, and a _rev token (omitted for callers " +
+				"without content:read_drafts). content_update, " +
 				"content_publish, content_unpublish and content_discard_draft require that " +
 				"token, so read the item here before calling them.",
 			inputSchema: z.object({
@@ -1127,40 +1186,25 @@ export function createMcpServer(
 			requireScope(extra, "content:read");
 			const ec = getEmDash(extra);
 			const result = await ec.handleContentGet(args.collection, args.id, args.locale);
-			// Hide non-published items from users without draft access. Return a
-			// not-found error so subscribers can't enumerate draft IDs by status.
-			if (result.success && !canReadDrafts(extra)) {
-				const data =
-					result.data && typeof result.data === "object"
-						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- handler returns unknown data; narrowed by typeof check
-							(result.data as Record<string, unknown>)
-						: undefined;
-				const item =
-					data?.item && typeof data.item === "object"
-						? // eslint-disable-next-line typescript/no-unsafe-type-assertion -- narrowed by typeof check
-							(data.item as Record<string, unknown>)
-						: undefined;
-				const status = typeof item?.status === "string" ? item.status : null;
-				if (status !== "published") {
-					return unwrap({
-						success: false,
-						error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
-					});
-				}
-				// handleContentGet overlays the draft revision onto item.data and
-				// moves the published values to item.liveData.
-				if (item) {
-					if (item.liveData && typeof item.liveData === "object") {
-						item.data = item.liveData;
-					}
-					delete item.liveData;
-					delete item.draftRevisionId;
-				}
+			if (!result.success) return unwrap(result);
+			const readDrafts = canReadDrafts(extra);
+			// Not-found, not forbidden, so subscribers can't enumerate draft IDs.
+			if (!readDrafts && result.data.item.status !== "published") {
+				return unwrap({
+					success: false,
+					error: { code: "NOT_FOUND", message: `Content item not found: ${args.id}` },
+				});
 			}
-			if (result.success && args.markdown && result.data?.item) {
-				await applyReadMarkdown(ec, args.collection, [result.data.item]);
+			// handleContentGet overlays the draft revision onto item.data and
+			// moves the published values to item.liveData.
+			const { _rev: _unusedRev, ...published } = result.data;
+			const data = readDrafts
+				? result.data
+				: { ...published, item: toPublishedView(result.data.item) };
+			if (args.markdown) {
+				await applyReadMarkdown(ec, args.collection, [data.item]);
 			}
-			return unwrap(result);
+			return unwrap({ success: true, data });
 		},
 	);
 
@@ -1254,7 +1298,7 @@ export function createMcpServer(
 
 			// Creating a translation requires edit permission on the source item
 			if (args.translationOf) {
-				const source = await emdash.handleContentGet(args.collection, args.translationOf);
+				const source = await emdash.handleContentGetById(args.collection, args.translationOf);
 				if (!source.success) return unwrap(source);
 				requireOwnership(
 					extra,
@@ -1409,7 +1453,7 @@ export function createMcpServer(
 			const actor = { id: userId, role: userRole };
 
 			// Fetch item to check ownership
-			const existing = await emdash.handleContentGet(args.collection, args.id, args.locale);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1455,6 +1499,7 @@ export function createMcpServer(
 			// Status transitions route through dedicated handlers for proper revision management
 			if (args.status === "published") {
 				let rev: string | undefined = args._rev;
+				let savedRev: string | undefined;
 				let liveChanged = false;
 				if (
 					args.data ||
@@ -1479,15 +1524,20 @@ export function createMcpServer(
 					});
 					if (!updateResult.success) return unwrap(updateResult);
 					liveChanged = updateResult.liveContentChanged !== false;
-					rev = extractContentRev(updateResult.data);
+					savedRev = extractContentRev(updateResult.data);
+					rev = savedRev;
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentPublish(args.collection, resolvedId, {
-						_rev: rev,
-						actor: { ...actor, source: "mcp" },
-						origin: { source: "mcp" },
-					}),
+					afterSavedFields(
+						await emdash.handleContentPublish(args.collection, resolvedId, {
+							_rev: rev,
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
+						savedRev,
+						"publish",
+					),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1495,6 +1545,7 @@ export function createMcpServer(
 
 			if (args.status === "draft") {
 				let rev: string | undefined = args._rev;
+				let savedRev: string | undefined;
 				let liveChanged = false;
 				if (
 					args.data ||
@@ -1519,15 +1570,20 @@ export function createMcpServer(
 					});
 					if (!updateResult.success) return unwrap(updateResult);
 					liveChanged = updateResult.liveContentChanged !== false;
-					rev = extractContentRev(updateResult.data);
+					savedRev = extractContentRev(updateResult.data);
+					rev = savedRev;
 				}
 				return unwrapAndInvalidate(
 					extra,
-					await emdash.handleContentUnpublish(args.collection, resolvedId, {
-						_rev: rev,
-						actor: { ...actor, source: "mcp" },
-						origin: { source: "mcp" },
-					}),
+					afterSavedFields(
+						await emdash.handleContentUnpublish(args.collection, resolvedId, {
+							_rev: rev,
+							actor: { ...actor, source: "mcp" },
+							origin: { source: "mcp" },
+						}),
+						savedRev,
+						"unpublish",
+					),
 					[args.collection, resolvedId],
 					liveChanged,
 				);
@@ -1562,6 +1618,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
@@ -1569,10 +1626,10 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1586,10 +1643,13 @@ export function createMcpServer(
 			const resolvedId = extractContentId(existing.data) ?? args.id;
 			const locked = await refuseLockedEntry(extra, args.collection, resolvedId, args.overrideLock);
 			if (locked) return locked;
-			return unwrapAndInvalidate(extra, await ec.handleContentDelete(args.collection, resolvedId), [
-				args.collection,
-				resolvedId,
-			]);
+			return unwrapAndInvalidate(
+				extra,
+				await ec.handleContentDelete(args.collection, resolvedId, {
+					actor: { id: userId, role: userRole, source: "mcp" },
+				}),
+				[args.collection, resolvedId],
+			);
 		},
 	);
 
@@ -1603,6 +1663,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
@@ -1611,7 +1672,9 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 
 			// Fetch trashed item to check ownership
-			const existing = await ec.handleContentGetIncludingTrashed(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale, {
+				includeTrashed: true,
+			});
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1641,6 +1704,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 			}),
 			annotations: { destructiveHint: true },
 		},
@@ -1648,10 +1712,15 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale, {
+				includeTrashed: true,
+			});
+			if (!existing.success) return unwrap(existing);
+			const resolvedId = extractContentId(existing.data) ?? args.id;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentPermanentDelete(args.collection, args.id),
-				[args.collection, args.id],
+				await ec.handleContentPermanentDelete(args.collection, resolvedId),
+				[args.collection, resolvedId],
 			);
 		},
 	);
@@ -1671,6 +1740,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				publishedAt: contentDateTimeInputSchema
 					.optional()
@@ -1686,7 +1756,7 @@ export function createMcpServer(
 			const { emdash, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await emdash.handleContentGet(args.collection, args.id);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1732,6 +1802,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
@@ -1742,7 +1813,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1779,6 +1850,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				scheduledAt: contentDateTimeInputSchema.describe(
 					"ISO 8601 datetime for publication (e.g. '2025-06-01T09:00:00Z')",
@@ -1792,7 +1864,7 @@ export function createMcpServer(
 			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1829,15 +1901,16 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
 		},
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1853,7 +1926,9 @@ export function createMcpServer(
 			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentUnschedule(args.collection, resolvedId),
+				await ec.handleContentUnschedule(args.collection, resolvedId, {
+					actor: { id: userId, role: userRole, source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},
@@ -1891,6 +1966,7 @@ export function createMcpServer(
 			inputSchema: z.object({
 				collection: z.string().describe("Collection slug"),
 				id: z.string().describe("Content item ID or slug"),
+				locale: z.string().optional().describe(SLUG_LOCALE_PARAM_DESCRIPTION),
 				_rev: z.string({ error: REV_MISSING_ERROR }).describe(REV_PARAM_DESCRIPTION),
 				overrideLock: z.boolean().optional().describe(OVERRIDE_LOCK_PARAM_DESCRIPTION),
 			}),
@@ -1899,10 +1975,10 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const ec = getEmDash(extra);
+			const { emdash: ec, userId, userRole } = getExtra(extra);
 
 			// Fetch item to check ownership
-			const existing = await ec.handleContentGet(args.collection, args.id);
+			const existing = await ec.handleContentGetForWrite(args.collection, args.id, args.locale);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -1918,7 +1994,10 @@ export function createMcpServer(
 			if (locked) return locked;
 			return unwrapAndInvalidate(
 				extra,
-				await ec.handleContentDiscardDraft(args.collection, resolvedId, { _rev: args._rev }),
+				await ec.handleContentDiscardDraft(args.collection, resolvedId, {
+					_rev: args._rev,
+					actor: { id: userId, role: userRole, source: "mcp" },
+				}),
 				[args.collection, resolvedId],
 			);
 		},
@@ -1968,7 +2047,7 @@ export function createMcpServer(
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.CONTRIBUTOR);
 			const { emdash, userId } = getExtra(extra);
-			const existing = await emdash.handleContentGet(args.collection, args.id);
+			const existing = await emdash.handleContentGetForWrite(args.collection, args.id);
 			if (!existing.success) return unwrap(existing);
 			requireOwnership(
 				extra,
@@ -2713,7 +2792,9 @@ export function createMcpServer(
 				"POST /_emdash/api/media/upload-url. `storageKey` must be the key returned " +
 				"for the same user. Confirmation checks that the stored file exists and " +
 				"matches the size fixed when the URL was issued, then makes it available " +
-				"through media_list / media_get. To upload through MCP, use media_upload instead.",
+				"through media_list / media_get. The confirmed item is stored under a new " +
+				"key, so reference the storageKey and url of the returned item, not the " +
+				"key passed in. To upload through MCP, use media_upload instead.",
 			inputSchema: z.object({
 				storageKey: z.string().describe("Storage key returned by the signed upload URL request"),
 			}),
@@ -2827,10 +2908,7 @@ export function createMcpServer(
 			if (!existing.success) {
 				return unwrap(existing);
 			}
-			const media = (existing.data as Record<string, unknown> | undefined)?.item as
-				| Record<string, unknown>
-				| undefined;
-			const authorId = typeof media?.authorId === "string" ? media.authorId : "";
+			const authorId = existing.data.item.authorId ?? "";
 			requireOwnership(extra, authorId, "media:edit_own", "media:edit_any");
 
 			return unwrap(
@@ -2867,13 +2945,18 @@ export function createMcpServer(
 			if (!existing.success) {
 				return unwrap(existing);
 			}
-			const media = (existing.data as Record<string, unknown> | undefined)?.item as
-				| Record<string, unknown>
-				| undefined;
-			const authorId = typeof media?.authorId === "string" ? media.authorId : "";
+			const authorId = existing.data.item.authorId ?? "";
 			requireOwnership(extra, authorId, "media:delete_own", "media:delete_any");
 
-			return unwrap(await ec.handleMediaDelete(args.id));
+			const result = await ec.handleMediaDelete(args.id);
+			if (
+				result.success &&
+				result.data?.storageDeleted &&
+				isRouteCachedMedia(result.data.storageKey, result.data.mimeType)
+			) {
+				await invalidateRouteCache(getExtra(extra).cache, [mediaCacheTag(result.data.storageKey)]);
+			}
+			return unwrap(result);
 		},
 	);
 
@@ -3432,7 +3515,12 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuList } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuList(ec.db, { locale: args.locale }));
+				return unwrap(
+					await handleMenuList(ec.db, {
+						locale: args.locale,
+						includeDrafts: canReadDrafts(extra),
+					}),
+				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_LIST_ERROR");
 			}
@@ -3457,7 +3545,12 @@ export function createMcpServer(
 			const ec = getEmDash(extra);
 			try {
 				const { handleMenuGet } = await import("../api/handlers/menus.js");
-				return unwrap(await handleMenuGet(ec.db, args.name, { locale: args.locale }));
+				return unwrap(
+					await handleMenuGet(ec.db, args.name, {
+						locale: args.locale,
+						includeDrafts: canReadDrafts(extra),
+					}),
+				);
 			} catch (error) {
 				return respondHandlerError(error, "MENU_GET_ERROR");
 			}
@@ -3709,7 +3802,7 @@ export function createMcpServer(
 		async (args, extra) => {
 			requireScope(extra, "content:write");
 			requireRole(extra, Role.AUTHOR);
-			const { emdash, userId } = getExtra(extra);
+			const { emdash, userId, userRole } = getExtra(extra);
 
 			// Fetch the revision to discover the parent content entry
 			const revision = await emdash.handleRevisionGet(args.revisionId);
@@ -3725,7 +3818,7 @@ export function createMcpServer(
 			}
 
 			// Fetch the content entry to check ownership
-			const existing = await emdash.handleContentGet(revItem.collection, revItem.entryId);
+			const existing = await emdash.handleContentGetById(revItem.collection, revItem.entryId);
 			if (!existing.success) {
 				return unwrap(existing);
 			}
@@ -3744,7 +3837,7 @@ export function createMcpServer(
 			);
 			if (locked) return locked;
 
-			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId));
+			return unwrap(await emdash.handleRevisionRestore(args.revisionId, userId, userRole));
 		},
 	);
 
@@ -3832,6 +3925,25 @@ export function createMcpServer(
 			requireRole(extra, Role.ADMIN);
 			const ec = getEmDash(extra);
 			try {
+				const seo = args.seo;
+				if (
+					ec.config.robotsTxtOverridden &&
+					seo &&
+					(Boolean(seo.robotsTxt) || seo.disallowAiTraining === true)
+				) {
+					const { getSiteSettingWithDb } = await import("../settings/index.js");
+					const stored = await getSiteSettingWithDb("seo", ec.db);
+					const changesRobotsTxt = Boolean(seo.robotsTxt) && seo.robotsTxt !== stored?.robotsTxt;
+					const enablesAiRule =
+						seo.disallowAiTraining === true && stored?.disallowAiTraining !== true;
+					if (changesRobotsTxt || enablesAiRule) {
+						return respondError(
+							"ROBOTS_TXT_OVERRIDDEN",
+							"This site serves its own src/pages/robots.txt, so seo.robotsTxt and " +
+								"seo.disallowAiTraining would have no effect. Edit that file instead.",
+						);
+					}
+				}
 				const { handleSettingsUpdate } = await import("../api/handlers/settings.js");
 				return unwrapAndInvalidate(extra, await handleSettingsUpdate(ec.db, ec.storage, args), [
 					siteSettingsTag(),
@@ -3839,6 +3951,310 @@ export function createMcpServer(
 			} catch (error) {
 				return respondHandlerError(error, "SETTINGS_UPDATE_ERROR");
 			}
+		},
+	);
+
+	// =====================================================================
+	// Editorial comment tools
+	// =====================================================================
+
+	const editorialEntryShape = {
+		collection: z.string().describe("Collection slug (e.g. 'posts', 'pages')"),
+		id: z.string().describe("Content item ID (ULID) or slug"),
+		locale: z
+			.string()
+			.optional()
+			.describe("Locale to scope slug lookup (e.g. 'fr'). Only affects slug resolution."),
+	};
+	const editorialBody = z
+		.string()
+		.trim()
+		.min(1)
+		.max(EDITORIAL_COMMENT_MAX_LENGTH)
+		.describe(
+			"Plain text. Mention a user with <@USER_ID>; editorial_mentionable_list finds their IDs.",
+		);
+
+	/** Threads discuss unpublished content, so every editorial tool needs draft access too. */
+	function editorialActor(extra: { authInfo?: { extra?: Record<string, unknown> } }) {
+		const { userId, userRole } = getExtra(extra);
+		const actor = { id: userId, role: userRole };
+		if (
+			!hasPermission(actor, "content:read_drafts") ||
+			!hasPermission(actor, "editorial:comment")
+		) {
+			throw new EmDashAuthError(
+				"Insufficient permissions for this operation",
+				"INSUFFICIENT_PERMISSIONS",
+			);
+		}
+		return actor;
+	}
+
+	function editorialNotifier(extra: { authInfo?: { extra?: Record<string, unknown> } }) {
+		if (!request) return undefined;
+		const ec = getEmDash(extra);
+		return (created: EditorialCommentCreated) =>
+			queueEditorialCommentNotifications(
+				{ db: ec.db, email: ec.email, request, config: ec.config },
+				created,
+			);
+	}
+
+	server.registerTool(
+		"editorial_thread_list",
+		{
+			title: "List Editorial Threads",
+			description:
+				"List the editorial comment threads staff left on a content item, oldest first, " +
+				"each with all of its comments. Threads are private review notes, separate from " +
+				"public comments. Open threads by default. Each thread's `anchor` says what it " +
+				"points at: the whole entry, a field, a Portable Text block, or a quoted range " +
+				"of text. Comment bodies mention users as <@USER_ID>; `mentions` lists their names. " +
+				"When there are more threads, pass the response's `nextCursor` as `cursor` to get them.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				status: z
+					.enum(["open", "resolved", "all"])
+					.optional()
+					.describe("Which threads to list (default 'open')"),
+				limit: z.number().int().min(1).max(100).optional().describe("Max threads (default 50)"),
+				cursor: z
+					.string()
+					.min(1)
+					.max(2048)
+					.optional()
+					.describe("Pagination cursor from a previous response"),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			const actor = editorialActor(extra);
+			return unwrap(
+				await handleEditorialThreadList(
+					getEmDash(extra).db,
+					actor,
+					{ collection: args.collection, id: args.id, locale: args.locale },
+					{ status: args.status ?? "open", limit: args.limit ?? 50, cursor: args.cursor },
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"editorial_mentionable_list",
+		{
+			title: "List People to Mention",
+			description:
+				"Find users who can be mentioned in an entry's editorial comments, matched by display " +
+				"name, up to 10, without email addresses. Mention one in a comment body as " +
+				"<@USER_ID> with the `id` returned here; `@Name` text mentions nobody.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				query: z
+					.string()
+					.max(100)
+					.optional()
+					.describe("Text to match against display names. Omit to list the first users by name."),
+			}),
+			annotations: { readOnlyHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:read");
+			editorialActor(extra);
+			return unwrap(
+				await handleEditorialMentionable(
+					getEmDash(extra).db,
+					{ collection: args.collection, id: args.id, locale: args.locale },
+					args.query ?? "",
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"editorial_thread_create",
+		{
+			title: "Start Editorial Thread",
+			description:
+				"Start an editorial comment thread on a content item. Without `field`, the thread " +
+				"is about the whole entry. With `field` alone, it is about that field. With " +
+				"`field` and `quote`, it points at that exact text in a rich text (portableText) " +
+				"field of the current draft; the quote must appear once, so pass `prefix` or " +
+				"`suffix` (text just before or after it) when it appears more than once.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				body: editorialBody,
+				field: z.string().optional().describe("Field slug the thread is about"),
+				quote: z
+					.string()
+					.min(1)
+					.max(EDITORIAL_QUOTE_MAX_LENGTH)
+					.optional()
+					.describe("Exact text in a rich text field to comment on. Requires `field`."),
+				prefix: z
+					.string()
+					.max(EDITORIAL_CONTEXT_MAX_LENGTH)
+					.optional()
+					.describe("Text just before the quote, to tell repeated quotes apart"),
+				suffix: z
+					.string()
+					.max(EDITORIAL_CONTEXT_MAX_LENGTH)
+					.optional()
+					.describe("Text just after the quote, to tell repeated quotes apart"),
+			}),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			const actor = editorialActor(extra);
+			const ec = getEmDash(extra);
+			const ref = { collection: args.collection, id: args.id, locale: args.locale };
+
+			if (args.quote === undefined && (args.prefix !== undefined || args.suffix !== undefined)) {
+				return respondError("VALIDATION_ERROR", "`prefix` and `suffix` need a `quote`");
+			}
+
+			let anchor: EditorialAnchor = { type: "entry" };
+			let rev: string | undefined;
+			if (args.quote !== undefined) {
+				if (!args.field) {
+					return respondError("VALIDATION_ERROR", "`quote` needs the `field` it appears in");
+				}
+				const current = await ec.handleContentGet(args.collection, args.id, args.locale);
+				if (!current.success || !current.data) return unwrap(current);
+				const field = (await getCollectionFields(ec, args.collection))?.find(
+					(candidate) => candidate.slug === args.field,
+				);
+				if (!field) {
+					return respondError("VALIDATION_ERROR", `Unknown field '${args.field}'`);
+				}
+				if (field.type !== "portableText") {
+					return respondError(
+						"VALIDATION_ERROR",
+						`'${args.field}' isn't a rich text field, so it has no text to quote. ` +
+							"Omit `quote` to comment on the whole field.",
+					);
+				}
+				const data = current.data.item.data;
+				const fieldValue =
+					data && typeof data === "object" ? Reflect.get(data, args.field) : undefined;
+				const located = locateQuote(fieldValue, args.field, args.quote, {
+					prefix: args.prefix,
+					suffix: args.suffix,
+				});
+				if (located.status === "missing") {
+					const { quote } = args;
+					const inKeylessBlock =
+						Array.isArray(fieldValue) &&
+						fieldValue.some(
+							(block: unknown) =>
+								!(
+									block &&
+									typeof block === "object" &&
+									typeof Reflect.get(block, "_key") === "string"
+								) && blockText(block)?.includes(quote),
+						);
+					return respondError(
+						"VALIDATION_ERROR",
+						inKeylessBlock
+							? `The quote is in a block of '${args.field}' that has no \`_key\`, so a comment can't be anchored to it. ` +
+									"Give the field's blocks `_key`s with content_update, or omit `quote` to comment on the whole field."
+							: `The quote doesn't appear in a text block of '${args.field}'`,
+					);
+				}
+				if (located.status === "ambiguous") {
+					return respondError(
+						"VALIDATION_ERROR",
+						"The quote appears more than once. Add a `prefix` or `suffix` to say which.",
+					);
+				}
+				const checked = editorialAnchorSchema.safeParse(located.anchor);
+				if (!checked.success) {
+					return respondError(
+						"VALIDATION_ERROR",
+						"The quoted text's block has a `_key` too long to anchor a comment to",
+					);
+				}
+				anchor = located.anchor;
+				rev = extractContentRev(current.data);
+			} else if (args.field) {
+				anchor = { type: "field", field: args.field };
+			}
+
+			return unwrap(
+				await handleEditorialThreadCreate(
+					ec.db,
+					actor,
+					ref,
+					{ _rev: rev, anchor, body: args.body },
+					editorialNotifier(extra),
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"editorial_comment_create",
+		{
+			title: "Reply to Editorial Thread",
+			description:
+				"Reply to an editorial comment thread on a content item. Replying to a resolved " +
+				"thread reopens it. Returns the thread with all of its comments.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				threadId: z.string().min(1).describe("Thread ID from editorial_thread_list"),
+				body: editorialBody,
+			}),
+			annotations: { destructiveHint: false },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			const actor = editorialActor(extra);
+			return unwrap(
+				await handleEditorialCommentCreate(
+					getEmDash(extra).db,
+					actor,
+					{ collection: args.collection, id: args.id, locale: args.locale },
+					args.threadId,
+					{ body: args.body },
+					editorialNotifier(extra),
+				),
+			);
+		},
+	);
+
+	server.registerTool(
+		"editorial_thread_resolve",
+		{
+			title: "Resolve Editorial Thread",
+			description:
+				"Resolve an editorial comment thread, or reopen it with status 'open'. Editors can " +
+				"resolve any thread. Other users can resolve threads they started, and Authors " +
+				"can resolve threads on entries they own. Replying to a resolved thread reopens it.",
+			inputSchema: z.object({
+				...editorialEntryShape,
+				threadId: z.string().min(1).describe("Thread ID from editorial_thread_list"),
+				status: z
+					.enum(["resolved", "open"])
+					.optional()
+					.describe("'resolved' (default) or 'open' to reopen"),
+			}),
+			annotations: { destructiveHint: false, idempotentHint: true },
+		},
+		async (args, extra) => {
+			requireScope(extra, "content:write");
+			const actor = editorialActor(extra);
+			return unwrap(
+				await handleEditorialThreadUpdate(
+					getEmDash(extra).db,
+					actor,
+					{ collection: args.collection, id: args.id, locale: args.locale },
+					args.threadId,
+					{ status: args.status ?? "resolved" },
+				),
+			);
 		},
 	);
 

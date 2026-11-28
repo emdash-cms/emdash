@@ -259,6 +259,8 @@ Adapters that do not support signed uploads:
 - **R2 binding** (use S3 adapter with R2 credentials instead)
 - **Local**
 
+A signed upload URL accepts uploads until it expires, so EmDash does not keep a confirmed file at the key the URL writes to. When a signed upload is confirmed, EmDash copies the file to a new key, makes the media item ready under that key, and deletes the original. The copy uses the adapter's optional `copy()` method, which the S3 adapter implements as a copy inside the bucket. For an adapter without `copy()`, EmDash downloads the file and uploads it again.
+
 ## Storage interface
 
 All storage adapters implement the same interface:
@@ -272,6 +274,7 @@ interface Storage {
 	}): Promise<UploadResult>;
 
 	download(key: string, options?: DownloadOptions): Promise<DownloadResult>;
+	copy?(options: { sourceKey: string; key: string; contentType: string }): Promise<void>;
 	delete(key: string): Promise<void>;
 	exists(key: string): Promise<boolean>;
 	list(options?: ListOptions): Promise<ListResult>;

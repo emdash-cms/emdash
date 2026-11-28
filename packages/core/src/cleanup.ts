@@ -9,7 +9,7 @@
  * rest still run. Failures are logged but never surface to callers.
  */
 
-import { createKyselyAdapter, type AuthTables } from "@emdash-cms/auth/adapters/kysely";
+import { createKyselyAdapter } from "@emdash-cms/auth/adapters/kysely";
 import type { Kysely } from "kysely";
 
 import { ACCESS_TOKEN_TTL_SECONDS } from "./auth/api-tokens.js";
@@ -18,9 +18,14 @@ import { MediaRepository } from "./database/repositories/media.js";
 import { RedirectRepository } from "./database/repositories/redirect.js";
 import { RevisionRepository } from "./database/repositories/revision.js";
 import type { Database } from "./database/types.js";
+import { isCacheableMediaKey, mediaCacheTag } from "./media/image-endpoint.js";
 import { removeUploadAttempt } from "./media/upload-attempts.js";
 import { cleanupMediaUsage } from "./media/usage/cleanup.js";
 import type { Storage } from "./storage/types.js";
+import { chunks } from "./utils/chunks.js";
+
+/** Most tags Cloudflare accepts in one purge call. */
+const PURGE_TAG_BATCH = 100;
 
 /**
  * Result of a system cleanup run.
@@ -32,6 +37,11 @@ export interface CleanupResult {
 	oauthTokens: number;
 	authorizationCodes: number;
 	deviceCodes: number;
+	/**
+	 * Atmosphere sign-in rows: OAuth states of sign-ins that were never
+	 * finished, and token sets stored by earlier versions of the provider.
+	 */
+	atprotoStorage: number;
 	pendingUploads: number;
 	pendingUploadFiles: number;
 	uploadAttempts: number;
@@ -52,6 +62,15 @@ const REVISION_PRUNE_BATCH_SIZE = 10;
  * row is what lets a client that is still polling get `expired_token`.
  */
 const OAUTH_EXPIRY_GRACE_MS = ACCESS_TOKEN_TTL_SECONDS * 1000;
+
+/**
+ * `@emdash-cms/auth-atproto` stores the OAuth state of each sign-in it starts
+ * in `_plugin_storage`. A state is valid for 10 minutes and is otherwise only
+ * deleted by the callback that presents it. Earlier versions of the provider
+ * also stored a `sessions` row per account that nothing reads.
+ */
+const ATPROTO_STORAGE_NAMESPACE = "auth:atproto";
+const ATPROTO_STATE_MAX_AGE_MS = 60 * 60 * 1000;
 
 /** Target cadence for full system cleanup. */
 export const SYSTEM_CLEANUP_INTERVAL_MS = 60 * 60 * 1000;
@@ -89,17 +108,22 @@ export function shouldRunSystemCleanup(currentTime: Date, lastRunAt?: Date | nul
  * @param storage - Optional storage backend for deleting orphaned files.
  *   When omitted, pending upload DB rows are still deleted but the
  *   corresponding files in object storage are not removed.
+ * @param invalidateRouteCache - Purges route cache tags; called with the media
+ *   tags of the stored files this run removed.
  */
 export async function runSystemCleanup(
 	db: Kysely<Database>,
 	storage?: Storage,
+	invalidateRouteCache?: (tags: string[]) => Promise<void>,
 ): Promise<CleanupResult> {
+	const removedKeys: string[] = [];
 	const result: CleanupResult = {
 		challenges: -1,
 		expiredTokens: -1,
 		oauthTokens: -1,
 		authorizationCodes: -1,
 		deviceCodes: -1,
+		atprotoStorage: -1,
 		pendingUploads: -1,
 		pendingUploadFiles: -1,
 		uploadAttempts: -1,
@@ -118,10 +142,7 @@ export async function runSystemCleanup(
 
 	// 2. Magic link / invite / signup tokens
 	try {
-		// Cast needed: Database extends AuthTables but uses Generated<> wrappers
-		// that confuse structural checks. The adapter casts internally anyway.
-		// eslint-disable-next-line @typescript-eslint/no-unsafe-type-assertion -- Database uses Generated<> wrappers incompatible with AuthTables structurally; safe at runtime
-		const authAdapter = createKyselyAdapter(db as unknown as Kysely<AuthTables>);
+		const authAdapter = createKyselyAdapter(db);
 		await authAdapter.deleteExpiredTokens();
 		result.expiredTokens = 0; // deleteExpiredTokens returns void
 	} catch (error) {
@@ -142,6 +163,7 @@ export async function runSystemCleanup(
 				try {
 					await storage.delete(key);
 					filesDeleted++;
+					removedKeys.push(key);
 				} catch (error) {
 					// Log per-file failures but continue -- storage.delete is
 					// documented as idempotent, so this is an unexpected error.
@@ -168,12 +190,41 @@ export async function runSystemCleanup(
 			for (const storageKey of storageKeys) {
 				if (await removeUploadAttempt(storage, mediaRepo, storageKey)) {
 					attemptsDeleted++;
+					removedKeys.push(storageKey);
 				}
 			}
 			result.uploadAttempts = attemptsDeleted;
 		}
 	} catch (error) {
 		console.error("[cleanup] Failed to clean media upload attempts:", error);
+	}
+
+	if (invalidateRouteCache) {
+		const tags = removedKeys.filter(isCacheableMediaKey).map(mediaCacheTag);
+		for (const batch of chunks(tags, PURGE_TAG_BATCH)) {
+			try {
+				await invalidateRouteCache(batch);
+			} catch (error) {
+				console.error("[cleanup] Failed to purge removed media from the route cache:", error);
+			}
+		}
+	}
+
+	try {
+		const stateCutoff = new Date(Date.now() - ATPROTO_STATE_MAX_AGE_MS).toISOString();
+		const deleted = await db
+			.deleteFrom("_plugin_storage")
+			.where("plugin_id", "=", ATPROTO_STORAGE_NAMESPACE)
+			.where((eb) =>
+				eb.or([
+					eb("collection", "=", "sessions"),
+					eb.and([eb("collection", "=", "states"), eb("created_at", "<", stateCutoff)]),
+				]),
+			)
+			.executeTakeFirst();
+		result.atprotoStorage = Number(deleted.numDeletedRows);
+	} catch (error) {
+		console.error("[cleanup] Failed to clean Atmosphere sign-in storage:", error);
 	}
 
 	const oauthCutoff = new Date(Date.now() - OAUTH_EXPIRY_GRACE_MS).toISOString();

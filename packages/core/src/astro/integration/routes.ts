@@ -112,6 +112,11 @@ export function injectCoreRoutes(
 	});
 
 	injectRoute({
+		pattern: "/_emdash/visual-editing/comments",
+		entrypoint: resolveRoute("visual-editing-comments.astro"),
+	});
+
+	injectRoute({
 		pattern: "/_emdash/api/visual-editing/content/[collection]/[id]/publish",
 		entrypoint: resolveRoute("api/visual-editing/content/[collection]/[id]/publish.ts"),
 	});
@@ -158,6 +163,11 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/revisions",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/revisions.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/revisions/editors",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/revisions/editors.ts"),
 	});
 
 	injectRoute({
@@ -216,6 +226,43 @@ export function injectCoreRoutes(
 	injectRoute({
 		pattern: "/_emdash/api/content/[collection]/[id]/lock",
 		entrypoint: resolveRoute("api/content/[collection]/[id]/lock.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/room",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/room.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads/anchors",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/anchors.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads/mentionable",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/mentionable.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads/[threadId]",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/[threadId]/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads/[threadId]/comments",
+		entrypoint: resolveRoute("api/content/[collection]/[id]/threads/[threadId]/comments/index.ts"),
+	});
+
+	injectRoute({
+		pattern: "/_emdash/api/content/[collection]/[id]/threads/[threadId]/comments/[commentId]",
+		entrypoint: resolveRoute(
+			"api/content/[collection]/[id]/threads/[threadId]/comments/[commentId].ts",
+		),
 	});
 
 	// i18n translation routes
@@ -1255,6 +1302,10 @@ export function injectBuiltinAuthRoutes(injectRoute: InjectRoute): void {
 		entrypoint: resolveRoute("api/auth/signup/verify.ts"),
 	});
 
+	injectRoute({
+		pattern: "/_emdash/api/auth/signup/register-options",
+		entrypoint: resolveRoute("api/auth/signup/register-options.ts"),
+	});
 	injectRoute({
 		pattern: "/_emdash/api/auth/signup/complete",
 		entrypoint: resolveRoute("api/auth/signup/complete.ts"),

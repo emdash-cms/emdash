@@ -51,6 +51,7 @@ const FENCED_WRITES: Array<[string, string]> = [
 	["POST", "/_EMDASH/API/CONTENT/posts"],
 	["POST", "/_emdash/api/%63ontent/posts"],
 	["POST", "/_emdash/api/content/posts/"],
+	["POST", "/_emdash/api/content/posts/01ABC/revisions"],
 ];
 
 const UNFENCED_WRITES: Array<[string, string]> = [
@@ -67,6 +68,13 @@ const UNFENCED_WRITES: Array<[string, string]> = [
 	["POST", "/_emdash/api/setup/dev-bypass"],
 	["POST", "/_emdash/api/typegen"],
 	["POST", "/_emdash/api/mcp"],
+	["POST", "/_emdash/api/content/posts/01ABC/room"],
+	["POST", "/_emdash/api/content/posts/01ABC/threads"],
+	["PATCH", "/_emdash/api/content/posts/01ABC/threads/anchors"],
+	["PATCH", "/_emdash/api/content/posts/01ABC/threads/01DEF"],
+	["DELETE", "/_emdash/api/content/posts/01ABC/threads/01DEF"],
+	["POST", "/_emdash/api/content/posts/01ABC/threads/01DEF/comments"],
+	["PATCH", "/_emdash/api/content/posts/01ABC/threads/01DEF/comments/01GHI"],
 	["POST", "/some/site/page"],
 ];
 
@@ -339,5 +347,6 @@ describeEachDialect("site write fence middleware", (dialect) => {
 		);
 		expect((await invoke("POST", "/_emdash/api/media")).status).toBe(204);
 		expect((await invoke("POST", "/_emdash/api/comments/posts/01ABC")).status).toBe(204);
+		expect((await invoke("POST", "/_emdash/api/content/posts/01ABC/room")).status).toBe(204);
 	});
 });

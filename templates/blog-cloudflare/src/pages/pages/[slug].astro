@@ -16,13 +16,14 @@ if (!slug) {
 	return Astro.rewrite("/404");
 }
 
-const { entry: page, cacheHint } = await getEmDashEntry("pages", slug);
+const { entry: page, error, cacheHint } = await getEmDashEntry("pages", slug);
+if (error) throw error;
+
+if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 
 if (!page) {
 	return Astro.rewrite("/404");
 }
-
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
 const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
 const seo = getSeoMeta(page, {
 	siteTitle,

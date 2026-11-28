@@ -1,5 +1,23 @@
 # @emdash-cms/auth-atproto
 
+## 0.2.52
+
+### Patch Changes
+
+- [#4805](https://github.com/emdash-cms/emdash/pull/4805) [`395d56c`](https://github.com/emdash-cms/emdash/commit/395d56c275bdbc27b84c650cd4cfda4b38ef9f83) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes the Users page showing “Last Login: Never” after magic-link, OAuth (including AT Protocol), or external-provider sign-in. Successful sign-ins now record a login time independently of passkeys, while existing passkey login history remains visible. Previously unrecorded logins appear after the next sign-in; refreshing an existing session does not record a new login.
+  
+  EmDash migrates the database automatically. Existing standalone Kysely auth-adapter databases continue to report passkey history without requiring a schema change.
+- Updated dependencies [[`6d0551b`](https://github.com/emdash-cms/emdash/commit/6d0551bdec7f776d3f77233f095342f3aefeb1ac), [`395d56c`](https://github.com/emdash-cms/emdash/commit/395d56c275bdbc27b84c650cd4cfda4b38ef9f83)]:
+  - @emdash-cms/auth@1.6.0
+
+## 0.2.51
+
+### Patch Changes
+
+- [#4713](https://github.com/emdash-cms/emdash/pull/4713) [`0719747`](https://github.com/emdash-cms/emdash/commit/0719747755934bcbb00d4f1ad69c40fb513f2884) Thanks [@emdash-autofix](https://github.com/apps/emdash-autofix)! - Fixes Atmosphere sign-in and setup forms ignoring the admin language by making their labels, buttons, setup description, and fallback error available for translation.
+- Updated dependencies [[`7d48e95`](https://github.com/emdash-cms/emdash/commit/7d48e95c8b3b0d5f53a48ebbe5ee9f005035c610)]:
+  - @emdash-cms/auth@1.5.0
+
 ## 0.2.50
 
 ### Patch Changes

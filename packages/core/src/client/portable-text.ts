@@ -226,7 +226,7 @@ function renderTable(block: PortableTextBlock): string | undefined {
 }
 
 function renderStandardBlock(block: PortableTextBlock, indentation = 0): string {
-	const text = renderSpans(block.children ?? [], block.markDefs ?? []);
+	const text = escapeBlockStarts(renderSpans(block.children ?? [], block.markDefs ?? []));
 
 	// List items
 	if (block.listItem) {
@@ -256,6 +256,14 @@ function renderStandardBlock(block: PortableTextBlock, indentation = 0): string 
 	}
 
 	return text;
+}
+
+// Inline escapes alone do not protect headings, lists, setext underlines, or table delimiters.
+function escapeBlockStarts(text: string): string {
+	return text.replace(
+		/^([ \t]{0,3})([#=+|:-]|\d{1,9}[.)])/gm,
+		(_match, indent: string, marker: string) => `${indent}${marker.slice(0, -1)}\\${marker.at(-1)}`,
+	);
 }
 
 function wrapMark(text: string, delimiter: string): string {

@@ -11,6 +11,8 @@ export interface RevisionTable {
 	data: string; // JSON snapshot
 	author_id: string | null;
 	created_at: Generated<string>;
+	kind: Generated<string | null>; // 'autosave' | 'recovery'; NULL for a kept revision
+	edited_by: Generated<string | null>; // JSON array of user IDs, latest first; NULL = author alone
 }
 
 export interface RevisionPruneQueueTable {
@@ -287,6 +289,7 @@ export interface MediaUsageReconciliationTable {
 }
 
 export interface UserTable {
+	last_login_at: Generated<string | null>;
 	id: string;
 	email: string;
 	name: string | null;
@@ -821,6 +824,10 @@ export interface Database {
 	_emdash_content_references: ContentReferenceTable;
 	_emdash_rate_limits: RateLimitTable;
 	_emdash_entry_locks: EntryLockTable;
+	_emdash_rooms: RoomTable;
+	_emdash_room_updates: RoomUpdateTable;
+	_emdash_editorial_threads: EditorialThreadTable;
+	_emdash_editorial_comments: EditorialCommentTable;
 	_emdash_transfer_operations: TransferOperationTable;
 	_emdash_transfer_identity_map: TransferIdentityMapTable;
 	_emdash_transfer_staged_files: TransferStagedFileTable;
@@ -1041,6 +1048,32 @@ export interface RateLimitTable {
 	count: number;
 }
 
+// Editorial comments
+
+export interface EditorialThreadTable {
+	id: string;
+	collection: string;
+	entry_id: string; // per-locale row ID in the ec_* table
+	anchor: string; // JSON EditorialAnchor
+	anchor_state: Generated<string>; // 'attached' | 'orphaned'
+	status: Generated<string>; // 'open' | 'resolved'
+	created_by: string | null;
+	resolved_by: string | null;
+	resolved_at: string | null;
+	created_at: string; // ISO 8601
+	updated_at: string; // ISO 8601; advances on any change to the thread or its comments
+}
+
+export interface EditorialCommentTable {
+	id: string;
+	thread_id: string;
+	author_id: string | null;
+	body: string; // empty once deleted
+	created_at: string; // ISO 8601
+	edited_at: string | null;
+	deleted_at: string | null;
+}
+
 export interface EntryLockTable {
 	collection: string;
 	entry_id: string; // ID in the ec_* table
@@ -1048,4 +1081,22 @@ export interface EntryLockTable {
 	token: string; // identifies the holder's editing session, one per tab
 	acquired_at: string; // ISO 8601 with milliseconds
 	expires_at: string; // ISO 8601 with milliseconds
+}
+
+// Co-editing room storage on Node.js
+
+export interface RoomTable {
+	room_id: string; // {collection}:{entry ID}
+	part: number;
+	record: string | null; // JSON, split by characters across parts; null on part 0 until the room initializes
+	host: string | null; // part 0: the claiming process's random ID
+	claimed_at: string | null; // part 0: ISO 8601 with milliseconds
+	updated_at: string; // part 0: the last write or closed connection, ISO 8601 with milliseconds
+}
+
+export interface RoomUpdateTable {
+	room_id: string;
+	seq: number;
+	part: number;
+	data: Uint8Array;
 }

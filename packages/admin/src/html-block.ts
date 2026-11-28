@@ -143,8 +143,25 @@ export const SITE_HTML_IFRAME_HOSTS: readonly string[] = ["www.youtube.com", "pl
 const BASE_STYLE = "body{margin:0;font-family:system-ui,sans-serif;line-height:1.5}";
 
 // Without a base, the frame's base URL would be the page's full URL, query and
-// fragment included, and the author's JavaScript could read it.
+// fragment included, and the author's JavaScript could read it. The author's
+// script can remove a base from its own document, which then falls back to the
+// base URL of the document around it, so that document is a shell holding only
+// this base, and the author's document is a frame inside it.
 const BASE = '<base href="/" target="_top">';
+
+const SHELL_STYLE =
+	"html,body{height:100%;margin:0}iframe{display:block;width:100%;height:100%;border:0}";
+
+// A policy such as `base-uri 'none'` rejects the base, and the shell would then
+// fall back to the page's full URL, so the shell stops before it parses the
+// author's frame. The page can only reach the shell's window, so the shell
+// passes messages between the page and the author's frame in both directions.
+const SHELL_SCRIPT = `if (document.baseURI !== new URL("/", document.baseURI).href) stop();
+addEventListener("message", (event) => {
+	const inner = frames[0];
+	if (event.source === inner) parent.postMessage(event.data, "*", [...event.ports]);
+	else if (event.source === parent) inner?.postMessage(event.data, "*", [...event.ports]);
+});`;
 
 // Runs before the author's markup so an unclosed comment or tag can't swallow it.
 // The parent can ask for a height report by posting the message type to the frame.
@@ -176,21 +193,42 @@ const STYLE_END_RE = /<\/(style)/gi;
 // `</script>` from ending it. Either needs whitespace, `/` or `>` after the name, so code
 // such as `i<scripts.length` is left alone.
 const SCRIPT_TAG_RE = /<(?=\/?script[\t\n\f\r />])/gi;
+const ATTRIBUTE_RE = /[&"<>]/g;
+const ENTITIES: Record<string, string> = { "&": "&amp;", '"': "&quot;", "<": "&lt;", ">": "&gt;" };
 
+function escapeAttribute(value: string): string {
+	return value.replace(ATTRIBUTE_RE, (char) => ENTITIES[char] ?? char);
+}
+
+/**
+ * The document for an isolated HTML block's frame. The block's own document is
+ * a sandboxed frame inside it, titled `title`, which should match the outer
+ * frame's title.
+ */
 export function buildHtmlBlockFrame({
 	html,
 	css = "",
 	js = "",
+	title = "",
 }: {
 	html: string;
 	css?: string;
 	js?: string;
+	title?: string;
 }): string {
 	const style = css.trim() ? `<style>${css.replace(STYLE_END_RE, "<\\/$1")}</style>` : "";
 	const script = js.trim() ? `<script>${js.replace(SCRIPT_TAG_RE, "\\x3c")}</script>` : "";
-	return (
+	const content =
 		`<!doctype html><html><head><meta charset="utf-8">${BASE}` +
 		`<style>${BASE_STYLE}</style><script>${FRAME_SCRIPT}</script>${style}</head>` +
-		`<body>${html}${script}</body></html>`
+		`<body>${html}${script}</body></html>`;
+	// A content security policy can block the shell's style, so attributes also set
+	// the inner frame's width, border and alignment and the shell's margins.
+	return (
+		`<!doctype html><html><head><meta charset="utf-8">${BASE}` +
+		`<style>${SHELL_STYLE}</style><script>${SHELL_SCRIPT}</script></head>` +
+		`<body marginwidth="0" marginheight="0"><iframe sandbox="${HTML_BLOCK_FRAME_SANDBOX}" ` +
+		`title="${escapeAttribute(title)}" width="100%" frameborder="0" align="top" ` +
+		`srcdoc="${escapeAttribute(content)}"></iframe></body></html>`
 	);
 }

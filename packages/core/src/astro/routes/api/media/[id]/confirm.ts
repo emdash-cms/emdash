@@ -18,6 +18,11 @@ import { MediaRepository } from "#db/repositories/media.js";
 import { enrichImageMetadata } from "#media/enrich.js";
 import { readDimensions } from "#media/placeholder.js";
 import { THUMBNAIL_MAX_DIMENSION } from "#media/thumbnail.js";
+import {
+	copySignedUpload,
+	removeUploadAttempt,
+	retireSignedUploadKey,
+} from "#media/upload-attempts.js";
 import type { MediaItem } from "#types";
 import { decodeBase64Bytes } from "#utils/base64.js";
 import { computeContentHash, MAX_CONTENT_HASH_BYTES } from "#utils/hash.js";
@@ -183,6 +188,8 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 		let confirmedSize = existing.size ?? body.size;
 		let contentHash = existing.contentHash;
 		let imageBytes: Uint8Array | undefined;
+		// The key the item becomes ready under.
+		let storageKey = existing.storageKey;
 
 		if (emdash.storage) {
 			const exists = await emdash.storage.exists(existing.storageKey);
@@ -192,9 +199,19 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				return apiError("FILE_NOT_FOUND", "File was not uploaded to storage", 400);
 			}
 
-			const storedFile = await emdash.storage.download(existing.storageKey);
+			// Objects streamed through EmDash already sit under an upload attempt
+			// key. Anything else arrived through a signed upload URL, which stays
+			// valid after this request: verify and publish a copy at a key that
+			// URL does not write to.
+			const streamed = await repo.hasUploadAttempt(existing.storageKey);
+			if (!streamed) {
+				storageKey = await copySignedUpload(emdash.storage, repo, existing);
+			}
+
+			const storedFile = await emdash.storage.download(storageKey);
 			if (confirmedSize !== undefined && storedFile.size !== confirmedSize) {
 				await cancelDownload(storedFile);
+				if (!streamed) await removeUploadAttempt(emdash.storage, repo, storageKey);
 				return apiError(
 					"UPLOAD_SIZE_MISMATCH",
 					"Stored file size does not match the pending media item",
@@ -205,8 +222,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 
 			const isImage = existing.mimeType.startsWith("image/");
 			const canBuffer = storedFile.size <= MAX_PLACEHOLDER_DOWNLOAD_BYTES;
-			const hasServerHash =
-				contentHash !== null && (await repo.hasUploadAttempt(existing.storageKey));
+			const hasServerHash = contentHash !== null && streamed;
 			if (canBuffer && (isImage || !hasServerHash)) {
 				const bytes = await consumeDownload(storedFile);
 				contentHash = bytes.byteLength > 0 ? await computeContentHash(bytes) : null;
@@ -251,6 +267,14 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 			}
 		}
 
+		if (emdash.storage && storageKey !== existing.storageKey) {
+			if (!(await repo.publishPendingStorageKey(id, existing.storageKey, storageKey))) {
+				await removeUploadAttempt(emdash.storage, repo, storageKey);
+				return await confirmationConflict(repo, id);
+			}
+			await retireSignedUploadKey(emdash.storage, repo, id, existing.storageKey);
+		}
+
 		// Confirm the upload
 		const item = await repo.confirmUpload(
 			id,
@@ -262,7 +286,7 @@ export const POST: APIRoute = async ({ params, request, locals }) => {
 				dominantColor,
 				contentHash,
 			},
-			existing.storageKey,
+			storageKey,
 		);
 
 		if (!item) {

@@ -79,7 +79,8 @@ const { entries, nextCursor, cacheHint } = await getEmDashCollection("posts", {
 	cursor,
 	orderBy: { published_at: "desc" },
 });
-const { entry: post, cacheHint: entryCacheHint } = await getEmDashEntry("posts", slug);
+const { entry: post, cacheHint: entryCacheHint, error } = await getEmDashEntry("posts", slug);
+if (error) throw error;
 
 // Site features
 import {

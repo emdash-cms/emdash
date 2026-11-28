@@ -25,6 +25,10 @@ import { BlockMenu } from "./BlockMenu";
 interface DragHandleWrapperProps {
 	editor: Editor;
 	onInsertBlock: (insertPos: number) => void;
+	/** Read-only stops native editing but not the menu's commands, so the menu closes. */
+	editable?: boolean;
+	/** Starts an editorial comment on the selected block, from the block menu. */
+	onComment?: () => void;
 }
 
 interface HoveredNode {
@@ -75,7 +79,12 @@ function firstLineOffset(block: HTMLElement): number {
 /**
  * DragHandleWrapper - Official TipTap drag handle with BlockMenu integration
  */
-export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperProps) {
+export function DragHandleWrapper({
+	editor,
+	onInsertBlock,
+	editable = true,
+	onComment,
+}: DragHandleWrapperProps) {
 	const { i18n, t } = useLingui();
 	const direction = getLocaleDir(i18n.locale);
 	const [hoveredNode, setHoveredNode] = React.useState<HoveredNode | null>(null);
@@ -130,7 +139,7 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 			e.preventDefault();
 			e.stopPropagation();
 
-			if (!hoveredNode) return;
+			if (!hoveredNode || !editable) return;
 
 			// Select the block, and let the arrow keys move between blocks from there
 			editor.chain().setNodeSelection(hoveredNode.pos).run();
@@ -143,8 +152,10 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 			// Lock the drag handle so it stays visible while menu is open
 			editor.commands.setMeta("lockDragHandle", true);
 		},
-		[editor, hoveredNode],
+		[editor, hoveredNode, editable],
 	);
+
+	if (!editable && menuOpen) setMenuOpen(false);
 
 	const handleInsertClick = React.useCallback(
 		(e: React.MouseEvent) => {
@@ -307,6 +318,7 @@ export function DragHandleWrapper({ editor, onInsertBlock }: DragHandleWrapperPr
 				isOpen={menuOpen}
 				onClose={handleCloseMenu}
 				onCloseComplete={handleMenuCloseComplete}
+				onComment={onComment}
 			/>
 		</>
 	);

@@ -68,6 +68,13 @@ export interface TransferOperation {
 
 export type PortableDomainBlocker =
 	| { code: "table_not_empty"; table: string }
+	| {
+			code: "collection_deletion_unfinished";
+			id: string;
+			slug: string;
+			state: "failed";
+			phase: string;
+	  }
 	| { code: "collection_not_seeded"; id: string; slug: string }
 	| { code: "block_type_not_seeded"; id: string; slug: string }
 	| { code: "collection_has_entries"; id: string; slug: string }

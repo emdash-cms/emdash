@@ -5,12 +5,12 @@ import SearchPagination from "../components/search/SearchPagination.astro";
 import StatePanel from "../components/StatePanel.astro";
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { searchCatalog, withLatestReleases } from "../lib/catalog.js";
+import { catalogPage } from "../lib/discovery.js";
 import {
 	isRegistryRequestRejected,
 	REGISTRY_PAGE_CACHE,
 } from "../lib/registry.js";
 import {
-	PAGE_SIZE,
 	parsePage,
 	refineKeywords,
 	resultSummary,
@@ -24,15 +24,16 @@ const result = await searchCatalog(query);
 const hasError =
 	"error" in result && !(query && isRegistryRequestRejected(result.error));
 const packages = "packages" in result ? result.packages : [];
-const pageCount = Math.max(1, Math.ceil(packages.length / PAGE_SIZE));
-const page = Math.min(requestedPage ?? 1, pageCount);
+const { items, page, pageCount } = catalogPage(
+	packages,
+	query,
+	requestedPage ?? 1,
+);
 if (!hasError && page !== requestedPage) {
 	return Astro.redirect(searchHref(query, page));
 }
 
-const entries = await withLatestReleases(
-	packages.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE),
-);
+const entries = await withLatestReleases(items);
 if (hasError) {
 	Astro.response.status = 503;
 	Astro.response.headers.set("Retry-After", "30");

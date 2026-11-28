@@ -46,9 +46,17 @@ export interface AccessConfig {
 	defaultRole?: number;
 
 	/**
-	 * Map IdP group names to EmDash role levels
+	 * Map IdP group names (or group IDs, see `matchGroupsBy`) or GitHub
+	 * org/team names to EmDash role levels
 	 */
 	roleMapping?: Record<string, number>;
+
+	/**
+	 * Which IdP group field `roleMapping` keys are compared with.
+	 * GitHub teams are always matched by `org/team` name.
+	 * @default "name"
+	 */
+	matchGroupsBy?: "name" | "id";
 }
 
 /**
@@ -80,6 +88,10 @@ export interface AccessIdentity {
 	email: string;
 	/** Groups from IdP (omitted by providers without group support) */
 	groups?: AccessGroup[];
+	/** GitHub organizations from IdP (omitted by other providers) */
+	orgs?: { id: number; name: string }[];
+	/** GitHub teams from IdP (omitted by other providers) */
+	teams?: { name: string; org_id: number }[];
 	/** Identity provider info */
 	idp: {
 		id: string;
@@ -218,10 +230,9 @@ export async function getAccessIdentity(jwt: string, teamDomain: string): Promis
  * @param config Access configuration
  * @returns Role level (e.g., 50 for Admin, 40 for Editor, 30 for Author)
  */
-export function resolveRoleFromGroups(
-	groups: AccessGroup[] | undefined,
-	config: AccessConfig,
-): number {
+export function resolveRoleFromGroups<
+	T extends Pick<AccessGroup, "name"> & Partial<Pick<AccessGroup, "id">>,
+>(groups: T[] | undefined, config: AccessConfig): number {
 	const defaultRole = config.defaultRole ?? 30; // Author
 
 	if (!config.roleMapping) {
@@ -230,7 +241,9 @@ export function resolveRoleFromGroups(
 
 	// Check each group against mapping (first match wins)
 	for (const group of groups ?? []) {
-		const role = config.roleMapping[group.name];
+		const key = config.matchGroupsBy === "id" ? group.id : group.name;
+		if (key === undefined) continue;
+		const role = config.roleMapping[key];
 		if (role !== undefined) {
 			return role;
 		}
@@ -279,8 +292,14 @@ export async function authenticate(request: Request, config: unknown): Promise<A
 	// Fetch full identity (includes groups)
 	const identity = await getAccessIdentity(jwt, accessConfig.teamDomain);
 
-	// Resolve role from groups
-	const role = resolveRoleFromGroups(identity.groups, accessConfig);
+	const orgNames = new Map(identity.orgs?.map((org) => [org.id, org.name]));
+	const teams = (identity.teams ?? []).flatMap((team) => {
+		const orgName = orgNames.get(team.org_id);
+		if (!orgName) return [];
+		const key = `${orgName}/${team.name}`;
+		return [{ id: key, name: key }];
+	});
+	const role = resolveRoleFromGroups([...(identity.groups ?? []), ...teams], accessConfig);
 
 	// Log identity for debugging
 	console.log(
@@ -288,7 +307,7 @@ export async function authenticate(request: Request, config: unknown): Promise<A
 		JSON.stringify({
 			email: identity.email,
 			name: identity.name,
-			groups: identity.groups?.map((g) => g.name),
+			groups: identity.groups?.map((g) => ({ id: g.id, name: g.name })),
 			idp: identity.idp,
 		}),
 	);

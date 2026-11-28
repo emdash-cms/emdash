@@ -9,7 +9,7 @@ import type { APIRoute } from "astro";
 import { z } from "zod";
 
 import { requirePerm } from "#api/authorize.js";
-import { handleError, requireDb, unwrapResult } from "#api/error.js";
+import { apiError, handleError, unwrapResult } from "#api/error.js";
 import { handleMenuCreate, handleMenuGet, handleMenuTranslations } from "#api/handlers/menus.js";
 import { isParseError, parseBody, parseQuery } from "#api/parse.js";
 import { localeFilterQuery } from "#api/schemas.js";
@@ -29,8 +29,9 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 	const { emdash, user } = locals;
 	const name = params.name!;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "menus:read");
 	if (denied) return denied;
@@ -40,7 +41,11 @@ export const GET: APIRoute = async ({ params, request, locals }) => {
 
 	try {
 		// Look up any menu row matching the name so we can get its translation_group.
-		const anchor = await handleMenuGet(emdash.db, name, { locale: localeQ.locale });
+		// Its items are not returned, so `includeDrafts` only skips their target lookup.
+		const anchor = await handleMenuGet(emdash.db, name, {
+			locale: localeQ.locale,
+			includeDrafts: true,
+		});
 		if (!anchor.success) return unwrapResult(anchor);
 		const result = await handleMenuTranslations(emdash.db, anchor.data.id);
 		return unwrapResult(result);
@@ -53,8 +58,9 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 	const { emdash, user } = locals;
 	const name = params.name!;
 
-	const dbErr = requireDb(emdash?.db);
-	if (dbErr) return dbErr;
+	if (!emdash?.db) {
+		return apiError("NOT_CONFIGURED", "EmDash is not initialized", 500);
+	}
 
 	const denied = requirePerm(user, "menus:manage");
 	if (denied) return denied;
@@ -68,7 +74,10 @@ export const POST: APIRoute = async ({ params, request, locals, cache }) => {
 
 		// Resolve the source menu (either by explicit locale in query, or the
 		// first matching row). Its id becomes the `translationOf` for the new row.
-		const source = await handleMenuGet(emdash.db, name, { locale: localeQ.locale });
+		const source = await handleMenuGet(emdash.db, name, {
+			locale: localeQ.locale,
+			includeDrafts: true,
+		});
 		if (!source.success) return unwrapResult(source);
 
 		const result = await handleMenuCreate(emdash.db, {

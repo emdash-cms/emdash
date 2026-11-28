@@ -15,7 +15,12 @@ import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import type { AstroIntegration, AstroIntegrationLogger, AstroIntegrationMiddleware } from "astro";
+import type {
+	AstroConfig,
+	AstroIntegration,
+	AstroIntegrationLogger,
+	AstroIntegrationMiddleware,
+} from "astro";
 
 import { getEnvSiteUrl } from "../../api/public-url.js";
 import { validateAllowedOrigins, validateOriginShape } from "../../auth/allowed-origins.js";
@@ -45,6 +50,7 @@ import { startDevSchedulerBridge } from "./dev-scheduler-bridge.js";
 import { createDebouncedTypegenRefresh, listenForDevTypegenRefresh } from "./dev-typegen.js";
 import { notoSans } from "./font-provider.js";
 import {
+	hasUserDefinedPublicRoute,
 	injectCoreRoutes,
 	injectBuiltinAuthRoutes,
 	injectAuthProviderRoutes,
@@ -150,11 +156,14 @@ export function resolveBuildTimeSiteUrl(configuredSiteUrl: string | undefined): 
  *     The components absolutize the media URL against this origin; EmDash's
  *     wrapped image endpoint then serves the bytes from storage (so the absolute
  *     URL is never fetched). Only registered when `siteUrl` is known at build.
- *  3. In `astro dev` the dev-server origin isn't known at build time, so we
- *     register a host-agnostic pattern scoped to the media route. Dev-only.
+ *  3. A host-agnostic pattern scoped to the media route, when EmDash installs
+ *     its image endpoint (`storageEndpoint`) or in `astro dev`. That endpoint
+ *     reads media keys from storage and never fetches the `href` host, so the
+ *     public origin doesn't have to be known when `astro build` runs.
  *
- * Returns an empty array when no source is statically known (production build,
- * local storage, no `siteUrl`), in which case media renders as a plain `<img>`.
+ * Returns an empty array when no source is statically known (custom or
+ * disabled image endpoint, no `publicUrl` or `siteUrl`), in which case media
+ * renders as a plain `<img>`.
  *
  * @internal Exported for unit testing.
  */
@@ -162,6 +171,7 @@ export function buildImageRemotePatterns(
 	storage: { config?: unknown } | undefined,
 	siteUrl: string | undefined,
 	command: "dev" | "build" | "preview" | "sync",
+	storageEndpoint = false,
 ): ImageRemotePattern[] {
 	const patterns: ImageRemotePattern[] = [];
 
@@ -207,7 +217,7 @@ export function buildImageRemotePatterns(
 		}
 	}
 
-	if (command === "dev") {
+	if (storageEndpoint || command === "dev") {
 		patterns.push({ pathname: `${INTERNAL_MEDIA_PREFIX}**` });
 	}
 
@@ -442,6 +452,21 @@ export function buildMiddlewareEntries(
 	return entries;
 }
 
+/** Astro 6 configures route caching under `experimental.cache`, Astro 7 under `cache`. */
+function routeCacheProviderName(config: AstroConfig): string | undefined {
+	const experimental: unknown = Reflect.get(config, "experimental");
+	const legacyCache: unknown =
+		typeof experimental === "object" && experimental !== null
+			? Reflect.get(experimental, "cache")
+			: undefined;
+	const cache: unknown = config.cache ?? legacyCache;
+	if (typeof cache !== "object" || cache === null) return undefined;
+	const provider: unknown = Reflect.get(cache, "provider");
+	if (typeof provider !== "object" || provider === null) return undefined;
+	const name: unknown = Reflect.get(provider, "name");
+	return typeof name === "string" ? name : undefined;
+}
+
 function assertNoRemovedRegistryOption(config: EmDashConfig): void {
 	const experimental: unknown = Reflect.get(config, "experimental");
 	if (
@@ -665,6 +690,10 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// Expose Astro's trailingSlash routing policy so plugins can build
 				// URLs (sitemap/canonical/hreflang) that match what the site serves.
 				serializableConfig.trailingSlash = astroConfig.trailingSlash;
+				serializableConfig.robotsTxtOverridden = hasUserDefinedPublicRoute(
+					astroConfig.srcDir,
+					"robots.txt",
+				);
 				normalizedI18n = normalizeAstroI18n(astroConfig.i18n);
 				if (normalizedI18n) serializableConfig.i18n = normalizedI18n;
 
@@ -725,15 +754,6 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 								},
 							];
 
-				// Authorize media sources so Astro's image service builds transform
-				// URLs for them (it won't optimize an un-allowed source). `updateConfig`
-				// merges arrays, so user-configured remotePatterns are preserved.
-				const imageRemotePatterns = buildImageRemotePatterns(
-					resolvedConfig.storage,
-					resolveBuildTimeSiteUrl(resolvedConfig.siteUrl),
-					command,
-				);
-
 				// Wrap Astro's image endpoint so EmDash media bytes load straight from
 				// storage (Access-safe) instead of over HTTP. Skip when the user opts
 				// out or has a custom endpoint we can't delegate back to.
@@ -743,6 +763,16 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 					isCloudflare: astroConfig.adapter?.name === "@astrojs/cloudflare",
 				});
 				if (imageEndpointWarning) logger.warn(imageEndpointWarning);
+
+				// Authorize media sources so Astro's image service builds transform
+				// URLs for them (it won't optimize an un-allowed source). `updateConfig`
+				// merges arrays, so user-configured remotePatterns are preserved.
+				const imageRemotePatterns = buildImageRemotePatterns(
+					resolvedConfig.storage,
+					resolveBuildTimeSiteUrl(resolvedConfig.siteUrl),
+					command,
+					imageEndpoint !== undefined,
+				);
 
 				const imageConfig: Record<string, unknown> = {};
 				if (imageRemotePatterns.length) imageConfig.remotePatterns = imageRemotePatterns;
@@ -806,6 +836,12 @@ export function emdash(config: EmDashConfig = {}): AstroIntegration {
 				// port isn't known yet here. Nothing useful to print for build.
 			},
 			"astro:config:done": async ({ config: finalConfig, logger }) => {
+				const cookie = finalConfig.session ? finalConfig.session.cookie : undefined;
+				serializableConfig.sessionCookieName =
+					typeof cookie === "string"
+						? cookie || "astro-session"
+						: (cookie?.name ?? "astro-session");
+				serializableConfig.routeCacheProvider = routeCacheProviderName(finalConfig);
 				const warning = missingReactIntegrationWarning(finalConfig.integrations);
 				if (warning) logger.warn(warning);
 				const adapterWarning = adapterVersionMismatchWarning(finalConfig.root);

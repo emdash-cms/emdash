@@ -375,6 +375,40 @@ describe("Bubble Menu", () => {
 		expect(menu).toBeTruthy();
 	});
 
+	it("hides once Comment hands focus to a draft outside the editor", async () => {
+		const draft = document.createElement("textarea");
+		document.body.append(draft);
+		const onComment = vi.fn(() => draft.focus());
+		const { editor, pm } = await renderEditor({ editorialComments: { onComment } });
+		await focusAndSelectAll(editor, pm);
+		const menu = await waitForBubbleMenu();
+
+		await userEvent.click(menu.querySelector<HTMLElement>('[aria-label="Comment"]')!);
+
+		expect(onComment).toHaveBeenCalledOnce();
+		expect(document.activeElement).toBe(draft);
+		await vi.waitFor(() => expect(getBubbleMenu()).toBeNull(), { timeout: 3000 });
+		draft.remove();
+	});
+
+	it("offers only Comment on a selection in a read-only editor", async () => {
+		const onComment = vi.fn();
+		const { editor, pm } = await renderEditor({
+			editable: false,
+			editorialComments: { onComment },
+		});
+		await focusAndSelectAll(editor, pm);
+		const menu = await waitForBubbleMenu();
+
+		expect(menu.getAttribute("aria-label")).toBe("Selection actions");
+		const buttons = [...menu.querySelectorAll<HTMLElement>("button")];
+		expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual(["Comment"]);
+		await userEvent.click(buttons[0]!);
+
+		expect(onComment).toHaveBeenCalledOnce();
+		expect(editor.state.doc.textContent).toBe("Hello world");
+	});
+
 	it("is a toolbar whose buttons the arrow keys move between", async () => {
 		const { editor, pm } = await renderEditor();
 		await focusAndSelectAll(editor, pm);

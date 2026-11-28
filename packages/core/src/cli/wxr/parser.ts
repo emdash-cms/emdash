@@ -326,8 +326,8 @@ export interface WxrNavMenuItem {
 	menuId: number;
 	parentId?: number;
 	sortOrder: number;
-	type: "custom" | "post_type" | "taxonomy";
-	objectType?: string; // 'page', 'post', 'category'
+	type: "custom" | "post_type" | "post_type_archive" | "taxonomy";
+	objectType?: string; // 'page', 'post', 'category'; a post type archive's post type
 	objectId?: number;
 	url?: string;
 	title: string;
@@ -424,7 +424,7 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 		// Track nav_menu_item posts for post-processing
 		const navMenuItemPosts: WxrPost[] = [];
 		// Track menu term IDs by slug for linking items to menus
-		const menuTermsBySlug = new Map<string, number>();
+		const menuTermsBySlug = new Map<string, WxrTerm>();
 
 		parser.on("opentag", (node) => {
 			const tagName = node.name.toLowerCase();
@@ -739,7 +739,7 @@ export function parseWxr(stream: Readable): Promise<WxrData> {
 							data.terms.push(currentTerm);
 							// Track nav_menu terms for building menus
 							if (currentTerm.taxonomy === "nav_menu") {
-								menuTermsBySlug.set(currentTerm.slug, currentTerm.id);
+								menuTermsBySlug.set(currentTerm.slug, currentTerm);
 							}
 						}
 						currentTerm = null;
@@ -803,7 +803,7 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 		// Track nav_menu_item posts for post-processing
 		const navMenuItemPosts: WxrPost[] = [];
 		// Track menu term IDs by slug for linking items to menus
-		const menuTermsBySlug = new Map<string, number>();
+		const menuTermsBySlug = new Map<string, WxrTerm>();
 
 		parser.onopentag = (node) => {
 			const tag = node.name.toLowerCase();
@@ -1115,7 +1115,7 @@ export function parseWxrString(xml: string): Promise<WxrData> {
 							data.terms.push(currentTerm);
 							// Track nav_menu terms for building menus
 							if (currentTerm.taxonomy === "nav_menu") {
-								menuTermsBySlug.set(currentTerm.slug, currentTerm.id);
+								menuTermsBySlug.set(currentTerm.slug, currentTerm);
 							}
 						}
 						currentTerm = null;
@@ -1147,7 +1147,7 @@ export function parseWxrString(xml: string): Promise<WxrData> {
  */
 function buildNavMenus(
 	navMenuItemPosts: WxrPost[],
-	menuTermsBySlug: Map<string, number>,
+	menuTermsBySlug: Map<string, WxrTerm>,
 ): WxrNavMenu[] {
 	// Group menu items by menu slug
 	const menuItemsByMenu = new Map<string, WxrPost[]>();
@@ -1169,14 +1169,17 @@ function buildNavMenus(
 	const menus: WxrNavMenu[] = [];
 
 	for (const [menuSlug, posts] of menuItemsByMenu) {
-		const menuId = menuTermsBySlug.get(menuSlug) || 0;
+		const menuTerm = menuTermsBySlug.get(menuSlug);
+		const menuId = menuTerm?.id || 0;
 
 		// Convert posts to menu items
 		const items: WxrNavMenuItem[] = posts.map((post) => {
 			const meta = post.meta;
 			const menuItemTypeRaw = meta.get("_menu_item_type") || "custom";
 			const menuItemType: WxrNavMenuItem["type"] =
-				menuItemTypeRaw === "post_type" || menuItemTypeRaw === "taxonomy"
+				menuItemTypeRaw === "post_type" ||
+				menuItemTypeRaw === "post_type_archive" ||
+				menuItemTypeRaw === "taxonomy"
 					? menuItemTypeRaw
 					: "custom";
 			const objectType = meta.get("_menu_item_object");
@@ -1217,13 +1220,12 @@ function buildNavMenus(
 		// Sort items by menu_order
 		items.sort((a, b) => a.sortOrder - b.sortOrder);
 
-		// Find the menu name from the terms
-		// For now, use the slug as both name and label; we could enhance this
-		// by looking up the actual term name from data.terms
+		// The menu keeps its slug as its name; the label is the name WordPress
+		// shows, from the menu's `nav_menu` term.
 		menus.push({
 			id: menuId,
 			name: menuSlug,
-			label: menuSlug, // Will be enhanced when we have term data
+			label: menuTerm?.name || menuSlug,
 			items,
 		});
 	}

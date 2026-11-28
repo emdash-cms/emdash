@@ -41,6 +41,11 @@ export interface MagicLinkConfig {
 	emailStrings?: MagicLinkEmailStrings;
 	/** Optional BCP 47 locale of the copy; sets lang/dir on the email HTML for RTL. */
 	emailLocale?: string;
+	/**
+	 * Wait 100-250 ms before resolving when nothing is sent. Defaults to true.
+	 * Set to false when the call runs after the response has been sent.
+	 */
+	delayWhenUnsent?: boolean;
 }
 
 /**
@@ -71,7 +76,7 @@ export async function sendMagicLink(
 	const user = await adapter.getUserByEmail(email);
 	if (!user) {
 		// Don't reveal whether user exists - add delay to match successful path timing
-		await timingDelay();
+		if (config.delayWhenUnsent !== false) await timingDelay();
 		return;
 	}
 

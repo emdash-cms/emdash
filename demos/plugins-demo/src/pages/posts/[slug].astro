@@ -11,9 +11,10 @@ import { embedComponents } from "@emdash-cms/plugin-embeds/astro";
 
 const slug = decodeSlug(Astro.params.slug);
 
-const { entry: post } = slug
+const { entry: post, error } = slug
 	? await getEmDashEntry("posts", slug)
-	: { entry: null };
+	: { entry: null, error: undefined };
+if (error) throw error;
 
 if (!post) {
 	return Astro.rewrite("/404");

@@ -9,6 +9,7 @@ export {
 	API_BASE,
 	ApiResponseError,
 	apiFetch,
+	isListConflict,
 	isTerminalRequestError,
 	parseApiResponse,
 	throwResponseError,
@@ -55,6 +56,7 @@ export {
 	discardDraft,
 	compareRevisions,
 	fetchRevisions,
+	fetchRevisionEditors,
 	fetchRevision,
 	restoreRevision,
 } from "./content.js";
@@ -460,3 +462,22 @@ export {
 	releaseEntryLock,
 	entryLockRefusal,
 } from "./entry-lock.js";
+
+// Editorial comment threads
+export {
+	type EditorialAnchorUpdate,
+	type EditorialComment,
+	type EditorialEntry,
+	type EditorialPerson,
+	type EditorialThread,
+	type EditorialThreadStatus,
+	createEditorialThread,
+	deleteEditorialComment,
+	deleteEditorialThread,
+	editEditorialComment,
+	fetchEditorialMentionable,
+	fetchEditorialThreads,
+	replyToEditorialThread,
+	setEditorialThreadStatus,
+	updateEditorialAnchors,
+} from "./editorial-threads.js";

@@ -5,13 +5,12 @@ import {
 	Input,
 	Label,
 	LayerCard,
-	LayerDialog,
 	LinkButton,
 	Loader,
 	Select,
 	Text,
 } from "@cloudflare/kumo";
-import { useLingui } from "@lingui/react/macro";
+import { Trans, useLingui } from "@lingui/react/macro";
 import {
 	ArrowSquareOut,
 	CalendarDots,
@@ -19,28 +18,33 @@ import {
 	CalendarX,
 	CaretDown,
 	Eye,
-	EyeSlash,
+	GlobeSimple,
+	GlobeSimpleX,
 	Trash,
-	Upload,
 	X,
 } from "@phosphor-icons/react";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import type { Editor } from "@tiptap/react";
 import * as React from "react";
 import { flushSync } from "react-dom";
 
 import { EMPTY_LIST_LAYOUT, type ListLayout } from "../lib/admin-layout.js";
-import type {
-	AdminManifest,
-	BylineCreditInput,
-	BylineSummary,
-	ContentItem,
-	ContentSeoInput,
-	TranslationSummary,
-	UserListItem,
+import {
+	fetchRevisionEditors,
+	type AdminManifest,
+	type BylineCreditInput,
+	type BylineSummary,
+	type ContentItem,
+	type ContentSeoInput,
+	type TranslationSummary,
+	type UserListItem,
 } from "../lib/api";
+import { useRoomOperations } from "../lib/co-editing/operations.js";
+import type { RoomEditing } from "../lib/co-editing/types.js";
 import {
 	ContentEditorPanelBoundary,
+	type ContentEditorDraft,
 	useVisibleContentEditorPanels,
 } from "../lib/content-editor-panels.js";
 import {
@@ -59,6 +63,7 @@ import { cn, isolate } from "../lib/utils.js";
 import { getLocaleLabel } from "../locales/config.js";
 import { BylineCreditsEditor } from "./BylineCreditsEditor.js";
 import type { BylineFormValues } from "./BylineFormDialog.js";
+import { SyncStatus, type SyncProblem } from "./co-editing/SyncStatus.js";
 import { ConfirmDialog } from "./ConfirmDialog.js";
 import type { CurrentUserInfo } from "./ContentEditor.js";
 import { ContentSettingsSection, ContentSettingsSections } from "./ContentSettingsSections.js";
@@ -70,8 +75,10 @@ import { ImageDetailPanel } from "./editor/ImageDetailPanel";
 import type { ImageAttributes } from "./editor/ImageDetailPanel";
 import { HelpTooltip } from "./FieldHelpLabel.js";
 import type { BlockSidebarPanel } from "./PortableTextEditor";
+import { FieldPresence } from "./presence/FieldPresence.js";
 import { PublicationDateDialog } from "./PublishingDateTimeEditor.js";
 import { RevisionHistory } from "./RevisionHistory";
+import { useRevisionFormat } from "./revisions/revision-format.js";
 import { useRevisionViewContext } from "./revisions/revision-view-context.js";
 import { SandboxedContentEditorPanel } from "./SandboxedContentEditorPanel.js";
 import type {
@@ -79,7 +86,7 @@ import type {
 	EditorDraftResponse,
 } from "./SandboxedContentEditorPanel.js";
 import { SaveButton } from "./SaveButton";
-import { SeoPanel } from "./SeoPanel";
+import { SeoPanel, type SeoTextBridge } from "./SeoPanel";
 import { declaredLabelTranslator } from "./Sidebar.js";
 import { TaxonomySidebar, useHasApplicableTaxonomies } from "./TaxonomySidebar";
 import { TranslationsPanel } from "./TranslationsPanel.js";
@@ -304,50 +311,37 @@ function TimestampRow({
 
 /**
  * Secondary actions keep only their icons in narrow editor bars and fill a
- * grid cell on mobile. Distraction-free actions give up their labels first.
+ * grid cell on mobile.
  */
 export const compactBarButtonClassName =
 	"@max-2xl/editor-bar:sm:w-6.5 @max-2xl/editor-bar:justify-center @max-2xl/editor-bar:px-0 max-sm:w-full";
 export const compactBarLabelClassName = "@max-2xl/editor-bar:sr-only";
-const compactBarExtraButtonClassName =
-	"@max-[60rem]/editor-bar:sm:w-6.5 @max-[60rem]/editor-bar:justify-center @max-[60rem]/editor-bar:px-0 max-sm:w-full";
-const compactBarExtraLabelClassName = "@max-[60rem]/editor-bar:sr-only";
 
-/**
- * Discard-draft confirmation shared by the settings panel and the
- * distraction-free bar, so the copy and behavior can't drift.
- */
+/** Discard-draft confirmation for the settings panel's publishing rows. */
 export function DiscardDraftDialog({
 	onDiscard,
-	triggerVariant = "ghost",
 	triggerSize,
-	compact,
 	disabled,
 }: {
 	/** Return the request's promise to keep the confirmation open until it lands. */
 	onDiscard?: () => Promise<unknown> | void;
-	triggerVariant?: "ghost" | "outline";
 	triggerSize?: "sm";
-	/** Shows only the icon on small screens, for the editor bar. */
-	compact?: boolean;
 	disabled?: boolean;
 }) {
 	const { t } = useLingui();
 	const discard = useConfirmedRequest(onDiscard);
+	const { blocked } = useRoomOperations();
 	return (
 		<>
 			<Button
 				type="button"
-				variant={triggerVariant}
+				variant="ghost"
 				size={triggerSize}
-				disabled={disabled}
-				className={compact ? compactBarExtraButtonClassName : undefined}
+				disabled={disabled || blocked}
 				icon={<X />}
 				onClick={discard.show}
 			>
-				<span className={compact ? compactBarExtraLabelClassName : undefined}>
-					{t`Discard changes`}
-				</span>
+				{t`Discard changes`}
 			</Button>
 			<ConfirmDialog
 				{...discard.dialog}
@@ -374,6 +368,15 @@ export interface EditorActionsProps {
 	isAutosaving?: boolean;
 	/** Preserve operation blocking independently of the visual feedback state. */
 	saveDisabled?: boolean;
+	/**
+	 * Set in a co-editing room: null while there's nothing to explain, or the problem the save
+	 * button shows and explains in its place.
+	 */
+	sync?: SyncProblem | null;
+	/** The edits as plain text, for the save button's **Copy my edits**. */
+	onCopyEdits?: () => string;
+	/** Disables every action but the save button, which still explains a co-editing problem. */
+	readOnly?: boolean;
 	isLive: boolean;
 	hasPendingChanges: boolean;
 	publishingState?: ContentPublishingState;
@@ -385,9 +388,8 @@ export interface EditorActionsProps {
 	onPreview?: () => void;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
-	onMenuOpenChange?: (open: boolean) => void;
-	/** Shown before Publish, e.g. scheduling while the settings panel is hidden. */
-	beforePublish?: React.ReactNode;
+	/** Lets the publish confirmation name who edited the entry. Only for collections with revisions. */
+	revisions?: PublishRevisions;
 }
 
 export interface PreviewButtonProps {
@@ -409,6 +411,7 @@ export function PreviewButton({
 	compact,
 }: PreviewButtonProps) {
 	const { t } = useLingui();
+	const { blocked } = useRoomOperations();
 	return (
 		<Button
 			type="button"
@@ -416,7 +419,7 @@ export function PreviewButton({
 			size={size}
 			className={compact ? compactBarButtonClassName : undefined}
 			onClick={onPreview}
-			disabled={isLoadingPreview}
+			disabled={isLoadingPreview || blocked}
 			icon={isLoadingPreview ? <Loader size="sm" /> : <Eye />}
 		>
 			<span className={compact ? compactBarLabelClassName : undefined}>
@@ -424,6 +427,13 @@ export function PreviewButton({
 			</span>
 		</Button>
 	);
+}
+
+/** The entry whose revisions the publish confirmation reads. */
+export interface PublishRevisions {
+	collection: string;
+	entryId: string;
+	liveRevisionId: string | null;
 }
 
 export interface PublishActionsProps {
@@ -437,10 +447,37 @@ export interface PublishActionsProps {
 	disabled?: boolean;
 	onPublish?: () => void;
 	onUnpublish?: () => void;
-	onMenuOpenChange?: (open: boolean) => void;
 	size?: "sm";
 	/** In the editor's bar, which shortens or hides the labels when it's narrow. */
 	compact?: boolean;
+	/** Lets the confirmation name who edited the entry since its live version. */
+	revisions?: PublishRevisions;
+}
+
+/** Who edited the entry since its live version, read when the publish confirmation opens. */
+function PublishEditedBy({ collection, entryId, liveRevisionId }: PublishRevisions) {
+	const format = useRevisionFormat();
+	const query = useQuery({
+		queryKey: ["publishEditedBy", collection, entryId, liveRevisionId],
+		queryFn: ({ signal }) =>
+			fetchRevisionEditors(collection, entryId, { since: liveRevisionId, signal }),
+		staleTime: 0,
+		refetchOnMount: "always",
+	});
+	const named = query.isSuccess && query.isFetchedAfterMount ? query.data : [];
+	const people = named.length > 0 ? format.people(named) : null;
+
+	// One line tall while the list loads and after, so the dialog keeps its size when names arrive.
+	// The line takes its width from the dialog, not from its text, which the scroll area would fit.
+	return (
+		<Text variant="secondary" truncate DANGEROUS_className="min-h-lh contain-inline-size">
+			{people && (
+				<Trans>
+					Edited by <bdi>{people}</bdi>
+				</Trans>
+			)}
+		</Text>
+	);
 }
 
 export function PublishActions({
@@ -450,27 +487,17 @@ export function PublishActions({
 	hasPendingChanges,
 	publishingState,
 	isPending,
-	disabled,
+	disabled: disabledProp,
 	onPublish,
 	onUnpublish,
-	onMenuOpenChange,
 	size,
 	compact,
+	revisions,
 }: PublishActionsProps) {
 	const { t } = useLingui();
-	const [publishOpen, setPublishOpen] = React.useState(false);
-	const publishOpenRef = React.useRef(publishOpen);
-	publishOpenRef.current = publishOpen;
-	React.useEffect(
-		() => () => {
-			if (publishOpenRef.current) onMenuOpenChange?.(false);
-		},
-		[onMenuOpenChange],
-	);
-	const setConfirmationOpen = (open: boolean) => {
-		setPublishOpen(open);
-		onMenuOpenChange?.(open);
-	};
+	const { blocked } = useRoomOperations();
+	const disabled = disabledProp || blocked;
+	const [confirmation, setConfirmation] = React.useState<"publish" | "unpublish" | null>(null);
 	const itemLabel = collectionLabel ?? t`content`;
 	const state =
 		publishingState ??
@@ -478,22 +505,42 @@ export function PublishActions({
 	const hasDraftChanges = state === "published-with-changes" || state === "update-scheduled";
 
 	if (isNew) return null;
+	// The two confirmations are keyed apart so that one's double-press guard can't drop the other's first press.
 	if (state === "published") {
 		return onUnpublish ? (
-			<Button
-				type="button"
-				variant="outline"
-				size={size}
-				onClick={onUnpublish}
-				loading={isPending}
-				disabled={disabled}
-				icon={<EyeSlash />}
-				className={compact ? cn(compactBarButtonClassName, "max-sm:-order-1") : undefined}
-			>
-				<span className={compact ? compactBarLabelClassName : undefined}>
-					{t`Unpublish ${itemLabel}`}
-				</span>
-			</Button>
+			<ConfirmDialog
+				key="unpublish"
+				open={confirmation === "unpublish"}
+				onClose={() => setConfirmation(null)}
+				trigger={
+					<Button
+						type="button"
+						variant="outline"
+						size={size}
+						onClick={() => setConfirmation("unpublish")}
+						loading={isPending}
+						disabled={disabled}
+						icon={<GlobeSimpleX />}
+						className={compact ? cn(compactBarButtonClassName, "max-sm:-order-1") : undefined}
+					>
+						<span className={compact ? compactBarLabelClassName : undefined}>
+							{t`Unpublish ${itemLabel}`}
+						</span>
+					</Button>
+				}
+				undoable
+				title={t`Unpublish ${itemLabel}?`}
+				description={t`Visitors won't see it until you publish it again. It stays as a draft.`}
+				confirmLabel={t`Unpublish`}
+				pendingLabel={t`Unpublish`}
+				confirmDisabled={disabled || isPending}
+				isPending={false}
+				error={null}
+				onConfirm={() => {
+					setConfirmation(null);
+					onUnpublish();
+				}}
+			/>
 		) : null;
 	}
 	if (!onPublish) return null;
@@ -508,55 +555,55 @@ export function PublishActions({
 			: t`This content will be visible on the site immediately.`;
 
 	return (
-		<LayerDialog.Root open={publishOpen} onOpenChange={setConfirmationOpen}>
-			<LayerDialog.Trigger
-				disabled={disabled}
-				render={
-					<Button
-						type="button"
-						variant="primary"
-						size={size}
-						icon={<Upload aria-hidden="true" className={compact ? "max-sm:hidden" : undefined} />}
-						className={
-							compact
-								? "max-sm:relative max-sm:w-full max-sm:col-span-2 max-sm:-order-1 max-sm:min-w-0 max-sm:justify-center max-sm:gap-0 max-sm:px-7 max-sm:[&>span.relative]:static max-sm:[&>span.relative]:z-1 max-sm:[&>span.relative]:min-w-0"
-								: undefined
-						}
-						loading={isPending}
-						disabled={disabled}
-						aria-label={publishLabel}
-					/>
-				}
-			>
-				{compact ? (
-					<>
-						<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
-						<span className="hidden min-w-0 truncate @max-2xl/editor-bar:inline">{t`Publish`}</span>
-						<CaretDown aria-hidden="true" className="absolute end-2 size-4 sm:hidden" />
-					</>
-				) : (
-					publishLabel
-				)}
-			</LayerDialog.Trigger>
-			<LayerDialog.Content size="sm">
-				<LayerDialog.Title>{confirmationTitle}</LayerDialog.Title>
-				<LayerDialog.Description>{confirmationDescription}</LayerDialog.Description>
-				<LayerDialog.Body>{null}</LayerDialog.Body>
-				<LayerDialog.Actions dismissLabel={t`Cancel`}>
-					<LayerDialog.Action
-						loading={isPending}
-						disabled={disabled}
-						aria-label={publishLabel}
-						onClick={() => {
-							setConfirmationOpen(false);
-							onPublish();
-						}}
-					>
-						{publishLabel}
-					</LayerDialog.Action>
-				</LayerDialog.Actions>
-			</LayerDialog.Content>
-		</LayerDialog.Root>
+		<ConfirmDialog
+			key="publish"
+			open={confirmation === "publish"}
+			onClose={() => setConfirmation(null)}
+			trigger={
+				<Button
+					type="button"
+					variant="primary"
+					size={size}
+					icon={
+						<GlobeSimple aria-hidden="true" className={compact ? "max-sm:hidden" : undefined} />
+					}
+					className={
+						compact
+							? "max-sm:relative max-sm:w-full max-sm:col-span-2 max-sm:-order-1 max-sm:min-w-0 max-sm:justify-center max-sm:gap-0 max-sm:px-7 max-sm:[&>span.relative]:static max-sm:[&>span.relative]:z-1 max-sm:[&>span.relative]:min-w-0"
+							: undefined
+					}
+					loading={isPending}
+					disabled={disabled}
+					aria-label={publishLabel}
+					onClick={() => setConfirmation("publish")}
+				>
+					{compact ? (
+						<>
+							<span className="@max-2xl/editor-bar:hidden">{publishLabel}</span>
+							<span className="hidden min-w-0 truncate @max-2xl/editor-bar:inline">{t`Publish`}</span>
+							<CaretDown aria-hidden="true" className="absolute end-2 size-4 sm:hidden" />
+						</>
+					) : (
+						publishLabel
+					)}
+				</Button>
+			}
+			variant="primary"
+			undoable={!hasSchedule}
+			title={confirmationTitle}
+			description={confirmationDescription}
+			confirmLabel={publishLabel}
+			pendingLabel={publishLabel}
+			confirmDisabled={disabled || isPending}
+			isPending={false}
+			error={null}
+			onConfirm={() => {
+				setConfirmation(null);
+				onPublish();
+			}}
+		>
+			{revisions ? <PublishEditedBy {...revisions} /> : null}
+		</ConfirmDialog>
 	);
 }
 
@@ -568,7 +615,6 @@ export interface ScheduleActionsProps {
 	disabled?: boolean;
 	onOpenSchedule?: () => void;
 	onUnschedule?: () => void | Promise<void>;
-	inline?: boolean;
 }
 
 export function ScheduleActions({
@@ -576,12 +622,13 @@ export function ScheduleActions({
 	canSchedule,
 	isScheduling,
 	isUnscheduling,
-	disabled,
+	disabled: disabledProp,
 	onOpenSchedule,
 	onUnschedule,
-	inline,
 }: ScheduleActionsProps) {
 	const { t } = useLingui();
+	const { blocked } = useRoomOperations();
+	const disabled = disabledProp || blocked;
 	const hasSchedule =
 		publishingState === "scheduled" ||
 		publishingState === "update-scheduled" ||
@@ -592,20 +639,14 @@ export function ScheduleActions({
 
 	return (
 		<div
-			className={cn(
-				inline ? "contents" : "mt-3 grid gap-2",
-				!inline && (showSchedule && showRemove ? "grid-cols-2" : "grid-cols-1"),
-			)}
+			className={cn("mt-3 grid gap-2", showSchedule && showRemove ? "grid-cols-2" : "grid-cols-1")}
 		>
 			{showSchedule ? (
 				<Button
 					type="button"
 					variant="outline"
 					size="sm"
-					className={cn(
-						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
-						inline ? compactBarExtraButtonClassName : "w-full",
-					)}
+					className="w-full min-w-0 justify-center overflow-hidden whitespace-nowrap"
 					icon={
 						hasSchedule ? <CalendarDots aria-hidden="true" /> : <CalendarPlus aria-hidden="true" />
 					}
@@ -613,9 +654,7 @@ export function ScheduleActions({
 					disabled={disabled || isUnscheduling}
 					onClick={onOpenSchedule}
 				>
-					<span className={inline ? compactBarExtraLabelClassName : undefined}>
-						{hasSchedule ? t`Change schedule` : t`Schedule`}
-					</span>
+					{hasSchedule ? t`Change schedule` : t`Schedule`}
 				</Button>
 			) : null}
 			{showRemove ? (
@@ -623,18 +662,13 @@ export function ScheduleActions({
 					type="button"
 					variant="secondary-destructive"
 					size="sm"
-					className={cn(
-						"min-w-0 justify-center overflow-hidden whitespace-nowrap",
-						inline ? compactBarExtraButtonClassName : "w-full",
-					)}
+					className="w-full min-w-0 justify-center overflow-hidden whitespace-nowrap"
 					icon={<CalendarX aria-hidden="true" />}
 					loading={isUnscheduling}
 					disabled={disabled || isScheduling}
 					onClick={() => void Promise.resolve(onUnschedule?.()).catch(() => undefined)}
 				>
-					<span
-						className={inline ? compactBarExtraLabelClassName : undefined}
-					>{t`Remove schedule`}</span>
+					{t`Remove schedule`}
 				</Button>
 			) : null}
 		</div>
@@ -659,6 +693,9 @@ export function EditorActions({
 	onSaveControlRemoved,
 	isAutosaving,
 	saveDisabled,
+	sync,
+	onCopyEdits,
+	readOnly,
 	isLive,
 	hasPendingChanges,
 	publishingState,
@@ -670,14 +707,13 @@ export function EditorActions({
 	onPreview,
 	onPublish,
 	onUnpublish,
-	onMenuOpenChange,
-	beforePublish,
+	revisions,
 }: EditorActionsProps) {
 	const { t } = useLingui();
 	const busy = isSaving || Boolean(isAutosaving);
 	const savesFirstDraft = isNew && supportsDrafts;
-	const saveVariant = isNew ? "primary" : "secondary";
-	const showSave = isDirty || busy;
+	// In a room the button stays, as the room's status. Elsewhere it shows only with something to save.
+	const showSave = sync !== undefined || isDirty || busy;
 	const saveHadFocus = React.useRef(false);
 	React.useLayoutEffect(() => {
 		if (!showSave && saveHadFocus.current) {
@@ -686,73 +722,83 @@ export function EditorActions({
 			if (!active || active === document.body) onSaveControlRemoved?.();
 		}
 	}, [showSave, onSaveControlRemoved]);
+	const saveVariant = (!isDirty && !busy) || sync ? "ghost" : isNew ? "primary" : "secondary";
+	const saveButton = (
+		<SaveButton
+			announce={false}
+			onFocus={() => {
+				saveHadFocus.current = true;
+			}}
+			onBlur={(event) => {
+				if (event.relatedTarget) saveHadFocus.current = false;
+			}}
+			type={sync ? "button" : "submit"}
+			size="sm"
+			variant={saveVariant}
+			className={cn(
+				"min-w-0 max-sm:w-full",
+				!savesFirstDraft && compactBarButtonClassName,
+				isNew && "max-sm:col-span-2",
+				!showMobileSave && sync === undefined && "max-sm:hidden",
+			)}
+			labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
+			isDirty={isDirty}
+			isSaving={busy}
+			sync={sync === undefined ? undefined : (sync?.kind ?? null)}
+			disabled={sync ? undefined : saveDisabled}
+			saveLabel={savesFirstDraft ? t`Save draft` : undefined}
+		/>
+	);
 
 	return (
 		<div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 max-sm:contents">
-			{showSave && (
-				<SaveButton
-					announce={false}
-					onFocus={() => {
-						saveHadFocus.current = true;
-					}}
-					onBlur={(event) => {
-						if (event.relatedTarget) saveHadFocus.current = false;
-					}}
-					type="submit"
-					size="sm"
-					variant={saveVariant}
-					className={cn(
-						"min-w-0 max-sm:w-full",
-						!savesFirstDraft && compactBarButtonClassName,
-						isNew && "max-sm:col-span-2",
-						!showMobileSave && "max-sm:hidden",
-					)}
-					labelClassName={savesFirstDraft ? undefined : "@max-2xl/editor-bar:hidden"}
-					isDirty={isDirty}
-					isSaving={busy}
-					disabled={saveDisabled}
-					saveLabel={savesFirstDraft ? t`Save draft` : undefined}
-				/>
+			{sync !== undefined ? (
+				<SyncStatus problem={sync} readOnly={readOnly} onCopyEdits={onCopyEdits}>
+					{saveButton}
+				</SyncStatus>
+			) : (
+				showSave && saveButton
 			)}
-			{liveViewUrl && (
-				<LinkButton
-					href={liveViewUrl}
-					external
-					variant="ghost"
-					size="sm"
-					className={compactBarButtonClassName}
-					icon={<ArrowSquareOut />}
-				>
-					<span className={compactBarLabelClassName}>{t`Live View`}</span>
-				</LinkButton>
-			)}
-			{!isNew && supportsPreview && (
-				<PreviewButton
-					size="sm"
-					variant="ghost"
-					compact
-					hasPendingChanges={hasPendingChanges}
-					isLoadingPreview={isLoadingPreview}
-					onPreview={onPreview}
-				/>
-			)}
-			{beforePublish}
-			{!isNew && (
-				<PublishActions
-					collectionLabel={collectionLabel}
-					isNew={isNew}
-					isLive={isLive}
-					hasPendingChanges={hasPendingChanges}
-					publishingState={publishingState}
-					isPending={publishingPending}
-					disabled={publishDisabled}
-					onPublish={onPublish}
-					onUnpublish={onUnpublish}
-					onMenuOpenChange={onMenuOpenChange}
-					size="sm"
-					compact
-				/>
-			)}
+			<fieldset disabled={readOnly} className="contents">
+				{liveViewUrl && (
+					<LinkButton
+						href={liveViewUrl}
+						external
+						variant="ghost"
+						size="sm"
+						className={compactBarButtonClassName}
+						icon={<ArrowSquareOut />}
+					>
+						<span className={compactBarLabelClassName}>{t`Live View`}</span>
+					</LinkButton>
+				)}
+				{!isNew && supportsPreview && (
+					<PreviewButton
+						size="sm"
+						variant="ghost"
+						compact
+						hasPendingChanges={hasPendingChanges}
+						isLoadingPreview={isLoadingPreview}
+						onPreview={onPreview}
+					/>
+				)}
+				{!isNew && (
+					<PublishActions
+						collectionLabel={collectionLabel}
+						isNew={isNew}
+						isLive={isLive}
+						hasPendingChanges={hasPendingChanges}
+						publishingState={publishingState}
+						isPending={publishingPending}
+						disabled={publishDisabled}
+						onPublish={onPublish}
+						onUnpublish={onUnpublish}
+						size="sm"
+						compact
+						revisions={revisions}
+					/>
+				)}
+			</fieldset>
 		</div>
 	);
 }
@@ -800,7 +846,9 @@ export interface ContentSettingsPanelProps {
 	translations?: TranslationSummary[];
 	onTranslate?: (locale: string) => void;
 	hasSeo: boolean;
-	onSeoChange?: (seo: ContentSeoInput) => void;
+	onSeoChange?: (seo: ContentSeoInput) => void | Promise<boolean>;
+	/** In a co-editing room, where the SEO panel sends only the values changed here. */
+	seoInRoom?: boolean;
 	/** portableText editor for the document outline (null when none mounted) */
 	portableTextEditor: Editor | null;
 	/** When set, the panel shows the block's detail panel instead of settings */
@@ -815,6 +863,14 @@ export interface ContentSettingsPanelProps {
 		response: EditorDraftResponse,
 	) => void;
 	onEntryRefresh?: () => void | Promise<void>;
+	/** Passed to every trusted editor panel; one per entry. */
+	editorDraft?: ContentEditorDraft;
+	/** The editor's copy of the SEO title and description, which outlives SeoPanel; one per entry. */
+	seoTextBridge?: SeoTextBridge;
+	/** In a room, the latest checkpoint's `_rev`, which sandboxed panels load again on. */
+	roomRevision?: string | null;
+	/** The entry's room, which shows who else is in the slug. */
+	room?: RoomEditing | null;
 }
 
 /**
@@ -865,6 +921,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	onTranslate,
 	hasSeo,
 	onSeoChange,
+	seoInRoom = false,
 	portableTextEditor,
 	blockSidebarPanel,
 	onBlockSidebarClose,
@@ -872,6 +929,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	captureEditorDraft,
 	onEditorDraftResponse,
 	onEntryRefresh,
+	editorDraft,
+	seoTextBridge,
+	roomRevision,
+	room = null,
 }: ContentSettingsPanelProps) {
 	const { t, i18n: lingui } = useLingui();
 	const navigate = useNavigate();
@@ -898,14 +959,15 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 	const panelContext = React.useMemo(
 		() =>
 			!isNew && item
-				? { collection, entry: item, locale: item.locale ?? entryLocale ?? undefined }
+				? { collection, entry: item, locale: item.locale ?? entryLocale ?? undefined, editorDraft }
 				: null,
-		[collection, entryLocale, isNew, item],
+		[collection, editorDraft, entryLocale, isNew, item],
 	);
 	const visibleTrustedPanels = useVisibleContentEditorPanels(trustedPanelCandidates, panelContext);
 
 	const [datesOpen, setDatesOpen] = React.useState(false);
 	const trash = useConfirmedRequest(onDelete);
+	const { blocked: operationsBlocked } = useRoomOperations();
 	const showDiscard = !isNew && supportsDrafts && hasPendingChanges && !!onDiscardDraft;
 	const activeEntryLocale = item?.locale ?? entryLocale ?? undefined;
 	const resolvedPublishingState =
@@ -952,6 +1014,17 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 		) : null;
 	}
 
+	const slugInput = (
+		<Input
+			dir="ltr"
+			label={t`Slug`}
+			data-settings-field="slug"
+			value={slug}
+			onChange={(event) => onSlugChange(event.target.value)}
+			placeholder="my-post-slug"
+		/>
+	);
+
 	return (
 		// The Kumo Sidebar wrapper sets `whitespace-nowrap` for its collapse
 		// animation, which would stop long field descriptions from wrapping.
@@ -991,7 +1064,10 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 											{item.publishedAt ? (
 												<dl>
 													{canUpdatePublishedDate && onPublishedAtChange ? (
-														<div>
+														<div
+															data-emdash-outside="publishedAt"
+															data-settings-field="publishedAt"
+														>
 															<dt className="sr-only">{t`Publication date`}</dt>
 															<dd>
 																<PublicationDateDialog
@@ -1089,13 +1165,14 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							{t`URL & language`}
 						</Text>
 						<div className="grid gap-4">
-							<Input
-								dir="ltr"
-								label={t`Slug`}
-								value={slug}
-								onChange={(event) => onSlugChange(event.target.value)}
-								placeholder="my-post-slug"
-							/>
+							{room ? (
+								<div data-co-editing-field="slug" className="relative">
+									{slugInput}
+									<FieldPresence room={room} field="slug" />
+								</div>
+							) : (
+								slugInput
+							)}
 							{contentLocale ? (
 								<div className="flex items-center justify-between gap-3">
 									<div className="flex items-center gap-1.5">
@@ -1123,18 +1200,20 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 								{t`Ownership`}
 							</Text>
-							<AuthorSelector
-								authorId={item?.authorId || null}
-								users={users}
-								onChange={onAuthorChange}
-							/>
+							<div data-emdash-outside="author">
+								<AuthorSelector
+									authorId={item?.authorId || null}
+									users={users}
+									onChange={onAuthorChange}
+								/>
+							</div>
 						</div>
 					</ContentSettingsSection>
 				)}
 
 				{currentUser && currentUser.role >= ROLE_EDITOR && (
 					<ContentSettingsSection id="bylines">
-						<div className="p-4">
+						<div className="p-4" data-emdash-outside="bylines">
 							<div className="mb-4 flex items-center gap-1.5 pe-10">
 								<Text as="h3" DANGEROUS_className="font-semibold">
 									{t`Bylines`}
@@ -1188,20 +1267,22 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 
 				{item && hasApplicableTaxonomies && (
 					<ContentSettingsSection id="taxonomies">
-						<TaxonomySidebar
-							className="p-4"
-							collection={collection}
-							entryId={item.id}
-							entryLocale={activeEntryLocale}
-							defaultLocale={i18n?.defaultLocale}
-							canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
-						/>
+						<div data-emdash-outside="terms">
+							<TaxonomySidebar
+								className="p-4"
+								collection={collection}
+								entryId={item.id}
+								entryLocale={activeEntryLocale}
+								defaultLocale={i18n?.defaultLocale}
+								canManageTaxonomies={(currentUser?.role ?? 0) >= ROLE_EDITOR}
+							/>
+						</div>
 					</ContentSettingsSection>
 				)}
 
 				{hasSeo && !isNew && onSeoChange && (
 					<ContentSettingsSection id="seo">
-						<div className="p-4">
+						<div className="p-4" data-emdash-outside="seo">
 							<Text as="h3" DANGEROUS_className="mb-4 font-semibold">
 								{t`SEO`}
 							</Text>
@@ -1209,6 +1290,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								contentKey={item?.id ?? `new:${collection}`}
 								seo={item?.seo}
 								onChange={onSeoChange}
+								inRoom={seoInRoom}
 								defaultTitle={
 									item
 										? getSeoFallbackTitle(item.data, manifest?.collections[collection]?.titleField)
@@ -1217,6 +1299,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 								defaultDescription={
 									typeof item?.data?.excerpt === "string" ? item.data.excerpt : null
 								}
+								textBridge={seoTextBridge}
 							/>
 						</div>
 					</ContentSettingsSection>
@@ -1244,7 +1327,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												collection={collection}
 												entryId={item.id}
 												locale={item.locale ?? entryLocale}
-												versionToken={item._rev ?? item.updatedAt}
+												versionToken={roomRevision ?? item._rev ?? item.updatedAt}
 												draftAccess={extension.draft}
 												captureDraft={captureEditorDraft}
 												onDraftResponse={onEditorDraftResponse}
@@ -1275,6 +1358,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 												collection={collection}
 												entry={item}
 												locale={item.locale ?? entryLocale ?? undefined}
+												editorDraft={editorDraft}
 											/>
 										</div>
 									</ContentEditorPanelBoundary>
@@ -1324,7 +1408,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 							type="button"
 							variant="ghost"
 							className="w-full bg-kumo-danger/10 text-kumo-danger hover:bg-kumo-danger/10 hover:text-kumo-danger"
-							disabled={isDeleting}
+							disabled={isDeleting || operationsBlocked}
 							icon={isDeleting ? <Loader size="sm" /> : <Trash />}
 							onClick={trash.show}
 						>
@@ -1332,6 +1416,7 @@ export const ContentSettingsPanel = React.memo(function ContentSettingsPanel({
 						</Button>
 						<ConfirmDialog
 							{...trash.dialog}
+							undoable
 							title={t`Move to Trash?`}
 							description={t`This will move the item to trash. You can restore it later from the trash.`}
 							confirmLabel={t`Move to Trash`}

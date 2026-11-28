@@ -11,6 +11,7 @@ export {
 	type ContentAuthor,
 	handleContentGet,
 	handleContentGetIncludingTrashed,
+	handleContentGetById,
 	handleContentCreate,
 	handleContentUpdate,
 	handleContentDuplicate,

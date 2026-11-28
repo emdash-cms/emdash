@@ -1328,7 +1328,8 @@ export interface CommentAfterModerateEvent {
 
 /**
  * Handler type for comment:beforeCreate hooks.
- * Returns modified event, or false to reject the comment.
+ * Returns modified event, or false to reject the comment. Only `authorName`,
+ * `authorEmail`, `body` and `metadata` are taken from a returned event.
  */
 export type CommentBeforeCreateHandler = (
 	event: CommentBeforeCreateEvent,
@@ -1432,12 +1433,20 @@ export interface ContentHookEvent {
 	 * Absent on updates and on creates that start a new translation group.
 	 */
 	translationOf?: string;
+	/**
+	 * Users whose edits this save holds, latest first. An ordinary save lists
+	 * only its actor. A hook that checks the actor's role before accepting
+	 * content must check everyone here. Absent when the save names no editors,
+	 * such as an internal write without an authenticated user.
+	 */
+	editedBy?: readonly string[];
 }
 
-/** Locale details a save passes to its `content:beforeSave` and `content:afterSave` hooks. */
+/** Details a save passes to its `content:beforeSave` and `content:afterSave` hooks. */
 export interface ContentSaveHookDetails {
 	locale?: string;
 	translationOf?: string;
+	editedBy?: readonly string[];
 }
 
 /**
