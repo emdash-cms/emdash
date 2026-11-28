@@ -84,6 +84,9 @@ function applyDateTokens(path: string, date: string | Date | null | undefined): 
  * `{month}`, `{day}`, `{hour}`, `{minute}`, `{second}` (resolved from `date`,
  * for WordPress-style permalinks like `/{year}/{month}/{day}/{slug}.html`).
  *
+ * Each segment of a multi-segment slug (`about/team`) is encoded on its own
+ * and the slashes are kept, so a slug can hold a full path.
+ *
  * Falls back to `/{collection}/{slug}` when no pattern is configured.
  * Does NOT apply any locale prefix — pass the result through
  * Astro's `getRelativeLocaleUrl` / `getAbsoluteLocaleUrl` (or the
@@ -100,7 +103,7 @@ export function interpolateUrlPattern(options: {
 	const { pattern, collection, slug, id, date } = options;
 	const basePattern = pattern ?? `/${encodeURIComponent(collection)}/{slug}`;
 	let path = basePattern
-		.replaceAll("{slug}", encodeURIComponent(slug))
+		.replaceAll("{slug}", slug.split("/").map(encodeURIComponent).join("/"))
 		.replaceAll("{id}", encodeURIComponent(id));
 	path = applyDateTokens(path, date);
 	path = path.replace(REPEATED_SLASHES, "/");
