@@ -355,6 +355,10 @@ import Base from "../layouts/Base.astro";
 </Base>
 ```
 
+Result links follow each collection's `urlPattern` by default, including date tokens and locale prefixes. For example, a pages collection with `urlPattern: "/{slug}"` links directly to `/my-page`, not `/pages/my-page`. A `routeMap` entry overrides the URL for that collection; collections without an override keep their resolved URLs. If no URL pattern is configured, links fall back to `/{collection}/{slug}` (or the entry ID when there is no slug).
+
+The public search and suggestions APIs return this resolved path in each result's optional `url` field. Use it when rendering your own search results. The field is omitted for entries whose locale is not served by the site. LiveSearch retains the legacy `/{collection}/{slug}` fallback when a response has no `url`, including responses from older EmDash versions.
+
 On an Astro i18n site, `LiveSearch` uses `Astro.currentLocale`. Pass `locale={null}` only when the page intentionally searches every locale.
 
 ## Seed reusable sections

@@ -31,6 +31,7 @@ function resolveSearchTokenizer(tokenize?: SearchTokenizer): SearchTokenizer {
 }
 
 export interface CollectionSearchMetadata {
+	urlPattern: string | null;
 	config: SearchConfig;
 	searchableFields: string[];
 	hasTitle: boolean;
@@ -467,6 +468,7 @@ export class FTSManager {
 				"c.slug",
 				"c.search_config",
 				"c.title_field",
+				"c.url_pattern",
 				// bm25 weights are positional, so use the index's physical column order.
 				sql<string>`(
 					SELECT json_group_array(name ORDER BY cid)
@@ -507,6 +509,7 @@ export class FTSManager {
 				throw new Error("Invalid FTS field metadata");
 			}
 			metadata.set(row.slug, {
+				urlPattern: row.url_pattern,
 				config,
 				searchableFields,
 				hasTitle: Boolean(row.has_title),

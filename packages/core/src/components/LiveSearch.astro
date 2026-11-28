@@ -23,7 +23,7 @@
  * ```astro
  * <LiveSearch>
  *   <span slot="no-results">Nothing found</span>
- *   <a slot="result" let:result href={`/${result.collection}/${result.slug}`}>
+ *   <a slot="result" let:result href={result.url}>
  *     {result.title}
  *   </a>
  * </LiveSearch>
@@ -67,7 +67,7 @@ export interface Props {
 	expandOnFocus?: { collapsed: string; expanded: string };
 	/** Search results page to navigate to when pressing Enter without a focused result */
 	searchPage?: string;
-	/** Per-collection URL templates, e.g. { posts: "/blog/:path" } */
+	/** Overrides for collection URL patterns, e.g. { posts: "/blog/:path" } */
 	routeMap?: Record<string, string>;
 }
 
@@ -144,7 +144,7 @@ const config = {
 		type LiveSearchRoutableResult,
 	} from "./live-search-routing.js";
 
-	interface SearchResult {
+	interface SearchResult extends LiveSearchRoutableResult {
 		collection: string;
 		id: string;
 		slug: string | null;
@@ -153,7 +153,7 @@ const config = {
 		score: number;
 	}
 
-	interface Suggestion {
+	interface Suggestion extends LiveSearchRoutableResult {
 		collection: string;
 		id: string;
 		slug?: string | null;

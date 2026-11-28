@@ -12,6 +12,7 @@ import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
 import { resolveConfiguredLocale } from "../i18n/config.js";
 import { localeMatches } from "../i18n/query.js";
+import { resolveLocalizedContentRoutePath, type ContentRoutePathOptions } from "../i18n/resolve.js";
 import { getDb } from "../loader.js";
 import { FTSManager } from "./fts-manager.js";
 import type { CollectionSearchMetadata } from "./fts-manager.js";
@@ -153,6 +154,7 @@ export async function searchWithDb(
 	// row detects whether a further page exists.
 	const perCollectionLimit = offset + limit + 1;
 
+	const trailingSlash = await getHostTrailingSlash();
 	const collectionResults = await inCollectionOrder(
 		collections.map(async (collection) => {
 			const collectionMetadata = metadata.get(collection);
@@ -169,6 +171,7 @@ export async function searchWithDb(
 				},
 				collectionMetadata,
 				true,
+				trailingSlash,
 			);
 		}),
 	);
@@ -237,6 +240,8 @@ export async function searchCollection(
 			scope: options.scope,
 		},
 		metadata,
+		false,
+		await getHostTrailingSlash(),
 	);
 
 	const items = fetched.slice(offset, offset + limit).map(toSearchResult);
@@ -275,6 +280,7 @@ async function searchSingleCollection(
 	options: CollectionSearchOptions,
 	metadata: CollectionSearchMetadata,
 	rankAcrossCollections = false,
+	trailingSlash?: ContentRoutePathOptions["trailingSlash"],
 ): Promise<RankedSearchResult[]> {
 	// Validate before any raw SQL interpolation
 	validateIdentifier(collection, "collection slug");
@@ -362,6 +368,7 @@ async function searchSingleCollection(
 		slug: string | null;
 		locale: string;
 		title: string | null;
+		published_at: string | null;
 		snippet: string | null;
 		score: number;
 		title_match_tier: number;
@@ -374,7 +381,7 @@ async function searchSingleCollection(
 		AND c.status = ${status}
 		AND c.deleted_at IS NULL
 		${locale ? sql`AND ${localeMatches("c.locale", locale)}` : sql``}`;
-	const displayFields = sql`c.id, c.slug, c.locale, ${titleExpr} AS title,
+	const displayFields = sql`c.id, c.slug, c.locale, c.published_at, ${titleExpr} AS title,
 		snippet("${sql.raw(ftsTable)}", 2, '<mark>', '</mark>', '...', 32) AS snippet`;
 	let results;
 	try {
@@ -422,23 +429,56 @@ async function searchSingleCollection(
 		throw error;
 	}
 
-	return results.rows.map((row) => ({
-		collection,
-		id: row.id,
-		slug: row.slug,
-		locale: row.locale,
-		title: row.title ?? undefined,
-		// SQLite's snippet() returns NULL when the targeted column is
-		// NULL for that row — even if the row matched via a different
-		// searchable column. Skip sanitization in that case so we don't
-		// throw on `null.replace`. The SearchResult.snippet field is
-		// already optional, so omitting it is the documented contract.
-		snippet: row.snippet === null ? undefined : sanitizeSnippet(row.snippet),
-		score: Math.abs(row.score),
-		titleMatchTier: row.title_match_tier,
-		rawScore: row.raw_score,
-		titleLength: row.title_length,
-	}));
+	return Promise.all(
+		results.rows.map(async (row) => ({
+			url: await resolveSearchResultUrl(collection, metadata, row, trailingSlash),
+			collection,
+			id: row.id,
+			slug: row.slug,
+			locale: row.locale,
+			title: row.title ?? undefined,
+			// SQLite's snippet() returns NULL when the targeted column is
+			// NULL for that row — even if the row matched via a different
+			// searchable column. Skip sanitization in that case so we don't
+			// throw on `null.replace`. The SearchResult.snippet field is
+			// already optional, so omitting it is the documented contract.
+			snippet: row.snippet === null ? undefined : sanitizeSnippet(row.snippet),
+			score: Math.abs(row.score),
+			titleMatchTier: row.title_match_tier,
+			rawScore: row.raw_score,
+			titleLength: row.title_length,
+		})),
+	);
+}
+
+async function getHostTrailingSlash(): Promise<"always" | "never" | "ignore"> {
+	try {
+		const config = (await import("virtual:emdash/config")) as {
+			default?: { trailingSlash?: "always" | "never" | "ignore" };
+		};
+		return config.default?.trailingSlash ?? "ignore";
+	} catch {
+		return "ignore";
+	}
+}
+
+async function resolveSearchResultUrl(
+	collection: string,
+	metadata: CollectionSearchMetadata,
+	row: { id: string; slug: string | null; locale: string; published_at: string | null },
+	trailingSlash?: ContentRoutePathOptions["trailingSlash"],
+): Promise<string | undefined> {
+	return (
+		(await resolveLocalizedContentRoutePath({
+			pattern: metadata.urlPattern,
+			collection,
+			id: row.id,
+			slug: row.slug ?? row.id,
+			date: row.published_at,
+			locale: row.locale,
+			trailingSlash,
+		})) ?? undefined
+	);
 }
 
 // Module-scope regexes so the engine doesn't recompile per call —
@@ -539,6 +579,7 @@ export async function getSuggestions(
 	const ftsManager = new FTSManager(db);
 	const metadata = await ftsManager.getSearchMetadata(options.collections);
 	const collections = options.collections?.length ? options.collections : [...metadata.keys()];
+	const trailingSlash = await getHostTrailingSlash();
 	const collectionSuggestions = await inCollectionOrder(
 		collections.map(async (collection): Promise<Suggestion[]> => {
 			const collectionMetadata = metadata.get(collection);
@@ -572,11 +613,15 @@ export async function getSuggestions(
 				results = await sql<{
 					id: string;
 					slug: string | null;
+					locale: string;
+					published_at: string | null;
 					title: string;
 				}>`
 				SELECT
 					c.id,
 					c.slug,
+					c.locale,
+					c.published_at,
 					${titleExpr} AS title
 				FROM "${sql.raw(ftsTable)}" f
 				JOIN "${sql.raw(contentTable)}" c ON f.id = c.id
@@ -599,12 +644,15 @@ export async function getSuggestions(
 				throw error;
 			}
 
-			return results.rows.map((row) => ({
-				collection,
-				id: row.id,
-				slug: row.slug,
-				title: row.title,
-			}));
+			return Promise.all(
+				results.rows.map(async (row) => ({
+					url: await resolveSearchResultUrl(collection, collectionMetadata, row, trailingSlash),
+					collection,
+					id: row.id,
+					slug: row.slug,
+					title: row.title,
+				})),
+			);
 		}),
 	);
 	const suggestions = collectionSuggestions.flat();

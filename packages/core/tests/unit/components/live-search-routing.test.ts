@@ -3,6 +3,30 @@ import { describe, expect, it } from "vitest";
 import { buildLiveSearchResultUrl } from "../../../src/components/live-search-routing.js";
 
 describe("buildLiveSearchResultUrl", () => {
+	it("uses a supplied URL when no route template exists", () => {
+		expect(
+			buildLiveSearchResultUrl({ collection: "pages", id: "page-1", slug: "about", url: "/about" }),
+		).toBe("/about");
+	});
+
+	it("uses a supplied URL for an unmapped collection", () => {
+		expect(
+			buildLiveSearchResultUrl(
+				{ collection: "pages", id: "page-1", slug: "about", url: "/about" },
+				{ posts: "/blog/:slug" },
+			),
+		).toBe("/about");
+	});
+
+	it("prefers an explicit route override over a supplied URL", () => {
+		expect(
+			buildLiveSearchResultUrl(
+				{ collection: "pages", id: "page-1", slug: "about", url: "/about" },
+				{ pages: "/custom/:slug" },
+			),
+		).toBe("/custom/about");
+	});
+
 	it("uses the default collection URL when no route template exists", () => {
 		expect(
 			buildLiveSearchResultUrl({
