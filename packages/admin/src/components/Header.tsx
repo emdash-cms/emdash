@@ -38,7 +38,7 @@ async function handleLogout() {
  * Admin header with mobile menu toggle and user actions.
  * Uses useSidebar() hook from kumo Sidebar.Provider context.
  */
-export function Header({ staging = false }: { staging?: boolean }) {
+export function Header({ staging = false, basePath }: { staging?: boolean; basePath?: string }) {
 	const { t } = useLingui();
 	const [userMenuOpen, setUserMenuOpen] = React.useState(false);
 
@@ -75,7 +75,13 @@ export function Header({ staging = false }: { staging?: boolean }) {
 					))}
 
 				{/* View site link */}
-				<LinkButton variant="ghost" size="sm" href="/" external aria-label={t`View Site`}>
+				<LinkButton
+					variant="ghost"
+					size="sm"
+					href={`${basePath ?? ""}/`}
+					external
+					aria-label={t`View Site`}
+				>
 					<ArrowSquareOut className="h-4 w-4 sm:me-1" aria-hidden="true" />
 					<span className="hidden sm:inline">{t`View Site`}</span>
 				</LinkButton>

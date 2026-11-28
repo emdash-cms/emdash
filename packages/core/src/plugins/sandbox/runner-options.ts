@@ -1,3 +1,4 @@
+import { getBasePath } from "../../api/public-url.js";
 import { createSiteInfo, type SiteInfoOptions } from "../context.js";
 import type { SandboxOptions } from "./types.js";
 
@@ -12,5 +13,6 @@ export function createSandboxRunnerOptions(
 	return {
 		...options,
 		siteInfo: createSiteInfo(siteInfo ?? {}),
+		basePath: getBasePath(),
 	};
 }

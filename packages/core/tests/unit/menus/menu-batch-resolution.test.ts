@@ -6,7 +6,7 @@ import type {
 	RootOperationNode,
 	UnknownRow,
 } from "kysely";
-import { afterEach, beforeEach, expect, it } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { setI18nConfig } from "../../../src/i18n/config.js";
 import { _resetAstroI18nCacheForTests } from "../../../src/i18n/resolve.js";
@@ -275,6 +275,7 @@ describeEachDialect("batched menu reference resolution", (dialect) => {
 	});
 
 	afterEach(async () => {
+		vi.unstubAllEnvs();
 		setI18nConfig(null);
 		_resetAstroI18nCacheForTests();
 		await teardownForDialect(ctx);
@@ -302,6 +303,30 @@ describeEachDialect("batched menu reference resolution", (dialect) => {
 			{ label: "Launch", url: "/fr/articles/launch-post-hidden-en/" },
 		]);
 		expect(counter.count).toBe(7);
+	});
+
+	it("puts the Astro base in front of same-site links and leaves custom URLs alone", async () => {
+		vi.stubEnv("BASE_URL", "/site/");
+		await ctx.db
+			.insertInto("_emdash_menu_items")
+			.values({
+				id: "item-custom-relative",
+				menu_id: "menu-primary-fr",
+				sort_order: 14,
+				type: "custom",
+				custom_url: "/about",
+				label: "About us",
+				locale: "fr",
+			})
+			.execute();
+		const menu = await getMenuWithDb("primary", ctx.db, { locale: "fr", trailingSlash: "always" });
+		const urls = new Map(menu?.items.map(({ label, url }) => [label, url]));
+
+		expect(urls.get("Docs")).toBe("https://example.com/docs");
+		expect(urls.get("About us")).toBe("/about");
+		expect(urls.get("Bonjour")).toBe("/site/fr/articles/bonjour-post-local-fr/");
+		expect(urls.get("All pages")).toBe("/site/page/");
+		expect(urls.get("Nouvelles")).toBe("/site/category/nouvelles");
 	});
 
 	it("loads the requested locale's menu, or its fallback, with its items in one query", async () => {

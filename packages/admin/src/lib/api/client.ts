@@ -293,6 +293,8 @@ export interface AdminManifest {
 	signupEnabled?: boolean;
 	/** Whether the site is in staging (hidden from search engines). */
 	staging?: boolean;
+	/** Astro's `base` without its trailing slash, `""` at the root. Public site links start with it. */
+	basePath?: string;
 	/** Whether this host runs co-editing rooms. When false, the editor doesn't ask to join one. */
 	coEditing?: boolean;
 	/**

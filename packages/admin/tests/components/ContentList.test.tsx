@@ -129,6 +129,18 @@ describe("ContentList", () => {
 				.toHaveAttribute("href", "/pl/posts/polski-test");
 		});
 
+		it("links published entries under the site base", async () => {
+			const items = [makeItem({ status: "published", slug: "hello", data: { title: "Hello" } })];
+			const screen = await render(
+				<ContentList {...defaultProps} items={items} urlPattern="/posts/{slug}" basePath="/blog" />,
+			);
+
+			await screen.getByRole("button", { name: "Actions for Hello" }).click();
+			await expect
+				.element(screen.getByRole("menuitem", { name: "View published" }))
+				.toHaveAttribute("href", "/blog/posts/hello");
+		});
+
 		it("falls back to data.name when title is missing", async () => {
 			const items = [makeItem({ id: "1", data: { name: "Named Item" } })];
 			const screen = await render(<ContentList {...defaultProps} items={items} />);

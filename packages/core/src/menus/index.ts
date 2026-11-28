@@ -11,6 +11,7 @@
 import type { Kysely } from "kysely";
 import { sql } from "kysely";
 
+import { getBasePath, withBase } from "../api/public-url.js";
 import { menuTag } from "../cache/chrome-tags.js";
 import type { Database } from "../database/types.js";
 import { validateIdentifier } from "../database/validate.js";
@@ -68,7 +69,9 @@ const lastResolvedNamespaces: Map<string, string[]> =
 export async function getMenu(name: string, options: MenuQueryOptions = {}): Promise<Menu | null> {
 	const locale = resolveLocale(options.locale);
 	const trailingSlash = options.trailingSlash ?? (await getHostTrailingSlash());
-	const key = `${name}:${locale ?? "*"}:${trailingSlash}`;
+	// Resolved URLs carry the base. A root site keeps its existing cache keys.
+	const base = getBasePath();
+	const key = `${name}:${locale ?? "*"}:${trailingSlash}${base ? `:${base}` : ""}`;
 	return requestCached(`menu:${key}`, async () => {
 		if (!(await isObjectCacheActive())) {
 			return getMenuWithDb(name, await getDb(), { locale, trailingSlash });
@@ -441,7 +444,7 @@ async function resolveMenuItem(
 				);
 				if (url === null) return null;
 			} else {
-				url = `/${item.reference_collection}/`;
+				url = withBase(`/${item.reference_collection}/`);
 			}
 			break;
 
@@ -586,7 +589,7 @@ async function resolveContentUrl(
 	if (!referenceGroup) return null;
 	const row = contentLookup.get(collection)?.get(referenceGroup);
 	if (!row) return null;
-	return resolveLocalizedContentRoutePath({
+	const path = await resolveLocalizedContentRoutePath({
 		pattern: urlPatterns.get(collection) ?? null,
 		collection,
 		slug: row.slug,
@@ -595,6 +598,7 @@ async function resolveContentUrl(
 		locale,
 		trailingSlash,
 	});
+	return path === null ? null : withBase(path);
 }
 
 interface TaxonomyReferenceRow {
@@ -664,5 +668,5 @@ function resolveTaxonomyUrl(
 	if (!referenceGroup) return null;
 	const taxonomy = taxonomyLookup.get(referenceGroup);
 	if (!taxonomy) return null;
-	return `/${taxonomy.name}/${taxonomy.slug}`;
+	return withBase(`/${taxonomy.name}/${taxonomy.slug}`);
 }

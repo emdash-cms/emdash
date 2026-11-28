@@ -292,6 +292,46 @@ describe("preview-url route — respects collection url_pattern", () => {
 		expect(url.startsWith("/blog/")).toBe(false);
 	});
 
+	describe("under an Astro base", () => {
+		beforeEach(() => {
+			vi.stubEnv("BASE_URL", "/site/");
+		});
+
+		it("puts the base in front of the url_pattern path", async () => {
+			await new SchemaRegistry(db).updateCollection("post", { urlPattern: "/posts/{slug}" });
+			const created = await handleContentCreate(db, "post", { data: { title: "Hello" } });
+
+			const response = await call("post", created.data!.item.id);
+			expect(response.status).toBe(200);
+			const { url } = (await response.json()).data as { url: string };
+
+			expect(url.split("?")[0]).toBe("/site/posts/hello");
+		});
+
+		it("puts the base in front of the /{collection}/{id} fallback", async () => {
+			const created = await handleContentCreate(db, "post", { data: { title: "Hello" } });
+			const id = created.data!.item.id;
+
+			const response = await call("post", id);
+			expect(response.status).toBe(200);
+			const { url } = (await response.json()).data as { url: string };
+
+			expect(url.split("?")[0]).toBe(`/site/post/${id}`);
+		});
+
+		it("returns an explicit pathPattern unchanged", async () => {
+			await new SchemaRegistry(db).updateCollection("post", { urlPattern: "/posts/{slug}" });
+			const created = await handleContentCreate(db, "post", { data: { title: "Hello" } });
+			const id = created.data!.item.id;
+
+			const response = await call("post", id, { pathPattern: "/custom/{id}" });
+			expect(response.status).toBe(200);
+			const { url } = (await response.json()).data as { url: string };
+
+			expect(url.split("?")[0]).toBe(`/custom/${id}`);
+		});
+	});
+
 	it("prefixes the locale segment for a non-default-locale entry", async () => {
 		setI18nConfig({ defaultLocale: "en", locales: ["en", "de"], prefixDefaultLocale: false });
 		_resetAstroI18nCacheForTests();

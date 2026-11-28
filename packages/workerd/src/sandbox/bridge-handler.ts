@@ -183,6 +183,7 @@ export interface BridgeHandlerOptions {
 	secretRedactor?: PluginSecretRedactor;
 	i18nConfig?: I18nConfig | null;
 	siteInfo?: SiteInfo;
+	basePath?: string;
 	db: Kysely<Database>;
 	/**
 	 * Called immediately before a content write; it throws to refuse the
@@ -1709,6 +1710,7 @@ async function contentList(
 function contentAccess(opts: BridgeHandlerOptions) {
 	return createContentAccess(opts.db, {
 		site: opts.siteInfo,
+		basePath: opts.basePath,
 		revisions: opts.capabilities.includes("content:revisions:read"),
 	});
 }

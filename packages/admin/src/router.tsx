@@ -909,6 +909,7 @@ function ContentListPage() {
 			onDuplicate={(id) => duplicateMutation.mutate(id)}
 			canDuplicate={(item) => !currentUser || canDuplicateEntry(currentUser, item)}
 			i18n={i18n}
+			basePath={manifest.basePath}
 			activeLocale={activeLocale}
 			onLocaleChange={handleLocaleChange}
 			urlPattern={collectionConfig.urlPattern}

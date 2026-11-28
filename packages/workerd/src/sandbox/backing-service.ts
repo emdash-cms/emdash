@@ -78,6 +78,7 @@ export function createBackingServiceHandler(runner: WorkerdSandboxRunner): Backi
 					settingsSchema: runner.getPluginSettingsSchema(claims.pluginId, claims.version),
 					i18nConfig: getI18nConfig(),
 					siteInfo: runner.getSiteInfo(),
+					basePath: runner.basePath,
 					db: runner.db,
 					beforeContentWrite: runner.beforeContentWrite,
 					contentCreate: runner.contentCreate ?? undefined,

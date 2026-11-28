@@ -212,12 +212,14 @@ export function LinkDestinationInput({
 					i18n: manifest?.i18n,
 					id: item.id,
 					date,
+					basePath: manifest?.basePath,
 				});
 			}
 			return contentUrl(item.collection, item.slug || item.id, urlPattern, {
 				locale: item.locale,
 				i18n: manifest?.i18n,
 				id: item.id,
+				basePath: manifest?.basePath,
 			});
 		},
 		[manifest],

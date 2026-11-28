@@ -10,6 +10,7 @@
 import type { APIRoute } from "astro";
 
 import { apiSuccess, handleError } from "#api/error.js";
+import { getBasePath } from "#api/public-url.js";
 import { resolveSiteTitle } from "#api/site-title.js";
 import { getAuthMode } from "#auth/mode.js";
 import { MediaRepository } from "#db/repositories/media.js";
@@ -142,6 +143,7 @@ export const GET: APIRoute = async ({ locals }) => {
 					siteTitle,
 					timezone: siteTimezone,
 					staging,
+					basePath: getBasePath(),
 					taxonomies: [],
 					authMode: "passkey",
 					providerManagedName,

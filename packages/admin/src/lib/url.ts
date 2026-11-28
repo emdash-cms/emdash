@@ -18,6 +18,8 @@ export interface ContentUrlOptions {
 	id?: string;
 	/** Publish date used to resolve `{year}`/`{month}`/... tokens in the pattern. */
 	date?: string | null;
+	/** Astro's `base` without its trailing slash, prepended to the whole path. */
+	basePath?: string;
 }
 
 /**
@@ -89,11 +91,11 @@ export function contentUrl(
 	let pattern = urlPattern && applyDateTokens(urlPattern, options?.date);
 	if (pattern && options?.id) pattern = pattern.replaceAll("{id}", options.id);
 	const path = pattern ? pattern.replaceAll("{slug}", safe) : `/${collection}/${safe}`;
-	const { locale, i18n } = options ?? {};
+	const { locale, i18n, basePath = "" } = options ?? {};
 	const shouldPrefix =
 		locale && i18n && (locale !== i18n.defaultLocale || i18n.prefixDefaultLocale === true);
 
-	return shouldPrefix ? `/${locale}/${path.replace(LEADING_SLASHES, "")}` : path;
+	return `${basePath}${shouldPrefix ? `/${locale}/${path.replace(LEADING_SLASHES, "")}` : path}`;
 }
 
 const SAFE_HREF_SCHEME_RE = /^(https?:|mailto:|tel:)/i;
